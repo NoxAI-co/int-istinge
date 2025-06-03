@@ -2092,7 +2092,12 @@ class CronController extends Controller
 
             if($request->x_respuesta == 'Aceptada'){
 
-                $factura = Factura::where('codigo', explode("-", $request->x_description)[1])->first();
+                if(isset(explode("-", $request->x_description)[1])){
+                    $factura = Factura::where('codigo', explode("-", $request->x_description)[1])->first();
+                }else{
+                    $factura = Factura::where('codigo', $request->x_description)->first();
+                }
+
                 if($factura->estatus == 1){
                     $empresa = Empresa::find($factura->empresa);
                     $nro = Numeracion::where('empresa', $empresa->id)->first();
@@ -2121,12 +2126,12 @@ class CronController extends Controller
                     $ingreso->save();
 
                     # REGISTRAMOS EL INGRESO_FACTURA
-                    $precio         = $this->precisionAPI($request->x_amount/100, $empresa->id);
+                    $precio         = $request->x_amount;
 
                     $items          = new IngresosFactura;
                     $items->ingreso = $ingreso->id;
                     $items->factura = $factura->id;
-                    $items->pagado  = $factura->pagado();
+                    $items->pagado  = $request->x_amount;
                     $items->pago    = $precio;
 
                     if ($precio >= $this->precisionAPI($factura->porpagarAPI($empresa->id), $empresa->id)) {
