@@ -1606,7 +1606,7 @@ public function forma_pago()
                 $diasCobrados++;
 
                 if($diasCobrados == 0){return 30;}
-                if($diasCobrados >= 28){$diasCobrados=30;}
+                if($fechaInicio->endOfMonth()->day <=28 && $diasCobrados >= 28){$diasCobrados=30;}
                 $diasCobrados=$diasCobrados;
             }
             }
