@@ -104,6 +104,10 @@ class Factura extends Model
         if($this->plazo == ""){
             $this->plazo = 30;
             $this->save();
+        }else if($this->plazo == "n"){
+            $termino = new stdClass;
+            $termino->nombre = "Vencimiento Manual";
+            return $termino;
         }
 
         return TerminosPago::where('id',$this->plazo)->first();
