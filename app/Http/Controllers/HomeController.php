@@ -40,6 +40,26 @@ class HomeController extends Controller
         view()->share(['inicio' => 'empresa', 'seccion' => 'inicio', 'title' => 'Inicio', 'icon' => 'fa fa-building', 'full' => true]);
     }
 
+    /**Add commentMore actions
+     * Show the application dashboard.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function home()
+    {
+        if (!Auth::check()) {
+            return Redirect::to('/login');
+        }
+
+        if (Auth::user()->rol == 1) {
+            return redirect('master/usuarios');
+        } else if (Auth::user()->rol == 2 || Auth::user()->rol >= 2) {
+            $this->getAllPermissions(Auth::user()->id);
+            return redirect()->route('empresa');
+        }
+        return view('welcome');
+    }
+
     /**
      * Show the application dashboard.
      *
