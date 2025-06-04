@@ -600,6 +600,8 @@
         </script>
         <!-- container-scroller -->
 
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+
         <!-- plugins:js -->
         <script src="{{asset('vendors/js/vendor.bundle.base.js')}}"></script>
         {{-- <script src="{{asset('vendors/js/vendor.bundle.addons.js')}}"></script> --}}
@@ -617,8 +619,8 @@
         <!-- Custom js for this page-->
         <script type="text/javascript" src="{{asset('vendors/validation/jquery.validate.min.js')}}"></script>
         <script type="text/javascript" src="{{asset('vendors/validation/localization/messages_es.js')}}"></script>
-        <script type="text/javascript" src="{{asset('js/jquery.mask.min.js')}}"></script>
-        <script type="text/javascript" src="{{asset('vendors/sweetalert2/sweetalert2.min.js')}}"></script>
+        <script type="text/javascript" src="{{asset('js/jquery.mask.min.js')}}"></script>        <script type="text/javascript" src="{{asset('vendors/sweetalert2/sweetalert2.min.js')}}"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
         <script type="text/javascript" src="{{asset('vendors/morris/morris.min.js')}}"></script>
         <script type="text/javascript" src="{{asset('vendors/sortable/jquery.sortable.min.js')}}"></script>
         <script type="text/javascript" src="{{asset('vendors/autocomplete/jquery.auto-complete.js')}}"></script>
