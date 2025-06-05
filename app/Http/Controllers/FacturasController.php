@@ -2413,7 +2413,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00') {
+        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -2421,7 +2421,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00') {
+        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();
@@ -3922,7 +3922,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00') {
+        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -3930,7 +3930,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00') {
+        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();
