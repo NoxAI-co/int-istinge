@@ -1617,11 +1617,8 @@ class CronController extends Controller
         $empresa = Empresa::find(1);
         $request = (object) $request->all();
         if($request->event == 'transaction.updated'){
-            $timestamp = $request->timestamp;
             $request = (object) $request->data['transaction'];
             $servicio = Integracion::where('nombre', 'WOMPI')->where('tipo', 'PASARELA')->where('lectura', 1)->first();
-
-            $hash = hash("sha256", $cadena);
 
             if($request->status == 'APPROVED'){
                 $factura = Factura::where('codigo', explode("-", $request->reference)[1])->first();
