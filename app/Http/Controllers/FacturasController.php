@@ -1176,8 +1176,8 @@ class FacturasController extends Controller{
         $factura->cliente=$request->cliente;
         $factura->tipo=$tipo;
         $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
-        $factura->vencimiento=date('Y-m-d', strtotime("+".$request->plazo." days", strtotime($request->fecha)));
-        $factura->suspension=date('Y-m-d', strtotime("+".$request->plazo." days", strtotime($request->fecha)));
+        $factura->vencimiento= Carbon::parse($request->vencimiento)->format('Y-m-d');
+        $factura->suspension= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->pago_oportuno = date('Y-m-d', strtotime("+".($request->plazo-1)." days", strtotime($request->fecha)));
         $factura->observaciones=mb_strtolower($request->observaciones);
         $factura->vendedor=$request->vendedor;
@@ -4762,8 +4762,6 @@ class FacturasController extends Controller{
                 ->with('error', 'Ocurrió un error al enviar mensajes.');
         }
     }
-
-
 
     public function facturasWhastappReiniciar(Request $request){
 
