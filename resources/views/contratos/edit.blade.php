@@ -821,12 +821,37 @@
                               </span>
                           </div>
 
+                                <div class="form-group col-md-4">
+                                    <label class="control-label">¿Crear factura con prorrateo?  <a><i data-tippy-content="Decida si crear una factura una vez el contrato se cree dependiendo del grupo de corte sobre los dias faltantes." class="icono far fa-question-circle"></i></a></label>
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                    <div class="form-radio">
+                                        <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="contrato_factura_pro" id="tipo_suspension_no1" value="1" {{old('contrato_factura_pro')==1?'checked':''}}> Si
+                                        <i class="input-helper"></i><i class="input-helper"></i></label>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-radio">
+                                        <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="contrato_factura_pro" id="tipo_suspension_no2" value="0" {{old('contrato_factura_pro')==1?'':'checked'}}> No
+                                        <i class="input-helper"></i><i class="input-helper"></i></label>
+                                    </div>
+                                </div>
+                                </div>
+                                <span class="help-block error">
+                                    <strong></strong>
+                                </span>
+                            </div>
+
                             <div class="col-md-4 form-group">
                                 <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
                                 <label class="control-label">Fecha desde no suspensión</label>
                                         <input type="date" class="form-control"  id="fecha_desde_nosuspension" value="{{$contrato->fecha_desde_nosuspension}}" name="fecha_desde_nosuspension" >
                                 </div>
                             </div>
+
+
 
                             <div class="col-md-4 form-group">
                                 <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
@@ -858,6 +883,36 @@
                               </span>
                             </div>
 
+                            <div class="form-group col-md-4">
+                                <label class="control-label">¿Cambiar de cliente el contrato?  <a><i class="icono far fa-question-circle"></i></a></label>
+                              <div class="row">
+                                  <div class="col-sm-6">
+                                  <div class="form-radio">
+                                      <label class="form-check-label">
+                                      <input type="radio" class="form-check-input" name="change_cliente" value="1"> Si
+                                      <i class="input-helper"></i><i class="input-helper"></i></label>
+                                  </div>
+                              </div>
+                              <div class="col-sm-6">
+                                  <div class="form-radio">
+                                      <label class="form-check-label">
+                                      <input type="radio" class="form-check-input" name="change_cliente" value="0"> No
+                                      <i class="input-helper"></i><i class="input-helper"></i></label>
+                                  </div>
+                              </div>
+                              </div>
+                              <span class="help-block error">
+                                  <strong></strong>
+                              </span>
+                            </div>
+
+                            <div class="form-group col-md-4 divnew_contacto d-none">
+                            <select class="form-control selectpicker" name="new_contacto_contrato" id="new_contacto_contrato" required="" title="Seleccione" data-live-search="true" data-size="5">
+                                @foreach($contactos as $contacto)
+                                    <option value="{{$contacto->id}}" {{$contrato->grupo_corte == $contacto->id ? 'selected' : ''}}>{{$contacto->nombre}}</option>
+                                @endforeach
+                            </select>
+                            </div>
 
                             <div class="form-group col-md-12">
                                 <label class="control-label">Observaciones</label>
@@ -998,7 +1053,17 @@
                 }
             }
         });
+
         $(document).ready(function () {
+
+            $('input[name="change_cliente"]').on('change', function () {
+            if ($(this).val() == '1') {
+                $('.divnew_contacto').removeClass('d-none');
+            } else {
+                $('.divnew_contacto').addClass('d-none');
+            }
+            });
+
             $('#mac_address').mask('AA:AA:AA:AA:AA:AA', {
                 'translation': {A: {pattern: /[0-9a-fA-F]/}},
             });

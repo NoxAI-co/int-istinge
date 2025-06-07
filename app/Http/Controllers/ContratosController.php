@@ -1452,6 +1452,7 @@ class ContratosController extends Controller
         $canales = Canal::where('empresa', Auth::user()->empresa)->where('status', 1)->get();
         $gmaps = Integracion::where('empresa', Auth::user()->empresa)->where('tipo', 'GMAPS')->first();
         $oficinas = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Oficina::where('id', Auth::user()->oficina)->get() : Oficina::where('empresa', Auth::user()->empresa)->where('status', 1)->get();
+        $contactos = Contacto::where('status',1)->get();
 
         if ($contrato) {
             view()->share(['icon' => 'fas fa-file-contract', 'title' => 'Editar Contrato: ' . $contrato->nro]);
@@ -1470,7 +1471,8 @@ class ContratosController extends Controller
                 'canales',
                 'gmaps',
                 'oficinas',
-                'serviciosOtros'
+                'serviciosOtros',
+                'contactos'
             ));
         }
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
@@ -1920,6 +1922,10 @@ class ContratosController extends Controller
                     $contrato->descuento_pesos         = $request->descuento_pesos;
                     $contrato->fact_primer_mes         = $request->fact_primer_mes;
 
+                    if($request->change_cliente == 1){
+                        $contrato->client_id               = $request->new_contacto_contrato;
+                    }
+
                     //Validacion para cambiar todas las facturas_contratos de nro al nuevo ingresado
                     if ($request->nro != $contrato->nro) {
 
@@ -2065,6 +2071,11 @@ class ContratosController extends Controller
                     ### DOCUMENTOS ADJUNTOS ###
 
                     $contrato->save();
+
+                     //Opcion de crear factrua con prorrateo
+                    if ($request->contrato_factura_pro == 1) {
+                        $this->createFacturaProrrateo($contrato);
+                    }
 
                     /*REGISTRO DEL LOG*/
                     if (!is_null($descripcion)) {
