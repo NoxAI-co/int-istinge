@@ -360,6 +360,136 @@
             width: 30px;
         }
     }
+
+    /* Estilos para Estado General del Sistema */
+    .detailed-section {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .section-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #eef2f7;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .section-header h4 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .section-header i {
+        margin-right: 10px;
+        color: #5e72e4;
+    }
+
+    .notice.notice-info {
+        background: #f8fafc;
+        border-left: 4px solid #5e72e4;
+        border-radius: 4px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .notice.notice-info:hover {
+        background: #eef2f7;
+    }
+
+    .notice h4 {
+        color: #2c3e50;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .btn.btn-dark,
+    .btn.btn-danger,
+    .btn.btn-success,
+    .btn.btn-info {
+        border-radius: 8px;
+        padding: 10px 15px;
+        transition: all 0.2s ease;
+        border: none;
+        position: relative;
+        overflow: hidden;
+        min-height: 70px;
+        display: grid;
+        grid-template-rows: auto auto;
+        align-items: center;
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn.btn-dark {
+        background-color: #343a40;
+        color: white;
+    }
+
+    .btn.btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn.btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .btn.btn-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    .btn.btn-dark:hover,
+    .btn.btn-danger:hover,
+    .btn.btn-success:hover,
+    .btn.btn-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        opacity: 0.95;
+    }
+
+    .btn i {
+        font-size: 18px;
+        margin-bottom: 5px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn .count-numbers {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .btn .count-name {
+        font-size: 12px;
+        font-weight: 500;
+        opacity: 0.9;
+        text-transform: uppercase;
+    }
+
+    .collapse-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .collapsed .collapse-icon {
+        transform: rotate(180deg);
+    }
+
+    .section-body {
+        padding: 20px;
+    }
 </style>
 @endsection
 
@@ -393,7 +523,7 @@
     <div class="col-12">
         <div class="shortcuts-section">
             <h5 class="shortcuts-title mb-4">
-                <i class="fas fa-bolt mr-2"></i>Accesos Rápidos
+                <i class="fas fa-bolt mr-2"></i>Atajos
             </h5>
             <div class="row justify-content-center">
                 @if(isset($_SESSION['permisos']['2']))
@@ -449,8 +579,180 @@
                 @endif
             </div>
         </div>
-    </div>
+    </div> <!-- Nueva sección Detalles por Sección -->
+    <div class="col-12">
+        <div class="detailed-section">
+            <div class="section-header collapsed" data-toggle="collapse" href="#detailedSectionContent" role="button" aria-expanded="false" style="cursor: pointer;">
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h4><i class="fas fa-chart-pie"></i>Accesos Rápidos</h4>
+                            <small class="text-muted">Métricas y estadísticas por área</small>
+                        </div>
+                    </div>
+                    <div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+            </div>
 
+            <div class="collapse" id="detailedSectionContent">
+                <!-- CONTRATOS -->
+                <div class="section-body">
+                    <div class="notice notice-info">
+                        <h4 class="float-left">CONTRATOS</h4>
+                        <hr class="mt-4">
+                    </div>
+                    <div id="welcomeContratos">
+                        <div class="row justify-content-center">
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['411']) ? route('contratos.index') : 'javascript:void' }}">
+                                    <div class="btn btn-dark w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contra_ena + $contra_disa }}</span>
+                                        <span class="count-name">Registrados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['411']) ? route('contratos.enabled') : 'javascript:void' }}">
+                                    <div class="btn btn-dark w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contra_ena }}</span>
+                                        <span class="count-name">Habilitados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['411']) ? route('contratos.disabled') : 'javascript:void' }}">
+                                    <div class="btn btn-dark w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contra_disa }}</span>
+                                        <span class="count-name">Deshabilitados</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TELEVISIÓN CATV -->
+                <div class="card-body">
+                    <div class="notice notice-info">
+                        <h4 class="float-left">TELEVISIÓN CATV</h4>
+                        <hr class="mt-4">
+                    </div>
+                    <div id="welcomeCatv">
+                        <div class="row justify-content-center">
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('inventario.television') : 'javascript:void' }}">
+                                    <div class="btn btn-danger w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contratosCatv }}</span>
+                                        <span class="count-name">Registrados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('inventario.television') : 'javascript:void' }}">
+                                    <div class="btn btn-danger w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contratosCatvEnabled }}</span>
+                                        <span class="count-name">Habilitados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('inventario.television') : 'javascript:void' }}">
+                                    <div class="btn btn-danger w-100">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span class="count-numbers">{{ $contratosCatvDisabled }}</span>
+                                        <span class="count-name">Deshabilitados</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FACTURACIÓN -->
+                <div class="card-body">
+                    <div class="notice notice-info">
+                        <h4 class="float-left">FACTURACIÓN</h4>
+                        <hr class="mt-4">
+                    </div>
+                    <div id="welcomeFacturacion">
+                        <div class="row justify-content-center">
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('facturas.index') : 'javascript:void' }}">
+                                    <div class="btn btn-success w-100">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                        <span class="count-numbers">{{ $factura }}</span>
+                                        <span class="count-name">Generados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('facturas.tipo', 'cerradas') : 'javascript:void' }}">
+                                    <div class="btn btn-success w-100">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                        <span class="count-numbers">{{ $factura_cerrada }}</span>
+                                        <span class="count-name">Cerradas</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['40']) ? route('facturas.tipo', 'abiertas') : 'javascript:void' }}">
+                                    <div class="btn btn-success w-100">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                        <span class="count-numbers">{{ $factura_abierta }}</span>
+                                        <span class="count-name">Abiertas</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- RADICADOS -->
+                <div class="card-body">
+                    <div class="notice notice-info">
+                        <h4 class="float-left">RADICADOS</h4>
+                        <hr class="mt-4">
+                    </div>
+                    <div id="welcomeRadicados">
+                        <div class="row justify-content-center">
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['201']) ? route('radicados.index') : 'javascript:void' }}">
+                                    <div class="btn btn-info w-100">
+                                        <i class="fas fa-ticket-alt"></i>
+                                        <span class="count-numbers">{{ $radicados }}</span>
+                                        <span class="count-name">Generados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['201']) ? route('radicados.index', ['estado' => 'Solventado']) : 'javascript:void' }}">
+                                    <div class="btn btn-info w-100">
+                                        <i class="fas fa-ticket-alt"></i>
+                                        <span class="count-numbers">{{ $radicados_solventado }}</span>
+                                        <span class="count-name">Solventados</span>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ isset($_SESSION['permisos']['201']) ? route('radicados.index') : 'javascript:void' }}">
+                                    <div class="btn btn-info w-100">
+                                        <i class="fas fa-ticket-alt"></i>
+                                        <span class="count-numbers">{{ $radicados_pendiente }}</span>
+                                        <span class="count-name">Pendientes</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- Cierre de detailed-section-content -->
+        </div> <!-- Cierre de detailed-section -->
+    </div> <!-- Cierre de col-12 -->
     <!-- Métricas y gráficas -->
     <div class="col-md-3">
         <div class="dash-card">
@@ -502,43 +804,44 @@
             </div>
         </div>
     </div>
+    <!-- Gráficas en línea horizontal -->
 
-    <!-- Gráficas -->
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="dash-card">
             <div class="dash-card-header">
                 <h4>Estado de Contratos</h4>
             </div>
-            <div id="contractStatus" style="height: 250px; padding: 0; position: relative;"></div>
+            <div id="contractStatus" style="height: 200px; padding: 0; position: relative;"></div>
         </div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="dash-card">
             <div class="dash-card-header">
                 <h4>Estado de Facturación</h4>
             </div>
-            <div id="billingStatus" style="height: 250px; padding: 0; position: relative;"></div>
+            <div id="billingStatus" style="height: 200px; padding: 0; position: relative;"></div>
         </div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="dash-card">
             <div class="dash-card-header">
                 <h4>Estado de Radicados</h4>
             </div>
-            <div id="ticketStatus" style="height: 250px; padding: 0; position: relative;"></div>
+            <div id="ticketStatus" style="height: 200px; padding: 0; position: relative;"></div>
         </div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="dash-card">
             <div class="dash-card-header">
                 <h4>Estado CATV</h4>
             </div>
-            <div id="catvStatus" style="height: 250px; padding: 0; position: relative;"></div>
+            <div id="catvStatus" style="height: 200px; padding: 0; position: relative;"></div>
         </div>
     </div>
+
 
     <div class="col-md-12">
         <div class="dash-card">
@@ -706,28 +1009,28 @@
                 },
                 {
                     month: 'Feb',
-                    contratos: @json($contra_ena + 5),
-                    facturas: @json($factura + 3)
+                    contratos: @json($contra_ena),
+                    facturas: @json($factura)
                 },
                 {
                     month: 'Mar',
-                    contratos: @json($contra_ena + 8),
-                    facturas: @json($factura + 7)
+                    contratos: @json($contra_ena),
+                    facturas: @json($factura)
                 },
                 {
                     month: 'Abr',
-                    contratos: @json($contra_ena + 12),
-                    facturas: @json($factura + 10)
+                    contratos: @json($contra_ena),
+                    facturas: @json($factura)
                 },
                 {
                     month: 'May',
-                    contratos: @json($contra_ena + 15),
-                    facturas: @json($factura + 14)
+                    contratos: @json($contra_ena),
+                    facturas: @json($factura)
                 },
                 {
                     month: 'Jun',
-                    contratos: @json($contra_ena + 20),
-                    facturas: @json($factura + 18)
+                    contratos: @json($contra_ena),
+                    facturas: @json($factura)
                 }
             ],
             xkey: 'month',

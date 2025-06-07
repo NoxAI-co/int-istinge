@@ -134,6 +134,24 @@
         </script>
     @endif
 
+    <script type="text/javascript">		document.addEventListener('DOMContentLoaded', function() {
+			// Obtener el parámetro 'estado' de la URL
+			const urlParams = new URLSearchParams(window.location.search);
+			const estado = urlParams.get('estado');
+			
+			// Si el estado es 'Solventado', activar la pestaña correspondiente
+			if (estado === 'Solventado') {
+				// Usar Bootstrap tab API para cambiar la pestaña
+				$('#gestionados-tab').tab('show');
+				
+				// Actualizar la tabla con el filtro de estado
+				if (typeof getDataTableG === 'function') {
+					setTimeout(getDataTableG, 100); // Dar tiempo a que la tabla se inicialice
+				}
+			}
+		});
+	</script>
+
     <div class="row card-description">
         <div class="col-md-12">
             <ul class="nav nav-pills" id="myTab" role="tablist">

@@ -2,302 +2,302 @@
 
 
 @section('boton')
-    @if(auth()->user()->modo_lectura())
-	    <div class="alert alert-warning text-left" role="alert">
-	        <h4 class="alert-heading text-uppercase">Integra Colombia: Suscripción Vencida</h4>
-	       <p>Si desea seguir disfrutando de nuestros servicios adquiera alguno de nuestros planes.</p>
-<p>Medios de pago Nequi: 3026003360 Cuenta de ahorros Bancolombia 42081411021 CC 1001912928 Ximena Herrera representante legal. Adjunte su pago para reactivar su membresía</p>
-	    </div>
-	@else
-        <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
-        @if(isset($_SESSION['permisos']['42']))
-                 <a href="{{route('facturas.create')}}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nueva Factura de Venta</a>
-        @endif
-    @endif
+@if(auth()->user()->modo_lectura())
+<div class="alert alert-warning text-left" role="alert">
+    <h4 class="alert-heading text-uppercase">Integra Colombia: Suscripción Vencida</h4>
+    <p>Si desea seguir disfrutando de nuestros servicios adquiera alguno de nuestros planes.</p>
+    <p>Medios de pago Nequi: 3026003360 Cuenta de ahorros Bancolombia 42081411021 CC 1001912928 Ximena Herrera representante legal. Adjunte su pago para reactivar su membresía</p>
+</div>
+@else
+<a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
+@if(isset($_SESSION['permisos']['42']))
+<a href="{{route('facturas.create')}}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nueva Factura de Venta</a>
+@endif
+@endif
 @endsection
 
 @section('content')
-    @if(Session::has('success'))
-        <div class="alert alert-success">
-        	{{Session::get('success')}}
-        </div>
-        <script type="text/javascript">
-        	setTimeout(function() {
-        		$('.alert').hide();
-        		$('.active_table').attr('class', ' ');
-        	}, 5000);
-        </script>
+@if(Session::has('success'))
+<div class="alert alert-success">
+    {{Session::get('success')}}
+</div>
+<script type="text/javascript">
+    setTimeout(function() {
+        $('.alert').hide();
+        $('.active_table').attr('class', ' ');
+    }, 5000);
+</script>
+@endif
+
+@if(Session::has('error'))
+<div class="alert alert-danger">
+    {{Session::get('error')}}
+</div>
+
+<script type="text/javascript">
+    setTimeout(function() {
+        $('.alert').hide();
+        $('.active_table').attr('class', ' ');
+    }, 8000);
+</script>
+@endif
+
+@if(Session::has('danger'))
+<div class="alert alert-danger">
+    {{Session::get('danger')}}
+</div>
+<script type="text/javascript">
+    setTimeout(function() {
+        $('.alert').hide();
+        $('.active_table').attr('class', ' ');
+    }, 5000);
+</script>
+@endif
+
+@if(Session::has('message_denied'))
+<div class="alert alert-danger" role="alert">
+    {{Session::get('message_denied')}}
+    @if(Session::get('errorReason'))<br> <strong>Razon(es): <br></strong>
+    @if(count(Session::get('errorReason')) > 1)
+    @php $cont = 0 @endphp
+    @foreach(Session::get('errorReason') as $error)
+    @php $cont = $cont + 1; @endphp
+    {{$cont}} - {{$error}} <br>
+    @endforeach
     @endif
-
-	@if(Session::has('error'))
-		<div class="alert alert-danger" >
-			{{Session::get('error')}}
-		</div>
-
-		<script type="text/javascript">
-			setTimeout(function(){
-			    $('.alert').hide();
-			    $('.active_table').attr('class', ' ');
-			}, 8000);
-		</script>
-	@endif
-
-    @if(Session::has('danger'))
-        <div class="alert alert-danger">
-        	{{Session::get('danger')}}
-        </div>
-        <script type="text/javascript">
-        	setTimeout(function() {
-        		$('.alert').hide();
-        		$('.active_table').attr('class', ' ');
-        	}, 5000);
-        </script>
     @endif
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+@endif
 
-    @if(Session::has('message_denied'))
-	    <div class="alert alert-danger" role="alert">
-	    	{{Session::get('message_denied')}}
-	    	@if(Session::get('errorReason'))<br> <strong>Razon(es): <br></strong>
-	    	    @if(count(Session::get('errorReason')) > 1)
-	    	        @php $cont = 0 @endphp
-	    	        @foreach(Session::get('errorReason') as $error)
-	    	            @php $cont = $cont + 1; @endphp
-	    	            {{$cont}} - {{$error}} <br>
-	    	        @endforeach
-	    	    @endif
-	    	@endif
-	    	<button type="button" class="close" data-dismiss="alert" aria-label="Close">
-	    		<span aria-hidden="true">&times;</span>
-	    	</button>
-	    </div>
-	@endif
+@if(Session::has('message_success'))
+<div class="alert alert-success" role="alert">
+    {{Session::get('message_success')}}
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+@endif
 
-	@if(Session::has('message_success'))
-	    <div class="alert alert-success" role="alert">
-	    	{{Session::get('message_success')}}
-	    	<button type="button" class="close" data-dismiss="alert" aria-label="Close">
-	    		<span aria-hidden="true">&times;</span>
-	    	</button>
-	    </div>
-	@endif
+<div class="container-fluid d-none" id="form-filter">
+    <fieldset>
+        <legend>Filtro de Búsqueda</legend>
+        <div class="card shadow-sm border-0">
+            <div class="card-body pt-1 pb-3" style="background: #f9f9f9;">
+                <div class="row">
+                    <div class="col-md-1 pl-1 pt-1">
+                        <input type="text" placeholder="Nro" id="codigo" class="form-control rounded">
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="Cliente" class="form-control rounded selectpicker" id="cliente" data-size="5" data-live-search="true">
+                            @foreach ($clientes as $cliente)
+                            <option value="{{ $cliente->id}}">{{ $cliente->nombre}} {{$cliente->apellido1}} {{$cliente->apellido2}} - {{ $cliente->nit}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="Municipio" class="form-control rounded selectpicker" id="municipio" data-size="5" data-live-search="true">
+                            @foreach ($municipios as $municipio)
+                            <option value="{{ $municipio->id}}">{{ $municipio->nombre}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="barrio" class="form-control rounded selectpicker" id="barrio" data-size="5" data-live-search="true">
+                            @foreach ($barrios as $barrio)
+                            <option value="{{ $barrio->id}}">{{ $barrio->nombre}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1 position-relative">
+                        <input type="date" id="creacion" name="creacion" class="form-control rounded" autocomplete="off">
+                        <label for="creacion" class="placeholder">Creación</label>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1 position-relative">
+                        <input type="date" id="vencimiento" name="vencimiento" class="form-control rounded" autocomplete="off">
+                        <label for="vencimiento" class="placeholder">Vencimiento</label>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="Servidor" class="form-control rounded selectpicker" id="servidor">
+                            @foreach ($servidores as $servidor)
+                            <option value="{{ $servidor->id}}">{{ $servidor->nombre}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3 pl-1 pt-1">
+                        <select title="Estado Contrato" class="form-control rounded selectpicker" id="state_contrato">
+                            <option value="enabled">Habilitado</option>
+                            <option value="disabled">Deshabilitado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="Estado" class="form-control rounded selectpicker" id="estado">
+                            <option value="1" selected="">Abiertas</option>
+                            <option value="A">Cerradas</option>
+                            <option value="2">Anuladas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1">
+                        <select title="Grupo Corte" class="form-control rounded selectpicker" name="grupos_corte" id="grupos_corte" multiple data-live-search="true">
+                            @foreach($grupos_corte as $grupo)
+                            <option value="{{$grupo->id}}">{{$grupo->nombre}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 pl-1 pt-1 d-none">
+                        <select title="Enviada a Correo" class="form-control rounded selectpicker" id="correo">
+                            <option value="1">Si</option>
+                            <option value="A">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 pl-1 pt-1 text-center">
+                        <a href="javascript:cerrarFiltrador()" class="btn btn-icons ml-1 btn-outline-danger rounded btn-sm p-1" title="Limpiar parámetros de busqueda"><i class="fas fa-times"></i></a>
+                        <a href="javascript:void(0)" id="filtrar" class="btn btn-icons btn-outline-info rounded btn-sm p-1" title="Iniciar busqueda avanzada"><i class="fas fa-search"></i></a>
+                        <a href="javascript:exportar()" class="btn btn-icons mr-1 btn-outline-success rounded btn-sm p-1" title="Exportar"><i class="fas fa-file-excel"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+</div>
 
-	<div class="container-fluid d-none" id="form-filter">
-		<fieldset>
-            <legend>Filtro de Búsqueda</legend>
-			<div class="card shadow-sm border-0">
-        		<div class="card-body pt-1 pb-3" style="background: #f9f9f9;">
-					<div class="row">
-						<div class="col-md-1 pl-1 pt-1">
-							<input type="text" placeholder="Nro" id="codigo" class="form-control rounded">
-						</div>
-						<div class="col-md-2 pl-1 pt-1">
-							<select title="Cliente" class="form-control rounded selectpicker" id="cliente" data-size="5" data-live-search="true">
-								@foreach ($clientes as $cliente)
-									<option value="{{ $cliente->id}}">{{ $cliente->nombre}} {{$cliente->apellido1}} {{$cliente->apellido2}} - {{ $cliente->nit}}</option>
-								@endforeach
-							</select>
-						</div>
-						<div class="col-md-2 pl-1 pt-1">
-							<select title="Municipio" class="form-control rounded selectpicker" id="municipio" data-size="5" data-live-search="true">
-								@foreach ($municipios as $municipio)
-									<option value="{{ $municipio->id}}">{{ $municipio->nombre}}</option>
-								@endforeach
-							</select>
-						</div>
-                        <div class="col-md-2 pl-1 pt-1">
-                            <select title="barrio" class="form-control rounded selectpicker" id="barrio" data-size="5" data-live-search="true">
-								@foreach ($barrios as $barrio)
-									<option value="{{ $barrio->id}}">{{ $barrio->nombre}}</option>
-								@endforeach
-							</select>
-                        </div>
-                        <div class="col-md-2 pl-1 pt-1 position-relative">
-                            <input type="date" id="creacion" name="creacion" class="form-control rounded" autocomplete="off">
-                            <label for="creacion" class="placeholder">Creación</label>
-                        </div>
-                        <div class="col-md-2 pl-1 pt-1 position-relative">
-                            <input type="date" id="vencimiento" name="vencimiento" class="form-control rounded" autocomplete="off">
-                            <label for="vencimiento" class="placeholder">Vencimiento</label>
-                        </div>
-						<div class="col-md-2 pl-1 pt-1">
-							<select title="Servidor" class="form-control rounded selectpicker" id="servidor">
-								@foreach ($servidores as $servidor)
-								<option value="{{ $servidor->id}}">{{ $servidor->nombre}}</option>
-								@endforeach
-							</select>
-						</div>
-                        <div class="col-md-3 pl-1 pt-1">
-							<select title="Estado Contrato" class="form-control rounded selectpicker" id="state_contrato">
-								<option value="enabled">Habilitado</option>
-								<option value="disabled">Deshabilitado</option>
-							</select>
-						</div>
-						<div class="col-md-2 pl-1 pt-1">
-							<select title="Estado" class="form-control rounded selectpicker" id="estado">
-								<option value="1" selected="">Abiertas</option>
-								<option value="A">Cerradas</option>
-								<option value="2">Anuladas</option>
-							</select>
-						</div>
-                        <div class="col-md-2 pl-1 pt-1">
-							<select title="Grupo Corte" class="form-control rounded selectpicker" name="grupos_corte" id="grupos_corte" multiple data-live-search="true">
-                                @foreach($grupos_corte as $grupo)
-                                    <option value="{{$grupo->id}}">{{$grupo->nombre}}</option>
-                                @endforeach
-							</select>
-						</div>
-						<div class="col-md-2 pl-1 pt-1 d-none">
-							<select title="Enviada a Correo" class="form-control rounded selectpicker" id="correo">
-								<option value="1">Si</option>
-								<option value="A">No</option>
-							</select>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-12 pl-1 pt-1 text-center">
-							<a href="javascript:cerrarFiltrador()" class="btn btn-icons ml-1 btn-outline-danger rounded btn-sm p-1" title="Limpiar parámetros de busqueda"><i class="fas fa-times"></i></a>
-							<a href="javascript:void(0)" id="filtrar" class="btn btn-icons btn-outline-info rounded btn-sm p-1" title="Iniciar busqueda avanzada"><i class="fas fa-search"></i></a>
-							<a href="javascript:exportar()" class="btn btn-icons mr-1 btn-outline-success rounded btn-sm p-1" title="Exportar"><i class="fas fa-file-excel"></i></a>
-						</div>
-					</div>
-				</div>
-			</div>
-		</fieldset>
-	</div>
-
-	<div class="row card-description">
-		<div class="col-md-12">
-    		<div class="container-filtercolumn form-inline">
-    			@if(Auth::user()->empresa()->efecty == 1)
-    			<a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
-    			@endif
-				{{-- @if(isset($_SESSION['permisos']['830']))
+<div class="row card-description">
+    <div class="col-md-12">
+        <div class="container-filtercolumn form-inline">
+            @if(Auth::user()->empresa()->efecty == 1)
+            <a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
+            @endif
+            {{-- @if(isset($_SESSION['permisos']['830']))
     			<a class="btn btn-outline-success btn-sm disabled mr-1 d-none" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-sitemap"></i> Convertir a facturas electrónicas en Lote</a>
     			@endif --}}
-    			@if(isset($_SESSION['permisos']['750']))
-    			<a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
-    			@endif
-                @if(isset($_SESSION['permisos']['774']))
-                <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
-                @endif
-                <div class="dropdown mr-1">
-                    <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Acciones en Lote
-                    </button>
-                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                        <a class="dropdown-item" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-server"></i> Convertir a facturas electrónicas en Lote</a>
-                        <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
-                    </div>
-
+            @if(isset($_SESSION['permisos']['750']))
+            <a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
+            @endif
+            @if(isset($_SESSION['permisos']['774']))
+            <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
+            @endif
+            <div class="dropdown mr-1">
+                <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Acciones en Lote
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-server"></i> Convertir a facturas electrónicas en Lote</a>
+                    <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
                 </div>
-			</div>
-		</div>
-		<div class="col-md-12">
-			<table class="table table-striped table-hover w-100" id="tabla-facturas">
-				<thead class="thead-dark">
-					<tr>
-						@foreach($tabla as $campo)
-    					    <th>{{$campo->nombre}}</th>
-    					@endforeach
-						<th>Acciones</th>
-					</tr>
-				</thead>
-			</table>
-		</div>
-	</div>
 
-	<div class="modal fade" id="promesaPago" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">GENERAR PROMESA DE PAGO</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div id="div_promesa"></div>
             </div>
         </div>
     </div>
+    <div class="col-md-12">
+        <table class="table table-striped table-hover w-100" id="tabla-facturas">
+            <thead class="thead-dark">
+                <tr>
+                    @foreach($tabla as $campo)
+                    <th>{{$campo->nombre}}</th>
+                    @endforeach
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
 
-         {{-- MODAL ENVIO SIIGO --}}
-         <div class="modal fade" id="envio_siigo" role="dialog">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Envio a Siigo</h4>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+<div class="modal fade" id="promesaPago" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">GENERAR PROMESA DE PAGO</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div id="div_promesa"></div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL ENVIO SIIGO --}}
+<div class="modal fade" id="envio_siigo" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Envio a Siigo</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="" style="padding: 2% 3%;" role="form"
+                    class="forms-sample" novalidate id="form">
+
+                    {{ csrf_field() }}
+
+                    <input type="hidden" id='factura_id'>
+
+                    <div class="card mb-4 p-2">
+                        <h6 class="mb-0" id="h4-factnro"></h6>
                     </div>
-                    <div class="modal-body">
-                        <form method="POST" action="" style="padding: 2% 3%;" role="form"
-                        class="forms-sample" novalidate id="form" >
 
-                            {{ csrf_field() }}
+                    <div class="row">
+                        <div class="col-md-12 form-group">
+                            <label class="control-label">Tipo Comprobante Siigo</label>
+                            <select class="form-control" name="tipo_comprobante_siigo" id="tipo_comprobante_siigo">
 
-                            <input type="hidden" id='factura_id'>
-
-                            <div class="card mb-4 p-2">
-                                <h6 class="mb-0" id="h4-factnro"></h6>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-12 form-group">
-                                    <label class="control-label">Tipo Comprobante Siigo</label>
-                                    <select class="form-control" name="tipo_comprobante_siigo" id="tipo_comprobante_siigo">
-
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 form-group">
-                                    <label class="control-label">Fecha</label>
-                                    <input class="form-control" type="text" id="fecha_siigo" readonly>
-                                </div>
-
-                                <div class="col-md-6 form-group">
-                                    <label class="control-label">Cliente</label>
-                                    <input class="form-control" type="text" id="cliente_siigo" readonly>
-                                </div>
-
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 form-group">
-                                    <label class="control-label">Centro Costos Siigo</label>
-                                    <select class="form-control" name="centro_costos" id="centro_costos">
-
-                                    </select>
-                                </div>
-
-                                <div class="col-md-6 form-group">
-                                    <label class="control-label">Tipos de Pago Siigo</label>
-                                    <select class="form-control" name="tipos_pago" id="tipos_pago">
-
-                                    </select>
-                                </div>
-
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 form-group">
-                                    <label class="control-label">Usuarios Siigo</label>
-                                    <select class="form-control" name="usuarios" id="usuarios">
-
-                                    </select>
-                                </div>
-
-                            </div>
-                        </form>
+                            </select>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
-                        <a href="javascript:sendInvoiceSiigo()" class="btn btn-success">Guardar</A>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="control-label">Fecha</label>
+                            <input class="form-control" type="text" id="fecha_siigo" readonly>
+                        </div>
+
+                        <div class="col-md-6 form-group">
+                            <label class="control-label">Cliente</label>
+                            <input class="form-control" type="text" id="cliente_siigo" readonly>
+                        </div>
+
                     </div>
-                </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="control-label">Centro Costos Siigo</label>
+                            <select class="form-control" name="centro_costos" id="centro_costos">
+
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 form-group">
+                            <label class="control-label">Tipos de Pago Siigo</label>
+                            <select class="form-control" name="tipos_pago" id="tipos_pago">
+
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="control-label">Usuarios Siigo</label>
+                            <select class="form-control" name="usuarios" id="usuarios">
+
+                            </select>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                <a href="javascript:sendInvoiceSiigo()" class="btn btn-success">Guardar</A>
             </div>
         </div>
-        {{-- /MODAL ENVIO SIIGO --}}
+    </div>
+</div>
+{{-- /MODAL ENVIO SIIGO --}}
 
 @endsection
 
@@ -312,8 +312,9 @@
         pointer-events: none;
         transition: all 0.2s ease-in-out;
     }
-    input:focus + .placeholder,
-    input:not(:placeholder-shown) + .placeholder {
+
+    input:focus+.placeholder,
+    input:not(:placeholder-shown)+.placeholder {
         top: 5px;
         font-size: 12px;
         color: #495057;
@@ -323,152 +324,62 @@
 
 @section('scripts')
 <script>
+    var tabla;
 
-    function showModalSiigo(factura_id,codigo,fecha,cliente){
-
-        if (window.location.pathname.split("/")[1] === "software") {
-            var url='/software/siigo/get_modal_invoice';
-        }else{
-            var url = '/siigo/get_modal_invoice';
+    function getDataTable() {
+        if (tabla) {
+            tabla.ajax.reload();
         }
+    }
 
-        $("#envio_siigo").modal('show');
-        $("#tipo_comprobante_siigo").empty();
-        $("#centro_costos").empty();
-        $("#tipos_pago").empty();
-        $("#usuarios").empty();
+    window.addEventListener('load', function() {
+        @if($tipo)
+        // Set the initial filter state before DataTable initialization
+        $('#estado').val('{{ $tipo }}').selectpicker('refresh');
+        $('#form-filter').removeClass('d-none');
+        $('#boton-filtrar').html('<i class="fas fa-times"></i> Cerrar');
+        @endif
 
-        $.ajax({
-            url: url,
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            method: 'get',
-            data: {
-                factura_id: factura_id,
+        tabla = $('#tabla-facturas').DataTable({
+            responsive: true,
+            serverSide: true,
+            processing: true,
+            searching: false,
+            @if(isset($_SESSION['permisos']['830']))
+            select: true,
+            @endif
+            language: {
+                'url': '/vendors/DataTables/es.json'
             },
-            success: function (data) {
-
-                if(data.status == 200){
-
-                    $("#fecha_siigo").val(fecha);
-                    $("#cliente_siigo").val(cliente);
-                    $("#factura_id").val(factura_id);
-
-                    $.each(data.tipos_comprobante, function(index, item) {
-
-                        $("#tipo_comprobante_siigo").append(
-                            $('<option>', {
-                                value: item.id,
-                                text: item.name + " - " + item.description
-                            })
-                        );
-
-                    });
-
-                    $.each(data.centro_costos, function(index, item) {
-
-                    $("#centro_costos").append(
-                        $('<option>', {
-                            value: item.id,
-                            text: item.name + " - " + item.description
-                        })
-                    );
-
-                    });
-
-                    $("#tipos_pago").append($('<option>', {
-                            value: 0,
-                            text: "Seleccione tipo de pago"
-                        }));
-
-                    $.each(data.tipos_pago, function(index, item) {
-                    $("#tipos_pago").append(
-                        $('<option>', {
-                            value: item.id,
-                            text: item.name
-                        })
-                    );
-                    });
-
-
-                    $("#usuarios").append($('<option>', {
-                            value: 0,
-                            text: "Seleccione un usuario"
-                        }));
-
-                    $.each(data.usuarios, function(index, item) {
-                    $("#usuarios").append(
-                        $('<option>', {
-                            value: item.id,
-                            text: item.first_name + " " + item.last_name
-                        })
-                    );
-                    });
-
-
-                    $("#h4-factnro").text("Codigo Factura: " + codigo);
-                    $("#envio_siigo").modal('show');
-                }else{
-                    alert("Ha ocurrido un error");
+            order: [
+                [2, "DESC"],
+                [0, "DESC"]
+            ],
+            "pageLength": {{Auth::user()->empresa()->pageLength}},
+            ajax: {
+                url: '{{url("/facturas")}}',
+                data: function(d) {
+                    d.codigo = $('#codigo').val();
+                    d.corte = $('#corte').val();
+                    d.cliente = $('#cliente').val();
+                    d.municipio = $('#municipio').val();
+                    d.vendedor = $('#vendedor').val();
+                    d.barrio = $('#barrio').val();
+                    d.creacion = $('#creacion').val();
+                    d.vencimiento = $('#vencimiento').val();
+                    d.comparador = $('#comparador').val();
+                    d.total = $('#total').val();
+                    d.servidor = $('#servidor').val();
+                    d.estado = $('#estado').val();
+                    d.state_contrato = $('#state_contrato').val();
+                    d.grupos_corte = $('#grupos_corte').val();
+                    d.filtro = true;
                 }
-            }
-        });
-    }
-
-    function sendInvoiceSiigo(){
-
-        if (window.location.pathname.split("/")[1] === "software") {
-            var url='/software/siigo/send_invoice';
-        }else{
-            var url = '/siigo/send_invoice';
-        }
-
-        let tipo_comprobante = $("#tipo_comprobante_siigo").val();
-        let factura_id = $("#factura_id").val();
-        let tipos_pago = $("#tipos_pago").val();
-        let centro_costos = $("#centro_costos").val();
-        let usuario = $("#usuarios").val();
-
-        $.ajax({
-            url: url,
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            method: 'get',
-            data: {
-                tipo_comprobante,
-                factura_id,
-                tipos_pago,
-                centro_costos,
-                usuario
             },
-            success: function (data) {
-                console.log(data);
-            }
-        });
-
-
-    }
-
-	var tabla = $('#tabla-facturas');
-	window.addEventListener('load', function() {
-		var tabla= $('#tabla-facturas').DataTable({
-			responsive: true,
-			serverSide: true,
-			processing: true,
-			searching: false,
-			@if(isset($_SESSION['permisos']['830']))
-			select: true,
-			@endif
-			language: {
-				'url': '/vendors/DataTables/es.json'
-			},
-			order: [
-				[2, "DESC"],[0, "DESC"]
-			],
-			"pageLength": {{ Auth::user()->empresa()->pageLength }},
-			ajax: '{{url("/facturas")}}',
-			headers: {
-				'X-CSRF-TOKEN': '{{csrf_token()}}'
-			},
-			@if(isset($_SESSION['permisos']['830']))
+            headers: {
+                'X-CSRF-TOKEN': '{{csrf_token()}}'
+            },
+            @if(isset($_SESSION['permisos']['830']))
             select: true,
             select: {
                 style: 'multi',
@@ -491,134 +402,286 @@
                 }
             }],
             @endif
-			columns: [
-			    @foreach($tabla as $campo)
+            columns: [
+                @foreach($tabla as $campo)
                 {data: '{{$campo->campo}}'},
                 @endforeach
-				{data: 'acciones'},
-			]
-		});
+                {data: 'acciones'}
+            ]
+        });
 
-		tabla.on('preXhr.dt', function(e, settings, data) {
-			data.codigo = $('#codigo').val();
-			data.corte = $('#corte').val();
-			data.cliente = $('#cliente').val();
-			data.municipio = $('#municipio').val();
-			data.vendedor = $('#vendedor').val();
-			data.barrio = $('#barrio').val();
-			data.creacion = $('#creacion').val();
-			data.vencimiento = $('#vencimiento').val();
-			data.comparador = $('#comparador').val();
-			data.total = $('#total').val();
-			data.servidor = $('#servidor').val();
-			data.estado = $('#estado').val();
-			data.state_contrato = $('#state_contrato').val();
-			data.grupos_corte = $('#grupos_corte').val();
-			data.filtro = true;
-		});
+        @if($tipo)
+        // Force initial data load with filters
+        tabla.ajax.reload();
+        @endif
+    });
 
-		$('#filtrar').on('click', function(e) {
-			getDataTable();
-			return false;
-		});
+    function abrirFiltrador() {
+        if ($('#form-filter').hasClass('d-none')) {
+            $('#boton-filtrar').html('<i class="fas fa-times"></i> Cerrar');
+            $('#form-filter').removeClass('d-none');
+        } else {
+            $('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
+            cerrarFiltrador();
+        }
+    }
 
-		$('#form-filter').on('keypress', function(e) {
-			if (e.which == 13) {
-				getDataTable();
-				return false;
-			}
-		});
+    function cerrarFiltrador() {
+        $('#codigo').val('');
+        $('#corte').val('').selectpicker('refresh');
+        $('#cliente').val('').selectpicker('refresh');
+        $('#municipio').val('').selectpicker('refresh');
+        $('#barrio').val('').selectpicker('refresh');
+        $('#vendedor').val('').selectpicker('refresh');
+        $('#creacion').val('');
+        $('#vencimiento').val('');
+        $('#comparador').val('').selectpicker('refresh');
+        $('#total').val('');
+        $('#estado').val('').selectpicker('refresh');
+        $('#grupos_corte').val('').selectpicker('refresh');
+        $('#state_contrato').val('').selectpicker('refresh');
+        $('#servidor').val('').selectpicker('refresh');
+        $('#form-filter').addClass('d-none');
+        $('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
+        getDataTable();
+    }
 
-		$('#codigo').on('keyup',function(e) {
-            if(e.which > 32 || e.which == 8) {
-                getDataTable();
-                return false;
+    function exportar() {
+        $("#estado").selectpicker('refresh');
+        window.location.href = window.location.pathname + '/exportar?codigo=' + $('#codigo').val() + '&cliente=' + $('#cliente').val() + '&municipio=' + $('#municipio').val() + '&barrio=' + $('#barrio').val() + '&creacion=' + $('#creacion').val() + '&vencimiento=' + $('#vencimiento').val() + '&estado=' + $('#estado').val() + '&grupos_corte=' + $('#grupos_corte').val() + '&state_contrato=' + $('#state_contrato').val() + '&tipo=1';
+    }
+
+    function showModalSiigo(factura_id, codigo, fecha, cliente) {
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url = '/software/siigo/get_modal_invoice';
+        } else {
+            var url = '/siigo/get_modal_invoice';
+        }
+
+        $("#envio_siigo").modal('show');
+        $("#tipo_comprobante_siigo").empty();
+        $("#centro_costos").empty();
+        $("#tipos_pago").empty();
+        $("#usuarios").empty();
+
+        $.ajax({
+            url: url,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            method: 'get',
+            data: {
+                factura_id: factura_id,
+            },
+            success: function(data) {
+
+                if (data.status == 200) {
+
+                    $("#fecha_siigo").val(fecha);
+                    $("#cliente_siigo").val(cliente);
+                    $("#factura_id").val(factura_id);
+
+                    $.each(data.tipos_comprobante, function(index, item) {
+
+                        $("#tipo_comprobante_siigo").append(
+                            $('<option>', {
+                                value: item.id,
+                                text: item.name + " - " + item.description
+                            })
+                        );
+
+                    });
+
+                    $.each(data.centro_costos, function(index, item) {
+
+                        $("#centro_costos").append(
+                            $('<option>', {
+                                value: item.id,
+                                text: item.name + " - " + item.description
+                            })
+                        );
+
+                    });
+
+                    $("#tipos_pago").append($('<option>', {
+                        value: 0,
+                        text: "Seleccione tipo de pago"
+                    }));
+
+                    $.each(data.tipos_pago, function(index, item) {
+                        $("#tipos_pago").append(
+                            $('<option>', {
+                                value: item.id,
+                                text: item.name
+                            })
+                        );
+                    });
+
+
+                    $("#usuarios").append($('<option>', {
+                        value: 0,
+                        text: "Seleccione un usuario"
+                    }));
+
+                    $.each(data.usuarios, function(index, item) {
+                        $("#usuarios").append(
+                            $('<option>', {
+                                value: item.id,
+                                text: item.first_name + " " + item.last_name
+                            })
+                        );
+                    });
+
+
+                    $("#h4-factnro").text("Codigo Factura: " + codigo);
+                    $("#envio_siigo").modal('show');
+                } else {
+                    alert("Ha ocurrido un error");
+                }
+            }
+        });
+    }
+
+    function sendInvoiceSiigo() {
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url = '/software/siigo/send_invoice';
+        } else {
+            var url = '/siigo/send_invoice';
+        }
+
+        let tipo_comprobante = $("#tipo_comprobante_siigo").val();
+        let factura_id = $("#factura_id").val();
+        let tipos_pago = $("#tipos_pago").val();
+        let centro_costos = $("#centro_costos").val();
+        let usuario = $("#usuarios").val();
+
+        $.ajax({
+            url: url,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            method: 'get',
+            data: {
+                tipo_comprobante,
+                factura_id,
+                tipos_pago,
+                centro_costos,
+                usuario
+            },
+            success: function(data) {
+                console.log(data);
             }
         });
 
-        $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #barrio, #state_contrato, #grupos_corte').on('change',function() {
+
+    }
+
+    $('#filtrar').on('click', function(e) {
+        getDataTable();
+        return false;
+    });
+
+    $('#form-filter').on('keypress', function(e) {
+        if (e.which == 13) {
             getDataTable();
             return false;
-        });
+        }
+    });
 
-		$('.vencimiento').datepicker({
-			locale: 'es-es',
-      		uiLibrary: 'bootstrap4',
-			format: 'yyyy-mm-dd' ,
-		});
+    $('#codigo').on('keyup', function(e) {
+        if (e.which > 32 || e.which == 8) {
+            getDataTable();
+            return false;
+        }
+    });
 
-		$('.creacion').datepicker({
-			locale: 'es-es',
-      		uiLibrary: 'bootstrap4',
-			format: 'yyyy-mm-dd' ,
-		});
+    $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #barrio, #state_contrato, #grupos_corte').on('change', function() {
+        getDataTable();
+        return false;
+    });
 
-		$('#tabla-facturas tbody').on('click', 'tr', function () {
-			var table = $('#tabla-facturas').DataTable();
-			var nro = table.rows('.selected').data().length;
+    $('.vencimiento').datepicker({
+        locale: 'es-es',
+        uiLibrary: 'bootstrap4',
+        format: 'yyyy-mm-dd',
+    });
 
-			if(table.rows('.selected').data().length >= 0){
-				$("#btn_emitir").removeClass('disabled d-none');
-				$("#btn_imp_fac").removeClass('disabled d-none');
-			}else{
-				$("#btn_emitir").addClass('disabled d-none');
-				$("#btn_imp_fac").addClass('disabled d-none');
-			}
-        });
+    $('.creacion').datepicker({
+        locale: 'es-es',
+        uiLibrary: 'bootstrap4',
+        format: 'yyyy-mm-dd',
+    });
 
-		$('#btn_emitir').on('click', function(e) {
-            var table = $('#tabla-facturas').DataTable();
-            var nro = table.rows('.selected').data().length;
+    $('#tabla-facturas tbody').on('click', 'tr', function() {
+        var table = $('#tabla-facturas').DataTable();
+        var nro = table.rows('.selected').data().length;
 
-            if (nro <= 0) {
-                swal({
-                    title: 'ERROR',
-                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura electrónica',
-                    type: 'error',
-                });
-                return false;
-            }
+        if (table.rows('.selected').data().length >= 0) {
+            $("#btn_emitir").removeClass('disabled d-none');
+            $("#btn_imp_fac").removeClass('disabled d-none');
+        } else {
+            $("#btn_emitir").addClass('disabled d-none');
+            $("#btn_imp_fac").addClass('disabled d-none');
+        }
+    });
 
-            var facturas = [];
-            for (i = 0; i < nro; i++) {
-                facturas.push(table.rows('.selected').data()[i]['id']);
-            }
+    $('#btn_emitir').on('click', function(e) {
+        var table = $('#tabla-facturas').DataTable();
+        var nro = table.rows('.selected').data().length;
 
+        if (nro <= 0) {
             swal({
-                title: '¿Desea convertir ' + nro + ' facturas estandar a electrónicas?',
-                text: 'Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
-                type: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#00ce68',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Aceptar',
-                cancelButtonText: 'Cancelar',
-            }).then((result) => {
-                if (result.value) {
-                    cargando(true);
+                title: 'ERROR',
+                html: 'Para ejecutar esta acción, debe al menos seleccionar una factura electrónica',
+                type: 'error',
+            });
+            return false;
+        }
 
-                    var url = window.location.pathname.split("/")[1] === "software" ?
-                        `/software/empresa/facturas/conversionmasiva/` + facturas :
-                        `/empresa/facturas/conversionmasiva/` + facturas;
-                    $.ajax({
-                        url: url,
-                        method: 'GET',
-                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                        success: function(data) {
-                            cargando(false);
+        var facturas = [];
+        for (i = 0; i < nro; i++) {
+            facturas.push(table.rows('.selected').data()[i]['id']);
+        }
 
-                            if(data.success == false){
-                                swal({
-                                    title: 'ERROR',
-                                    html: data.message,
-                                    type: 'error',
-                                    showConfirmButton: true,
-                                    confirmButtonColor: '#d33',
-                                    confirmButtonText: 'ACEPTAR',
-                                });
-                                return false;
-                            }else{
-                                swal({
+        swal({
+            title: '¿Desea convertir ' + nro + ' facturas estandar a electrónicas?',
+            text: 'Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
+            type: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#00ce68',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Aceptar',
+            cancelButtonText: 'Cancelar',
+        }).then((result) => {
+            if (result.value) {
+                cargando(true);
+
+                var url = window.location.pathname.split("/")[1] === "software" ?
+                    `/software/empresa/facturas/conversionmasiva/` + facturas :
+                    `/empresa/facturas/conversionmasiva/` + facturas;
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(data) {
+                        cargando(false);
+
+                        if (data.success == false) {
+                            swal({
+                                title: 'ERROR',
+                                html: data.message,
+                                type: 'error',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                            return false;
+                        } else {
+                            swal({
                                 title: 'PROCESO REALIZADO',
                                 html: data.text,
                                 type: 'success',
@@ -626,124 +689,77 @@
                                 confirmButtonColor: '#1A59A1',
                                 confirmButtonText: 'ACEPTAR',
                             });
-                            }
-                            getDataTable();
-                        },
-                        error: function(xhr) {
-                            cargando(false);
-                            if (xhr.status === 500) {
-                                swal({
-                                    title: 'INFO',
-                                    html: 'Se han emitido algunas facturas, vuelve a emitir otro lote si quedan facturas pendientes.',
-                                    type: 'info',
-                                    showConfirmButton: true,
-                                    confirmButtonColor: '#d33',
-                                    confirmButtonText: 'Recargar Página',
-                                }).then(() => {
-                                    location.reload();
-                                });
-                            }
                         }
-                    });
-                }
-            });
-            console.log(facturas);
-        });
-
-        $('#btn_imp_fac').on('click', function(e) {
-            var table = $('#tabla-facturas').DataTable();
-            var nro = table.rows('.selected').data().length;
-
-            if(nro <= 0){
-                swal({
-                    title: 'ERROR',
-                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura.',
-                    type: 'error',
+                        getDataTable();
+                    },
+                    error: function(xhr) {
+                        cargando(false);
+                        if (xhr.status === 500) {
+                            swal({
+                                title: 'INFO',
+                                html: 'Se han emitido algunas facturas, vuelve a emitir otro lote si quedan facturas pendientes.',
+                                type: 'info',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'Recargar Página',
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    }
                 });
-                return false;
             }
-
-            var facturas = [];
-            for (i = 0; i < nro; i++) {
-                facturas.push(table.rows('.selected').data()[i]['id']);
-            }
-
-            swal({
-                title: '¿Desea imprimir '+nro+' facturas?',
-                text: 'Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
-                type: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#00ce68',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Aceptar',
-                cancelButtonText: 'Cancelar',
-            }).then((result) => {
-                if (result.value) {
-                    cargando(true);
-
-                    const baseUrl = "{{ url('empresa/facturas/impresionmasiva') }}";
-                    const url = `${baseUrl}/${facturas.join(',')}`;
-                    window.open(url, '_blank');
-
-                    cargando(false);
-
-                    swal({
-                        title: 'PROCESO REALIZADO',
-                        html: 'Las facturas están siendo generadas en una nueva pestaña.',
-                        type: 'success',
-                        showConfirmButton: true,
-                        confirmButtonColor: '#1A59A1',
-                        confirmButtonText: 'ACEPTAR',
-                    });
-                }
-            })
         });
-	});
+        console.log(facturas);
+    });
 
-	function getDataTable() {
-		tabla.DataTable().ajax.reload();
-	}
+    $('#btn_imp_fac').on('click', function(e) {
+        var table = $('#tabla-facturas').DataTable();
+        var nro = table.rows('.selected').data().length;
 
-	function abrirFiltrador() {
-		if ($('#form-filter').hasClass('d-none')) {
-			$('#boton-filtrar').html('<i class="fas fa-times"></i> Cerrar');
-			$('#form-filter').removeClass('d-none');
-		} else {
-			$('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
-			cerrarFiltrador();
-		}
-	}
+        if (nro <= 0) {
+            swal({
+                title: 'ERROR',
+                html: 'Para ejecutar esta acción, debe al menos seleccionar una factura.',
+                type: 'error',
+            });
+            return false;
+        }
 
-	function cerrarFiltrador() {
-		$('#codigo').val('');
-		$('#corte').val('').selectpicker('refresh');
-		$('#cliente').val('').selectpicker('refresh');
-		$('#municipio').val('').selectpicker('refresh');
-		$('#barrio').val('').selectpicker('refresh');
-		$('#vendedor').val('').selectpicker('refresh');
-		$('#creacion').val('');
-		$('#vencimiento').val('');
-		$('#comparador').val('').selectpicker('refresh');
-		$('#total').val('');
-		$('#estado').val('').selectpicker('refresh');
-		$('#grupos_corte').val('').selectpicker('refresh');
-		$('#state_contrato').val('').selectpicker('refresh');
-		$('#servidor').val('').selectpicker('refresh');
-		$('#form-filter').addClass('d-none');
-		$('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
-		getDataTable();
-	}
+        var facturas = [];
+        for (i = 0; i < nro; i++) {
+            facturas.push(table.rows('.selected').data()[i]['id']);
+        }
 
-	function exportar() {
-		$("#estado").selectpicker('refresh');
-        window.location.href = window.location.pathname+'/exportar?codigo='+$('#codigo').val()+'&cliente='+$('#cliente').val()+'&municipio='+$('#municipio').val()+'&barrio='+$('#barrio').val()+'&creacion='+$('#creacion').val()+'&vencimiento='+$('#vencimiento').val()+'&estado='+$('#estado').val()+'&grupos_corte='+$('#grupos_corte').val()+'&state_contrato='+$('#state_contrato').val()+'&tipo=1';
-	}
+        swal({
+            title: '¿Desea imprimir ' + nro + ' facturas?',
+            text: 'Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
+            type: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#00ce68',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Aceptar',
+            cancelButtonText: 'Cancelar',
+        }).then((result) => {
+            if (result.value) {
+                cargando(true);
 
-	@if($tipo)
-	    $('#estado').val('{{ $tipo }}').selectpicker('refresh');
-	    abrirFiltrador();
-	    getDataTable();
-	@endif
+                const baseUrl = "{{ url('empresa/facturas/impresionmasiva') }}";
+                const url = `${baseUrl}/${facturas.join(',')}`;
+                window.open(url, '_blank');
+
+                cargando(false);
+
+                swal({
+                    title: 'PROCESO REALIZADO',
+                    html: 'Las facturas están siendo generadas en una nueva pestaña.',
+                    type: 'success',
+                    showConfirmButton: true,
+                    confirmButtonColor: '#1A59A1',
+                    confirmButtonText: 'ACEPTAR',
+                });
+            }
+        })
+    });
 </script>
 @endsection
-
