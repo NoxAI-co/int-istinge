@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
+
+<    <head>
     <meta charset="UTF-8">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -504,6 +505,35 @@
                          </div>
                      </div>
 
+                     <!-- Modal Suscripción Vencida -->
+                     <div class="modal fade" id="modalSuscripcion" tabindex="-1" role="dialog" aria-labelledby="modalSuscripcionLabel" aria-hidden="true">
+                         <div class="modal-dialog" role="document">
+                             <div class="modal-content">
+                                 <div class="modal-header bg-danger text-white">
+                                     <h4 class="modal-title text-uppercase">Integra Colombia: Suscripción Vencida</h4>
+                                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                         <span aria-hidden="true">&times;</span>
+                                     </button>
+                                 </div>
+                                 <div class="modal-body">
+                                     <p>Si desea seguir disfrutando de nuestros servicios adquiera alguno de nuestros planes.</p>
+                                     <p>Medios de pago:</p>
+                                     <ul class="list-unstyled">
+                                         <li><strong>Nequi:</strong> 3206909290 <strong>CC:</strong> 1045740096</li>
+                                         <li><strong>Cuenta de ahorros Bancolombia:</strong> 42081411021</li>
+                                         <li><strong>CC:</strong> 1001912928</li>
+                                         <li><strong>Representante legal:</strong> Ximena Herrera</li>
+                                     </ul>
+                                     <div class="text-center mt-3">
+                                         <a href="https://wa.me/573206909290?text=Adjunto comprobante de pago para reactivar membresía" target="_blank" class="btn btn-success">
+                                             <i class="fab fa-whatsapp mr-2"></i>Enviar comprobante por WhatsApp
+                                         </a>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
                      <!-- NOTIFICACIONES -->
                      <input type="hidden" name="nro_notificacionesR" id="nro_notificacionesR" value="0">
                      <audio id="play_notificacion" preload="auto" tabindex="0" controls="" class="d-none">
@@ -611,6 +641,8 @@
         <!-- inject:js -->
         <script src="{{asset('js/off-canvas.js')}}"></script>
         <script src="{{asset('js/misc.js')}}"></script>
+        <script src="{{asset('js/dashboard.js')}}"></script>
+        <script src="{{asset('js/chart.js')}}"></script>
         <script type="text/javascript" src="{{asset('vendors/DataTables/datatables.min.js')}}"></script>
         <script type="text/javascript" src="{{asset('js/CollapsibleLists.js')}}"></script>
         <script type="text/javascript" src="{{asset('vendors/bootstrap-selectpicker/js/bootstrap-select.min.js')}}"></script>
@@ -883,5 +915,25 @@
             </script>
         @endif
         @yield('scripts')
+        <script>
+            // Check subscription status
+            function checkSubscriptionStatus() {
+                $.ajax({
+                    url: '{{ route("suscripciones.validate") }}',
+                    method: 'GET',
+                    success: function(response) {
+                        console.log(response);
+                        if (response.showModal) {
+                            $('#modalSuscripcion').modal('show');
+                        }
+                    }
+                });
+            }
+
+            // Check on page load
+            $(document).ready(function() {
+                checkSubscriptionStatus();
+            });
+        </script>
     </body>
 </html>

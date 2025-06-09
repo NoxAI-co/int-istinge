@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use  stdClass;
-use Auth; use DB;
+use Auth;
+use DB;
 use App\Empresa;
-use Carbon\Carbon; use App\Planes;
-use App\SuscripcionPago; use App\Suscripcion;
+use Carbon\Carbon;
+use App\Planes;
+use App\SuscripcionPago;
+use App\Suscripcion;
+
 class PlanesController extends Controller
 {
     /**
@@ -18,16 +22,28 @@ class PlanesController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        view()->share(['inicio' => 'master', 'seccion' => 'Planes', 'title' => 'Planes', 'icon' =>'fa fa-building']);
+        view()->share(['inicio' => 'master', 'seccion' => 'Planes', 'title' => 'Planes', 'icon' => 'fa fa-building']);
     }
 
-    public function index($ingresosLimit = false, $facturasLimit = false, $fechaLimit = false, $fecha = false,
-                          $msg = false, $AllOk = false)
-    {
+    public function index(
+        $ingresosLimit = false,
+        $facturasLimit = false,
+        $fechaLimit = false,
+        $fecha = false,
+        $msg = false,
+        $AllOk = false
+    ) {
         $this->getAllPermissions(Auth::user()->id);
         $personalPlan = Empresa::find(Auth::user()->empresa)->p_personalizado;
-        return view('planes.index')->with(compact('ingresosLimit', 'facturasLimit', 'fechaLimit',
-            'fecha', 'msg', 'AllOk', 'personalPlan'));
+        return view('planes.index')->with(compact(
+            'ingresosLimit',
+            'facturasLimit',
+            'fechaLimit',
+            'fecha',
+            'msg',
+            'AllOk',
+            'personalPlan'
+        ));
     }
 
     public function indexPersonalizado()
@@ -35,19 +51,19 @@ class PlanesController extends Controller
         $planPersonalizado = Empresa::find(Auth::user()->empresa);
         $planPersonalizado = $planPersonalizado->p_personalizado;
         $plan = DB::table('planes_personalizados')->find($planPersonalizado);
-        
+
         $pagoPersonal = SuscripcionPago::where('id_empresa', Auth::user()->empresa)
             ->where('personalizado', true)
             ->get()->last();
         $price = $plan->precio;
         $idPlan = $plan->id;
-        if ($pagoPersonal){
+        if ($pagoPersonal) {
             $pagoPersonal = true;
-        }else{
+        } else {
             $pagoPersonal = false;
         }
 
-        view()->share(['inicio' => 'master', 'seccion' => 'Planes', 'title' => 'Plan Personalizado', 'icon' =>'fa fa-building']);
+        view()->share(['inicio' => 'master', 'seccion' => 'Planes', 'title' => 'Plan Personalizado', 'icon' => 'fa fa-building']);
         return view('planes.planPersonalizado')->with(compact('plan', 'personalPlan', 'pagoPersonal', 'price', 'idPlan'));
     }
     /**
@@ -116,10 +132,11 @@ class PlanesController extends Controller
         //
     }
 
-    public function verificarLimites($cuenta){
+    public function verificarLimites($cuenta)
+    {
 
         $msg                = '';
-        switch ($cuenta){
+        switch ($cuenta) {
             case 0:
                 $msg = "Su suscripción aún no llega a la fecha de renovación.";
                 break;
@@ -136,14 +153,14 @@ class PlanesController extends Controller
         $fechaLimit         = true;
         $suscripcion        = Suscripcion::where('id_empresa', Auth::user()->empresa)->get()->last();
 
-        if($suscripcion->ilimitado)
+        if ($suscripcion->ilimitado)
             return $this->index(false, false, false, false, "Usted posee el plan ilimitado activo.");
-    
+
         //messagebird
         $fechaActual        = Carbon::now();
         $fechaVenc = Carbon::parse($suscripcion->fec_vencimiento);
         $fechaLimit = ($fechaVenc->greaterThan($fechaActual)) ? $fechaLimit : false;
-        if ($fechaLimit || $suscripcionPago){
+        if ($fechaLimit || $suscripcionPago) {
             return $this->index($ingresosLimit, $facturasLimit, $fechaLimit, $fechaVenc, $msg);
         }
         $suscripcion->fec_inicio        = $fechaActual;
@@ -154,17 +171,17 @@ class PlanesController extends Controller
         return $this->index($ingresosLimit, $facturasLimit, $fechaLimit, $suscripcion->fec_vencimiento, $msg, true);
     }
 
-    public function pagos($valor, $personalizado=false)
+    public function pagos($valor, $personalizado = false)
     {
-        if($personalizado){
+        if ($personalizado) {
             $plan = DB::table('planes_personalizados')->find($personalizado);
             $personalizado = true;
             $tipo = $plan->nombre;
             $plan = $plan;
-            return view ('planes.pagopersonalizado', compact('valor','tipo','plan','personalizado'));
+            return view('planes.pagopersonalizado', compact('valor', 'tipo', 'plan', 'personalizado'));
         }
         if ($valor) {
-            switch ($valor){
+            switch ($valor) {
                 case 35000:
                     $tipo = "Plan Emprendedor";
                     $plan = 2;
@@ -179,27 +196,24 @@ class PlanesController extends Controller
                     break;
                 default:
                     redirect('/PlanesPagina');
-            
             }
-        }
-        else
-        {
+        } else {
             return redirect('/PlanesPagina');
         }
 
-        return view ('planes.pagosplan', compact('valor','tipo','plan','personalizado'));
+        return view('planes.pagosplan', compact('valor', 'tipo', 'plan', 'personalizado'));
     }
 
     public function respuestapago()
     {
-        $suplente_pago = Planes::where('referencia_pago',$_REQUEST['referenceCode'])->first();
+        $suplente_pago = Planes::where('referencia_pago', $_REQUEST['referenceCode'])->first();
         $ApiKey = config('app.api_key');
 
 
         if ($suplente_pago) {
 
             // Validamos que tipo de estado tiene la transaccion para poder guardarla en forma de texto.
-            if ($_REQUEST['transactionState']==4) {
+            if ($_REQUEST['transactionState'] == 4) {
                 $suplente_pago->EstadoTransaccion = "APPROVED";
                 $suplente_pago->estado = 1;
 
@@ -220,22 +234,17 @@ class PlanesController extends Controller
 
                 if ($suplente_pago->tipo_pago == "CREDIT_CARD") {
                     $suscripcion_pago->tipo_pago = 5;
-                }
-                else if ($suplente_pago->tipo_pago == "PSE")
-                {
+                } else if ($suplente_pago->tipo_pago == "PSE") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "DEBIT_CARD")
-                {
+                } else if ($suplente_pago->tipo_pago == "DEBIT_CARD") {
                     $suscripcion_pago->tipo_pago = 6;
-                }else if($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED") {
                     $suscripcion_pago->tipo_pago = 1;
-                }else if($suplente_pago->tipo_pago == "ACH")
-                {
+                } else if ($suplente_pago->tipo_pago == "ACH") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "SPEI")
-                {
+                } else if ($suplente_pago->tipo_pago == "SPEI") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "BANK_REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "BANK_REFERENCED") {
                     $suscripcion_pago->tipo_pago = 3;
                 }
                 $suscripcion_pago->save();
@@ -247,36 +256,34 @@ class PlanesController extends Controller
                 //$fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
                 //$fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
 
-                $suscripcion = Suscripcion::where('id_empresa',$suscripcion_pago->id_empresa)->first();
+                $suscripcion = Suscripcion::where('id_empresa', $suscripcion_pago->id_empresa)->first();
 
 
 
-                if($suscripcion){
+                if ($suscripcion) {
                     $fecha_vencimiento = Carbon::now()->addMonth($mesesPagos);
-                    $fecha_final = date('Y-m-d', strtotime(Carbon::now()."+ $mesesPagos month"));
+                    $fecha_final = date('Y-m-d', strtotime(Carbon::now() . "+ $mesesPagos month"));
                     $tmpFecha = Carbon::parse($suscripcion->fec_vencimiento);
-                    if (!$tmpFecha->gte($fecha_vencimiento)){
+                    if (!$tmpFecha->gte($fecha_vencimiento)) {
                         $suscripcion->fec_vencimiento = $fecha_final;
                         $suscripcion->fec_corte = $fecha_final;
                     }
                     $suscripcion->fec_inicio = Carbon::now();
                     $suscripcion->updated_at = Carbon::now();
                     $suscripcion->save();
-
-                }else{
-                    $fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
-                    $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
-                    $suscripcion = New Suscripcion;
+                } else {
+                    $fecha_inicio = date('Y-m-d', strtotime($suscripcion_pago->created_at));
+                    $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at . "+ $mesesPagos month"));
+                    $suscripcion = new Suscripcion;
                     $suscripcion->id_empresa = $suscripcion_pago->id_empresa;
                     $suscripcion->fec_inicio = $fecha_inicio;
                     $suscripcion->fec_vencimiento = $fecha_final;
+                    $suscripcion->dia_facturacion = Carbon::parse($fecha_inicio)->day;
                     $suscripcion->created_at = Carbon::now();
                     $suscripcion->save();
                 }
                 $mensaje = "Pago realizado Correctamente";
-            }
-            else if($_REQUEST['transactionState']==6)
-            {
+            } else if ($_REQUEST['transactionState'] == 6) {
                 $suplente_pago->EstadoTransaccion = "DECLINED";
                 $suplente_pago->estado = 1;
 
@@ -288,37 +295,30 @@ class PlanesController extends Controller
                 $suscripcion_pago->referencia = $suplente_pago->referencia_pago;
                 $suscripcion_pago->meses = ($suplente_pago->personalizado) ? DB::table('planes_personalizados')->find($suplente_pago->plan)->meses :
                     $suplente_pago->meses;
-                $suscripcion_pago->estado =3;
+                $suscripcion_pago->estado = 3;
                 $suscripcion_pago->suplentepago_id = $suplente_pago->id;
                 $suscripcion_pago->monto = $suplente_pago->monto;
 
                 if ($suplente_pago->tipo_pago == "CREDIT_CARD") {
                     $suscripcion_pago->tipo_pago = 5;
-                }
-                else if ($suplente_pago->tipo_pago == "PSE")
-                {
+                } else if ($suplente_pago->tipo_pago == "PSE") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "DEBIT_CARD")
-                {
+                } else if ($suplente_pago->tipo_pago == "DEBIT_CARD") {
                     $suscripcion_pago->tipo_pago = 6;
-                }else if($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED") {
                     $suscripcion_pago->tipo_pago = 1;
-                }else if($suplente_pago->tipo_pago == "ACH")
-                {
+                } else if ($suplente_pago->tipo_pago == "ACH") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "SPEI")
-                {
+                } else if ($suplente_pago->tipo_pago == "SPEI") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "BANK_REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "BANK_REFERENCED") {
                     $suscripcion_pago->tipo_pago = 3;
                 }
                 $suscripcion_pago->save();
                 //------------- /info repetitiva-----------------//
 
-                $mensaje= "Pago Rechazado, intentelo nuevamente";
-            }
-            else if($_REQUEST['transactionState']==104)
-            {
+                $mensaje = "Pago Rechazado, intentelo nuevamente";
+            } else if ($_REQUEST['transactionState'] == 104) {
                 $suplente_pago->EstadoTransaccion = "ERROR";
                 $suplente_pago->estado = 1;
 
@@ -330,36 +330,29 @@ class PlanesController extends Controller
                 $suscripcion_pago->referencia = $suplente_pago->referencia_pago;
                 $suscripcion_pago->meses = ($suplente_pago->personalizado) ? DB::table('planes_personalizados')->find($suplente_pago->plan)->meses :
                     $suplente_pago->meses;
-                $suscripcion_pago->estado =5;
+                $suscripcion_pago->estado = 5;
                 $suscripcion_pago->suplentepago_id = $suplente_pago->id;
                 $suscripcion_pago->monto = $suplente_pago->monto;
 
                 if ($suplente_pago->tipo_pago == "CREDIT_CARD") {
                     $suscripcion_pago->tipo_pago = 5;
-                }
-                else if ($suplente_pago->tipo_pago == "PSE")
-                {
+                } else if ($suplente_pago->tipo_pago == "PSE") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "DEBIT_CARD")
-                {
+                } else if ($suplente_pago->tipo_pago == "DEBIT_CARD") {
                     $suscripcion_pago->tipo_pago = 6;
-                }else if($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED") {
                     $suscripcion_pago->tipo_pago = 1;
-                }else if($suplente_pago->tipo_pago == "ACH")
-                {
+                } else if ($suplente_pago->tipo_pago == "ACH") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "SPEI")
-                {
+                } else if ($suplente_pago->tipo_pago == "SPEI") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "BANK_REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "BANK_REFERENCED") {
                     $suscripcion_pago->tipo_pago = 3;
                 }
                 $suscripcion_pago->save();
                 //------------- /info repetitiva-----------------//
-                $mensaje= "Pago Rechazado, intentelo nuevamente";
-            }
-            else if($_REQUEST['transactionState']==7)
-            {
+                $mensaje = "Pago Rechazado, intentelo nuevamente";
+            } else if ($_REQUEST['transactionState'] == 7) {
                 $suplente_pago->EstadoTransaccion = "PENDING";
                 $suplente_pago->estado = 1;
 
@@ -371,36 +364,29 @@ class PlanesController extends Controller
                 $suscripcion_pago->referencia = $suplente_pago->referencia_pago;
                 $suscripcion_pago->meses = ($suplente_pago->personalizado) ? DB::table('planes_personalizados')->find($suplente_pago->plan)->meses :
                     $suplente_pago->meses;
-                $suscripcion_pago->estado =2;
+                $suscripcion_pago->estado = 2;
                 $suscripcion_pago->suplentepago_id = $suplente_pago->id;
                 $suscripcion_pago->monto = $suplente_pago->monto;
 
                 if ($suplente_pago->tipo_pago == "CREDIT_CARD") {
                     $suscripcion_pago->tipo_pago = 5;
-                }
-                else if ($suplente_pago->tipo_pago == "PSE")
-                {
+                } else if ($suplente_pago->tipo_pago == "PSE") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "DEBIT_CARD")
-                {
+                } else if ($suplente_pago->tipo_pago == "DEBIT_CARD") {
                     $suscripcion_pago->tipo_pago = 6;
-                }else if($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED") {
                     $suscripcion_pago->tipo_pago = 1;
-                }else if($suplente_pago->tipo_pago == "ACH")
-                {
+                } else if ($suplente_pago->tipo_pago == "ACH") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "SPEI")
-                {
+                } else if ($suplente_pago->tipo_pago == "SPEI") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "BANK_REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "BANK_REFERENCED") {
                     $suscripcion_pago->tipo_pago = 3;
                 }
                 $suscripcion_pago->save();
                 //------------- /info repetitiva-----------------//
-                $mensaje= "Pago En proceso";
-            }
-            else if($_REQUEST['transactionState']==5)
-            {
+                $mensaje = "Pago En proceso";
+            } else if ($_REQUEST['transactionState'] == 5) {
                 $suplente_pago->EstadoTransaccion = "EXPIRED";
                 $suplente_pago->estado = 1;
 
@@ -412,33 +398,28 @@ class PlanesController extends Controller
                 $suscripcion_pago->referencia = $suplente_pago->referencia_pago;
                 $suscripcion_pago->meses = ($suplente_pago->personalizado) ? DB::table('planes_personalizados')->find($suplente_pago->plan)->meses :
                     $suplente_pago->meses;
-                $suscripcion_pago->estado =4;
+                $suscripcion_pago->estado = 4;
                 $suscripcion_pago->suplentepago_id = $suplente_pago->id;
                 $suscripcion_pago->monto = $suplente_pago->monto;
 
                 if ($suplente_pago->tipo_pago == "CREDIT_CARD") {
                     $suscripcion_pago->tipo_pago = 5;
-                }
-                else if ($suplente_pago->tipo_pago == "PSE")
-                {
+                } else if ($suplente_pago->tipo_pago == "PSE") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "DEBIT_CARD")
-                {
+                } else if ($suplente_pago->tipo_pago == "DEBIT_CARD") {
                     $suscripcion_pago->tipo_pago = 6;
-                }else if($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "CASH" || $suplente_pago->tipo_pago == "REFERENCED") {
                     $suscripcion_pago->tipo_pago = 1;
-                }else if($suplente_pago->tipo_pago == "ACH")
-                {
+                } else if ($suplente_pago->tipo_pago == "ACH") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "SPEI")
-                {
+                } else if ($suplente_pago->tipo_pago == "SPEI") {
                     $suscripcion_pago->tipo_pago = 3;
-                }else if($suplente_pago->tipo_pago == "BANK_REFERENCED"){
+                } else if ($suplente_pago->tipo_pago == "BANK_REFERENCED") {
                     $suscripcion_pago->tipo_pago = 3;
                 }
                 $suscripcion_pago->save();
                 //------------- /info repetitiva-----------------//
-                $mensaje= "Pago Rechazado, intentelo nuevamente";
+                $mensaje = "Pago Rechazado, intentelo nuevamente";
             }
 
 
@@ -449,17 +430,16 @@ class PlanesController extends Controller
             $suplente_pago->type_currency = $_REQUEST['currency'];
             $suplente_pago->api_key = config('app.api_key');
 
-            $firma_cadena = $ApiKey."~".$suplente_pago->merchant_id."~".$suplente_pago->referencia_pago."~". number_format($suplente_pago->monto, 2, '.', '')."~".$suplente_pago->type_currency."~".$suplente_pago->transactionState;
+            $firma_cadena = $ApiKey . "~" . $suplente_pago->merchant_id . "~" . $suplente_pago->referencia_pago . "~" . number_format($suplente_pago->monto, 2, '.', '') . "~" . $suplente_pago->type_currency . "~" . $suplente_pago->transactionState;
 
             $suplente_pago->firm = md5($firma_cadena);
             $suplente_pago->save();
         }
         //¿pasa por acá si el cliente recarga la pasarela? No sé porque tengo que verificar si queda con el mismo referencecode
-        else{
-
+        else {
         }
 
-        return redirect('/empresa/suscripcion/pagos')->with('success',$mensaje);
+        return redirect('/empresa/suscripcion/pagos')->with('success', $mensaje);
     }
 
     public function pagohecho()
@@ -472,15 +452,12 @@ class PlanesController extends Controller
         // MANERA DE COMPROBAR QUE TODOS LOS CODIGOS SEAN UNICOS
         $sw = 1;
         while ($sw == 1) {
-            $numref = "pago-".Planes::generateRandomString();
-            if (Planes::where('referencia_pago',$numref)->first()) {
-                $numref = "pago-".Planes::generateRandomString();
-            }
-            else
-            {
+            $numref = "pago-" . Planes::generateRandomString();
+            if (Planes::where('referencia_pago', $numref)->first()) {
+                $numref = "pago-" . Planes::generateRandomString();
+            } else {
                 $sw = 0;
             }
-
         }
 
         $api_key = "tZdIpXl9HrE9hrzVncOv8UO0Fd";
@@ -494,11 +471,11 @@ class PlanesController extends Controller
         $info_pago->tax = "0";
         $info_pago->taxReturnBase = "0";
         $info_pago->currency = "COP";
-        $info_pago->signature = md5($api_key."~".$info_pago->merchantId."~".$info_pago->referenceCode."~".$monto."~".$info_pago->currency);
-        $info_pago->test="0";
-        $info_pago->buyerEmail=Auth()->user()->email;
-        $info_pago->responseUrl="https://gestordepartes.net/respuestapago/";
-        $info_pago->confirmationUrl="https://gestordepartes.net/PagoHecho/";
+        $info_pago->signature = md5($api_key . "~" . $info_pago->merchantId . "~" . $info_pago->referenceCode . "~" . $monto . "~" . $info_pago->currency);
+        $info_pago->test = "0";
+        $info_pago->buyerEmail = Auth()->user()->email;
+        $info_pago->responseUrl = "https://gestordepartes.net/respuestapago/";
+        $info_pago->confirmationUrl = "https://gestordepartes.net/PagoHecho/";
         //$info_pago->responseUrl="http://127.0.0.1:8000/respuestapago/";
         //$info_pago->confirmationUrl="http://127.0.0.1:8000/PagoHecho/";
         return response()->json($info_pago);
@@ -541,7 +518,7 @@ class PlanesController extends Controller
 
     public function personalizados_update(Request $request, $plan)
     {
-        DB::table('planes_personalizados')->where('id',$plan)
+        DB::table('planes_personalizados')->where('id', $plan)
             ->update([
                 'nombre' => $request->input('nombre'),
                 'facturas' => $request->input('facturas'),
@@ -564,8 +541,8 @@ class PlanesController extends Controller
         $empresasPlanes = Empresa::all()->pluck('p_personalizado');
         $used = DB::table('planes_personalizados')->whereNotIn('id', $empresasPlanes)->get();
         $planes = DB::table('planes_personalizados')->get();
-        if($plan){
-            DB::table('planes_personalizados')->where('id',$id)->delete();
+        if ($plan) {
+            DB::table('planes_personalizados')->where('id', $id)->delete();
             $planes = DB::table('planes_personalizados')->get();
 
             return view('master.planes.index')->with('success', 'Plan eliminado exitosamente.')->with(compact('planes', 'used'));
@@ -573,32 +550,29 @@ class PlanesController extends Controller
         return view('master.planes.index')->with('warning', 'No se puede eliminar el plan.')->with(compact('planes', 'used'));
     }
 
-//Guardardo previo de la informacion del pedido, ya que el cliente puede que no regrese a la tienda una vez haya comprado un plan
+    //Guardardo previo de la informacion del pedido, ya que el cliente puede que no regrese a la tienda una vez haya comprado un plan
     function PreGuardarPago(Request $data)
     {
 
-        if($data->pMeses != 0 ){
-           $meses = $data->pMeses;
-        }else{
+        if ($data->pMeses != 0) {
+            $meses = $data->pMeses;
+        } else {
             //Validamos que mes escogio el usuario por medio del id del radiobutton
             if ($data->meses == "optradio1") {
                 $meses = 1;
-            }
-            else if ($data->meses == "optradio2"){
+            } else if ($data->meses == "optradio2") {
                 $meses = 6;
-            }
-            else if ($data->meses == "optradio3"){
+            } else if ($data->meses == "optradio3") {
                 $meses = 12;
-            }
-            else
-            {
+            } else {
                 return null;
             }
         }
 
 
         $suplente_pago = Planes::firstOrCreate(
-            ['id_empresa' => auth()->user()->empresa,
+            [
+                'id_empresa' => auth()->user()->empresa,
                 'monto' => $data->amount,
                 'meses' => $meses,
                 'plan' => $data->plan,
@@ -613,7 +587,7 @@ class PlanesController extends Controller
             ]
         );
 
-        $suplente_pago->plazo = date('Y-m-d H:m:s',strtotime($suplente_pago->created_at."+ 1 day"));
+        $suplente_pago->plazo = date('Y-m-d H:m:s', strtotime($suplente_pago->created_at . "+ 1 day"));
         $suplente_pago->save();
 
         return response()->json("hecho");
@@ -621,7 +595,7 @@ class PlanesController extends Controller
 
     function consultaestado()
     {
-        $pedidos = Planes::where('id_empresa',Auth()->user()->empresa)->where('TransactionState',7)->get();
+        $pedidos = Planes::where('id_empresa', Auth()->user()->empresa)->where('TransactionState', 7)->get();
 
 
 
@@ -629,11 +603,11 @@ class PlanesController extends Controller
 
             foreach ($pedidos as $pdi) {
 
-                $pregunta = json_decode(Planes::ConsultaEstado($pdi->referencia_pago),true);
+                $pregunta = json_decode(Planes::ConsultaEstado($pdi->referencia_pago), true);
 
                 if ($pregunta['result']) {
 
-                    $suscripcion_pago = SuscripcionPago::where('referencia',$pdi->referencia_pago)->first();
+                    $suscripcion_pago = SuscripcionPago::where('referencia', $pdi->referencia_pago)->first();
 
                     $newestado = $pregunta['result']['payload']['order']['transactions']['transaction']['transactionResponse']['state'];
 
@@ -657,54 +631,46 @@ class PlanesController extends Controller
                             //$fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
                             //$fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
 
-                            $suscripcion = Suscripcion::where('id_empresa',$suscripcion_pago->id_empresa)->first();
+                            $suscripcion = Suscripcion::where('id_empresa', $suscripcion_pago->id_empresa)->first();
 
-                            if($suscripcion){
+                            if ($suscripcion) {
                                 $fecha_vencimiento = Carbon::now()->addMonth($mesesPagos);
-                                $fecha_final = date('Y-m-d', strtotime(Carbon::now()."+ $mesesPagos month"));
+                                $fecha_final = date('Y-m-d', strtotime(Carbon::now() . "+ $mesesPagos month"));
                                 $tmpFecha = Carbon::parse($suscripcion->fec_vencimiento);
-                                if (!$tmpFecha->gte($fecha_vencimiento)){
+                                if (!$tmpFecha->gte($fecha_vencimiento)) {
                                     $suscripcion->fec_vencimiento = $fecha_final;
                                     $suscripcion->fec_corte = $fecha_final;
                                 }
                                 $suscripcion->fec_inicio = Carbon::now();
                                 $suscripcion->updated_at = Carbon::now();
                                 $suscripcion->save();
-
-                            }else{
-                                $fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
-                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
-                                $suscripcion = New Suscripcion;
+                            } else {
+                                $fecha_inicio = date('Y-m-d', strtotime($suscripcion_pago->created_at));
+                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at . "+ $mesesPagos month"));
+                                $suscripcion = new Suscripcion;
                                 $suscripcion->id_empresa = $suscripcion_pago->id_empresa;
                                 $suscripcion->fec_inicio = $fecha_inicio;
                                 $suscripcion->fec_vencimiento = $fecha_final;
+                                $suscripcion->dia_facturacion = Carbon::parse($fecha_inicio)->day;
                                 $suscripcion->created_at = Carbon::now();
                                 $suscripcion->save();
                             }
                             ////////////////Tabla: Suscripciones ////////////////////
 
 
-                        }
-                        else if ($newestado == 'DECLINED')
-                        {
+                        } else if ($newestado == 'DECLINED') {
                             $pdi->TransactionState = 6;
                             $pdi->EstadoTransaccion = 'DECLINED';
                             $suscripcion_pago->estado = 3;
-                        }
-                        else if($newestado == 'ERROR')
-                        {
+                        } else if ($newestado == 'ERROR') {
                             $pdi->TransactionState = 104;
                             $pdi->EstadoTransaccion = 'ERROR';
                             $suscripcion_pago->estado = 5;
-                        }
-                        else if ($newestado == 'EXPIRED')
-                        {
+                        } else if ($newestado == 'EXPIRED') {
                             $pdi->TransactionState = 5;
                             $pdi->EstadoTransaccion = 'EXPIRED';
                             $suscripcion_pago->estado = 4;
-                        }
-                        else
-                        {
+                        } else {
                             break;
                         }
                         $suscripcion_pago->save();
@@ -713,31 +679,26 @@ class PlanesController extends Controller
                 }
             }
             return response()->json($pedidos);
-        }else
-        {
+        } else {
             return response()->json("No hay pedidos pendientes");
         }
-
     }
 
     function datosfaltantes()
     {
-        $suplente_planes = Planes::where('id_empresa',Auth()->user()->empresa)->where('transactionId',null)->get();
-        $entra = Planes::where('id_empresa',Auth()->user()->empresa)->where('transactionId',null)->count();
+        $suplente_planes = Planes::where('id_empresa', Auth()->user()->empresa)->where('transactionId', null)->get();
+        $entra = Planes::where('id_empresa', Auth()->user()->empresa)->where('transactionId', null)->count();
 
 
 
         //Si hay transaciones nulas si entra.
-        if ($entra > 0)
-        {
+        if ($entra > 0) {
 
-            foreach ($suplente_planes as $pdi)
-            {
-                $pregunta = json_decode(Planes::ConsultaEstado($pdi->referencia_pago),true);
+            foreach ($suplente_planes as $pdi) {
+                $pregunta = json_decode(Planes::ConsultaEstado($pdi->referencia_pago), true);
 
                 //Si hay un resultado entonces vamos a guardar si o si los datos en la tabla suscripciones_pagos y actualizar los de la suplente.
-                if ($pregunta['result'])
-                {
+                if ($pregunta['result']) {
 
                     /////////////////////////////Consulta PAYU/////////////////////////////
                     $paymentMethod = $pregunta['result']['payload']['order']['transactions']['transaction']['paymentMethod'];
@@ -748,7 +709,7 @@ class PlanesController extends Controller
 
                     $type_currency = $pregunta['result']['payload']['order']['additionalValues']['entry'][0]['additionalValue']['currency'];
 
-                    $firma_cadena = $pdi->api_key."~".$pdi->merchant_id."~".$pdi->referencia_pago."~". number_format($pdi->monto, 2, '.', '')."~".$type_currency."~".$status;
+                    $firma_cadena = $pdi->api_key . "~" . $pdi->merchant_id . "~" . $pdi->referencia_pago . "~" . number_format($pdi->monto, 2, '.', '') . "~" . $type_currency . "~" . $status;
                     /////////////////////////////Consulta PAYU/////////////////////////////
 
                     ////////////////////////tabla: Suplente_pago //////////////////////////
@@ -761,24 +722,20 @@ class PlanesController extends Controller
 
                     if ($status == 'APPROVED') {
                         $pdi->transactionState = 4;
-                    } else if($status == 'DECLINED')
-                    {
+                    } else if ($status == 'DECLINED') {
                         $pdi->transactionState = 6;
-                    }else if($status == 'ERROR')
-                    {
+                    } else if ($status == 'ERROR') {
                         $pdi->transactionState = 104;
-                    }else if($status == 'EXPIRED')
-                    {
+                    } else if ($status == 'EXPIRED') {
                         $pdi->transactionState = 5;
-                    }else if($status == 'PENDING')
-                    {
+                    } else if ($status == 'PENDING') {
                         $pdi->transactionState = 7;
                     }
                     $pdi->save();
                     ////////////////////////tabla: Suplente_pago //////////////////////////
 
                     ///////////////////////Tabla: Suscripciones_pagos///////////////////////
-                    $suscripcion_pago = SuscripcionPago::where('referencia',$pdi->referencia_pago)->first();
+                    $suscripcion_pago = SuscripcionPago::where('referencia', $pdi->referencia_pago)->first();
                     if ($suscripcion_pago) {
                         $suscripcion_pago->id_empresa = auth()->user()->empresa;
                         $suscripcion_pago->plan = $pdi->plan;
@@ -798,49 +755,45 @@ class PlanesController extends Controller
                             //$fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
                             //$fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
 
-                            $suscripcion = Suscripcion::where('id_empresa',$suscripcion_pago->id_empresa)->first();
+                            $suscripcion = Suscripcion::where('id_empresa', $suscripcion_pago->id_empresa)->first();
 
-                            if($suscripcion){
+                            if ($suscripcion) {
                                 $fecha_vencimiento = Carbon::now()->addMonth($mesesPagos);
-                                $fecha_final = date('Y-m-d', strtotime(Carbon::now()."+ $mesesPagos month"));
+                                $fecha_final = date('Y-m-d', strtotime(Carbon::now() . "+ $mesesPagos month"));
                                 $tmpFecha = Carbon::parse($suscripcion->fec_vencimiento);
-                                if (!$tmpFecha->gte($fecha_vencimiento)){
+                                if (!$tmpFecha->gte($fecha_vencimiento)) {
                                     $suscripcion->fec_vencimiento = $fecha_final;
                                     $suscripcion->fec_corte = $fecha_final;
                                 }
                                 $suscripcion->fec_inicio = Carbon::now();
                                 $suscripcion->updated_at = Carbon::now();
                                 $suscripcion->save();
-
-                            }else{
-                                $fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
-                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
-                                $suscripcion = New Suscripcion;
+                            } else {
+                                $fecha_inicio = date('Y-m-d', strtotime($suscripcion_pago->created_at));
+                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at . "+ $mesesPagos month"));
+                                $suscripcion = new Suscripcion;
                                 $suscripcion->id_empresa = $suscripcion_pago->id_empresa;
                                 $suscripcion->fec_inicio = $fecha_inicio;
                                 $suscripcion->fec_vencimiento = $fecha_final;
+                                $suscripcion->dia_facturacion = Carbon::parse($fecha_inicio)->day;
                                 $suscripcion->created_at = Carbon::now();
                                 $suscripcion->save();
                             }
                             ////////////////Tabla: Suscripciones ////////////////////
 
 
-                        }else if($pdi->transactionState == 5)
-                        {
+                        } else if ($pdi->transactionState == 5) {
                             $suscripcion_pago->estado = 4;
-                        }else if($pdi->transactionState == 6)
-                        {
+                        } else if ($pdi->transactionState == 6) {
                             $suscripcion_pago->estado = 3;
-                        }else if($pdi->transactionState == 7)
-                        {
+                        } else if ($pdi->transactionState == 7) {
                             $suscripcion_pago->estado = 2;
-                        }else if($pdi->transactionState == 104)
-                        {
+                        } else if ($pdi->transactionState == 104) {
                             $suscripcion_pago->estado = 5;
                         }
 
                         $suscripcion_pago->save();
-                    }else{
+                    } else {
                         $suscripcion_pago = new SuscripcionPago();
                         $suscripcion_pago->id_empresa = auth()->user()->empresa;
                         $suscripcion_pago->plan = $pdi->plan;
@@ -860,44 +813,40 @@ class PlanesController extends Controller
                             //$fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
                             //$fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
 
-                            $suscripcion = Suscripcion::where('id_empresa',$suscripcion_pago->id_empresa)->first();
+                            $suscripcion = Suscripcion::where('id_empresa', $suscripcion_pago->id_empresa)->first();
 
-                            if($suscripcion){
+                            if ($suscripcion) {
                                 $fecha_vencimiento = Carbon::now()->addMonth($mesesPagos);
-                                $fecha_final = date('Y-m-d', strtotime(Carbon::now()."+ $mesesPagos month"));
+                                $fecha_final = date('Y-m-d', strtotime(Carbon::now() . "+ $mesesPagos month"));
                                 $tmpFecha = Carbon::parse($suscripcion->fec_vencimiento);
-                                if (!$tmpFecha->gte($fecha_vencimiento)){
+                                if (!$tmpFecha->gte($fecha_vencimiento)) {
                                     $suscripcion->fec_vencimiento = $fecha_final;
                                     $suscripcion->fec_corte = $fecha_final;
                                 }
                                 $suscripcion->fec_inicio = Carbon::now();
                                 $suscripcion->updated_at = Carbon::now();
                                 $suscripcion->save();
-
-                            }else{
-                                $fecha_inicio = date('Y-m-d',strtotime($suscripcion_pago->created_at));
-                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at."+ $mesesPagos month"));
-                                $suscripcion = New Suscripcion;
+                            } else {
+                                $fecha_inicio = date('Y-m-d', strtotime($suscripcion_pago->created_at));
+                                $fecha_final = date('Y-m-d', strtotime($suscripcion_pago->created_at . "+ $mesesPagos month"));
+                                $suscripcion = new Suscripcion;
                                 $suscripcion->id_empresa = $suscripcion_pago->id_empresa;
                                 $suscripcion->fec_inicio = Carbon::now();
                                 $suscripcion->fec_vencimiento = $fecha_final;
+                                $suscripcion->dia_facturacion = Carbon::parse($fecha_inicio)->day;
                                 $suscripcion->created_at = Carbon::now();
                                 $suscripcion->save();
                             }
                             ////////////////Tabla: Suscripciones ////////////////////
 
 
-                        }else if($pdi->transactionState == 5)
-                        {
+                        } else if ($pdi->transactionState == 5) {
                             $suscripcion_pago->estado = 4;
-                        }else if($pdi->transactionState == 6)
-                        {
+                        } else if ($pdi->transactionState == 6) {
                             $suscripcion_pago->estado = 3;
-                        }else if($pdi->transactionState == 7)
-                        {
+                        } else if ($pdi->transactionState == 7) {
                             $suscripcion_pago->estado = 2;
-                        }else if($pdi->transactionState == 104)
-                        {
+                        } else if ($pdi->transactionState == 104) {
                             $suscripcion_pago->estado = 5;
                         }
 
@@ -907,11 +856,8 @@ class PlanesController extends Controller
                 }
             }
             return response()->json("Hecho");
-        }
-        else
-        {
+        } else {
             return response()->json("No hay pedidos con informacion faltante");
         }
     }
-
 }

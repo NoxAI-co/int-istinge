@@ -6,8 +6,8 @@ use App\Suscripcion;
 use App\SuscripcionPago;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 use App\User;
 
 class SuscripcionController extends Controller
@@ -16,7 +16,33 @@ class SuscripcionController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        view()->share(['seccion' => 'suscripcion', 'title' => 'Suscripciones', 'icon' =>'fas fa-money-bill-wave']);
+        view()->share(['seccion' => 'suscripcion', 'title' => 'Suscripciones', 'icon' => 'fas fa-money-bill-wave']);
+    }
+
+    /**
+     * Validates if the subscription modal should be shown based on billing day and status
+     */
+    public function validateSubscription()
+    {
+        if (!Auth::check()) {
+            return response()->json(['showModal' => false]);
+        }
+
+        $empresa_id = Auth::user()->empresa;
+        $today = Carbon::now()->day;
+
+        $suscripcion = Suscripcion::where('id_empresa', $empresa_id)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$suscripcion) {
+            return response()->json(['showModal' => false]);
+        }
+
+        // Check if today is the billing day and subscription is inactive (estado = 0)
+        $showModal = ($today == $suscripcion->dia_facturacion && $suscripcion->estado == 0);
+
+        return response()->json(['showModal' => $showModal]);
     }
 
     /**
@@ -26,25 +52,26 @@ class SuscripcionController extends Controller
      */
     public function index()
     {
-        
+
         $this->getAllPermissions(Auth::user()->id);
         $suscripciones = Suscripcion::all();
         return view('suscripciones.suscripcionesIndex')->with(compact('suscripciones'));
     }
 
-    public function indexPagos(){
-        if(Auth::user()->rol == 1){
+    public function indexPagos()
+    {
+        if (Auth::user()->rol == 1) {
             $suscripcionesPagos = SuscripcionPago::all();
-            $certificado = Suscripcion::where('id_empresa',1)->first();
+            $certificado = Suscripcion::where('id_empresa', 1)->first();
             $sw = 1;
-            return view('suscripciones.pagosIndex')->with(compact('suscripcionesPagos','certificado','sw'));
-        }else{
+            return view('suscripciones.pagosIndex')->with(compact('suscripcionesPagos', 'certificado', 'sw'));
+        } else {
             $this->getAllPermissions(Auth::user()->id);
-            $suscripcionesPagos = SuscripcionPago::where('id_empresa',Auth::user()->empresa)
-            ->get();
+            $suscripcionesPagos = SuscripcionPago::where('id_empresa', Auth::user()->empresa)
+                ->get();
             $sw = 0;
-            $certificado = Suscripcion::where('id_empresa',auth()->user()->empresa)->first();
-            return view('suscripciones.pagosIndex')->with(compact('suscripcionesPagos','certificado','sw'));
+            $certificado = Suscripcion::where('id_empresa', auth()->user()->empresa)->first();
+            return view('suscripciones.pagosIndex')->with(compact('suscripcionesPagos', 'certificado', 'sw'));
         }
     }
 
@@ -78,7 +105,7 @@ class SuscripcionController extends Controller
         $suscripcionPago->monto = $request->monto;
         $suscripcionPago->save();
 
-        $mensaje='Pago realizado con Exito.';
+        $mensaje = 'Pago realizado con Exito.';
 
         return redirect('empresa/suscripcion/pagos')->with('success', $mensaje);
     }
@@ -128,32 +155,34 @@ class SuscripcionController extends Controller
         //
     }
 
-    public function aprobarPago($id){
+    public function aprobarPago($id)
+    {
 
         $suscripcionPagos = SuscripcionPago::find($id);
 
         $mesesPagos = $suscripcionPagos->meses;
 
-        $fecha_inicio = date('Y-m-d',strtotime($suscripcionPagos->created_at));
-        $fecha_final = date('Y-m-d', strtotime($suscripcionPagos->created_at."+ $mesesPagos month"));
+        $fecha_inicio = date('Y-m-d', strtotime($suscripcionPagos->created_at));
+        $fecha_final = date('Y-m-d', strtotime($suscripcionPagos->created_at . "+ $mesesPagos month"));
 
 
-        if($suscripcionPagos){
+        if ($suscripcionPagos) {
             DB::table('suscripciones_pagos')->where('id', $id)->update(['estado' => 1]);
-            $suscripcion = DB::table('suscripciones')->where('id_empresa',$suscripcionPagos->id_empresa)->count();
+            $suscripcion = DB::table('suscripciones')->where('id_empresa', $suscripcionPagos->id_empresa)->count();
 
-            if($suscripcion){
+            if ($suscripcion) {
                 DB::table('suscripciones')->update([
                     'fec_inicio' => $fecha_inicio,
                     'fec_vencimiento' => $fecha_final,
                     'fec_corte' => $fecha_final,
                     'updated_at' => Carbon::now()
                 ])->where([
-                    'id_empresa',$suscripcionPagos->id_empresa,
-                    'id', $suscripcionPagos->id
+                    'id_empresa',
+                    $suscripcionPagos->id_empresa,
+                    'id',
+                    $suscripcionPagos->id
                 ]);
-
-            }else{
+            } else {
 
                 DB::table('suscripciones')->insert([
                     'id_empresa' => $suscripcionPagos->id_empresa,
@@ -169,8 +198,6 @@ class SuscripcionController extends Controller
         }
 
         return back()->with('success', $mensaje);
-
-
     }
 
     public function prorrogaForm($id)
@@ -179,34 +206,34 @@ class SuscripcionController extends Controller
         return view('suscripciones.modal.prorroga')->with(compact('suscripcion'));
     }
 
-    public function prorrogaUpdate(Request $request){
+    public function prorrogaUpdate(Request $request)
+    {
 
-       $suscripcion = Suscripcion::find($request->id_suscripcion);
-       $fecha_prorroga = date('Y-m-d', strtotime($suscripcion->fec_vencimiento."+ $request->prorroga days"));
+        $suscripcion = Suscripcion::find($request->id_suscripcion);
+        $fecha_prorroga = date('Y-m-d', strtotime($suscripcion->fec_vencimiento . "+ $request->prorroga days"));
 
-       $suscripcion->update([
-           'fec_vencimiento' => $fecha_prorroga,
-           'fec_corte' => $fecha_prorroga,
-           'prorroga' => $request->prorroga,
-           'updated_at' => Carbon::now()
-       ]);
-       $mensaje = 'Se agrego satisfacotriamente la prorroga';
+        $suscripcion->update([
+            'fec_vencimiento' => $fecha_prorroga,
+            'fec_corte' => $fecha_prorroga,
+            'prorroga' => $request->prorroga,
+            'updated_at' => Carbon::now()
+        ]);
+        $mensaje = 'Se agrego satisfacotriamente la prorroga';
 
-       return back()->with('success', $mensaje);
+        return back()->with('success', $mensaje);
+    }
 
-   }
-   
-   public function ilimitado($empresa)
-   {
-       $suscripcion             = Suscripcion::find($empresa);
-       $suscripcion->ilimitado  = !$suscripcion->ilimitado;
-       $suscripcion->save();
-       $mensaje = ($suscripcion->ilimitado) ? 'Se ha activado el plan ilimitado' : 'Se ha desactivado el plan ilimitado';
+    public function ilimitado($empresa)
+    {
+        $suscripcion             = Suscripcion::find($empresa);
+        $suscripcion->ilimitado  = !$suscripcion->ilimitado;
+        $suscripcion->save();
+        $mensaje = ($suscripcion->ilimitado) ? 'Se ha activado el plan ilimitado' : 'Se ha desactivado el plan ilimitado';
 
-       return back()->with('success', $mensaje);
-   }
-   
-   public function anular($id)
+        return back()->with('success', $mensaje);
+    }
+
+    public function anular($id)
     {
         $suscripcion = SuscripcionPago::find($id);
         $suscripcion->estado = 10;
@@ -222,8 +249,5 @@ class SuscripcionController extends Controller
         return back();
     }
 
-   public function rechazarPago(){
-
-   }
-
+    public function rechazarPago() {}
 }

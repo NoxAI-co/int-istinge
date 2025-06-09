@@ -319,6 +319,7 @@ Route::group(['prefix' => 'master', 'middleware' => ['auth', 'master']], functio
 
 		Route::get('nominas', 'SuscripcionController@nomina_pendientes')->name('suscripciones-nomina.pendientes');
 		Route::post('nomina-confirmar/{id}', 'SuscripcionController@nomina_confirmar')->name('suscripciones-nomina.confirmar');
+		Route::get('validate', 'SuscripcionController@validateSubscription')->name('suscripciones.validate');
 	});
 
 
@@ -414,6 +415,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::group(['prefix' => 'suscripcion'], function () {
 		Route::get('pagos', 'SuscripcionController@indexPagos')->name('listadoPagos.index');
 		Route::post('guardar', 'SuscripcionController@store')->name('suscripciones.store');
+		Route::get('validate', 'SuscripcionController@validateSubscription')->name('suscripciones.validate');
 	});
 
 	Route::group(['prefix' => 'inventario'], function () {
