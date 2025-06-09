@@ -56,8 +56,7 @@
 	    <a onclick="convertirElectronica('{{$codigo}}','{{route('facturas.convertirelectronica',$id)}}')" class="btn btn-outline-info btn-icons" title="Convertir a electrónica"><i class="fas fa-exchange-alt"></i></a>
 	@endif
 
-    @if($api_key_siigo != null)
-
+    @if($api_key_siigo != null && ($siigo_id == "" || $siigo_id == null))
     <a
     {{-- href="{{route('siigo.create_invoice',$id)}}" --}}
     href="#"

@@ -242,107 +242,183 @@ class SiigoController extends Controller
     public function sendInvoice(Request $request)
     {
 
-        // return $request;
-        $factura = Factura::Find($request->factura_id);
-        $cliente_factura = $factura->cliente();
-        $items_factura = ItemsFactura::join('inventario', 'inventario.id', 'items_factura.producto')
-            ->where('factura', $factura->id)->get();
-        $empresa = Empresa::Find(1);
-        $departamento = $cliente_factura->departamento();
-        $municipio = $cliente_factura->municipio();
+        try {
 
-        $array_items_factura = [];
-        foreach ($items_factura as $item) {
-            $array_items_factura[] = [
-                "code" => $item['ref'],
-                "quantity" => round($item['cant']),
-                "price" => $item['precio']
-            ];
-        }
+            $factura = Factura::Find($request->factura_id);
+            $cliente_factura = $factura->cliente();
+            $items_factura = ItemsFactura::join('inventario', 'inventario.id', 'items_factura.producto')
+                ->where('factura', $factura->id)
+                ->select('items_factura.precio','inventario.codigo_siigo','items_factura.cant',
+                'items_factura.id_impuesto','items_factura.producto','inventario.ref',
+                'inventario.producto as nombreProducto','inventario.id')
+                ->get();
+            $empresa = Empresa::Find(1);
+            $departamento = $cliente_factura->departamento();
+            $municipio = $cliente_factura->municipio();
 
-        $data = [
-            "document" => [
-                "id" => $request->tipo_comprobante
-            ],
-            "date" => $factura->fecha,
-            "customer" => [
-                "person_type" => $cliente_factura->dv != null ? 'Company' : 'Person',
-                "id_type" => $cliente_factura->dv != null ? "31" : "13", //13 cedula 31 nit
-                "identification" => $cliente_factura->nit,
-                "branch_office" => "0", //por defecto 0
-                "name" => [
-                    $cliente_factura->nombre,
-                    $cliente_factura->apellido1 . " " . $cliente_factura->apellido2
+            $array_items_factura = [];
+            $douTotalFactura = 0;
+            $cont = 0;
+
+            foreach ($items_factura as $item) {
+                if (!isset($item['codigo_siigo']) || $item['codigo_siigo'] == null) {
+                    //Si no tiene código Siigo,lo creamos.
+                    $respuesta = $this->createItem($item);
+
+                    $item = Inventario::leftJoin('items_factura as if', 'if.producto', 'inventario.id')
+                        ->select('if.precio', 'inventario.codigo_siigo', 'if.cant', 'if.id_impuesto',
+                        'if.producto','inventario.ref', 'inventario.producto as nombreProducto')
+                        ->where('inventario.id', $item->id)
+                        ->first();
+
+                }
+
+                $douPrecio = round($item['precio'], 2);
+                $intCantidad = round($item['cant']);
+                $douSubtotalItem = $douPrecio * $intCantidad;
+                $douImpuestoItem = 0;
+
+                $impuestoItem = Impuesto::find($item->id_impuesto);
+                if ($impuestoItem && $impuestoItem->siigo_id != null) {
+                    $douImpuestoItem = $douSubtotalItem * ($impuestoItem->porcentaje / 100);
+                }
+
+                $douTotalFactura += ($douSubtotalItem + $douImpuestoItem);
+
+                $array_items_factura[] = [
+                    "code" => $item['codigo_siigo'],
+                    "quantity" => $intCantidad,
+                    "price" => $douPrecio
+                ];
+
+                if ($impuestoItem && $impuestoItem->siigo_id != null) {
+                    $array_items_factura[$cont]['taxes'] = [
+                        [
+                            "id" => $impuestoItem->siigo_id
+                        ]
+                    ];
+                }
+
+                $cont++;
+            }
+
+            $data = [
+                "document" => [
+                    "id" => $request->tipo_comprobante
                 ],
-                "address" => [
-                    "address" => $cliente_factura->direccion,
-                    "city" => [
-                        "country_code" => $cliente_factura->fk_idpais,
-                        "country_name" => "Colombia",
-                        "state_code" => $departamento->codigo,
-                        "state_name" => $departamento->nombre,
-                        "city_code" => $municipio->codigo,
-                        "city_name" => $municipio->nombre
+                "date" => Carbon::now()->format('Y-m-d'),
+                "customer" => [
+                    "person_type" => $cliente_factura->dv != null ? 'Company' : 'Person',
+                    "id_type" => $cliente_factura->dv != null ? "31" : "13", //13 cedula 31 nit
+                    "identification" => $cliente_factura->nit,
+                    "branch_office" => "0", //por defecto 0
+                    "name" => [
+                        $cliente_factura->dv != null ? ($cliente_factura->nombre . $cliente_factura->apellido1 . ($cliente_factura->apellido2 != "" ? " " . $cliente_factura->apellido2 : ""))
+                        : $cliente_factura->nombre ,  $cliente_factura->apellido1 . " " . $cliente_factura->apellido2
                     ],
-                    "postal_code" => $cliente_factura->cod_postal
-                ],
-                "phones" => [
-                    [
-                        "indicative" => "57",
-                        "number" => $cliente_factura->celular,
-                        "extension" => ""
-                    ]
-                ],
-                "contacts" => [
-                    [
-                        "first_name" => $cliente_factura->nombre,
-                        "last_name" => $cliente_factura->apellido1 . " " . $cliente_factura->apellido2,
-                        "email" => $cliente_factura->email,
-                        "phone" => [
+                    "address" => [
+                        "address" => $cliente_factura->direccion,
+                        "city" => [
+                            "country_code" => $cliente_factura->fk_idpais,
+                            "country_name" => "Colombia",
+                            "state_code" => $departamento->codigo,
+                            "state_name" => $departamento->nombre,
+                            "city_code" => $municipio->codigo_completo,
+                            "city_name" => $municipio->nombre
+                        ],
+                        "postal_code" => $cliente_factura->cod_postal
+                    ],
+                    "phones" => [
+                        [
                             "indicative" => "57",
                             "number" => $cliente_factura->celular,
                             "extension" => ""
                         ]
+                    ],
+                    "contacts" => [
+                        [
+                            "first_name" => $cliente_factura->nombre,
+                            "last_name" => $cliente_factura->apellido1 . " " . $cliente_factura->apellido2,
+                            "email" => $cliente_factura->email,
+                            "phone" => [
+                                "indicative" => "57",
+                                "number" => $cliente_factura->celular,
+                                "extension" => ""
+                            ]
+                        ]
+                    ]
+                ],
+                "seller" => $request->usuario,
+                'items' => $array_items_factura,
+                "payments" => [
+                    [
+                        "id" => $request->tipos_pago,
+                        "value" => round($douTotalFactura, 2),
+                        "due_date" => $factura->vencimiento
                     ]
                 ]
-            ],
-            "seller" => $request->usuario,
-            'items' => $array_items_factura,
-            "payments" => [
-                [
-                    "id" => $request->tipos_pago,
-                    "value" => round($factura->total()->total),
-                    "due_date" => $factura->vencimiento
-                ]
-            ]
-        ];
+            ];
 
-        return $data;
-        //Envio a curl invoice
+            // return $data;
 
-        $curl = curl_init();
+            //Envio a curl invoice
+            $curl = curl_init();
 
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://api.siigo.com/v1/invoices',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $data,
-            CURLOPT_HTTPHEADER => array(
-                'Partner-Id: Integra',
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $empresa->token_siigo,
-            ),
-        ));
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://api.siigo.com/v1/invoices',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_HTTPHEADER => array(
+                    'Partner-Id: Integra',
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $empresa->token_siigo,
+                ),
+            ));
 
-        $response = curl_exec($curl);
-        $response = json_decode($response, true);
-        curl_close($curl);
-        return $response;
+            $response = curl_exec($curl);
+            $response = json_decode($response, true);
+            curl_close($curl);
+
+            if(isset($response['id'])){
+                $factura->siigo_id = $response['id'];
+                $factura->save();
+
+                return response()->json([
+                    'status' => 200,
+                    'message' => "Factura creada correctamente en Siigo",
+                    'factura_id' => $factura->id
+                ]);
+                //Guardamos los items de la factura en siigo.
+            }else{
+                $mensajes = '';
+                if (isset($response['Errors'])){
+                    foreach ($response['Errors'] as $error) {
+                        $mensajes .= $error['Message'] . ' ';
+                    }
+                } elseif (isset($response['Message'])) {
+                    $mensajes = $response['Message'];
+                }
+
+
+                return response()->json([
+                    'status' => 400,
+                    'error' => "Error al crear la factura en Siigo " . ($mensajes != '' ? $mensajes : ''),
+
+                ]);
+            }
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => 400,
+                'error' => "Error al crear la factura en Siigo: " . $th->getMessage()
+            ]);
+        }
+
     }
 
     public function impuestosSiigo()
@@ -391,7 +467,6 @@ class SiigoController extends Controller
         }
 
         for($i = 0; $i < count($request->ret); $i++){
-
             $retencion = Retencion::find($request->ret[$i]);
             $retencion->siigo_id = $request->siigo_ret[$i];
             $retencion->save();
@@ -462,5 +537,91 @@ class SiigoController extends Controller
         }
 
         return redirect()->route('siigo.mapeo_productos')->with('success', 'Productos guardados correctamente.');
+    }
+
+    public function createItem($item){
+
+        //Validacion para creacion de item en siigo en caso tal de que no exista.
+        try {
+            $curl = curl_init();
+            $empresa = Empresa::Find(1);
+            $iva = Impuesto::find($item->id_impuesto);
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://api.siigo.com/v1/account-groups',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'GET',
+                CURLOPT_POSTFIELDS => '',
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Partner-Id: Integra',
+                    'Authorization: Bearer ' . $empresa->token_siigo,
+                ),
+            ));
+
+            $grupo = curl_exec($curl);
+            $grupo = json_decode($grupo, true);
+
+            $data = [
+                "code" => $item->ref,
+                "name" => $item->nombreProducto,
+                "price" => round($item->precio,0),
+                "status" => "active",
+                "type" => "Product",
+                "unit_measure" => "unit",
+                "account_group" => $grupo[0]['id']
+            ];
+
+            if ($iva && $iva->siigo_id != null) {
+                $data['taxes'] = [
+                    [
+                        "id" => $iva->siigo_id
+                    ]
+                ];
+            }
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://api.siigo.com/v1/products',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Partner-Id: Integra',
+                    'Authorization: Bearer ' . $empresa->token_siigo,
+                ),
+            ));
+
+            $response = curl_exec($curl);
+            $response = json_decode($response, true);
+
+            curl_close($curl);
+
+            if (isset($response['id'])) {
+                //Guardamos el codigo siigo en el item de la factura.
+                Inventario::where('id', $item->id)->update(['siigo_id' => $response['id'], 'codigo_siigo' => $response['code']]);
+            } else {
+                return response()->json([
+                    'status' => 400,
+                    'error' => "Error al crear el producto en Siigo"
+                ]);
+            }
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => 400,
+                'error' => "Error al crear el producto en Siigo: " . $th->getMessage()
+            ]);
+        }
+
     }
 }
