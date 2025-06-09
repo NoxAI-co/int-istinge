@@ -465,6 +465,7 @@
         $("#tipos_pago").empty();
         $("#usuarios").empty();
 
+
         $.ajax({
             url: url,
             headers: {

@@ -654,6 +654,7 @@ class FacturasController extends Controller
                     }
                 }
 
+
                 return   '<span class="text-' . $factura->estatus(true) . '">' . $factura->estatus() . ' ' . $msj . '</span>';
             })
             ->editColumn('nitcliente', function (Factura $factura) {

@@ -372,6 +372,7 @@ Route::group(['prefix' => 'siigo'], function () {
 	Route::post('save-vendedores-siigo', 'SiigoController@storeVendedores')->name('siigo.save_vendedores');
 	Route::get('mapeo-productos', 'SiigoController@mapeoProductos')->name('siigo.mapeo_productos');
 	Route::post('save-productos-siigo', 'SiigoController@storeProductos')->name('siigo.save_productos');
+
 });
 
 Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {

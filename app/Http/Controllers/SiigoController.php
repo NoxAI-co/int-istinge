@@ -391,6 +391,7 @@ class SiigoController extends Controller
         }
 
         for($i = 0; $i < count($request->ret); $i++){
+
             $retencion = Retencion::find($request->ret[$i]);
             $retencion->siigo_id = $request->siigo_ret[$i];
             $retencion->save();
