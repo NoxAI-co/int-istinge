@@ -650,6 +650,9 @@ class NominaPeriodos extends Model
         $subtotal -= $deducciones = $totalidad['deducciones']['total'] = floatval($nominaDetalleUno->where('fk_nomina_cuenta', 4)->sum('valor_categoria') ?? 0);
 
         $totalidad['pago']['salario'] = $totalidad['ibcSeguridadSocial']['salario'];
+        if($totalidad['pago']['salario'] < 0){
+            $totalidad['pago']['salario'] = 0;
+        }
 
         $totalidad['ibcSeguridadSocial']['total_ibcseguridad_social'] = $totalidad['ibcSeguridadSocial']['vacaciones'] +
         $totalidad['ibcSeguridadSocial']['ingresosyExtras'] + $totalidad['ibcSeguridadSocial']['incapacidades'] +

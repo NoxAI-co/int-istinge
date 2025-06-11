@@ -163,6 +163,7 @@ Route::get('qrcode', function () {
 Route::post('configuracion_facturas_contratos_off', 'ConfiguracionController@facturaContratoOff');
 Route::post('configuracion_chat_ia', 'ConfiguracionController@chatIA');
 Route::post('configuracion_facturacionAutomatica', 'ConfiguracionController@facturacionAutomatica');
+Route::post('configuracion_pagosiigo', 'ConfiguracionController@pagosSiigo');
 Route::post('configuracion_reconexiongenerica', 'ConfiguracionController@reconexionGenerica');
 Route::post('updatereconexiongenerica', 'ConfiguracionController@updateReconexionGenerica')->name('configuracion.updatereconexiongenerica');
 Route::post('configuracion_aplicacionsaldosfavor', 'ConfiguracionController@aplicacionSaldosFavor');
@@ -551,6 +552,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('descarga-efecty', 'FacturasController@downloadEfecty')->name('facturas.downloadefecty');
 		Route::get('convertirelectronica/{facturaid}', 'FacturasController@convertirelEctronica')->name('facturas.convertirelectronica');
 		Route::get('conversionmasiva/{facturas}', 'FacturasController@conversionmasivaElectronica');
+		Route::get('enviomasivosiigo/{facturas}', 'SiigoController@envioMasivoSiigo')->name('facturas.enviomasivosiigo');
 		Route::get('impresionmasiva/{facturas}', 'FacturasController@ImprimirMultiple');
 		Route::get('exportar', 'FacturasController@exportar');
 		Route::get('facturas_electronica/exportar', 'FacturasController@exportar');

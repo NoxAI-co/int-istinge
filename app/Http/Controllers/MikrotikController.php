@@ -178,10 +178,11 @@ class MikrotikController extends Controller
     public function edit($id){
         $this->getAllPermissions(Auth::user()->id);
         $mikrotik = Mikrotik::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+        $tiposSiigo = SiigoController::getDocumentTypes();
 
         if ($mikrotik) {
             $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();
-            return view('mikrotik.edit')->with(compact('mikrotik', 'segmentos'));
+            return view('mikrotik.edit')->with(compact('mikrotik', 'segmentos','tiposSiigo'));
         }
         return redirect('empresa/mikrotik')->with('danger', 'No existe un registro con ese id');
     }
@@ -212,6 +213,7 @@ class MikrotikController extends Controller
             $mikrotik->updated_by = Auth::user()->id;
             $mikrotik->status = 0;
             $mikrotik->amarre_mac = $request->amarre_mac;
+            $mikrotik->tipodoc_siigo_id = $request->tipodoc_siigo_id;
             $mikrotik->save();
 
             $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();

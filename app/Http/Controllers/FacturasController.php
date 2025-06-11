@@ -409,6 +409,7 @@ class FacturasController extends Controller{
             'factura.fecha',
             'factura.vencimiento',
             'factura.siigo_id',
+            'factura.siigo_name',
             'em.api_key_siigo as api_key_siigo',
             DB::raw('v.nombre as nombrevendedor'),
               DB::raw('
@@ -669,6 +670,7 @@ class FacturasController extends Controller{
             'factura.codigo',
             'factura.fecha',
             'factura.siigo_id',
+            'factura.siigo_name',
             'factura.vencimiento',
             'em.api_key_siigo as api_key_siigo',
             DB::raw('v.nombre as nombrevendedor'),

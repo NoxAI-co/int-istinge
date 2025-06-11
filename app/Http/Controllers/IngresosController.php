@@ -416,6 +416,20 @@ class IngresosController extends Controller
                     foreach ($request->factura_pendiente as $key => $value) {
 
                         $factura = Factura::find($request->factura_pendiente[$key]);
+
+                        if($contrato = $factura->contratos()->first()){
+                            $contrato = $contrato->contrato_nro;
+                            $contrato = Contrato::where('nro',$contrato)->first();
+
+                            if($contrato && $contrato->pago_siigo_contrato == 0){
+                                $siigo = new SiigoController();
+                                $response = $siigo->envioMasivoSiigo($factura->id)->getData(true);
+                                if(isset($response['success']) && $response['success'] == "false"){
+                                    return back()->with('danger', "No se ha podido establecer conexión con siigo y no se ha generado el pago")->withInput();
+                                }
+                            }
+                        }
+
                         if($factura->estatus == 0){
                             $mensaje='DISCULPE ESTÁ INTENTANDO PAGAR UNA FACTURA YA PAGADA. (FACTURA N° '.$factura->codigo.')';
                             return back()->with('danger', $mensaje)->withInput();

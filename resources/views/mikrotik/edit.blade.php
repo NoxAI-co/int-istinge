@@ -104,6 +104,21 @@
 	                <strong>{{ $errors->first('amarre_mac') }}</strong>
 	            </span>
 	        </div>
+
+            <div class="col-md-3 form-group">
+	            <label class="control-label">Tipo de documento Siigo <span class="text-danger">*</span></label>
+	            <select class="form-control selectpicker" name="tipodoc_siigo_id" id="tipodoc_siigo_id" title="Seleccione" required="">
+	                @foreach ($tiposSiigo as $tipo)
+                        <option value="{{ $tipo['id'] }}" {{ $mikrotik->tipodoc_siigo_id == $tipo['id'] ? 'selected' : '' }}>
+                            {{ $tipo['name'] }}
+                        </option>
+                    @endforeach
+	            </select>
+	            <span class="help-block error">
+	                <strong>{{ $errors->first('tipodoc_siigo_id') }}</strong>
+	            </span>
+	        </div>
+
 	        <div class="col-md-12 form-group">
 	            <label class="control-label">Segmentos <a><i data-tippy-content="Escriba los segmentos separados por espacios" class="icono far fa-question-circle"></i></a> <span class="text-danger">*</span></label>
 	            <select class="form-control" name="segmento_ip[]" id="segmento_ip" style="width: 100%;" required multiple="multiple">

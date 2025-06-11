@@ -239,12 +239,14 @@ class SiigoController extends Controller
         return $response;
     }
 
-    public function sendInvoice(Request $request)
+    public function sendInvoice(Request $request, $factura = null)
     {
 
         try {
+            if($factura == null){
+                $factura = Factura::Find($request->factura_id);
+            }
 
-            $factura = Factura::Find($request->factura_id);
             $cliente_factura = $factura->cliente();
             $items_factura = ItemsFactura::join('inventario', 'inventario.id', 'items_factura.producto')
                 ->where('factura', $factura->id)
@@ -252,6 +254,7 @@ class SiigoController extends Controller
                 'items_factura.id_impuesto','items_factura.producto','inventario.ref',
                 'inventario.producto as nombreProducto','inventario.id')
                 ->get();
+
             $empresa = Empresa::Find(1);
             $departamento = $cliente_factura->departamento();
             $municipio = $cliente_factura->municipio();
@@ -288,7 +291,7 @@ class SiigoController extends Controller
                 $array_items_factura[] = [
                     "code" => $item['codigo_siigo'],
                     "quantity" => $intCantidad,
-                    "price" => $douPrecio
+                    "price" => number_format(round($douPrecio, 2), 2, '.', ''),
                 ];
 
                 if ($impuestoItem && $impuestoItem->siigo_id != null) {
@@ -302,6 +305,8 @@ class SiigoController extends Controller
                 $cont++;
             }
 
+            $apellidos = $cliente_factura->apellido1 . ($cliente_factura->apellido2 != "" ?  " " . $cliente_factura->apellido2 : "");
+
             $data = [
                 "document" => [
                     "id" => $request->tipo_comprobante
@@ -312,10 +317,9 @@ class SiigoController extends Controller
                     "id_type" => $cliente_factura->dv != null ? "31" : "13", //13 cedula 31 nit
                     "identification" => $cliente_factura->nit,
                     "branch_office" => "0", //por defecto 0
-                    "name" => [
-                        $cliente_factura->dv != null ? ($cliente_factura->nombre . $cliente_factura->apellido1 . ($cliente_factura->apellido2 != "" ? " " . $cliente_factura->apellido2 : ""))
-                        : $cliente_factura->nombre ,  $cliente_factura->apellido1 . " " . $cliente_factura->apellido2
-                    ],
+                    "name" => $cliente_factura->dv != null
+                        ? [$cliente_factura->nombre . " " . $apellidos]
+                        : [ $cliente_factura->nombre, $apellidos],
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [
@@ -353,13 +357,12 @@ class SiigoController extends Controller
                 "payments" => [
                     [
                         "id" => $request->tipos_pago,
-                        "value" => round($douTotalFactura, 2),
+                        'value' => number_format(round($douTotalFactura, 2), 2, '.', ''),
                         "due_date" => $factura->vencimiento
                     ]
                 ]
             ];
 
-            // return $data;
 
             //Envio a curl invoice
             $curl = curl_init();
@@ -387,6 +390,7 @@ class SiigoController extends Controller
 
             if(isset($response['id'])){
                 $factura->siigo_id = $response['id'];
+                $factura->siigo_name = $response['name'];
                 $factura->save();
 
                 return response()->json([
@@ -617,6 +621,7 @@ class SiigoController extends Controller
                 ]);
             }
         } catch (\Throwable $th) {
+
             return response()->json([
                 'status' => 400,
                 'error' => "Error al crear el producto en Siigo: " . $th->getMessage()
@@ -624,4 +629,62 @@ class SiigoController extends Controller
         }
 
     }
+
+    public function envioMasivoSiigo($facturas)
+    {
+        try {
+            $facturas = explode(",", $facturas);
+            $lstResultados = [];
+
+            for ($i = 0; $i < count($facturas); $i++) {
+                $request = new Request();
+
+                $factura = Factura::Find($facturas[$i]);
+
+                if($factura->siigo_id == null || $factura->siigo_id == ""){
+                    $tiposPago = collect($this->getPaymentTypes());
+                    $credito = $tiposPago->firstWhere('name', 'Crédito')['id'];
+                    $servidor = $factura->servidor();
+                    $usuario = collect($this->getSeller())->last()[1]['id'];
+
+
+
+                    $request->merge(['tipos_pago' => $credito]);
+                    $request->merge(['factura_id' => $facturas[$i]]);
+                    $request->merge(['usuario' => $usuario]);
+                    $request->merge(['tipo_comprobante' => $servidor->tipodoc_siigo_id]);
+
+                    $response = $this->sendInvoice($request,$factura);
+                    // Extraer contenido del JSON si es instancia de Response
+                    if ($response instanceof \Illuminate\Http\JsonResponse) {
+                        $data = $response->getData(true);
+                    } else {
+                        $data = ['status' => 500, 'error' => 'Respuesta no válida de sendInvoice'];
+                    }
+
+                    $lstResultados[] = [
+                        'factura_id' => $facturas[$i],
+                        'codigo' => $factura->codigo,
+                        'resultado' => $data
+                    ];
+
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'text' => 'Conversión masiva de facturas electrónicas terminada',
+                'resultados' => $lstResultados
+            ]);
+
+        } catch (\Throwable $th) {
+
+                return response()->json([
+                    'success' => false,
+                    'text' => 'Error obteniendo los datos de siigo: ' . $th->getMessage(),
+                    'resultados' => []
+                ]);
+        }
+    }
+
 }

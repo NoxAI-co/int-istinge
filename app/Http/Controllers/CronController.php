@@ -779,6 +779,18 @@ class CronController extends Controller
 
                 if(!DB::table('facturas_contratos')
                 ->where('factura_id',$factura->id)->first()){
+
+                    $contratoVerificar = Contrato::where('id',$factura->contrato_id)->first();
+                    //Validando que si se trate de el contrato del verdadero cliente
+                    if($factura->cliente != $contratoVerificar->client_id){
+                        $contrato = Contrato::where('client_id',$factura->cliente)->first();
+                        if(!$contrato){
+                            $factura->contrato_id = null;
+                        }else{
+                            $factura->contrato_id = $contrato->id;
+                        }
+                        $factura->save();
+                    }
                     $facturaContratos = Contrato::where('id',$factura->contrato_id)->pluck('nro');
                 }
 

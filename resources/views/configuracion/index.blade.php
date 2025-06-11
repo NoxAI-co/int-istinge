@@ -336,6 +336,11 @@
                     <a href="{{ route('siigo.mapeo_impuestos') }}">Impuestos - Retenciones</a><br>
                     <a href="{{ route('siigo.mapeo_vendedores') }}">Vendedores</a><br>
                     <a href="{{ route('siigo.mapeo_productos') }}">Productos</a><br>
+                    <a href="javascript:pagoSiigo()">
+                        {{ Auth::user()->empresa()->pago_siigo == 0 ? 'Habilitar' : 'Deshabilitar' }}
+                        Enviar a siigo al crear pago
+                    </a>
+                    <input type="hidden" id="pagosiigo" value="{{ Auth::user()->empresa()->pago_siigo }}">
                 @endif
             @endif
         </div>
@@ -1167,6 +1172,72 @@
                                 })
                                 $("#facturaAuto").val(0);
                             }
+                            setTimeout(function() {
+                                var a = document.createElement("a");
+                                a.href = window.location.pathname;
+                                a.click();
+                            }, 1000);
+                        }
+                    });
+
+                }
+            })
+        }
+
+        function pagoSiigo(){
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/configuracion_pagosiigo';
+            } else {
+                var url = '/configuracion_pagosiigo';
+            }
+
+            if ($("#pagosiigo").val() == 0) {
+                $titleswal = "¿Desea habilitar el envio a siigo cuando se cree el pago?";
+            }
+
+            if ($("#pagosiigo").val() == 1) {
+                $titleswal = "¿Desea deshabilitar el envio a siigo cuando se cree el pago?";
+            }
+
+            Swal.fire({
+                title: $titleswal,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                cancelButtonText: 'Cancelar',
+                confirmButtonText: 'Aceptar',
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: url,
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        method: 'post',
+                        data: {
+                            status: $("#pagosiigo").val()
+                        },
+                        success: function(data) {
+                            console.log(data);
+                            if (data == 1) {
+                                Swal.fire({
+                                    type: 'success',
+                                    title: 'Envios a siigo cuando se cree el pago hablitado',
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                })
+                                $("#facturaAuto").val(1);
+                            } else {
+                                Swal.fire({
+                                    type: 'success',
+                                    title: 'Envios a siigo cuando se cree el pago deshablitado',
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                })
+                                $("#pagosiigo").val(0);
+                            }
+
                             setTimeout(function() {
                                 var a = document.createElement("a");
                                 a.href = window.location.pathname;

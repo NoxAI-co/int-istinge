@@ -2575,4 +2575,19 @@ class ConfiguracionController extends Controller
         ], 400);
     }
 
+
+    public function pagosSiigo(Request $request){
+        $empresa = Empresa::find(auth()->user()->empresa);
+
+        if ($request->status == 0) {
+          $empresa->pago_siigo = 1;
+          $empresa->save();
+          return 1;
+        } else {
+          $empresa->pago_siigo = 0;
+          $empresa->save();
+          return 0;
+        }
+    }
+
 }

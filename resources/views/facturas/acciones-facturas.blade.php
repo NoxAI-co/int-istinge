@@ -60,7 +60,7 @@
     <a
     {{-- href="{{route('siigo.create_invoice',$id)}}" --}}
     href="#"
-    onclick="showModalSiigo({{$id}},{{$codigo}},`{{$fecha}}`,`{{$nombrecliente}}`)"
+    onclick="showModalSiigo({{$id}},`{{$codigo}}`,`{{$fecha}}`,`{{$nombrecliente}}`)"
     class="btn btn-outline-info btn-icons" title="Enviar a Siigo">
         <i class="fas fa-file-import"></i>
     </a>

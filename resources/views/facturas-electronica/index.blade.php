@@ -168,6 +168,7 @@
                     </button>
                     <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-server"></i> Emitir Facturas en Lote</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_siigo"><i class="fas fa-server"></i> Enviar a Siigo en lote</a>
                     </div>
                 </div>
 			</div>
@@ -407,6 +408,99 @@
             });
             console.log(facturas);
         });
+
+        $('#btn_siigo').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if (nro <= 0) {
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura electrónica',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas a Siigo?',
+                text: 'Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    cargando(true);
+
+                    var url = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/enviomasivosiigo/` + facturas :
+                        `/empresa/facturas/enviomasivosiigo/` + facturas;
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                        success: function(data) {
+                        cargando(false);
+
+                        if (data.success == false) {
+                            swal({
+                                title: 'ERROR',
+                                html: data.message,
+                                type: 'error',
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                            return false;
+                        } else {
+                            let html = '<ul>';
+                            data.resultados.forEach(function(res) {
+                                if (res.resultado.status === 200) {
+                                    html += `<li style="color:green;">Factura ${res.codigo}: ${res.resultado.message}</li>`;
+                                } else {
+                                    html += `<li style="color:red;">Factura ${res.codigo}: ${res.resultado.error}</li>`;
+                                }
+                            });
+                            html += '</ul>';
+
+                            swal({
+                                title: 'PROCESO REALIZADO',
+                                html: html,
+                                type: 'success',
+                                confirmButtonColor: '#1A59A1',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                        }
+                        getDataTable();
+                    },
+                        error: function(xhr) {
+                            cargando(false);
+                            if (xhr.status === 500) {
+                                swal({
+                                    title: 'INFO',
+                                    html: 'Se han enviado algunas facturas a siigo, vuelve a enviar otro lote.',
+                                    type: 'info',
+                                    showConfirmButton: true,
+                                    confirmButtonColor: '#d33',
+                                    confirmButtonText: 'Recargar Página',
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+            console.log(facturas);
+        });
+
 	});
 
 	function getDataTable() {

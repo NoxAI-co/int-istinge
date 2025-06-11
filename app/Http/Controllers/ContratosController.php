@@ -1176,6 +1176,11 @@ class ContratosController extends Controller
                 ### DOCUMENTOS ADJUNTOS ###
 
                 $contrato->creador = Auth::user()->nombres;
+                if(isset($contrato->pago_siigo_contrato) && $contrato->pago_siigo_contrato == 1){
+                    $contrato->pago_siigo_contrato = $request->pago_siigo_contrato;
+                } else {
+                    $contrato->pago_siigo_contrato = 0;
+                }
                 $contrato->save();
 
                 $nro->contrato = $nro_contrato + 1;
@@ -1453,6 +1458,7 @@ class ContratosController extends Controller
         $gmaps = Integracion::where('empresa', Auth::user()->empresa)->where('tipo', 'GMAPS')->first();
         $oficinas = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Oficina::where('id', Auth::user()->oficina)->get() : Oficina::where('empresa', Auth::user()->empresa)->where('status', 1)->get();
         $contactos = Contacto::where('status',1)->get();
+        $empresa = Empresa::find(1);
 
         if ($contrato) {
             view()->share(['icon' => 'fas fa-file-contract', 'title' => 'Editar Contrato: ' . $contrato->nro]);
@@ -1472,7 +1478,8 @@ class ContratosController extends Controller
                 'gmaps',
                 'oficinas',
                 'serviciosOtros',
-                'contactos'
+                'contactos',
+                'empresa'
             ));
         }
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
@@ -1997,7 +2004,7 @@ class ContratosController extends Controller
                         if (isset($response->status) && $response->status == false) {
                             return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                         } else {
-                            if ($response->status == true && $request->state_olt_catv == 0) {
+                            if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                                 $contrato->state_olt_catv = 0;
                             } else {
                                 $contrato->state_olt_catv = 1;
@@ -2069,6 +2076,12 @@ class ContratosController extends Controller
                     }
 
                     ### DOCUMENTOS ADJUNTOS ###
+
+                    if(isset($contrato->pago_siigo_contrato) && $contrato->pago_siigo_contrato == 1){
+                        $contrato->pago_siigo_contrato = $request->pago_siigo_contrato;
+                    } else {
+                        $contrato->pago_siigo_contrato = 0;
+                    }
 
                     $contrato->save();
 

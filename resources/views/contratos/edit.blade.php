@@ -798,129 +798,128 @@
                                 </div>
                             </div>
 
-                            <div class="form-group col-md-4">
-                                <label class="control-label">¿Agregar fechas de No suspensión?  <a><i data-tippy-content="Decida si este cnotrato tendrá un rango de fechas donde si tiene facturas abiertas no lo suspenderá (esto solo pasará en el rango escogido)" class="icono far fa-question-circle"></i></a></label>
-                              <div class="row">
-                                  <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="tipo_suspension_no" id="tipo_suspension_no1" value="1" {{$contrato->tipo_nosuspension == 1 ? 'checked' : ''}}> Si
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
-                              </div>
-                              <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="tipo_suspension_no" id="tipo_suspension_no2" value="0" {{$contrato->tipo_nosuspension == 0 ? 'checked' : ''}}> No
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
-                              </div>
-                              </div>
-                              <span class="help-block error">
-                                  <strong></strong>
-                              </span>
-                          </div>
-
-                                <div class="form-group col-md-4">
-                                    <label class="control-label">¿Crear factura con prorrateo?  <a><i data-tippy-content="Decida si crear una factura una vez el contrato se cree dependiendo del grupo de corte sobre los dias faltantes." class="icono far fa-question-circle"></i></a></label>
-                                <div class="row">
-                                    <div class="col-sm-6">
-                                    <div class="form-radio">
-                                        <label class="form-check-label">
-                                        <input type="radio" class="form-check-input" name="contrato_factura_pro" id="tipo_suspension_no1" value="1" {{old('contrato_factura_pro')==1?'checked':''}}> Si
-                                        <i class="input-helper"></i><i class="input-helper"></i></label>
-                                    </div>
-                                </div>
+                        <div class="form-group col-md-4">
+                            <label class="control-label">¿Crear factura el primer mes del contrato?  <a><i data-tippy-content="Elige si deseas que se genere factura al usuario el primer mes con el contrato" class="icono far fa-question-circle"></i></a></label>
+                            <div class="row">
                                 <div class="col-sm-6">
-                                    <div class="form-radio">
-                                        <label class="form-check-label">
-                                        <input type="radio" class="form-check-input" name="contrato_factura_pro" id="tipo_suspension_no2" value="0" {{old('contrato_factura_pro')==1?'':'checked'}}> No
-                                        <i class="input-helper"></i><i class="input-helper"></i></label>
-                                    </div>
-                                </div>
-                                </div>
-                                <span class="help-block error">
-                                    <strong></strong>
-                                </span>
-                            </div>
-
-                            <div class="col-md-4 form-group">
-                                <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
-                                <label class="control-label">Fecha desde no suspensión</label>
-                                        <input type="date" class="form-control"  id="fecha_desde_nosuspension" value="{{$contrato->fecha_desde_nosuspension}}" name="fecha_desde_nosuspension" >
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="fact_primer_mes" value="1" {{$contrato->fact_primer_mes == 1 ? 'checked' : ''}}> Si
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
                                 </div>
                             </div>
-
-
-
-                            <div class="col-md-4 form-group">
-                                <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
-                                    <label class="control-label">Fecha hasta no suspensión</label>
-                                    <input type="date" class="form-control"  id="fecha_hasta_nosuspension" value="{{$contrato->fecha_hasta_nosuspension}}" name="fecha_hasta_nosuspension">
+                            <div class="col-sm-6">
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="fact_primer_mes" value="0" {{$contrato->fact_primer_mes == 0 ? 'checked' : ''}}> No
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
                                 </div>
                             </div>
+                            </div>
+                            <span class="help-block error">
+                                <strong></strong>
+                            </span>
+                        </div>
 
-                            <div class="form-group col-md-4">
-                                <label class="control-label">¿Crear factura el primer mes del contrato?  <a><i data-tippy-content="Elige si deseas que se genere factura al usuario el primer mes con el contrato" class="icono far fa-question-circle"></i></a></label>
-                              <div class="row">
-                                  <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="fact_primer_mes" value="1" {{$contrato->fact_primer_mes == 1 ? 'checked' : ''}}> Si
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
-                              </div>
+                        <div class="form-group col-md-4">
+                            <label class="control-label">¿Cambiar de cliente el contrato?  <a><i class="icono far fa-question-circle"></i></a></label>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="change_cliente" value="1"> Si
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="change_cliente" value="0"> No
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
+                                </div>
+                            </div>
+                            </div>
+                            <span class="help-block error">
+                                <strong></strong>
+                            </span>
+                        </div>
+
+                        <div class="form-group col-md-4 divnew_contacto d-none">
+                            <label class="control-label">Contacto nuevo</label>
+                        <select class="form-control selectpicker" name="new_contacto_contrato" id="new_contacto_contrato" required="" title="Seleccione" data-live-search="true" data-size="5">
+                            @foreach($contactos as $contacto)
+                                <option value="{{$contacto->id}}" {{$contrato->grupo_corte == $contacto->id ? 'selected' : ''}}>{{$contacto->nombre}}</option>
+                            @endforeach
+                        </select>
+                        </div>
+
+                        <div class="form-group col-md-4">
+                            <label class="control-label">¿Agregar fechas de No suspensión?  <a><i data-tippy-content="Decida si este cnotrato tendrá un rango de fechas donde si tiene facturas abiertas no lo suspenderá (esto solo pasará en el rango escogido)" class="icono far fa-question-circle"></i></a></label>
+                          <div class="row">
                               <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="fact_primer_mes" value="0" {{$contrato->fact_primer_mes == 0 ? 'checked' : ''}}> No
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
+                              <div class="form-radio">
+                                  <label class="form-check-label">
+                                  <input type="radio" class="form-check-input" name="tipo_suspension_no" id="tipo_suspension_no1" value="1" {{$contrato->tipo_nosuspension == 1 ? 'checked' : ''}}> Si
+                                  <i class="input-helper"></i><i class="input-helper"></i></label>
                               </div>
+                          </div>
+                          <div class="col-sm-6">
+                              <div class="form-radio">
+                                  <label class="form-check-label">
+                                  <input type="radio" class="form-check-input" name="tipo_suspension_no" id="tipo_suspension_no2" value="0" {{$contrato->tipo_nosuspension == 0 ? 'checked' : ''}}> No
+                                  <i class="input-helper"></i><i class="input-helper"></i></label>
                               </div>
-                              <span class="help-block error">
-                                  <strong></strong>
-                              </span>
-                            </div>
+                          </div>
+                          </div>
+                          <span class="help-block error">
+                              <strong></strong>
+                          </span>
+                      </div>
 
-                            <div class="form-group col-md-4">
-                                <label class="control-label">¿Cambiar de cliente el contrato?  <a><i class="icono far fa-question-circle"></i></a></label>
-                              <div class="row">
-                                  <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="change_cliente" value="1"> Si
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
-                              </div>
-                              <div class="col-sm-6">
-                                  <div class="form-radio">
-                                      <label class="form-check-label">
-                                      <input type="radio" class="form-check-input" name="change_cliente" value="0"> No
-                                      <i class="input-helper"></i><i class="input-helper"></i></label>
-                                  </div>
-                              </div>
-                              </div>
-                              <span class="help-block error">
-                                  <strong></strong>
-                              </span>
+                        <div class="col-md-4 form-group">
+                            <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
+                            <label class="control-label">Fecha desde no suspensión</label>
+                                    <input type="date" class="form-control"  id="fecha_desde_nosuspension" value="{{$contrato->fecha_desde_nosuspension}}" name="fecha_desde_nosuspension" >
                             </div>
+                        </div>
 
-                            <div class="form-group col-md-4 divnew_contacto d-none">
-                            <select class="form-control selectpicker" name="new_contacto_contrato" id="new_contacto_contrato" required="" title="Seleccione" data-live-search="true" data-size="5">
-                                @foreach($contactos as $contacto)
-                                    <option value="{{$contacto->id}}" {{$contrato->grupo_corte == $contacto->id ? 'selected' : ''}}>{{$contacto->nombre}}</option>
-                                @endforeach
-                            </select>
+                        <div class="col-md-4 form-group">
+                            <div @if($contrato->tipo_nosuspension == 0) class="cls-nosuspension d-none" @endif>
+                                <label class="control-label">Fecha hasta no suspensión</label>
+                                <input type="date" class="form-control"  id="fecha_hasta_nosuspension" value="{{$contrato->fecha_hasta_nosuspension}}" name="fecha_hasta_nosuspension">
                             </div>
+                        </div>
 
-                            <div class="form-group col-md-12">
-                                <label class="control-label">Observaciones</label>
-                                <textarea class="form-control" name="observaciones" >{{ $contrato->observaciones }}</textarea>
-                                <span class="help-block error">
-                                    <strong>{{ $errors->first('observaciones') }}</strong>
-                                </span>
+                        @if($empresa->api_key_siigo != null || $empresa->api_key_siigo != "")
+                        <div class="form-group col-md-4">
+                            <label class="control-label">¿Enviar a siigo cuando se haga un pago sobre la factura?  <a><i data-tippy-content="Decida si este cnotrato tendrá un rango de fechas donde si tiene facturas abiertas no lo suspenderá (esto solo pasará en el rango escogido)" class="icono far fa-question-circle"></i></a></label>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="pago_siigo_contrato" id="pago_siigo_contrato1" value="1" {{$contrato->pago_siigo_contrato == 1 ? 'checked' : ''}}> Si
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
+                                </div>
                             </div>
+                            <div class="col-sm-6">
+                                <div class="form-radio">
+                                    <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="pago_siigo_contrato" id="pago_siigo_contrato2" value="0" {{$contrato->pago_siigo_contrato == 0 ? 'checked' : ''}}> No
+                                    <i class="input-helper"></i><i class="input-helper"></i></label>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        <div class="form-group col-md-12">
+                            <label class="control-label">Observaciones</label>
+                            <textarea class="form-control" name="observaciones" >{{ $contrato->observaciones }}</textarea>
+                            <span class="help-block error">
+                                <strong>{{ $errors->first('observaciones') }}</strong>
+                            </span>
+                        </div>
+
                         </div>
                     </div>
                 </div>
