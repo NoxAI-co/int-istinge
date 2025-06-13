@@ -3385,7 +3385,7 @@ class CronController extends Controller
             foreach($facturas as $factura){
                 $dias = $factura->diasCobradosProrrateo();
                 //si es diferente de 30 es por que se cobraron menos dias y hay prorrateo
-                if($dias != 30){
+                if($dias < 30){
                     if(isset($factura->prorrateo_aplicado)){
                         $factura->prorrateo_aplicado = 1;
                         $factura->save();
