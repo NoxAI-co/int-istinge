@@ -420,10 +420,10 @@ class IngresosController extends Controller
                             $contrato = $contrato->contrato_nro;
                             $contrato = Contrato::where('nro',$contrato)->first();
 
-                            if($contrato && $contrato->pago_siigo_contrato == 0){
+                            if($contrato && $contrato->pago_siigo_contrato == 1){
                                 $siigo = new SiigoController();
                                 $response = $siigo->envioMasivoSiigo($factura->id)->getData(true);
-                                if(isset($response['success']) && $response['success'] == "false"){
+                                if(isset($response['success']) && $response['success'] == false){
                                     return back()->with('danger', "No se ha podido establecer conexión con siigo y no se ha generado el pago")->withInput();
                                 }
                             }

@@ -272,6 +272,7 @@ class FacturasController extends Controller{
         $user = auth()->user();
         $this->getAllPermissions($user->id);
         $empresaActual = auth()->user()->empresa;
+        $empresa = Empresa::Find($user->empresa);
 
         $clientes = Contacto::join('factura as f', 'contactos.id', '=', 'f.cliente')->where('contactos.status', 1)->groupBy('f.cliente')->select('contactos.*')->orderBy('contactos.nombre','asc')->get();
 
@@ -291,7 +292,7 @@ class FacturasController extends Controller{
         $barrios = DB::table('barrios')->orderBy('nombre', 'asc')->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
 
-        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte'));
+        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte','empresa'));
     }
 
     public function indexNew(Request $request, $tipo){
@@ -307,8 +308,9 @@ class FacturasController extends Controller{
         $municipios = DB::table('municipios')->orderBy('nombre', 'asc')->get();
         $barrios = DB::table('barrios')->orderBy('nombre', 'asc')->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
+        $empresa = Empresa::Find(auth()->user()->id);
 
-        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios', 'servidores','barrios','grupos_corte'));
+        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios', 'servidores','barrios','grupos_corte','empresa'));
     }
 
     /*
@@ -330,6 +332,7 @@ class FacturasController extends Controller{
         $userServer = $user->servidores->pluck('id')->toArray();
         $servidores = Mikrotik::where('empresa', $empresaActual)->whereIn('id',$userServer)->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
+        $empresa = Empresa::Find($user->empresa);
 
         $numeracionActual = NumeracionFactura::
         where('nomina',0)->where('num_equivalente',0)
@@ -339,7 +342,7 @@ class FacturasController extends Controller{
         ->first();
 
         view()->share(['title' => 'Facturas de Venta Electrónica', 'subseccion' => 'venta-electronica']);
-        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte'));
+        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte','empresa'));
     }
 
     /*
@@ -478,6 +481,11 @@ class FacturasController extends Controller{
             if($request->corte){
                 $facturas->where(function ($query) use ($request) {
                     $query->orWhere('cs1.fecha_corte', $request->corte);
+                });
+            }
+            if($request->fact_siigo){
+                $facturas->where(function ($query) use ($request) {
+                    $query->orWhereIn('cs1.pago_siigo_contrato', $request->fact_siigo);
                 });
             }
             if($request->creacion){
@@ -735,6 +743,11 @@ class FacturasController extends Controller{
             if($request->cliente){
                 $facturas->where(function ($query) use ($request) {
                     $query->orWhere('factura.cliente', $request->cliente);
+                });
+            }
+            if($request->fact_siigo){
+                $facturas->where(function ($query) use ($request) {
+                    $query->orWhereIn('cs1.pago_siigo_contrato', $request->fact_siigo);
                 });
             }
             if($request->corte){

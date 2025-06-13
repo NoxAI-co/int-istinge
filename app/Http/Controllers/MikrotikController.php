@@ -178,7 +178,12 @@ class MikrotikController extends Controller
     public function edit($id){
         $this->getAllPermissions(Auth::user()->id);
         $mikrotik = Mikrotik::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
-        $tiposSiigo = SiigoController::getDocumentTypes();
+        $empresa = Empresa::Find(1);
+
+        $tiposSiigo = [];
+        if($empresa->token_siigo != null || $empresa->token_siigo != ''){
+            $tiposSiigo = SiigoController::getDocumentTypes();
+        }
 
         if ($mikrotik) {
             $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();
