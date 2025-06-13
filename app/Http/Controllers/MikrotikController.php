@@ -181,13 +181,13 @@ class MikrotikController extends Controller
         $empresa = Empresa::Find(1);
 
         $tiposSiigo = [];
-        if($empresa->token_siigo != null || $empresa->token_siigo != ''){
+        if($empresa->token_siigo != null && $empresa->token_siigo != ''){
             $tiposSiigo = SiigoController::getDocumentTypes();
         }
 
         if ($mikrotik) {
             $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();
-            return view('mikrotik.edit')->with(compact('mikrotik', 'segmentos','tiposSiigo'));
+            return view('mikrotik.edit')->with(compact('mikrotik', 'segmentos','tiposSiigo','empresa'));
         }
         return redirect('empresa/mikrotik')->with('danger', 'No existe un registro con ese id');
     }
