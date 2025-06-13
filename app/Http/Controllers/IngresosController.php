@@ -326,7 +326,6 @@ class IngresosController extends Controller
     public function store(Request $request){
 
         try {
-
             $user = Auth::user();
             $empresa = Empresa::Find($user->empresa);
 
@@ -417,7 +416,7 @@ class IngresosController extends Controller
 
                         $factura = Factura::find($request->factura_pendiente[$key]);
 
-                        if($contrato = $factura->contratos()->first()){
+                        if($factura->contratos() !== false && $contrato = $factura->contratos()->first()){
                             $contrato = $contrato->contrato_nro;
                             $contrato = Contrato::where('nro',$contrato)->first();
 
