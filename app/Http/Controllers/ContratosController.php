@@ -1438,7 +1438,8 @@ class ContratosController extends Controller
             'contracts.state_olt_catv',
             'contracts.fact_primer_mes',
             'contracts.rd_item_vencimiento',
-            'contracts.dt_item_hasta'
+            'contracts.dt_item_hasta',
+            'contracts.pago_siigo_contrato'
         )
             ->where('contracts.id', $id)->where('contracts.empresa', Auth::user()->empresa)->first();
 
