@@ -328,6 +328,7 @@ class IngresosController extends Controller
         try {
             $user = Auth::user();
             $empresa = Empresa::Find($user->empresa);
+            $morosos = "";
 
             // Verificamos si la suma es mayor que 0
             if($request->anticipo == 1){
@@ -668,6 +669,8 @@ class IngresosController extends Controller
                                             $API->write('/ip/firewall/address-list/remove', false);
                                             $API->write('=.id='.$ARRAYS[0]['.id']);
                                             $READ = $API->read();
+
+                                            $morosos = "- Se ha sacado la ip de morosos.";
                                         }
                                         #ELIMINAMOS DE MOROSOS#
 
@@ -1072,7 +1075,7 @@ class IngresosController extends Controller
 
                 // DB::commit();
 
-                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO';
+                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO. ' . $morosos;
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
