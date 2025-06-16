@@ -501,7 +501,7 @@ class CronController extends Controller
                                         if($empresa->prorrateo == 1){
                                             $dias = $factura->diasCobradosProrrateo();
                                             //si es diferente de 30 es por que se cobraron menos dias y hay prorrateo
-                                            if($dias != 30){
+                                            if($dias < 30){
 
                                                     DB::table('factura')->where('id',$factura->id)->update([
                                                     'prorrateo_aplicado' => 1
