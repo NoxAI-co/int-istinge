@@ -27,6 +27,7 @@
                     <li><a href="{{route('reportes.radicados')}}" >Reporte de Radicados</a></li>
                     <li><a href="{{route('reportes.ivas')}}" >Reporte de ivas</a></li>
                     <li><a href="{{route('reportes.contratoperiodo')}}" >Reporte de Periodo</a></li>
+                    <li><a href="{{route('reportes.personasincontrato')}}" >Reporte de personas sin contrato</a></li>
                 </ul>
             </div>
 

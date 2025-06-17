@@ -3093,4 +3093,49 @@ class ReportesController extends Controller
         return view('reportes.contratos.periodo')->with(compact('contratos', 'request'));
     }
 
+    public function personaSinContrato(Request $request){
+        $this->getAllPermissions(Auth::user()->id);
+        DB::statement("SET lc_time_names = 'es_ES'");
+
+        view()->share(['seccion' => 'reportes', 'title' => 'Reporte clientes sin contrato y deuda', 'icon' =>'fas fa-chart-line']);
+        $campos=array( 'id','nit', 'nombre', 'email', 'id', 'id', 'id', 'id');
+
+        if (!$request->orderby) {
+            $request->orderby=1; $request->order=1;
+        }
+        $orderby=$campos[$request->orderby];
+        $order=$request->order==1?'DESC':'ASC';
+
+        $clientesSinContratoActivo = DB::table('contactos')
+            ->leftJoin('contracts', 'contactos.id', '=', 'contracts.client_id')
+            ->where('contactos.status',1)
+            ->where(function ($query) {
+                $query->whereNull('contracts.id')  // sin contrato
+                    ->orWhere('contracts.status', 0); // contrato inactivo
+            })
+            ->select('contactos.id','contactos.nit','contactos.nombre','contactos.telefono1', 'contactos.email') // ajusta según tu modelo
+            ->distinct()
+            ->OrderBy($orderby, $order)
+            ->get();
+
+        $saldoTotal = 0;
+
+        foreach($clientesSinContratoActivo as $sinContrato){
+            $cliente = Contacto::find($sinContrato->id);
+            $saldoDebe = 0;
+            if($cliente){
+                $facturas = Factura::where('estatus',1)->where('cliente',$cliente->id)->get();
+                foreach($facturas as $f){
+                    $saldoDebe += $f->porpagar();
+                }
+            }
+            $sinContrato->saldoDebe = $saldoDebe;
+            $saldoTotal += $saldoDebe;
+        }
+
+        $clientesSinContrato = $this->paginate($clientesSinContratoActivo, 15, $request->page, $request);
+
+        return view('reportes.sincontrato.index')->with(compact('clientesSinContrato', 'request','saldoTotal'));
+    }
+
 }

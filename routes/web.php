@@ -1277,6 +1277,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 
 		Route::get('/contratoperiodo', 'ReportesController@contratoPeriodo')->name('reportes.contratoperiodo');
+		Route::get('/personassincontrato', 'ReportesController@personaSinContrato')->name('reportes.personasincontrato');
 	});
 	//Exportar
 	Route::group(['prefix' => 'exportar'], function () {
@@ -1318,6 +1319,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/exogena', 'ExportarReportesController@exogena')->name('exportar.exogena');
 
 		Route::get('/contratoperiodo', 'ExportarReportesController@contratoPeriodo')->name('exportar.contratoperiodo');
+        Route::get('/personassincontrato', 'ExportarReportesController@personaSinContrato')->name('exportar.personasincontrato');
 	});
 
 	//Documentacion escrita

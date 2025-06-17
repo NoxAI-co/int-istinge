@@ -5537,4 +5537,159 @@ class ExportarReportesController extends Controller
         $objWriter->save('php://output');
         exit;
     }
+
+    public function personaSinContrato(Request $request){
+
+        $objPHPExcel = new PHPExcel();
+        $empresa = Auth::user()->empresaObj;
+        $tituloReporte = "Reporte clientes sin contrato " . $empresa->nombre;
+        DB::statement("SET lc_time_names = 'es_ES'");
+
+        $titulosColumnas = array(
+            'Nit',
+            'Cliente',
+            'Telefono',
+            'Email',
+            'Deuda'
+        );
+
+        $letras = array(
+            'A',
+            'B',
+            'C',
+            'D',
+            'E',
+            'F',
+            'G',
+            'H',
+            'I',
+            'J',
+            'K',
+            'L',
+            'M',
+            'N',
+            'O',
+            'P',
+            'Q',
+            'R',
+            'S',
+            'T',
+            'U',
+            'V',
+            'W',
+            'X',
+            'Y',
+            'Z'
+        );
+
+        $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
+        ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
+        ->setTitle("Reporte clientes sin contrato") // Titulo
+        ->setSubject("Reporte clientes sin contrato") //Asunto
+        ->setDescription("Reporte clientes sin contrato") //Descripcion
+        ->setKeywords("Reporte clientes sin contrato") //Etiquetas
+        ->setCategory("Reporte clientes sin contrato"); //Categorias
+        // Se combinan las celdas A1 hasta D1, para colocar ahi el titulo del reporte
+        $objPHPExcel->setActiveSheetIndex(0)
+            ->mergeCells('A1:E1');
+        // Se agregan los titulos del reporte
+        $objPHPExcel->setActiveSheetIndex(0)
+            ->setCellValue('A1', $tituloReporte);
+        // Titulo del reporte
+        $objPHPExcel->setActiveSheetIndex(0)
+            ->mergeCells('A2:E2');
+
+        $estilo = array(
+            'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+            )
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:E1')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => 'c6c8cc')
+            )
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:E3')->applyFromArray($estilo);
+
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        $i = 4;
+        $letra = 0;
+
+        $clientesSinContratoActivo = DB::table('contactos')
+            ->leftJoin('contracts', 'contactos.id', '=', 'contracts.client_id')
+            ->where('contactos.status',1)
+            ->where(function ($query) {
+                $query->whereNull('contracts.id')  // sin contrato
+                    ->orWhere('contracts.status', 0); // contrato inactivo
+            })
+            ->select('contactos.id','contactos.nit','contactos.nombre','contactos.telefono1', 'contactos.email') // ajusta según tu modelo
+            ->distinct()
+            ->get();
+
+        $saldoTotal = 0;
+
+        foreach($clientesSinContratoActivo as $sinContrato){
+            $cliente = Contacto::find($sinContrato->id);
+            $saldoDebe = 0;
+            if($cliente){
+                $facturas = Factura::where('estatus',1)->where('cliente',$cliente->id)->get();
+                foreach($facturas as $f){
+                    $saldoDebe += $f->porpagar();
+                }
+            }
+            $sinContrato->saldoDebe = $saldoDebe;
+            $saldoTotal += $saldoDebe;
+
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue($letras[0] . $i, $sinContrato->nit)
+                ->setCellValue($letras[1] . $i, $sinContrato->nombre)
+                ->setCellValue($letras[2] . $i, $sinContrato->telefono1)
+                ->setCellValue($letras[3] . $i, $sinContrato->email)
+                ->setCellValue($letras[4] . $i, $sinContrato->saldoDebe);
+            $i++;
+
+        }
+
+        $estilo = array(
+            'font' => array('size' => 12, 'name' => 'Times New Roman'),
+            'borders' => array(
+                'allborders' => array(
+                    'style' => PHPExcel_Style_Border::BORDER_THIN
+                )
+            ),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:E' . $i)->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $letras[5]; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(true);
+        }
+
+        // Se asigna el nombre a la hoja
+        $objPHPExcel->getActiveSheet()->setTitle("Reporte clientes sin contrato");
+
+        // Se activa la hoja para que sea la que se muestre cuando el archivo se abre
+        $objPHPExcel->setActiveSheetIndex(0);
+
+        // Inmovilizar paneles
+        $objPHPExcel->getActiveSheet(0)->freezePane('A5');
+        $objPHPExcel->getActiveSheet(0)->freezePaneByColumnAndRow(0, 4);
+        $objPHPExcel->setActiveSheetIndex(0);
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Reporte_Cliente_Sin_Contrato_Deuda.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
 }
