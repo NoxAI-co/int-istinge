@@ -423,7 +423,7 @@ class IngresosController extends Controller
 
                             if($contrato && $contrato->pago_siigo_contrato == 1){
                                 $siigo = new SiigoController();
-                                $response = $siigo->envioMasivoSiigo($factura->id)->getData(true);
+                                $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
                                 if(isset($response['success']) && $response['success'] == false){
                                     return back()->with('danger', "No se ha podido establecer conexión con siigo y no se ha generado el pago")->withInput();
                                 }

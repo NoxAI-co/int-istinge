@@ -630,7 +630,7 @@ class SiigoController extends Controller
 
     }
 
-    public function envioMasivoSiigo($facturas)
+    public function envioMasivoSiigo($facturas,$ingreso= null)
     {
         try {
             $facturas = explode(",", $facturas);
@@ -643,11 +643,13 @@ class SiigoController extends Controller
 
                 if($factura->siigo_id == null || $factura->siigo_id == ""){
                     $tiposPago = collect($this->getPaymentTypes());
-                    $credito = $tiposPago->firstWhere('name', 'Crédito')['id'];
+                    if($ingreso){
+                        $credito = $tiposPago->firstWhere('name', 'Efectivo')['id'];
+                    }else{
+                        $credito = $tiposPago->firstWhere('name', 'Crédito')['id'];
+                    }
                     $servidor = $factura->servidor();
                     $usuario = collect($this->getSeller())->last()[1]['id'];
-
-
 
                     $request->merge(['tipos_pago' => $credito]);
                     $request->merge(['factura_id' => $facturas[$i]]);
