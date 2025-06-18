@@ -422,7 +422,7 @@ class NotascreditoController extends Controller
             $items->precio = $this->precision($request->precio[$i]);
             $items->descripcion = $request->descripcion[$i];
             $items->cant = $request->cant[$i];
-            $items->desc = $request->descuento[$i];
+            $items->desc = isset($request->desc[$i]) ? $request->desc[$i] : null;
             $items->save();
             $z++;
         }
@@ -629,7 +629,7 @@ class NotascreditoController extends Controller
             for ($i = 0; $i < count($request->precio); $i++) {
                 $total += ($request->cant[$i] * $request->precio[$i]);
 
-                if ($request->desc[$i] != null) {
+                if (isset($request->desc[$i]) && $request->desc[$i] != null) {
                     $descuento = ($request->precio[$i] * $request->cant[$i]) * $request->desc[$i] / 100;
                     $total -= $descuento;
                 }
@@ -787,7 +787,7 @@ class NotascreditoController extends Controller
 
                 /*INICIO DE CALCULOS PARA SACAR EL SALDO A FAVOR AL CONTACTO*/
 
-                if ($request->desc[$i]) {
+                if (isset($request->desc[$i])) {
                     $descuento = ($request->precio[$i] * $request->cant[$i]) * $request->desc[$i] / 100;
                     $precioItem = ($request->precio[$i] * $request->cant[$i]) - $descuento;
 
@@ -863,7 +863,7 @@ class NotascreditoController extends Controller
                 $items->descripcion = $request->descripcion[$i];
                 $items->cant = $request->cant[$i];
                 $items->ref = $request->ref[$i];
-                $items->desc = $request->desc[$i];
+                $items->desc = isset($request->desc[$i]) ? $request->desc[$i] : null;
                 $items->save();
                 $inner[] = $items->id;
                 $z++;
