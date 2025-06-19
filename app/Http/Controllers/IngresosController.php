@@ -1158,7 +1158,7 @@ class IngresosController extends Controller
             $resolucion = NumeracionFactura::where('empresa', Auth::user()->empresa)
             ->where('num_equivalente', 0)->where('nomina',0)->where('tipo',2)->where('preferida', 1)->first();
             $empresa = Empresa::find($ingreso->empresa);
-            $paper_size = array(0,0,270,580);
+            $paper_size = array(0,-10,270, 650);
 
              $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact('ingreso', 'items', 'retenciones',
             'itemscount','empresa', 'resolucion'));
