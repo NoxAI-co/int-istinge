@@ -609,7 +609,7 @@
                                 <a href="{{ isset($_SESSION['permisos']['411']) ? route('contratos.index') : 'javascript:void' }}">
                                     <div class="btn btn-dark w-100">
                                         <i class="fas fa-file-contract"></i>
-                                        <span class="count-numbers">{{ $contra_ena + $contra_disa }}</span>
+                                        <span class="count-numbers">{{ $contra_factura }}</span>
                                         <span class="count-name">Registrados</span>
                                     </div>
                                 </a>
