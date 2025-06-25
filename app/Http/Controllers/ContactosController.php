@@ -505,6 +505,7 @@ class ContactosController extends Controller
         $contacto->lista_precio = $request->lista_precio;
         $contacto->vendedor = $request->vendedor;
         $contacto->oficina = $request->oficina;
+        $contacto->feliz_cumpleanos = $request->feliz_cumpleanos ? date("Y-m-d", strtotime($request->feliz_cumpleanos)) : '';
 
         $contacto->save();
 
@@ -677,7 +678,8 @@ class ContactosController extends Controller
             $contacto->cierra_venta = $request->cierra_venta;
             $contacto->plan_velocidad    = 0;
             $contacto->costo_instalacion = "a";
-
+            $contacto->feliz_cumpleanos = $request->feliz_cumpleanos ? date("Y-m-d", strtotime($request->feliz_cumpleanos)) : '';
+            
             $contacto->save();
 
             $contrato = Contrato::where('client_id', $contacto->id)->where('status', 1)->first();
@@ -947,6 +949,8 @@ class ContactosController extends Controller
      */
     public function cargando(Request $request)
     {
+        //print_r('entra');
+        //dd($request->all());
         // TODO: Este método no implementa o casi no implementa chequeos de
         // valores nulos, lo más probable es que falle en cualquier momento
         // de forma inesperada.
@@ -1148,6 +1152,7 @@ class ContactosController extends Controller
                 $contacto->fk_idmunicipio = $request->fk_idmunicipio;
                 $contacto->cod_postal = $request->codigopostal;
                 $contacto->estrato = $request->estrato;
+                $contacto->feliz_cumpleanos = $request->feliz_cumpleanos ? date("Y-m-d", strtotime($request->feliz_cumpleanos)) : '';
 
                 if ($request->dv) {
                     $contacto->dv = $request->dv;
@@ -1169,7 +1174,7 @@ class ContactosController extends Controller
             return redirect('empresa/contactos/clientes')->with('success', $mensaje);
         } catch (Exception $e) {
             DB::rollback();
-
+            //dd($e->getMessage());
             return redirect()->back()->with('error', $e->getMessage());
         }
     }

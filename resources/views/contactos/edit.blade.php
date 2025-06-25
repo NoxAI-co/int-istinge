@@ -174,6 +174,13 @@
 		        </span>
 			</div>
             <div class="form-group col-md-3">
+                <label class="control-label">Feliz Cumpleaños</label>
+                <input type="text" class="form-control feliz_cumpleanos" id="feliz_cumpleanos" name="feliz_cumpleanos" value="{{$contacto->feliz_cumpleanos}}" autocomplete="off">
+                <span class="help-block error">
+                    <strong>{{ $errors->first('feliz_cumpleanos') }}</strong>
+                </span>
+            </div>
+            <div class="form-group col-md-3">
                 <label class="control-label">Monitoreo</label>
                 <input type="text" class="form-control" id="monitoreo" name="monitoreo" maxlength="15" value="{{$contacto->telef('monitoreo')}}">
                 <span class="help-block error">
@@ -375,15 +382,22 @@
 	<script src="{{asset('lowerScripts/guiaenvio/guiaenvio.js')}}"></script>
 
     <script type="text/javascript">
+		$(document).ready(function() {
+		$('.feliz_cumpleanos').datepicker({
+			uiLibrary: 'bootstrap4',
+			iconsLibrary: 'fontawesome',
+			locale: 'es-es',
+			format: 'yyyy-mm-dd',
+		});
+	});
         $(document).ready(function(){
             //searchMunicipality($("#departamento").val() , {{$contacto->fk_idmunicipio}});
-
             $("#municipio").val({{$contacto->fk_idmunicipio}}).selectpicker('refresh');
             var option = document.getElementById('tip_iden').value;
                 if (option == 6) {
                     searchDV($("#tip_iden").val());
                 }
-            });
+        });
 
         function nameBarrio() {
         let barrio = $("#nombre_barrio").val();

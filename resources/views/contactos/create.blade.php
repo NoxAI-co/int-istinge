@@ -168,7 +168,14 @@
   				<strong>{{ $errors->first('fax') }}</strong>
   			</span>
   		</div>
-          <div class="form-group col-md-3">
+        <div class="form-group col-md-3">
+			<label class="control-label">Feliz Cumpleaños</label>
+			<input type="text" class="form-control feliz_cumpleanos" id="feliz_cumpleanos" name="feliz_cumpleanos" value="{{old('feliz_cumpleanos')}}">
+			<span class="help-block error">
+				<strong>{{ $errors->first('feliz_cumpleanos') }}</strong>
+			</span>
+		</div>
+        <div class="form-group col-md-3">
             <label class="control-label">Monitoreo</label>
             <input type="text" class="form-control" id="monitoreo" name="monitoreo" maxlength="50" value="{{old('monitoreo')}}" >
             <span class="help-block error">
@@ -340,6 +347,13 @@
 @section('scripts')
 	<script type="text/javascript">
 		$(document).ready(function(){
+			$('.feliz_cumpleanos').datepicker({
+				uiLibrary: 'bootstrap4',
+				iconsLibrary: 'fontawesome',
+				locale: 'es-es',
+				format: 'yyyy-mm-dd',
+			});
+			
 		  $('#departamento').val({{ Auth::user()->empresa()->fk_iddepartamento }}).selectpicker('refresh');
 			var option = document.getElementById('tip_iden').value;
 
@@ -352,7 +366,7 @@
 		setTimeout(function () {
 			$("#municipio").val({{ Auth::user()->empresa()->fk_idmunicipio }});
 			$("#municipio").selectpicker('refresh');
-    }, 500);
+    	}, 500);
 
     function nameBarrio() {
         let barrio = $("#nombre_barrio").val();
