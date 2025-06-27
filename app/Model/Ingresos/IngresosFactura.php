@@ -33,18 +33,7 @@ class IngresosFactura extends Model
 
 
     public function ingreso(){
-        $ingreso = Ingreso::where('id',$this->ingreso)->first();
-        
-        // Si no encuentra el ingreso, retorna un objeto con propiedades por defecto
-        if (!$ingreso) {
-            $ingreso = new \stdClass();
-            $ingreso->id = 0;
-            $ingreso->fecha = date('Y-m-d');
-            $ingreso->nro = 'N/A';
-            $ingreso->observaciones = 'Registro no encontrado';
-        }
-        
-        return $ingreso;
+        return Ingreso::where('id',$this->ingreso)->first();
     }
 
     public function ingresoRelation()
@@ -101,5 +90,39 @@ class IngresosFactura extends Model
             return $ingreso->$method();
         }
         return $default;
+    }
+
+    /**
+     * Obtiene el método de pago de forma segura
+     * @return string
+     */
+    public function metodo_pago_seguro(){
+        $ingreso = $this->ingreso();
+        if ($ingreso && method_exists($ingreso, 'metodo_pago')) {
+            return $ingreso->metodo_pago() ?: 'N/A';
+        }
+        return 'N/A';
+    }
+
+    /**
+     * Obtiene las observaciones de forma segura
+     * @return string
+     */
+    public function observaciones_seguras(){
+        $ingreso = $this->ingreso();
+        if ($ingreso && isset($ingreso->observaciones)) {
+            return $ingreso->observaciones ?: '';
+        }
+        return '';
+    }
+
+    /**
+     * Verifica si el ingreso es válido y tiene el método especificado
+     * @param string $method
+     * @return bool
+     */
+    public function ingreso_tiene_metodo($method){
+        $ingreso = $this->ingreso();
+        return $ingreso && method_exists($ingreso, $method);
     }
 }
