@@ -25,7 +25,18 @@ class NotaCreditoFactura extends Model
     }
 
     public function nota(){
-        return NotaCredito::where('id',$this->nota)->first();
+        $nota = NotaCredito::where('id',$this->nota)->first();
+        
+        // Si no encuentra la nota, retorna un objeto con propiedades por defecto
+        if (!$nota) {
+            $nota = new \stdClass();
+            $nota->id = 0;
+            $nota->fecha = date('Y-m-d');
+            $nota->nro = 'N/A';
+            $nota->observaciones = 'Registro no encontrado';
+        }
+        
+        return $nota;
     }
 
     public function pago(){

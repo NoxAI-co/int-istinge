@@ -33,7 +33,18 @@ class IngresosFactura extends Model
 
 
     public function ingreso(){
-        return Ingreso::where('id',$this->ingreso)->first();
+        $ingreso = Ingreso::where('id',$this->ingreso)->first();
+        
+        // Si no encuentra el ingreso, retorna un objeto con propiedades por defecto
+        if (!$ingreso) {
+            $ingreso = new \stdClass();
+            $ingreso->id = 0;
+            $ingreso->fecha = date('Y-m-d');
+            $ingreso->nro = 'N/A';
+            $ingreso->observaciones = 'Registro no encontrado';
+        }
+        
+        return $ingreso;
     }
 
     public function ingresoRelation()
@@ -71,4 +82,24 @@ class IngresosFactura extends Model
         return ItemsFactura::where('factura', $this->factura)->get();
     }
 
+    /**
+     * Verifica si el ingreso relacionado existe
+     * @return bool
+     */
+    public function tieneIngreso(){
+        return Ingreso::where('id',$this->ingreso)->exists();
+    }
+
+    /**
+     * Método auxiliar para verificar métodos en el ingreso
+     * @param string $method
+     * @return mixed
+     */
+    public function metodoIngreso($method, $default = null){
+        $ingreso = $this->ingreso();
+        if ($ingreso && is_object($ingreso) && method_exists($ingreso, $method)) {
+            return $ingreso->$method();
+        }
+        return $default;
+    }
 }

@@ -45,6 +45,16 @@
         </script>
     @endif
 
+    @if(Session::has('warning_persistent'))
+        <div class="alert alert-warning" style="margin-left: 2%;margin-right: 2%; border-left: 4px solid #ffc107;" role="alert">
+            <strong>¡Atención!</strong> {{Session::get('warning_persistent')}}
+            <br><small class="text-muted">Esta alerta contiene información importante sobre contactos modificados. Haga clic en la X para cerrarla.</small>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="margin-top: -5px;">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     @if(Session::has('danger'))
         <div class="alert alert-danger" style="margin-left: 2%;margin-right: 2%;">
 	    {{Session::get('danger')}}

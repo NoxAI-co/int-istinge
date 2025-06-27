@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use PHPExcel;
 
 use Exception;
@@ -949,21 +950,27 @@ class ContactosController extends Controller
      */
     public function cargando(Request $request)
     {
-        //print_r('entra');
-        //dd($request->all());
         // TODO: Este método no implementa o casi no implementa chequeos de
         // valores nulos, lo más probable es que falle en cualquier momento
         // de forma inesperada.
         try {
             DB::beginTransaction();
-            $request->validate([
+            
+            // Validación inicial del archivo
+            $validator = Validator::make($request->all(), [
                 'archivo' => 'required|mimes:xlsx',
             ], [
+                'archivo.required' => 'Debe seleccionar un archivo para importar',
                 'archivo.mimes' => 'El archivo debe ser de extensión xlsx',
             ]);
 
+            if ($validator->fails()) {
+                return back()->withErrors($validator)->withInput();
+            }
+
             $create = 0;
             $modf = 0;
+            $modificados = []; // Array para almacenar las identificaciones modificadas
             $imagen = $request->file('archivo');
             $nombre_imagen = 'archivo.'.$imagen->getClientOriginalExtension();
             $path = public_path().'/images/Empresas/Empresa'.Auth::user()->empresa;
@@ -1055,8 +1062,13 @@ class ContactosController extends Controller
                 if (count((array) $error) > 0) {
                     $fila['error'] = 'FILA '.$row;
                     $error = (array) $error;
-                    var_dump($error);
-                    var_dump($fila);
+                    
+                    // Log de errores para debugging
+                    Log::error('Error en importación de contactos', [
+                        'fila' => $row,
+                        'errores' => $error,
+                        'datos' => (array) $request
+                    ]);
 
                     array_unshift($error, $fila);
                     $result = (object) $error;
@@ -1132,6 +1144,8 @@ class ContactosController extends Controller
                     $create = $create + 1;
                 } else {
                     $modf = $modf + 1;
+                    // Agregar la identificación al array de modificados
+                    $modificados[] = $request->nit;
                 }
 
                 $contacto->nombre = ucwords(mb_strtolower($request->nombre));
@@ -1152,7 +1166,7 @@ class ContactosController extends Controller
                 $contacto->fk_idmunicipio = $request->fk_idmunicipio;
                 $contacto->cod_postal = $request->codigopostal;
                 $contacto->estrato = $request->estrato;
-                $contacto->feliz_cumpleanos = $request->feliz_cumpleanos ? date("Y-m-d", strtotime($request->feliz_cumpleanos)) : '';
+                $contacto->feliz_cumpleanos = '';  // Campo no incluido en importación Excel
 
                 if ($request->dv) {
                     $contacto->dv = $request->dv;
@@ -1167,15 +1181,33 @@ class ContactosController extends Controller
             }
             if ($modf > 0) {
                 $mensaje .= ' MODIFICADOS: '.$modf;
+                if (!empty($modificados)) {
+                    $mensaje .= ' (Identificaciones: ' . implode(', ', $modificados) . ')';
+                }
             }
 
             DB::commit();
 
-            return redirect('empresa/contactos/clientes')->with('success', $mensaje);
+            // Si hay modificados, usar una alerta que no se oculte automáticamente
+            if ($modf > 0) {
+                return redirect('empresa/contactos/clientes')->with('warning_persistent', $mensaje);
+            } else {
+                return redirect('empresa/contactos/clientes')->with('success', $mensaje);
+            }
         } catch (Exception $e) {
             DB::rollback();
-            //dd($e->getMessage());
-            return redirect()->back()->with('error', $e->getMessage());
+            
+            // Log del error para debugging
+            Log::error('Error en proceso de importación de contactos', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'usuario' => Auth::user()->id ?? 'No definido'
+            ]);
+            
+            // Mensaje más descriptivo para el usuario
+            $errorMessage = 'Error al procesar el archivo: ' . $e->getMessage();
+            
+            return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
 

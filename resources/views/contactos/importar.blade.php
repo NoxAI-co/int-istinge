@@ -2,6 +2,34 @@
 
 @section('content')
 	<div class="card-body">
+        {{-- Mostrar mensajes de éxito o error --}}
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        @endif
+
+        @if(session('warning_persistent'))
+            <div class="alert alert-warning" role="alert" style="border-left: 4px solid #ffc107;">
+                <strong>¡Atención!</strong> {{ session('warning_persistent') }}
+                <br><small class="text-muted">Esta alerta no se oculta automáticamente debido a que contiene información importante sobre contactos modificados.</small>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="margin-top: -5px;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        @endif
         <p>Esta opción permite crear nuevos contactos y/o modificar por el nro de identificación.</p>
         <h4>Tome en cuenta las siguientes reglas para cargar la data</h4>
         <ul>
