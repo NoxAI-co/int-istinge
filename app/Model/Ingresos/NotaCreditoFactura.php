@@ -43,4 +43,14 @@ class NotaCreditoFactura extends Model
         }
         return '';
     }
+    
+    public function nota_nro_seguro() {
+        $nota = $this->nota();
+        return $nota ? $nota->nro : 'N/A';
+    }
+    
+    public function nota_fecha_segura() {
+        $nota = $this->nota();
+        return $nota && $nota->fecha ? date('d-m-Y', strtotime($nota->fecha)) : 'N/A';
+    }
 }

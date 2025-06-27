@@ -125,4 +125,40 @@ class IngresosFactura extends Model
         $ingreso = $this->ingreso();
         return $ingreso && method_exists($ingreso, $method);
     }
+    
+    public function ingreso_seguro() {
+        $ingreso = $this->ingreso();
+        return $ingreso ?: new \stdClass();
+    }
+    
+    public function nro_seguro() {
+        $ingreso = $this->ingreso();
+        return $ingreso ? $ingreso->nro : 'N/A';
+    }
+    
+    public function fecha_segura() {
+        $ingreso = $this->ingreso();
+        return $ingreso ? $ingreso->fecha : null;
+    }
+    
+    public function fecha_formateada() {
+        $ingreso = $this->ingreso();
+        return $ingreso && $ingreso->fecha ? date('d-m-Y', strtotime($ingreso->fecha)) : 'N/A';
+    }
+    
+    public function cuenta_nombre_seguro() {
+        $ingreso = $this->ingreso();
+        if ($ingreso && method_exists($ingreso, 'cuenta') && $ingreso->cuenta()) {
+            return $ingreso->cuenta()->nombre;
+        }
+        return 'N/A';
+    }
+    
+    public function pago_seguro() {
+        $ingreso = $this->ingreso();
+        if ($ingreso && method_exists($ingreso, 'pago')) {
+            return $ingreso->pago();
+        }
+        return 0;
+    }
 }

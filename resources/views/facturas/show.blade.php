@@ -447,7 +447,7 @@
                         @if($pago->ingreso())
                         <tr>
                             <td>@if(auth()->user()->rol == 8){{date('d-m-Y', strtotime($pago->ingreso()->fecha))}}@else<a href="{{route('ingresos.show',$pago->ingreso()->id)}}">{{date('d-m-Y', strtotime($pago->ingreso()->fecha))}}</a>@endif</td>
-                            <td>@if(auth()->user()->rol == 8){{$pago->ingreso()->nro}}@else<a href="{{route('ingresos.show',$pago->ingreso()->id)}}">{{$pago->ingreso()->nro}}</a>@endif</td>
+                            <td>@if(auth()->user()->rol == 8){{$pago->nro_seguro()}}@else<a href="{{route('ingresos.show',$pago->ingreso()->id)}}">{{$pago->nro_seguro()}}</a>@endif</td>
                             <td></td>
                             <td>{{$pago->metodo_pago_seguro()}}</td>
                             <td>{{Auth::user()->empresa()->moneda}} {{App\Funcion::Parsear($pago->pago())}}</td>
@@ -486,8 +486,8 @@
               @foreach($factura->notas_credito() as $notas)
                 @if($notas->nota())
                 <tr>
-                  <td> <a href="{{route('notascredito.show',$notas->nota()->nro)}}">{{date('d-m-Y', strtotime($notas->nota()->fecha))}}</a> </td>
-                  <td>{{$notas->nota()->nro}}</td>
+                  <td> <a href="{{route('notascredito.show',$notas->nota_nro_seguro())}}">{{$notas->nota_fecha_segura()}}</a> </td>
+                  <td>{{$notas->nota_nro_seguro()}}</td>
                   <td>{{Auth::user()->empresa()->moneda}} {{App\Funcion::Parsear($notas->pago)}}</td>
                   <td>{{$notas->observaciones_nota_seguras()}}</td>
                 </tr>

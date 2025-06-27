@@ -936,7 +936,7 @@
                         RECIBO DE PAGO
                     </div>
                 </td>
-                <td style="border:1px solid {{$empresa->color}};text-align:center;border-radius:5px;width:18%;">No. #{{$ingreso->ingreso()->nro}}</td>
+                <td style="border:1px solid {{$empresa->color}};text-align:center;border-radius:5px;width:18%;">No. #{{$ingreso->nro_seguro()}}</td>
                 </tr>
             </tbody>
         </table>
@@ -946,23 +946,23 @@
         <table border="0" class="titulo">
             <tr>
                 <th width="23.5%" class="right smalltd">REFERENCIA DEL PAGO</th>
-                <td colspan="1" style="">Nro. {{ $ingreso->ingreso()->nro }}</td>
+                <td colspan="1" style="">Nro. {{ $ingreso->nro_seguro() }}</td>
             </tr>
             <tr>
                 <th width="23.5%" class="right smalltd">FECHA DEL PAGO</th>
-                <td colspan="1" style="">{{ date('d-m-Y', strtotime($ingreso->ingreso()->fecha)) }}</td>
+                <td colspan="1" style="">{{ $ingreso->fecha_formateada() }}</td>
             </tr>
             <tr>
                 <th class="right smalltd" width="10%">CUENTA</th>
-                <td colspan="">{{ $ingreso->ingreso()->cuenta()->nombre }}</td>
+                <td colspan="">{{ $ingreso->cuenta_nombre_seguro() }}</td>
             </tr>
             <tr>
                 <th class="right smalltd">MÉTODO DE PAGO</th>
-                <td colspan="">{{ $ingreso->ingreso()->metodo_pago() }}</td>
+                <td colspan="">{{ $ingreso->metodo_pago_seguro() }}</td>
             </tr>
             <tr>
                 <th class="right smalltd">MONTO PAGADO</th>
-                <td colspan="">{{$empresa->moneda}} {{App\Funcion::Parsear($ingreso->ingreso()->pago())}}</td>
+                <td colspan="">{{$empresa->moneda}} {{App\Funcion::Parsear($ingreso->pago_seguro())}}</td>
             </tr>
         </table>
     </div>
