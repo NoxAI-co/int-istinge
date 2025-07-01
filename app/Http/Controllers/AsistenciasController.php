@@ -16,7 +16,8 @@ class AsistenciasController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        // Aplicar middleware auth excepto para los métodos públicos del QR
+        $this->middleware('auth')->except(['paginaMarcar', 'marcar']);
         view()->share([
             'seccion' => 'asistencias',
             'title' => 'Control de Asistencias', 
@@ -131,7 +132,8 @@ class AsistenciasController extends Controller
      */
     public function paginaMarcar($token)
     {
-        view()->share(['subseccion' => 'asistencias-empleados']);
+        // No compartir subsección para evitar errores con navbar cuando no hay usuario autenticado
+        view()->share(['title' => 'Marcar Asistencia']);
         
         $usuarioId = $this->decodificarToken($token);
         
