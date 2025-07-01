@@ -151,7 +151,7 @@
                     <img src="{{ $image_onu_type }}" alt="wifi modem" class="img-fluid mb-4">
                     <ul class="list-unstyled">
                         <li><span class="title">Status:</span>
-                            @if($diferenciaDias != null)
+                            @if(isset($diferenciaDias) && $diferenciaDias != null)
                             <span class="value">Online <i class="fas fa-globe-americas" style="color:#4db14b"></i> hace {{ $diferenciaDias }} </span>
                             @else
                             <span class="value">Power fail <i class="fas fa-globe-americas" style="color:red"></i></span>
@@ -164,7 +164,15 @@
                             </span>
                         </li>
                         <li><span class="title">Attached VLANs:</span>
-                            <span class="value"><a href="#">{{ $details['vlan'] }}</a></span>
+                            <span class="value">
+                                <a href="#" onclick="openVlanModal('{{ $details['olt_id'] }}', {{ json_encode(array_column($details['service_ports'], 'vlan')) }})">
+                                {{ $details['vlan'] }}
+                                @foreach($details['service_ports'] as $servicePort)
+                                    @if($servicePort['vlan'] != $details['vlan'])
+                                        , {{ $servicePort['vlan'] }}
+                                    @endif
+                                @endforeach
+                            </a></span>
                         </li>
                         <li><span class="title">ONU Mode:</span> <span class="value">{{ $details['mode'] }} - WAN vlan: {{ $details['vlan'] }}</span>
                         </li>
@@ -321,10 +329,130 @@
     </div>
 </div>
 
+{{-- Modal que se llenara siempre --}}
+<div class="modal fade" id="vlanModal" tabindex="-1" role="dialog" aria-labelledby="vlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Detalles de VLAN</h5>
+          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <select id="vlan-select" class="form-control selectpicker" data-live-search="true"
+          multiple data-size="5" title="Selecicone Vlan" onchange="">
+            <option>Cargando...</option>
+          </select>
+
+          <span>
+            <p class="mt-2">Select from the list all the VLANs that will be used on this ONU.
+                After changing the VLANs list, go to the Ethernet ports settings and assign VLANs as desired.</p>
+          </span>
+
+          <div style="text-align:end">
+            <button type="button" class="btn btn-secondary mt-3" data-dismiss="modal" aria-label="Cerrar">
+                <i class="fas fa-times"></i>
+                Cerrar
+              </button>
+              <button class="btn btn-primary mt-3" id="update-vlan-button" onclick="update_vlan()">
+                <i class="fas fa-check"></i>
+                Actualizar
+              </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 @endsection
 
 @section('scripts')
 <script>
+
+    let initialVlans = [];     // VLANs originales
+    let add_vlans = [];        // VLANs añadidas
+    let remove_vlans = [];     // VLANs eliminadas
+
+    function openVlanModal(oltId, selectedVlans = []) {
+        initialVlans = [...selectedVlans]; // Guardamos copia original
+        add_vlans = [];
+        remove_vlans = [];
+
+        const url = window.location.pathname.split("/")[1] === "software"
+            ? '/software/Olt/vlan-oltid'
+            : '/Olt/vlan-oltid';
+
+        $.ajax({
+            url: url + "/" + oltId,
+            method: 'GET',
+            success: function(response) {
+                const select = $('#vlan-select');
+                select.empty();
+                const data = response.response;
+
+                data.forEach(function(item) {
+                    const name = item.vlan + (item.description ? " - " + item.description : "");
+                    const isSelected = selectedVlans.includes(item.vlan);
+                    select.append(new Option(name, item.vlan, isSelected, isSelected));
+                });
+
+                select.selectpicker('refresh');
+                $('#vlanModal').modal('show');
+            },
+            error: function() {
+                alert('Error al cargar datos');
+            }
+        });
+    }
+    $('#vlan-select').on('changed.bs.select', function (e, clickedIndex, isSelected, previousValue) {
+        const currentVlans = $(this).val() || []; // siempre un array
+
+        add_vlans = currentVlans.filter(vlan => !initialVlans.includes(vlan));
+        remove_vlans = initialVlans.filter(vlan => !currentVlans.includes(vlan));
+    });
+
+
+    function update_vlan(){
+
+        const sn = "{{ $details['sn'] }}"; // obtener desde Blade
+
+        const url = window.location.pathname.split("/")[1] === "software"
+            ? '/software/Olt/update-vlan'
+            : '/Olt/update-vlan';
+
+        msg_procesando();
+
+        $.ajax({
+            url: url,
+            method: 'post',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            data: {
+                sn: sn,
+                add_vlans: add_vlans,
+                remove_vlans: remove_vlans
+            },
+            success: function(response) {
+
+                if(response.status == true){
+                    Swal.fire({
+                        title: 'VLANs actualizadas correctamente!',
+                        type: 'success',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    $('#vlanModal').modal('hide');
+                    location.reload(); // Recargar la página para reflejar los cambios
+                } else {
+                    Swal.close();
+                    alert("Hubo un error comuniquese con soporte.");
+                }
+            }
+        });
+    }
+
     function reboot_onu(sn){
         if (window.location.pathname.split("/")[1] === "software") {
             var url='/software/Olt/reboot-onu';

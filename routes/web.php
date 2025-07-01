@@ -360,6 +360,8 @@ Route::group(['prefix' => 'Olt'], function () {
 	Route::post('disable-onu', 'OltController@disableOnuResponse')->name('olt.disable-onu');
 	Route::post('delete-onu', 'OltController@deleteOnuResponse')->name('olt.delete-onu');
 	Route::get('view-onu/{sn?}', 'OltController@viewOnu')->name('olt.view-onu');
+	Route::get('vlan-oltid/{oltId?}', 'OltController@get_VLAN')->name('olt.get-vlan-oltid');
+	Route::post('update-vlan', 'OltController@update_vlan')->name('olt.update-vlan-sn');
 });
 
 Route::group(['prefix' => 'siigo'], function () {

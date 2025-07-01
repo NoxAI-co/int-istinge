@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\Auth;
 
 class SiigoController extends Controller
 {
-    public function configurarSiigo(Request $request)
+    public function configurarSiigo(Request $request, $cron = null)
     {
-        $empresa = Empresa::find(Auth::user()->empresa);
+        $empresa = Empresa::find(1);
 
-        if ($empresa) {
+        if ($empresa && $cron == null) {
 
             //Probando conexion de la api.
             $curl = curl_init();
@@ -56,7 +56,42 @@ class SiigoController extends Controller
             }
 
             return 0;
-            // dd($response->response[0]->name);
+        }
+
+        else if($cron && $empresa->usuario_siigo != "" && $empresa->api_key_siigo != ""){
+            //Si ya tiene configurado el usuario y la api key, solo actualizamos el token.
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://api.siigo.com/auth',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode([
+                    'username' => $empresa->usuario_siigo,
+                    'access_key' => $empresa->api_key_siigo,
+                ]),
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json'
+                ),
+            ));
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+            $response = json_decode($response);
+
+            if (isset($response->access_token)) {
+                $empresa->token_siigo = $response->access_token;
+                $empresa->fecha_token_siigo = Carbon::now();
+                $empresa->save();
+                return 1;
+            }
+
+            return 0;
         }
     }
 

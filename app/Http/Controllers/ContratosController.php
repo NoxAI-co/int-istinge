@@ -2508,8 +2508,8 @@ class ContratosController extends Controller
                                     "list" => 'morosos'
                                 )
                             );
-
                             #AGREGAMOS A MOROSOS#
+
                             #ELIMINAMOS DE IP_AUTORIZADAS#
                             $API->write('/ip/firewall/address-list/print', false);
                             $API->write('?address=' . $contrato->ip, false);
@@ -2522,6 +2522,15 @@ class ContratosController extends Controller
                                 $READ = $API->read();
                             }
                             #ELIMINAMOS DE IP_AUTORIZADAS#
+
+                            // #DESHABILITACION DEL PPOE#
+                            // if($contrato->conexion == 1 && $contrato->usuario != null){
+                            //     $API->write('/ppp/secret/disable', false);
+                            //     $API->write('=numbers=' . $contrato->usuario);
+                            //     $response = $API->read();
+                            // }
+                            // #DESHABILITACION DEL PPOE#
+
                             $contrato->state = 'disabled';
                             $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Habilitado a Deshabilitado<br>';
                         } else {
@@ -2546,6 +2555,13 @@ class ContratosController extends Controller
                                 )
                             );
                             #AGREGAMOS A IP_AUTORIZADAS#
+                            // #HABILITACION DEL PPOE#
+                            // if($contrato->conexion == 1 && $contrato->usuario != null){
+                            //     $API->write('/ppp/secret/enable', false);
+                            //     $API->write('=numbers=' . $contrato->usuario);
+                            //     $response = $API->read();
+                            // }
+                            // #HABILITACION DEL PPOE#
                             $contrato->state = 'enabled';
                             $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Deshabilitado a Habilitado<br>';
                         }

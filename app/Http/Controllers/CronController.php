@@ -501,6 +501,7 @@ class CronController extends Controller
                                         if($empresa->prorrateo == 1){
                                             $dias = $factura->diasCobradosProrrateo();
                                             //si es diferente de 30 es por que se cobraron menos dias y hay prorrateo
+                                            //Se agrego la solucion de que sea menor.
                                             if($dias < 30){
 
                                                     DB::table('factura')->where('id',$factura->id)->update([
@@ -724,7 +725,7 @@ class CronController extends Controller
                     $join->on('cs.nro', '=', 'fcs.contrato_nro');
                         //  ->orOn('cs.id', '=', 'f.contrato_id');
                 })->
-                select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id')->
+                select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id','cs.grupo_corte')->
                 where('f.estatus',1)->
                 whereIn('f.tipo', [1,2])->
                 where('contactos.status',1)->
@@ -733,7 +734,7 @@ class CronController extends Controller
                 where('cs.fecha_suspension', null)->
                 where('cs.server_configuration_id','!=',null)-> //se comenta por que tambien se peuden canclear planes de tv que no estan con servidor
                 whereDate('f.vencimiento', '<=', now())->
-                orderBy('f.id', 'desc')->
+                orderBy('contactos.updated_at', 'asc')->
                 take(40)->
                 get();
 
@@ -757,6 +758,9 @@ class CronController extends Controller
 
                 //** Desarrollo nuevo:
                 //** Analizar la cantidad de facturas abiertas del contrato y el grupo de corte
+                $contacto->updated_at = now();
+                $contacto->save();
+
                 $grupo_corte = null;
                 $cant_fac_grupo_corte = 1;
                 $cantFacturasVencidas = 1;
@@ -876,6 +880,14 @@ class CronController extends Controller
                                         )
                                     );
                                     #AGREGAMOS A IP_AUTORIZADAS#
+
+                                    // #HABILITACION DEL PPOE#
+                                    // if($contrato->conexion == 1 && $contrato->usuario != null){
+                                    //     $API->write('/ppp/secret/enable', false);
+                                    //     $API->write('=numbers=' . $contrato->usuario);
+                                    //     $response = $API->read();
+                                    // }
+                                    // #HABILITACION DEL PPOE#
 
                                     $contrato->state = 'enabled';
 
@@ -1257,6 +1269,11 @@ class CronController extends Controller
                 fputs($file, "-----------------".PHP_EOL);
                 fclose($file);
             }
+
+        //Conectando login de siigo cada cierto tiempo
+        $siigoLogin = new SiigoController();
+        $siigoLogin->configurarSiigo(request(), true);
+
     }
 
     public static function monitorBlacklist(){
