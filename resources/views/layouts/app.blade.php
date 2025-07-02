@@ -951,11 +951,16 @@
                     // Solo ejecutar si existe el botón de asistencia
                     if ($('#btn-asistencia').length > 0) {
                         console.log('Botón de asistencia encontrado, inicializando...');
-                        
+
+                        if (window.location.pathname.split("/")[1] === "software") {
+                            var url = '/software/empresa/asistencias/estado-actual';
+                        }else{
+                            var url = '/empresa/asistencias/estado-actual';
+                        }
                         // Verificar estado de asistencia
                         function verificarEstadoAsistenciaBackup() {
                             $.ajax({
-                                url: '{{route("asistencias.estado-actual")}}',
+                                url: url,
                                 method: 'GET',
                                 dataType: 'json',
                                 timeout: 10000,

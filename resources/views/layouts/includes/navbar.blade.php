@@ -152,8 +152,14 @@
                 return;
             }
 
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/empresa/asistencias/estado-actual';
+            } else {
+                var url = '/empresa/asistencias/estado-actual';
+            }
+
             $.ajax({
-                url: '{{route("asistencias.estado-actual")}}',
+                url: url,
                 method: 'GET',
                 dataType: 'json',
                 timeout: 10000,
