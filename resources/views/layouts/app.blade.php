@@ -955,7 +955,7 @@
                         // Verificar estado de asistencia
                         function verificarEstadoAsistenciaBackup() {
                             $.ajax({
-                                url: '/empresa/asistencias/estado-actual',
+                                url: '{{route("asistencias.estado-actual")}}',
                                 method: 'GET',
                                 dataType: 'json',
                                 timeout: 10000,
