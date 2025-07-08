@@ -739,17 +739,17 @@ class CronController extends Controller
                 get();
 
         }else{
-            // $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-            // join('contracts as cs','cs.client_id','=','contactos.id')->
-            // select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id')->
-            // where('f.estatus',1)->
-            // whereIn('f.tipo', [1,2])->
-            // where('contactos.status',1)->
-            // where('cs.state','enabled')->
-            // where('cs.fecha_suspension','!=', null)->
-            // take(20)->
-            // get();
-            // $swGrupo = 0; // personalizado
+            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
+            join('contracts as cs','cs.client_id','=','contactos.id')->
+            select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id','cs.grupo_corte')->
+            where('f.estatus',1)->
+            whereIn('f.tipo', [1,2])->
+            where('contactos.status',1)->
+            where('cs.state','enabled')->
+            where('cs.fecha_suspension','!=', null)->
+            take(20)->
+            get();
+            $swGrupo = 0; // personalizado
         }
 
             if($contactos){
