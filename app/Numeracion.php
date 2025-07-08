@@ -13,7 +13,7 @@ class Numeracion extends Model
      * @var array
      */
     protected $fillable = [
-        'caja','cajar', 'pago', 'credito', 'remision', 'cotizacion', 'orden', 'empresa'
+        'caja','cajar', 'pago', 'credito', 'remision', 'cotizacion', 'orden', 'empresa', 'contrato'
     ];
 
 }
