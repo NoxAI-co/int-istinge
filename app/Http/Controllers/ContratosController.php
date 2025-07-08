@@ -4590,39 +4590,27 @@ class ContratosController extends Controller
 
             $request->mk = (strtoupper($request->mk) == 'NO') ? 0 : 1;
 
-            $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')->select('contracts.*', 'c.id as client_id')
-                ->where('c.nit', $nit)
-                ->where('contracts.empresa', Auth::user()->empresa)
-                ->where('contracts.status', 1)
-                ->where('c.status', 1)
-                ->where('c.serial_onu', $request->serial_onu)
-                ->first();
+            // Siempre crear un nuevo contrato, nunca actualizar uno existente
+            $nro = Numeracion::where('empresa', 1)->first();
+            $nro_contrato = $nro->contrato;
 
-            if (!$contrato) {
-                $nro = Numeracion::where('empresa', 1)->first();
-                $nro_contrato = $nro->contrato;
-
-                while (true) {
-                    $numero = Contrato::where('nro', $nro_contrato)->count();
-                    if ($numero == 0) {
-                        break;
-                    }
-                    $nro_contrato++;
+            while (true) {
+                $numero = Contrato::where('nro', $nro_contrato)->count();
+                if ($numero == 0) {
+                    break;
                 }
-
-                $contrato = new Contrato;
-                $contrato->empresa   = Auth::user()->empresa;
-                $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $nro_contrato;
-                $contrato->nro       = $nro_contrato;
-                $contrato->client_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
-                $create = $create + 1;
-
-                $nro->contrato = $nro_contrato + 1;
-                $nro->save();
-            } else {
-                $modf = $modf + 1;
-                $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $contrato->nro;
+                $nro_contrato++;
             }
+
+            $contrato = new Contrato;
+            $contrato->empresa   = Auth::user()->empresa;
+            $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $nro_contrato;
+            $contrato->nro       = $nro_contrato;
+            $contrato->client_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
+            $create = $create + 1;
+
+            $nro->contrato = $nro_contrato + 1;
+            $nro->save();
 
             $contrato->plan_id                 = $request->plan;
             $contrato->server_configuration_id = $request->mikrotik;
