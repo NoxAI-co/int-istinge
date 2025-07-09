@@ -337,6 +337,8 @@
 
 @section('scripts')
 <script>
+	// Variable global para controlar cuando se hace clic en filtrar
+	var filtroClickeado = false;
 
     function showModalSiigo(factura_id,codigo,fecha,cliente){
 
@@ -554,6 +556,9 @@
 			]
 		});
 
+		// Variable global para controlar si se ha hecho clic en filtrar
+		var filtroClickeado = false;
+
 		tabla.on('preXhr.dt', function(e, settings, data) {
 			data.codigo = $('#codigo').val();
 			data.corte = $('#corte').val();
@@ -571,15 +576,23 @@
 			data.grupos_corte = $('#grupos_corte').val();
 			data.fact_siigo = $('#fact_siigo').val();
 			data.filtro = true;
+			
+			// Solo enviar filtros_aplicados cuando se ha hecho clic en el botón filtrar
+			if (filtroClickeado) {
+				data.filtros_aplicados = true;
+				filtroClickeado = false; // Resetear después de usar
+			}
 		});
 
 		$('#filtrar').on('click', function(e) {
+			filtroClickeado = true; // Marcar que se hizo clic en filtrar
 			getDataTable();
 			return false;
 		});
 
 		$('#form-filter').on('keypress', function(e) {
 			if (e.which == 13) {
+				filtroClickeado = true; // Marcar que se aplicó un filtro con Enter
 				getDataTable();
 				return false;
 			}
@@ -587,12 +600,14 @@
 
 		$('#codigo').on('keyup',function(e) {
             if(e.which > 32 || e.which == 8) {
+                filtroClickeado = true; // Marcar que se aplicó un filtro por código
                 getDataTable();
                 return false;
             }
         });
 
         $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #barrio, #state_contrato, #grupos_corte, #fact_siigo').on('change',function() {
+            filtroClickeado = true; // Marcar que se aplicó un filtro por cambio de dropdown
             getDataTable();
             return false;
         });
@@ -891,6 +906,7 @@
 	@if($tipo)
 	    $('#estado').val('{{ $tipo }}').selectpicker('refresh');
 	    abrirFiltrador();
+	    filtroClickeado = true; // Marcar que se aplicó un filtro inicial por URL
 	    getDataTable();
 	@endif
 </script>

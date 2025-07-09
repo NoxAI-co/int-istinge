@@ -538,10 +538,6 @@ class FacturasController extends Controller{
             }
         }
 
-        // if(auth()->user()->rol == 8){
-        //     $facturas=$facturas->where('factura.estatus', 1);
-        // }
-
         $facturas->where('factura.empresa', $identificadorEmpresa);
         $facturas->where('factura.tipo', 2)->where('factura.lectura',1);
 
@@ -808,10 +804,20 @@ class FacturasController extends Controller{
             }
         }
 
+        
         if(auth()->user()->rol == 8){
-            $facturas=$facturas->where('factura.estatus', 1);
+            // Verificar si el usuario tipo 8 tiene el permiso 862
+            $tienePermiso862 = DB::table('permisos_usuarios')
+                ->where('id_usuario', auth()->user()->id)
+                ->where('id_permiso', 862)
+                ->exists();
+            
+            // Si no tiene el permiso y no hay filtros aplicados, no mostrar registros
+            if (!$tienePermiso862 && !$request->filtros_aplicados) {
+                $facturas->where('factura.id', '=', 0); // Condición que no retorna registros
+            }
         }
-
+        
         $facturas->where('factura.empresa', $identificadorEmpresa);
         $facturas->where('factura.tipo', '!=', 2)->where('factura.tipo', '!=', 5)->where('factura.tipo', '!=', 6)
                  ->where('factura.lectura',1);
@@ -1656,6 +1662,7 @@ class FacturasController extends Controller{
                 view()->share(['title' => 'Cuenta de Cobro '.$factura->codigo]);
             }
             $items = ItemsFactura::where('factura',$factura->id)->get();
+
             return view('facturas.show')->with(compact('factura', 'items', 'retenciones', 'realStatus','contrato'));
         }
         return redirect('empresa/facturas')->with('success', 'No existe un registro con ese id');

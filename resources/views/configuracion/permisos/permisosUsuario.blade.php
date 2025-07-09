@@ -15,6 +15,14 @@
                             if($permisosUsuario[$key]->id_usuario!=NULL) {
                                 $check = 'checked';
                             }
+                            
+                            // Obtener el usuario que se está editando
+                            $usuarioEditando = \App\User::find($idUsuario);
+                            
+                            // Si es el permiso 862 y el usuario no es tipo 8, saltear este permiso
+                            if($permiso->id == 862 && (!$usuarioEditando || $usuarioEditando->rol != 8)) {
+                                continue;
+                            }
                         @endphp
                         <div class="form-check form-check-flat ml-4 mt-1">
                             <label class="form-check-label">

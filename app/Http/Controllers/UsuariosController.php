@@ -290,8 +290,10 @@ class UsuariosController extends Controller
     public function verPermisos(Request $request)
     {
         $idUsuario = $request->idUsuario;
+        $usuario = User::find($idUsuario);
         $modulos = DB::table('permisos_modulo')->select('id', 'nombre_modulo')->where('status', 1)->orderBy('orden', 'asc')->get();
 
+        // Para usuarios tipo 8, siempre incluir el permiso 862
         $permisosUsuario = DB::select("SELECT
                                         b.id,b.id_modulo,b.nombre_permiso,p.id_permiso,p.id_usuario
                                     FROM
