@@ -375,8 +375,13 @@ class NominaPeriodos extends Model
             $calculosFijos['reten_salud'] = (object)['valor' => (0), 'simbolo' => '-'];
             $calculosFijos['reten_pension'] = (object)['valor' => (0), 'simbolo' => '-'];
         }else{
-            $calculosFijos['reten_salud'] = (object)['valor' => ($subtotal * $retenSalud->porcDecimal()), 'simbolo' => '-'];
-            $calculosFijos['reten_pension'] = (object)['valor' => ($subtotal * $retenPension->porcDecimal()), 'simbolo' => '-'];
+            if($ibcSeguridadSocial['vacaciones'] > $ibcSeguridadSocial['salario']){
+                $calculosFijos['reten_pension'] = (object)['valor' => ($ibcSeguridadSocial['vacaciones'] * $retenPension->porcDecimal()), 'simbolo' => '-'];
+                $calculosFijos['reten_salud'] = (object)['valor' => ($ibcSeguridadSocial['vacaciones'] * $retenSalud->porcDecimal()), 'simbolo' => '-'];
+            }else{
+                $calculosFijos['reten_pension'] = (object)['valor' => ($subtotal * $retenPension->porcDecimal()), 'simbolo' => '-'];
+                $calculosFijos['reten_salud'] = (object)['valor' => ($subtotal * $retenSalud->porcDecimal()), 'simbolo' => '-'];
+            }
         }
 
         //pensionado con aporte a salud

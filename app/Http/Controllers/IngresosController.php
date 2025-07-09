@@ -1785,10 +1785,17 @@ class IngresosController extends Controller
             fclose($gestor);
 
             foreach ($registros as $registro) {
-                $codigo = substr($registro['8'],1,-3);
-                $precio = $this->precision($registro['2']);
-                $nit = substr($registro['1'], 1, -1);
-                $factura = Factura::where('factura.codigo', $codigo)->first();
+
+                $nit = explode(',', $registro[0])[4];
+                $precio = $this->precision(explode(',', $registro[0])[6]);
+                $cliente = Contacto::where('nit',$nit)->first();
+
+                $fecha = explode(',', $registro[0])[0];
+                $fecha = Carbon::createFromFormat('d/m/Y', $fecha)->format('Y-m-d');
+
+                $factura = Factura::where('factura.cliente', $cliente->id)
+                ->orderBy('id', 'desc')->first();
+
                 if($factura){
                     if($factura->estatus == 0){
                         $mensaje .= 'FACTURA N° '.$factura->codigo.' YA SE ENCUENTRA PAGADA<br>';
@@ -1814,7 +1821,7 @@ class IngresosController extends Controller
                         $ingreso->metodo_pago = 1;
                         $ingreso->notas       = 'Pago Realizado por Carga de Archivo';
                         $ingreso->tipo        = 1;
-                        $ingreso->fecha       = Carbon::parse($request->fecha)->format('Y-m-d');
+                        $ingreso->fecha       = $fecha;
                         $ingreso->created_by  = Auth::user()->id;
                         $ingreso->save();
 
