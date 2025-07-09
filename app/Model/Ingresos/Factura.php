@@ -165,6 +165,11 @@ class Factura extends Model
             if ($estatus == 2) {
                 return 'warning';
             }
+
+            if($estatus ==1 && $this->pagado()){
+                return 'info';
+            }
+
             return $estatus == 1 ? 'danger' : 'success';
         }
 
@@ -176,7 +181,7 @@ class Factura extends Model
             }
         }
 
-        if (count($this->notas_credito()) > 0) {
+        if ($this->notas_credito()) {
             $precioNotas = 0;
 
             foreach ($this->notas_credito() as $notas) {
@@ -206,13 +211,16 @@ class Factura extends Model
             }
         }
 
+        if($estatus == 1 && $this->pagado()){
+                return "Abonada";
+        }
+
         if ($isId) {
             return $estatus == 1 ? 1 : 0;
         } else {
             return $estatus == 1 ? 'Abierta' : 'Cerrada';
         }
     }
-
 
     public function total()
     {

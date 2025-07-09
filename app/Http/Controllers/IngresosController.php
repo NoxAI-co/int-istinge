@@ -1790,6 +1790,10 @@ class IngresosController extends Controller
                 $precio = $this->precision(explode(',', $registro[0])[6]);
                 $cliente = Contacto::where('nit',$nit)->first();
 
+                if(!$cliente){
+                    continue;
+                }
+
                 $fecha = explode(',', $registro[0])[0];
                 $fecha = Carbon::createFromFormat('d/m/Y', $fecha)->format('Y-m-d');
 
