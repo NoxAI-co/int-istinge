@@ -788,18 +788,22 @@ class ContratosController extends Controller
                 if ($request->conexion == 1) {
 
                     $ppoe_local_adress = $request->direccion_local_address;
-                    $error = $API->comm(
-                        "/ppp/secret/add",
-                        array(
-                            "name"           => $request->usuario,
-                            "password"       => $request->password,
-                            "profile"        => $request->profile,
-                            "local-address"  => $request->direccion_local_address,
-                            "remote-address" => $request->ip,
-                            "service"        => 'pppoe',
-                            "comment"        => $this->normaliza($servicio) . '-' . $nro_contrato
-                        )
-                    );
+
+                    $data = [
+                        "name"           => $request->usuario,
+                        "password"       => $request->password,
+                        "profile"        => $request->profile,
+                        "remote-address" => $request->ip,
+                        "service"        => 'pppoe',
+                        "comment"        => $this->normaliza($servicio) . '-' . $nro_contrato
+                    ];
+
+                    // Solo agregar si viene con valor válido
+                    if (!empty($request->direccion_local_address)) {
+                        $data["local-address"] = $request->direccion_local_address;
+                    }
+
+                    $error = $API->comm("/ppp/secret/add", $data);
 
                     $registro = true;
                     $getall = $API->comm(
