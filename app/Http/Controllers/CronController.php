@@ -3386,9 +3386,9 @@ class CronController extends Controller
             }
         }
         Log::info("Lote de facturas enviadas por whatsapp correctamente.");
+        }
         //Validacion de ingresos creados y no habilitado el catv o internet
         $this->refreshCorteIntertTV();
-        }
     }
 
     public function aplicateProrrateo(){
@@ -3793,6 +3793,7 @@ class CronController extends Controller
     public function refreshCorteIntertTV(){
 
         $fecha = Carbon::now()->format('Y-m-d');
+
         //ingresos asociados a facturas del dia de hoy.
         $ingresos = Ingreso::where('fecha',$fecha)
         ->where('tipo',1)->where('revalidacion_enable',0)
@@ -3812,6 +3813,7 @@ class CronController extends Controller
 
                 if($contratos->count() > 0){
                     foreach($contratos as $contrato){
+
                         $contrato = Contrato::where('nro',$contrato)->first();
                         //Este es el de habilitacion de CATV
                         /* * * API CATV * * */
