@@ -43,7 +43,7 @@
 	                    <a href="{{ route('contratos.log',$contrato->id )}}" class="dropdown-item" title="Log del Contrato" onclick="cargando('true');"><i class="fas fa-clipboard-list"></i> Log del Contrato</a>
 	                    @if(isset($_SESSION['permisos']['439']))
 	                    <button class="dropdown-item" type="submit" title="Eliminar" onclick="confirmar('eliminar-contrato{{$contrato->id}}', '¿Está seguro que desea eliminar el contrato?', 'Se borrara de forma permanente');"><i class="fas fa-times"></i> Eliminar Contrato</button>
-	                    <button class="dropdown-item" type="submit" title="Eliminar de NetworkSoft" onclick="confirmar('eliminar-contrato-ns-{{$contrato->id}}', '¿Está seguro que desea eliminar el contrato solo de NetworkSoft?', 'Se borrara de forma permanente');"><i class="fas fa-times"></i> Eliminar Contrato de NetworkSoft</button>
+	                    {{-- <button class="dropdown-item" type="submit" title="Eliminar de NetworkSoft" onclick="confirmar('eliminar-contrato-ns-{{$contrato->id}}', '¿Está seguro que desea eliminar el contrato solo de NetworkSoft?', 'Se borrara de forma permanente');"><i class="fas fa-times"></i> Eliminar Contrato de NetworkSoft</button> --}}
 	                    @endif
 	                    @if(isset($_SESSION['permisos']['440']))
 	                    <button class="dropdown-item d-none" type="submit" title="Eliminar del Mikrotik" onclick="confirmar('eliminar-contrato-mk{{$contrato->id}}', '¿Está seguro que desea eliminar el contrato del Mikrotik?', 'Se borrara de forma permanente');"><i class="fas fa-times-circle"></i> Eliminar Contrato del Mikrotik</button>
