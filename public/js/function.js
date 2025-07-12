@@ -560,6 +560,7 @@ function factura_pendiente(ingreso = false) {
     if (ingreso) {
         final = url + '/ingpendiente/' + $('#cliente').val() + '/' + ingreso;
     }
+
     $.ajax({
         url: final,
         success: function(data) {

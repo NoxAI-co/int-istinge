@@ -4235,7 +4235,7 @@ class ContratosController extends Controller
         // Ahora puedes hacer lo que necesites con el valor de $conexion
         if ($conexion == 1) {
             // Lógica para PPPoE
-            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato', 'Profile', 'Usuario', 'Contrasena');
+            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato', 'Profile', 'IP Local Address', 'Usuario', 'Contrasena');
         } else {
             // Lógica para IP Estática
             $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik');
@@ -4272,7 +4272,7 @@ class ContratosController extends Controller
             )
         );
 
-        $objPHPExcel->getActiveSheet()->getStyle('A1:U3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:Z3')->applyFromArray($estilo);
 
         $estilo = array(
             'fill' => array(
@@ -4292,7 +4292,7 @@ class ContratosController extends Controller
             )
         );
 
-        $objPHPExcel->getActiveSheet()->getStyle('A3:U3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:Z3')->applyFromArray($estilo);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
@@ -4352,7 +4352,7 @@ class ContratosController extends Controller
             )
         );
 
-        $objPHPExcel->getActiveSheet()->getStyle('A3:U' . $j)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:Z' . $j)->applyFromArray($estilo);
 
         for ($i = 'A'; $i <= $letras[20]; $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
