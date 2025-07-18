@@ -9,7 +9,7 @@
       setTimeout(function(){
           $('.alert').hide();
           $('.active_table').attr('class', ' ');
-      }, 5000);
+      }, 50000);
     </script>
   @endif
   @if(Session::has('danger'))
