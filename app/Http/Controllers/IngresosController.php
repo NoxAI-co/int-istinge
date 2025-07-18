@@ -335,7 +335,6 @@ class IngresosController extends Controller
             $user = Auth::user();
             $empresa = Empresa::Find($user->empresa);
             $morosos = "";
-            $msjMoroso = "";
 
             // Verificamos si la suma es mayor que 0
             if($request->anticipo == 1){
@@ -346,6 +345,9 @@ class IngresosController extends Controller
                 ->sum();
             }
 
+            // $contrato = Contrato::where('nro',632)->first();
+            // $morosos = $this->funcionesPagoMK($contrato);
+            // dd($morosos);
             if ($sumaPrecios <= 0) {
             return back()->with('danger', 'La suma de los precios no puede ser 0.')->withInput();
             }
@@ -543,9 +545,28 @@ class IngresosController extends Controller
             if ($ingreso->tipo == 1) {
                 $saldoFavorUsado = 0;
                 foreach ($request->factura_pendiente as $key => $value) {
+
+
                     if ($request->precio[$key]) {
                         $totalIngreso+=$precio = $this->precision($request->precio[$key]);
                         $factura = Factura::find($request->factura_pendiente[$key]);
+
+                        $contrato = Contrato::join('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
+                                ->where('fc.factura_id', $factura->id)
+                                ->select('contracts.*')
+                                ->first();
+
+                        if(!$contrato){
+                           $contrato = Contrato::where('id',$factura->contrato_id)->first();
+                        }
+
+                        if($contrato){
+                            $morosos = $this->funcionesPagoMK($contrato);
+                            if($morosos != ""){
+                                $ingreso->revalidacion_enable = 1;
+                                $ingreso->save();
+                            }
+                        }
 
                         /*
                         vamos a sumar el total del anticipo usado sobre una factura
@@ -584,6 +605,8 @@ class IngresosController extends Controller
                         sobre el total de la factura por que el resto es saldo a favor.
                         */
                         if($factura->total()->total < $request->precio[$key]){
+
+
                             // $items->pago = $factura->total()->total; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
                             $items->pago = $this->precision($request->precio[$key]);
                             $factura->estatus = 0;
@@ -605,23 +628,7 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
-
-                            $contrato = Contrato::where('id',$factura->contrato_id)->first();
-                            if(!$contrato){
-                                $contrato = Contrato::join('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
-                                    ->where('fc.factura_id', $factura->id)
-                                    ->select('contracts.*')
-                                    ->first();
-                            }
-
-                            //store: prorrateo Aplicacion de posible
-                            if(isset($request->tipo_electronica) && $request->tipo_electronica == 4){
-                                $facturaInicio = 1; //Esta opcion me permite crear la factura con prorrateo desde le dia que se creo la factura
-                                $this->createFacturaProrrateo($contrato, $facturaInicio);
-                            }
-
                             if(isset($request->tipo_electronica) && $request->tipo_electronica != 6 || !isset($request->tipo_electronica)){
-                            /* * * API MK * * */
                             if(!$contrato){
                                 $db_contrato = DB::table('facturas_contratos')->where('factura_id',$factura->id)->first();
                                 if($db_contrato){
@@ -644,6 +651,7 @@ class IngresosController extends Controller
                             }
 
                             if($contrato){
+
                                 $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
                                 if ($asignacion) {
@@ -655,78 +663,17 @@ class IngresosController extends Controller
                                     $asignacion->save();
                                 }
 
-                                if($contrato->server_configuration_id){
-                                    $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
 
-                                    $API = new RouterosAPI();
-                                    $API->port = $mikrotik->puerto_api;
+                            }
 
-                                    if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                        $API->write('/ip/firewall/address-list/print', TRUE);
-                                        $ARRAYS = $API->read();
-
-                                        #ELIMINAMOS DE MOROSOS#
-                                        $API->write('/ip/firewall/address-list/print', false);
-                                        $API->write('?address='.$contrato->ip, false);
-                                        $API->write("?list=morosos",false);
-                                        $API->write('=.proplist=.id');
-                                        $ARRAYS = $API->read();
-
-                                        if(count($ARRAYS)>0){
-                                            $API->write('/ip/firewall/address-list/remove', false);
-                                            $API->write('=.id='.$ARRAYS[0]['.id']);
-                                            $READ = $API->read();
-
-                                            $morosos = "- Se ha sacado la ip de morosos.";
-                                        }
-                                        #ELIMINAMOS DE MOROSOS#
-
-                                        #AGREGAMOS A IP_AUTORIZADAS#
-                                        $API->comm("/ip/firewall/address-list/add", array(
-                                            "address" => $contrato->ip,
-                                            "list" => 'ips_autorizadas'
-                                            )
-                                        );
-                                        #AGREGAMOS A IP_AUTORIZADAS#
-
-                                        $API->disconnect();
-
-                                        $contrato->state = 'enabled';
-                                        $contrato->save();
-                                    }else{
-                                        $morosos = "- No se pudo conectar al Mikrotik, por favor verifique la configuración del servidor.";
-                                    }
+                            //store: CREAR FACTURA CON PRORRATEO
+                            if($contrato){
+                                if(isset($request->tipo_electronica) && $request->tipo_electronica == 4){
+                                        $facturaInicio = 1; //Esta opcion me permite crear la factura con prorrateo desde le dia que se creo la factura
+                                        $this->createFacturaProrrateo($contrato, $facturaInicio);
                                 }
                             }
-                            /* * * API MK * * */
 
-                            /* * * API CATV * * */
-                            if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
-
-                                $curl = curl_init();
-                                curl_setopt_array($curl, array(
-                                    CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
-                                    CURLOPT_RETURNTRANSFER => true,
-                                    CURLOPT_ENCODING => '',
-                                    CURLOPT_MAXREDIRS => 10,
-                                    CURLOPT_TIMEOUT => 0,
-                                    CURLOPT_FOLLOWLOCATION => true,
-                                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                    CURLOPT_CUSTOMREQUEST => 'POST',
-                                    CURLOPT_HTTPHEADER => array(
-                                        'X-token: '.$empresa->smartOLT
-                                    ),
-                                    ));
-
-                                $response = curl_exec($curl);
-                                $response = json_decode($response);
-
-                                if(isset($response->status) && $response->status == true){
-                                    $contrato->state_olt_catv = 1;
-                                    $contrato->save();
-                                }
-                            }
-                            /* * * API CATV * * */
                             }
                         }
                     }
@@ -1085,13 +1032,90 @@ class IngresosController extends Controller
                 // DB::commit();
 
                 $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO. ' . $morosos;
-                return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje . " " . $msjMoroso)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
+                return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
         } catch (\Throwable $th) {
             // DB::rollBack();
             return back()->with('danger', $th->getMessage());
         }
+    }
+
+    public function funcionesPagoMK($contrato){
+
+        $mensaje = "";
+
+        /* * * API MK * * */
+        if($contrato->server_configuration_id){
+            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+            $API = new RouterosAPI();
+            $API->port = $mikrotik->puerto_api;
+            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+
+                $API->write('/ip/firewall/address-list/print', TRUE);
+                $ARRAYS = $API->read();
+
+                #ELIMINAMOS DE MOROSOS#
+                $API->write('/ip/firewall/address-list/print', false);
+                $API->write('?address='.$contrato->ip, false);
+                $API->write("?list=morosos",false);
+                $API->write('=.proplist=.id');
+                $ARRAYS = $API->read();
+
+                if(count($ARRAYS)>0){
+                    $API->write('/ip/firewall/address-list/remove', false);
+                    $API->write('=.id='.$ARRAYS[0]['.id']);
+                    $READ = $API->read();
+
+                    $mensaje = "- Se ha sacado la ip de morosos.";
+                }
+                #ELIMINAMOS DE MOROSOS#
+
+                #AGREGAMOS A IP_AUTORIZADAS#
+                $API->comm("/ip/firewall/address-list/add", array(
+                    "address" => $contrato->ip,
+                    "list" => 'ips_autorizadas'
+                    )
+                );
+                #AGREGAMOS A IP_AUTORIZADAS#
+
+                $API->disconnect();
+
+                $contrato->state = 'enabled';
+                $contrato->save();
+            }
+        }
+        /* * * API MK * * */
+
+         /* * * API CATV * * */
+        if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
+
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_HTTPHEADER => array(
+                    'X-token: '.$empresa->smartOLT
+                ),
+                ));
+
+            $response = curl_exec($curl);
+            $response = json_decode($response);
+
+            if(isset($response->status) && $response->status == true){
+                $contrato->state_olt_catv = 1;
+                $contrato->save();
+            }
+        }
+        /* * * API CATV * * */
+
+        return $mensaje;
     }
 
     public function storeIngresoPucCategoria($request){

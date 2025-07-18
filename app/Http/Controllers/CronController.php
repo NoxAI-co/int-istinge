@@ -636,63 +636,78 @@ class CronController extends Controller
     //Pago automatico que se genera cuando el cliente tiene saldo a favor.
     public static function pagoFacturaAutomatico($factura){
 
-            $empresa = $factura->empresa;
-            $precio = $factura->totalAPI($empresa)->total;
+        $empresa = $factura->empresa;
+        $precio = $factura->totalAPI($empresa)->total;
+        $contacto = Contacto::Find($factura->cliente);
 
-            //obtencion de numeración de el recibo de caja.
-            $nro = Numeracion::where('empresa', $empresa)->first();
-            $caja = $nro->caja;
+        //obtencion de numeración de el recibo de caja.
+        $nro = Numeracion::where('empresa', $empresa)->first();
+        $caja = $nro->caja;
 
-            while (true) {
-                $numero = Ingreso::where('empresa', $empresa)->where('nro', $caja)->count();
-                if ($numero == 0) {
-                    break;
-                }
-                $caja++;
+        while (true) {
+            $numero = Ingreso::where('empresa', $empresa)->where('nro', $caja)->count();
+            if ($numero == 0) {
+                break;
             }
+            $caja++;
+        }
 
-            $request = new StdClass;
-            $request->cuenta = Banco::where('empresa',$empresa)->where('nombre','like','Saldos a favor')->first()->id;
-            $request->metodo_pago = 1;
-            $request->notas = "Recibo de caja generado automáticamente por saldo a favor.";
-            $request->observaciones = "Recibo de caja generado automáticamente por saldo a favor.";
-            $request->tipo = 1;
-            $request->fecha = Carbon::now()->format('Y-m-d');
+        $request = new StdClass;
+        $request->cuenta = Banco::where('empresa',$empresa)->where('nombre','like','Saldos a favor')->first()->id;
+        $request->metodo_pago = 1;
+        $request->notas = "Recibo de caja generado automáticamente por saldo a favor.";
+        $request->observaciones = "Recibo de caja generado automáticamente por saldo a favor.";
+        $request->tipo = 1;
+        $request->fecha = Carbon::now()->format('Y-m-d');
 
-            $ingreso = new Ingreso;
-            $ingreso->nro = $caja;
-            $ingreso->empresa = $empresa;
-            $ingreso->cliente = $factura->cliente;
-            $ingreso->cuenta = $request->cuenta;
-            $ingreso->metodo_pago = $request->metodo_pago;
-            $ingreso->notas = $request->notas;
-            $ingreso->tipo = $request->tipo;
-            $ingreso->fecha = $request->fecha;
-            $ingreso->observaciones = mb_strtolower($request->observaciones);
-            $ingreso->save();
+        $ingreso = new Ingreso;
+        $ingreso->nro = $caja;
+        $ingreso->empresa = $empresa;
+        $ingreso->cliente = $factura->cliente;
+        $ingreso->cuenta = $request->cuenta;
+        $ingreso->metodo_pago = $request->metodo_pago;
+        $ingreso->notas = $request->notas;
+        $ingreso->tipo = $request->tipo;
+        $ingreso->fecha = $request->fecha;
+        $ingreso->observaciones = mb_strtolower($request->observaciones);
+        $ingreso->save();
 
-            $items = new IngresosFactura;
-            $items->ingreso = $ingreso->id;
-            $items->factura = $factura->id;
+        $items = new IngresosFactura;
+        $items->ingreso = $ingreso->id;
+        $items->factura = $factura->id;
+        $items->puc_factura = $factura->cuenta_id;
+
+        if($contacto->saldo_favor >= $precio){
             $items->pagado = $precio; //asi exista mas dinero del  pagado ese se debe usar.
-            $items->puc_factura = $factura->cuenta_id;
             $items->pago = self::precisionAPI($precio, $empresa);
             $items->save();
 
             $factura->estatus = 0;
             $factura->save();
 
-            //Descontamos el saldo a favor del cliente
-            $contacto = Contacto::Find($factura->cliente);
             $contacto->saldo_favor-=$precio;
             $contacto->save();
+        }
+        else{
 
-            //No vamos a regisrtrar por el momento un movimiento del puc ya que no sabemos esta informacion.
-            // $ingreso->puc_banco = $request->forma_pago; //cuenta de forma de pago genérico del ingreso. (en memoria)
-            // PucMovimiento::ingreso($ingreso,1,2,$request);
+            $items->pagado = $contacto->saldo_favor; //asi exista mas dinero del  pagado ese se debe usar.
+            $items->pago = self::precisionAPI($contacto->saldo_favor, $empresa);
+            $items->save();
 
-            self::up_transaccion_(7, $ingreso->id, $ingreso->cuenta, $ingreso->cliente, 2, $precio, $ingreso->fecha, "Uso de saldo a favor automatico.",null,$empresa);
+            $factura->estatus = 1;
+            $factura->save();
+
+            $contacto->saldo_favor-=$contacto->saldo_favor;
+            $contacto->save();
+        }
+
+        //No vamos a regisrtrar por el momento un movimiento del puc ya que no sabemos esta informacion.
+        // $ingreso->puc_banco = $request->forma_pago; //cuenta de forma de pago genérico del ingreso. (en memoria)
+        // PucMovimiento::ingreso($ingreso,1,2,$request);
+
+        self::up_transaccion_(7, $ingreso->id, $ingreso->cuenta, $ingreso->cliente, 2, $precio, $ingreso->fecha, "Uso de saldo a favor automatico.",null,$empresa);
     }
+
 
     public static function CortarFacturas(){
         $i=0;
@@ -3839,6 +3854,10 @@ class CronController extends Controller
                             $response = json_decode($response);
 
                             if(isset($response->status) && $response->status == true){
+
+                                $ingreso->revalidacion_enable = 1;
+                                $ingreso->save();
+
                                 $contrato->state_olt_catv = 1;
                                 $contrato->save();
                             }
@@ -3868,6 +3887,9 @@ class CronController extends Controller
                                     $API->write('/ip/firewall/address-list/remove', false);
                                     $API->write('=.id='.$ARRAYS[0]['.id']);
                                     $READ = $API->read();
+
+                                    $ingreso->revalidacion_enable = 1;
+                                    $ingreso->save();
                                 }
                                 #ELIMINAMOS DE MOROSOS#
 
@@ -3890,9 +3912,6 @@ class CronController extends Controller
                 }
 
             }
-
-            $ingreso->revalidacion_enable = 1;
-            $ingreso->save();
         }
     }
 
