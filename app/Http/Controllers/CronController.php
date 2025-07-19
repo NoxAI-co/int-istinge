@@ -885,6 +885,9 @@ class CronController extends Controller
                                         $API->write('/ip/firewall/address-list/remove', false);
                                         $API->write('=.id='.$ARRAYS[0]['.id']);
                                         $READ = $API->read();
+
+                                        $contrato->state = 'enabled';
+                                        $contrato->update();
                                     }
                                     #ELIMINAMOS DE MOROSOS#
 
@@ -903,10 +906,6 @@ class CronController extends Controller
                                     //     $response = $API->read();
                                     // }
                                     // #HABILITACION DEL PPOE#
-
-                                    $contrato->state = 'enabled';
-
-                                    $contrato->update();
                                     $API->disconnect();
                                     }
                                 }
