@@ -447,6 +447,7 @@ class IngresosController extends Controller
                         //Conversión de factura estandar a factura electrónica.
                         if(isset($request->tipo_electronica) && $request->tipo_electronica == 1 ||
                            isset($request->tipo_electronica) && $request->tipo_electronica == 2){
+
                             //primero recuperamos
                             $nro=NumeracionFactura::where('empresa',$empresa->id)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
                             $inicio = $nro->inicio;
@@ -474,6 +475,7 @@ class IngresosController extends Controller
                             //si tiene el tipo 2 es por que desean emitir la(s) factura(s).
                             if($factura->emitida != 1){
                                 $emision = app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                Log::info($emision);
                             }
                         }
                     }
