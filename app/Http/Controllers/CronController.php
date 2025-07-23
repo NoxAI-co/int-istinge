@@ -46,6 +46,7 @@ use App\MovimientoLOG;
 use App\Services\WapiService;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class CronController extends Controller
@@ -53,6 +54,82 @@ class CronController extends Controller
     public static function precisionAPI($valor, $id){
         $empresa = Empresa::find($id);
         return round($valor, $empresa->precision);
+    }
+
+    public function tokenComboPay(Request $request)
+    {
+        $strUser = $request->query('user');
+        $strPass = $request->query('pass');
+        $strClientID = $request->query('client_id');
+        $strClientSecret = $request->query('client_secret');
+
+        if (!$strUser || !$strPass || !$strClientID || !$strClientSecret) {
+            return response()->json([
+                'message' => 'Missing credentials',
+            ], 422);
+        }
+
+        try {
+            $response = Http::asForm()->post('https://api.combopay.co/api/oauth/token', [
+                'grant_type'    => 'password',
+                'username'      => $strUser,
+                'password'      => $strPass,
+                'client_id'     => $strClientID,
+                'client_secret' => $strClientSecret,
+            ]);
+
+            if ($response->successful()) {
+                return response()->json($response->json(), 200);
+            }
+
+            return response()->json([
+                'message' => 'Token request failed',
+                'error' => $response->json()
+            ], $response->status());
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Exception occurred',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function crearLinkPago(Request $request)
+    {
+        $accessToken = $request->input('access_token');
+        $data = $request->input('data');
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->asForm()
+                ->post('https://api.combopay.co/api/invoice-company-customer', [
+                    'value' => $data['value'],
+                    'description' => $data['description'],
+                    'invoice' => $data['invoice'],
+                    'url_data_return' => $data['url_data_return'],
+                    'url_client_redirect' => $data['url_client_redirect'],
+                    'name' => $data['name'],
+                    'document_type' => $data['document_type'],
+                    'customer_phone_number' => $data['customer_phone_number'],
+                    'document' => $data['document'],
+                    'customer_address' => $data['customer_address'],
+                ]);
+
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+
+            return response()->json([
+                'error' => 'Error al generar el link',
+                'response' => $response->json()
+            ], $response->status());
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Exception: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public static function up_transaccion_($modulo, $id, $banco, $contacto, $tipo, $saldo, $fecha, $descripcion, $generoSaldoFavor=null,$empresa=null){

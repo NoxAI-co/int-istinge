@@ -450,29 +450,43 @@
                                 .attr('data-epayco-confirmation', 'https://'+str+'/software/api/pagos/epayco');
                                 $("#btn_epayco").removeClass('d-none');
                             }else if(value.nombre == 'ComboPay'){
-                                var token = {
-                                    "url": "https://api.combopay.co/api/oauth/token?grant_type=password&client_secret="+value.merchantId+"&username="+value.user+"&password="+value.pass+"&client_id="+value.accountId,
-                                    "method": "POST",
-                                    "timeout": 0,
-                                };
-                                $.ajax(token).done(function (response) {
-                                    if(response.access_token){
-                                        var amount = (parseFloat(data.contrato.price)*1);
+                                    var token = {
+                                        "url": "https://conectacomunicaciones.site/software/api/token-combopay?client_id="+value.accountId+"&client_secret="+value.merchantId+"&user="+value.user+"&pass="+value.pass,
+                                        "method": "POST",
+                                        "timeout": 0,
+                                    };
 
-                                        if(data.contrato.tip_iden==3){ var tip_iden = 'CC'; }else if(data.contrato.tip_iden==6){ var tip_iden = 'NIT'; }
-                                        var link = {
-                                            "url": "https://api.combopay.co/api/invoice-company-customer?value="+amount+"&description="+data.contrato.factura+"&invoice=<?=$nom_empresa;?>-"+data.contrato.factura+"&url_data_return=https://"+str+"/software/api/pagos/combopay&url_client_redirect=https://"+str+"/software/api/pagos/combopay&name="+fullname+"&document_type="+tip_iden+"&customer_phone_number="+data.contrato.celular+"&document="+data.contrato.nit+"&customer_address="+data.contrato.direccion,
-                                            "method": "POST",
-                                            "timeout": 0,
-                                            "headers": {
-                                                "Authorization": "Bearer "+response.access_token+""
-                                            },
+                                    $.ajax(token).done(function (response) {
+                                    if(response.access_token){
+                                        var amount = parseFloat(data.contrato.price);
+                                        var tip_iden = (data.contrato.tip_iden == 3 || data.contrato.tip_iden == 4) ? 'CC' : 'NIT';
+
+                                        var linkData = {
+                                            access_token: response.access_token,
+                                            data: {
+                                                value: amount,
+                                                description: data.contrato.factura,
+                                                invoice: "<?=$nom_empresa;?>-" + data.contrato.factura,
+                                                url_data_return: "https://"+str+"/software/api/pagos/combopay",
+                                                url_client_redirect: "https://"+str+"/pay.php",
+                                                name: fullname,
+                                                document_type: tip_iden,
+                                                customer_phone_number: data.contrato.celular,
+                                                document: data.contrato.nit,
+                                                customer_address: data.contrato.direccion
+                                            }
                                         };
 
-                                        $.ajax(link).done(function (response) {
-                                            if(response.payment_link){
-                                                $("#btn_combopay").removeClass('d-none');
-                                                $("#a_combopay").attr('href', response.payment_link);
+                                        $.ajax({
+                                            url: "https://conectacomunicaciones.site/software/api/combopay/payment-link",
+                                            method: "POST",
+                                            data: JSON.stringify(linkData),
+                                            contentType: "application/json",
+                                            success: function (res) {
+                                                if (res.payment_link) {
+                                                    $("#btn_combopay").removeClass('d-none');
+                                                    $("#a_combopay").attr('href', res.payment_link);
+                                                }
                                             }
                                         });
                                     }
