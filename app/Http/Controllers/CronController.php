@@ -1763,22 +1763,20 @@ class CronController extends Controller
                                     $API->write('/ip/firewall/address-list/remove', false);
                                     $API->write('=.id='.$ARRAYS[0]['.id']);
                                     $READ = $API->read();
+
+                                    $ingreso->revalidacion_enable_internet = 1;
+                                    $ingreso->save();
+
+                                    $contrato->state = 'enabled';
+                                    $contrato->save();
                                 }
                                 #ELIMINAMOS DE MOROSOS#
-
-                                #AGREGAMOS A IP_AUTORIZADAS#
-                                $API->comm("/ip/firewall/address-list/add", array(
-                                    "address" => $contrato->ip,
-                                    "list" => 'ips_autorizadas'
-                                    )
-                                );
-                                #AGREGAMOS A IP_AUTORIZADAS#
-
                                 $API->disconnect();
 
-                                $contrato->state = 'enabled';
-                                $contrato->save();
                             }
+                        }else{
+                            $ingreso->revalidacion_enable_internet = 1;
+                            $ingreso->save();
                         }
 
                         # ENVÍO SMS
@@ -3810,11 +3808,18 @@ class CronController extends Controller
 
         //ingresos asociados a facturas del dia de hoy.
         $ingresos = Ingreso::where('fecha',$fecha)
-        ->where('tipo',1)->where('revalidacion_enable',0)
+        ->where('tipo',1)
+        ->where('revalidacion_enable_internet',0)
+        ->where('revalidacion_enable_tv',0)
+        ->orderBy('updated_at', 'asc')
         ->get();
 
         //obtenemos los contratos o el contrato que la factura tiene
         foreach($ingresos as $ingreso){
+
+            $ingreso->updated_at = now();
+            $ingreso->save();
+
             $facturas = IngresosFactura::where('ingreso',$ingreso->id)->get()->pluck('factura');
             if($facturas->count() > 0){
 
@@ -3829,6 +3834,7 @@ class CronController extends Controller
                     foreach($contratos as $contrato){
 
                         $contrato = Contrato::where('nro',$contrato)->first();
+
                         //Este es el de habilitacion de CATV
                         /* * * API CATV * * */
                         $empresa = Empresa::find(1);
@@ -3854,12 +3860,15 @@ class CronController extends Controller
 
                             if(isset($response->status) && $response->status == true){
 
-                                $ingreso->revalidacion_enable = 1;
+                                $ingreso->revalidacion_enable_tv = 1;
                                 $ingreso->save();
 
                                 $contrato->state_olt_catv = 1;
                                 $contrato->save();
                             }
+                        }else{
+                            $ingreso->revalidacion_enable_tv = 1;
+                            $ingreso->save();
                         }
                         /* * * API CATV * * */
 
@@ -3887,24 +3896,18 @@ class CronController extends Controller
                                     $API->write('=.id='.$ARRAYS[0]['.id']);
                                     $READ = $API->read();
 
-                                    $ingreso->revalidacion_enable = 1;
+                                    $ingreso->revalidacion_enable_internet = 1;
                                     $ingreso->save();
+
+                                    $contrato->state = 'enabled';
+                                    $contrato->save();
                                 }
                                 #ELIMINAMOS DE MOROSOS#
-
-                                #AGREGAMOS A IP_AUTORIZADAS#
-                                $API->comm("/ip/firewall/address-list/add", array(
-                                    "address" => $contrato->ip,
-                                    "list" => 'ips_autorizadas'
-                                    )
-                                );
-                                #AGREGAMOS A IP_AUTORIZADAS#
-
                                 $API->disconnect();
-
-                                $contrato->state = 'enabled';
-                                $contrato->save();
                             }
+                        }else{
+                            $ingreso->revalidacion_enable_internet = 1;
+                            $ingreso->save();
                         }
                         /* * * API MIKROTIK * * */
                     }
