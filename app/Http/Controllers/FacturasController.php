@@ -804,20 +804,20 @@ class FacturasController extends Controller{
             }
         }
 
-        
+
         if(auth()->user()->rol == 8){
             // Verificar si el usuario tipo 8 tiene el permiso 862
             $tienePermiso862 = DB::table('permisos_usuarios')
                 ->where('id_usuario', auth()->user()->id)
                 ->where('id_permiso', 862)
                 ->exists();
-            
+
             // Si no tiene el permiso y no hay filtros aplicados, no mostrar registros
             if (!$tienePermiso862 && !$request->filtros_aplicados) {
                 $facturas->where('factura.id', '=', 0); // Condición que no retorna registros
             }
         }
-        
+
         $facturas->where('factura.empresa', $identificadorEmpresa);
         $facturas->where('factura.tipo', '!=', 2)->where('factura.tipo', '!=', 5)->where('factura.tipo', '!=', 6)
                  ->where('factura.lectura',1);
@@ -4794,6 +4794,51 @@ class FacturasController extends Controller{
         }else{
             return redirect('empresa/facturas/facturas-whatsapp-index')->with('danger', 'No se ha podido reiniciar el envio de facturas');
         }
+    }
+
+    public function getModalDescuento(Request $request){
+
+        $descuento = Descuento::where('f.empresa', Auth::user()->empresa)
+            ->join('factura as f', 'descuentos.factura', '=', 'f.id')
+            ->where('f.id', $request->factura_id)
+            ->select('descuentos.*', 'f.codigo as factura_codigo')
+            ->first();
+
+        return response()->json([
+            'status' => 200,
+            'descuento' => $descuento,
+            'message' => 'Descuento obtenido correctamente'
+        ]);
+    }
+
+    public function sendDescuento(Request $request){
+
+        $descuento = Descuento::where('factura', $request->factura_id)
+        ->first();
+
+        if($descuento && $descuento->estado == 1){
+            return response()->json([
+                'status' => 400,
+                'error' => 'Ya existe un descuento activo para esta factura'
+            ]);
+        }
+
+        if(!$descuento){
+            $descuento = new Descuento;
+        }
+
+        $descuento->factura    = $request->factura_id;
+        $descuento->descuento  = $request->descuento;
+        $descuento->comentario  = $request->observacion;
+        $descuento->created_by = Auth::user()->id;
+        $descuento->save();
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Descuento guardado correctamente',
+            'descuento' => $descuento
+        ]);
+
     }
 
 }

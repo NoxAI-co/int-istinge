@@ -499,6 +499,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('remision/{id}', 'FacturasController@remisionAfactura')->name('factura.remision');
 		/**/
 
+        Route::get('get_modal_descuento','FacturasController@getModalDescuento')->name('factura.get_modal_descuento');
+        Route::post('send_descuento','FacturasController@sendDescuento')->name('factura.send_descuento');
+
 		Route::get('xml/{id}', 'FacturasController@xmlFacturaVenta')->name('xml.factura');
 		Route::get('xmlmasivo', 'FacturasController@xmlFacturaVentaMasivoIni');
 		Route::get('emisionmasivaxml/{facturas}', 'FacturasController@emisionMasivaXml');

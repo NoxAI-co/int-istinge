@@ -313,6 +313,49 @@
         </div>
         {{-- /MODAL ENVIO SIIGO --}}
 
+        {{-- MODAL DESCUENTOS --}}
+        <div class="modal fade" id="modal_descuento" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Descuento de la factura <span id="descuento-factura-span"></span></h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+
+                        <form method="POST" action="" style="padding: 2% 3%;" role="form"
+                        class="forms-sample" novalidate id="form" >
+
+                            {{ csrf_field() }}
+
+                            <input type="hidden" id='factura_id'>
+
+                            <div class="row">
+
+                                <div class="col-md-6 form-group">
+                                    <label class="control-label">Descuento %</label>
+                                    <input class="form-control" type="text" id="descuento">
+                                </div>
+
+                                <div class="col-md-6 form-group">
+                                    <label class="control-label">Observacion</label>
+                                    <input class="form-control" type="text" id="observacion">
+                                </div>
+
+                            </div>
+
+
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                        <a href="javascript:sendDescuentoFactura()" class="btn btn-success">Guardar</A>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{-- MODAL DESCUENTOS --}}
+
 @endsection
 
 @section('style')
@@ -430,6 +473,106 @@
         });
     }
 
+    function showModalDescuento(factura_id){
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/empresa/facturas/get_modal_descuento';
+        }else{
+            var url = '/empresa/facturas/get_modal_descuento';
+        }
+        $("#factura_id").val(factura_id);
+
+        $.ajax({
+            url: url,
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            method: 'get',
+            data:{
+                factura_id: factura_id
+            },
+            success: function (data) {
+                console.log(data)
+
+                $("#descuento-factura-span").text("");
+                $("#descuento").val("");
+                $("#observacion").val("");
+                $("#descuento-factura-span").val("")
+
+                $("#modal_descuento").modal('show');
+
+                if(data.descuento != null){
+                    $("#descuento-factura-span").text(data.descuento.factura_codigo);
+                    $("#descuento").val(data.descuento.descuento);
+                    $("#observacion").val(data.descuento.comentario);
+                    $("#descuento-factura-span").val(data.descuento.factura_codigo)
+                }
+
+            },
+            error: function (xhr, status, error) {
+                console.error("Error al cargar el modal de descuento:", error);
+                swal({
+                    title: 'ERROR',
+                    html: 'No se pudo cargar el modal de descuento. Por favor, inténtelo de nuevo más tarde.',
+                    type: 'error',
+                    showConfirmButton: true,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'ACEPTAR',
+                });
+            }
+        });
+    }
+
+    function sendDescuentoFactura(){
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/empresa/facturas/send_descuento';
+        }else{
+            var url = '/empresa/facturas/send_descuento';
+        }
+
+        let factura_id = $("#factura_id").val();
+        let descuento = $("#descuento").val();
+        let observacion = $("#observacion").val();
+
+        $.ajax({
+            url: url,
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            method: 'post',
+            data: {
+                factura_id,
+                descuento,
+                observacion,
+            },
+            success: function (data) {
+
+                if (data.status == 200) {
+                    swal({
+                        title: 'ÉXITO',
+                        html: 'Solicitud de descuento creado o actualizada correctamente.',
+                        type: 'success',
+                        showConfirmButton: true,
+                        confirmButtonColor: '#1A59A1',
+                        confirmButtonText: 'ACEPTAR',
+                    }).then(() => {
+                        $("#modal_descuento").modal('hide');
+                        getDataTable();
+                    });
+                }else if(data.status == 400){
+                    swal({
+                        title: 'ERROR',
+                        html: data.error,
+                        type: 'error',
+                        showConfirmButton: true,
+                        confirmButtonColor: '#d33',
+                        confirmButtonText: 'ACEPTAR',
+                    });
+                }
+            }
+        });
+
+
+
+    }
+
     function sendInvoiceSiigo(){
 
         if (window.location.pathname.split("/")[1] === "software") {
@@ -488,7 +631,7 @@
                         confirmButtonText: 'ACEPTAR',
                     });
                 }
-            }, // <- esta coma es esencial
+            },
             error: function (xhr, status, error) {
                 console.error("Error al enviar la factura a Siigo:", error);
                 swal({
@@ -576,7 +719,7 @@
 			data.grupos_corte = $('#grupos_corte').val();
 			data.fact_siigo = $('#fact_siigo').val();
 			data.filtro = true;
-			
+
 			// Solo enviar filtros_aplicados cuando se ha hecho clic en el botón filtrar
 			if (filtroClickeado) {
 				data.filtros_aplicados = true;

@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
-use Carbon\Carbon;  
-use Mail; 
+use Carbon\Carbon;
+use Mail;
 use Validator;
-use Illuminate\Validation\Rule;  
-use Auth; 
+use Illuminate\Validation\Rule;
+use Auth;
 use DB;
 use Session;
 
@@ -26,7 +26,7 @@ class DescuentosController extends Controller
         set_time_limit(300);
         view()->share(['inicio' => 'master', 'seccion' => 'facturas', 'subseccion' => 'descuentos', 'title' => 'Descuentos', 'icon' => 'fas fa-percentage']);
     }
-    
+
     public function index(Request $request){
         $this->getAllPermissions(Auth::user()->id);
         //$clientes = Contacto::where('tipo_contacto', 0)->where('empresa', Auth::user()->empresa)->get();
@@ -112,7 +112,7 @@ class DescuentosController extends Controller
 
     public function create(){
     }
-    
+
     public function store(Request $request){
     }
 
@@ -128,13 +128,13 @@ class DescuentosController extends Controller
         }
         return redirect('empresa/descuentos')->with('danger', 'DESCUENTO NO ENCONTRADO, INTENTE NUEVAMENTE');
     }
-    
+
     public function edit($id){
     }
 
     public function update(Request $request, $id){
     }
-    
+
     public function noAprobar(Request $request){
         $descuento = Descuento::find($request->id);
 
@@ -166,10 +166,10 @@ class DescuentosController extends Controller
             ]);
         }
     }
-    
+
     public function aprobar(Request $request){
         $descuento = Descuento::find($request->id);
-        
+
         if($descuento){
             if($descuento->estado == 2){
                 if($request->comentario){

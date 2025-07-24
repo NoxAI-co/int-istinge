@@ -65,6 +65,14 @@
         <i class="fas fa-file-import"></i>
     </a>
     @endif
+    {{-- COMENTADO POR QUE SOLO ES DE LINKGROUP --}}
+    {{--
+    <a href="#" onclick="showModalDescuento({{ $id }})" class="btn btn-outline-info btn-icons" title="Aplicar descuento">
+        <i class="fas fa-percent"></i>
+    </a>
+    --}}
+    {{-- COMENTADO POR QUE SOLO ES DE LINKGROUP --}}
+
 @endif
 
 <script>
