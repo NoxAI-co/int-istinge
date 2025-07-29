@@ -814,7 +814,7 @@ class Factura extends Model
             'ValTot' => number_format($factura->totalAPI($empresa)->total, 2, '.', ''),
             'NitFE'  => Empresa::find($factura->empresa)->nit,
             'NumAdq' => $factura->cliente()->nit,
-            'ClvTec' => 'fc8eac422eba16e22ffd8c6f94b3f40a6e38162c',
+            'ClvTec' => $technicalKey,
             'TipoAmb'=> 1,
         ];
 
@@ -1782,6 +1782,13 @@ public function forma_pago()
         return PucMovimiento::where('documento_id',$this->id)
         ->where('recibocaja_id','!=',null)
         ->sum('debito');
+    }
+
+    public function ingreso(){
+        return Ingreso::join('ingresos_factura as if','if.ingreso','=','ingresos.id')
+        ->where('if.factura',$this->id)
+        ->select('ingresos.fecha')
+        ->first();
     }
 
 }

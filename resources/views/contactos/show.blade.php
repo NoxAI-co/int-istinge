@@ -521,6 +521,7 @@
 		    							<th>Dirección</th>
 		    							<th>Creación</th>
 		    							<th>Vencimiento</th>
+		    							<th>Fecha Pago</th>
 		    							<th>Total</th>
 		    							<th>Pagado</th>
 		    							<th>Por Pagar</th>

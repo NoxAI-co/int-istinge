@@ -495,9 +495,14 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	//Facturas de Venta
 
 	Route::group(['prefix' => 'facturas'], function () {
+
 		/* PASAR INFORMACION DE REMISION A FACTURA*/
 		Route::get('remision/{id}', 'FacturasController@remisionAfactura')->name('factura.remision');
 		/**/
+
+        Route::get('logs/{contrato}', 'FacturasController@logs');
+        Route::get('{id}/log', 'FacturasController@log')->name('facturas.log');
+
 
         Route::get('get_modal_descuento','FacturasController@getModalDescuento')->name('factura.get_modal_descuento');
         Route::post('send_descuento','FacturasController@sendDescuento')->name('factura.send_descuento');

@@ -449,6 +449,7 @@
                                 .attr('data-epayco-response', 'https://'+str+'/epayco.php')
                                 .attr('data-epayco-confirmation', 'https://'+str+'/software/api/pagos/epayco');
                                 $("#btn_epayco").removeClass('d-none');
+
                             }else if(value.nombre == 'ComboPay'){
                                     var token = {
                                         "url": "https://conectacomunicaciones.site/software/api/token-combopay?client_id="+value.accountId+"&client_secret="+value.merchantId+"&user="+value.user+"&pass="+value.pass,

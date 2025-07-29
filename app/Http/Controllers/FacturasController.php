@@ -52,6 +52,7 @@ use App\Plantilla;
 use App\Services\ElectronicBillingService;
 use App\CRM;
 use App\Instance;
+use App\MovimientoLOG;
 use App\Services\WapiService;
 use Facade\FlareClient\View;
 use Illuminate\Support\Facades\Auth;
@@ -2274,11 +2275,12 @@ class FacturasController extends Controller{
             2 => 'contratos',
             3 => 'factura.fecha',
             4 => 'factura.vencimiento',
-            5 => 'total',
-            6 => 'pagado',
-            7 => 'porpagar',
-            8 => 'factura.estatus',
-            9 => 'acciones'
+            5 => 'fecha_pago',
+            6 => 'total',
+            7 => 'pagado',
+            8 => 'porpagar',
+            9 => 'factura.estatus',
+            10 => 'acciones'
         );
         $facturas = Factura::
             join('contactos as c', 'factura.cliente', '=', 'c.id')
@@ -2342,7 +2344,7 @@ class FacturasController extends Controller{
                     $textDireccion .="|";
                 }
             }
-
+            $pagado = $factura->pagado();
             $nestedData = array();
             $nestedData[] = '<a href="'.route('facturas.show',$factura->id).'">'.$factura->codigo.'</a>';
             $nestedData[] = '<a href="'.route('contactos.show',$factura->cliente).'" target="_blank">'.$factura->nombrecliente.' '.$factura->ape1cliente.' '.$factura->ape2cliente.'</a>';
@@ -2352,10 +2354,15 @@ class FacturasController extends Controller{
             if(date('Y-m-d') > $factura->vencimiento && $factura->estatus==1){
                 $nestedData[] = '<spam class="text-danger">'.date('d-m-Y', strtotime($factura->vencimiento)).'</spam>';
             }else{
-                $nestedData[] = date('d-m-Y', strtotime($factura->vencimiento));
+               $nestedData[] = date('d-m-Y', strtotime($factura->vencimiento));
+            }
+            if($pagado > 0 && $factura->estatus==0){
+                $nestedData[] = '<spam class="text-success">'.date('d-m-Y', strtotime($factura->ingreso()->fecha)).'</spam>';
+            }else{
+                $nestedData[] = '<spam class="text-danger">Fac no cerrada</spam>';
             }
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->total()->total);
-            $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->pagado());
+            $nestedData[] = $empresa->moneda.Funcion::Parsear($pagado);
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->porpagar());
             $nestedData[] = '<spam class="text-'.$factura->estatus(true).'">'.$factura->estatus().'</spam>';
             $boton = '<a href="'.route('facturas.show',$factura->id).'" class="btn btn-outline-info btn-icons" title="Ver"><i class="far fa-eye"></i></a>
@@ -4840,5 +4847,47 @@ class FacturasController extends Controller{
         ]);
 
     }
+
+    public function logs(Request $request, $factura)
+    {
+
+        $facturas = MovimientoLOG::query();
+        $facturas->where('contrato', $factura)
+        ->where('modulo', 8);
+
+        return datatables()->eloquent($facturas)
+            ->editColumn('created_at', function (MovimientoLOG $factura) {
+                return date('d-m-Y g:i:s A', strtotime($factura->created_at));
+            })
+            ->editColumn('created_by', function (MovimientoLOG $factura) {
+                return $factura->created_by();
+            })
+            ->editColumn('descripcion', function (MovimientoLOG $factura) {
+                return $factura->descripcion;
+            })
+            ->rawColumns(['created_at', 'created_by', 'descripcion'])
+            ->toJson();
+    }
+
+    public function log($id)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $factura = Factura::Find($id);
+        $factura_log = DB::table('log_movimientos')
+        ->where('contrato', $factura->id)->where('modulo',8)->get();
+
+        if ($factura) {
+            view()->share(['icon' => 'fas fa-chart-area', 'title' => 'Log | Factura: ' . $factura->codigo]);
+            return view('facturas.log')->with(compact('factura', 'factura_log'));
+        } else {
+            $mensaje = 'NO SE HA PODIDO OBTENER EL LOG DE LA FACTURA';
+            return redirect('empresa/facturas/' . $factura->id)->with('danger', $mensaje);
+        }
+
+        return redirect('empresa/facturas')->with('danger', 'LA FACTURA DE SERVICIOS NO HA ENCONTRADO');
+    }
+
+
 
 }

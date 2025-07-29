@@ -75,6 +75,7 @@
                                     @endif
                                     <a class="dropdown-item" href="{{route('facturas.imprimircopia',$factura->id)}}" target="_blank">Imprimir como Copia</a>
                                     <a class="dropdown-item" href="{{route('facturas.copia',$factura->id)}}" target="_blank">Descargar como Copia</a>
+                                    <a href="{{ route('facturas.log',$factura->id )}}" class="dropdown-item" title="Log de la factura" onclick="cargando('true');"><i class="fas fa-clipboard-list"></i> Log de la factura</a>
                                     @if($factura->tipo == 1 && isset($contrato) && $contrato->opciones_dian == 1)
                                     <a class="dropdown-item" href="{{route('facturas.convertirelectronica',$factura->id)}}">Convertir a factura electrónica</a>
                                     @endif

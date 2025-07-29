@@ -7,6 +7,7 @@ use App\Impuesto;
 use App\Model\Ingresos\Factura;
 use App\Model\Ingresos\ItemsFactura;
 use App\Model\Inventario\Inventario;
+use App\MovimientoLOG;
 use App\Retencion;
 use App\Vendedor;
 use Carbon\Carbon;
@@ -428,6 +429,16 @@ class SiigoController extends Controller
                 $factura->siigo_name = $response['name'];
                 $factura->save();
 
+                // log siigo
+                $descripcion = '<i class="fas fa-check text-success"></i> Factura enviada a siigo por <b>'.Auth::user()->nombres.'</b>';
+                $movimiento = new MovimientoLOG();
+                $movimiento->contrato    = $factura->id;
+                $movimiento->modulo      = 8;
+                $movimiento->descripcion = $descripcion;
+                $movimiento->created_by  = Auth::user()->id;
+                $movimiento->empresa     = Auth::user()->empresa;
+                $movimiento->save();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "Factura creada correctamente en Siigo",
@@ -443,6 +454,16 @@ class SiigoController extends Controller
                 } elseif (isset($response['Message'])) {
                     $mensajes = $response['Message'];
                 }
+
+                    // log siigo
+                    $descripcion = '<i class="fas fa-check text-error"></i> Factura <br>NO</br> enviada a siigo por <b>'.Auth::user()->nombres.'</b>';
+                    $movimiento = new MovimientoLOG();
+                    $movimiento->contrato    = $factura->id;
+                    $movimiento->modulo      = 8;
+                    $movimiento->descripcion = $descripcion;
+                    $movimiento->created_by  = Auth::user()->id;
+                    $movimiento->empresa     = Auth::user()->empresa;
+                    $movimiento->save();
 
 
                 return response()->json([

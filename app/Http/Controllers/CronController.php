@@ -733,7 +733,7 @@ class CronController extends Controller
         $request->cuenta = Banco::where('empresa',$empresa)->where('nombre','like','Saldos a favor')->first()->id;
         $request->metodo_pago = 1;
         $request->notas = "Recibo de caja generado automáticamente por saldo a favor.";
-        $request->observaciones = "Recibo de caja generado automáticamente por saldo a favor.";
+        $request->observaciones = "Recibo de caja generado automáticamente por saldo a favor desde cronjob. Antes de aplicar el saldo a favor tenia: " . round($contacto->saldo_favor);
         $request->tipo = 1;
         $request->fecha = Carbon::now()->format('Y-m-d');
 
