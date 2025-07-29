@@ -4072,4 +4072,259 @@ class CronController extends Controller
         }
             return "Cambio completado";
     }
+
+        /**
+     * Elimina registros específicos de factura (solo items_factura, facturas_contratos y facturas)
+     * @param string $contrato_nro Número del contrato
+     * @return array Resultado de la eliminación
+     */
+    private static function eliminarRegistrosContratoSeguro($contrato_nro) {
+        $eliminados = [
+            'facturas' => 0,
+            'items_factura' => 0,
+            'facturas_contratos' => 0
+        ];
+        
+        try {
+            // Obtener las facturas existentes para este contrato_nro
+            $facturas_existentes = DB::table('facturas_contratos')
+                ->where('contrato_nro', $contrato_nro)
+                ->pluck('factura_id');
+            
+            if ($facturas_existentes->count() > 0) {
+                $facturas_ids = $facturas_existentes->toArray();
+                
+                Log::info("Iniciando eliminación para contrato {$contrato_nro}. Facturas: " . implode(',', $facturas_ids));
+                
+                // Eliminar en orden específico para evitar violaciones de integridad referencial
+                
+                // 1. Eliminar items_factura
+                $eliminados['items_factura'] = DB::table('items_factura')
+                    ->whereIn('factura', $facturas_ids)
+                    ->delete();
+                
+                // 2. Eliminar facturas_contratos (relación)
+                $eliminados['facturas_contratos'] = DB::table('facturas_contratos')
+                    ->where('contrato_nro', $contrato_nro)
+                    ->delete();
+                
+                // 3. Finalmente eliminar facturas
+                $eliminados['facturas'] = DB::table('factura')
+                    ->whereIn('id', $facturas_ids)
+                    ->delete();
+                
+                Log::info("Eliminación completada para contrato {$contrato_nro}");
+                
+            } else {
+                // Solo eliminar registros huérfanos en facturas_contratos
+                $eliminados['facturas_contratos'] = DB::table('facturas_contratos')
+                    ->where('contrato_nro', $contrato_nro)
+                    ->delete();
+            }
+            
+        } catch (Exception $e) {
+            Log::error("Error en eliminación del contrato {$contrato_nro}: " . $e->getMessage());
+            throw $e;
+        }
+        
+        return $eliminados;
+    }
+
+    /**
+     * Genera facturas para números de contratos específicos con precios personalizados
+     * Elimina registros existentes antes de crear nuevos (versión mejorada)
+     * @param array $contratos_precios Array con formato: 
+     *   [['contrato_nro' => '123', 'precio' => 50000], ...] o
+     *   [['cedula' => '12345678', 'precio' => 50000], ...]
+     * @return array Resultado con las facturas generadas
+     */
+    public static function generarFacturasPersonalizadas($contratos_precios) {
+        $empresa = Empresa::find(1);
+        $facturas_generadas = [];
+        $errores = [];
+        $registros_eliminados = [];
+        
+        foreach ($contratos_precios as $contrato_precio) {
+            $precio = $contrato_precio['precio'];
+            $contrato = null;
+            $contrato_nro = null;
+            $cedula = null;
+            
+            try {
+                // Determinar si viene cedula o contrato_nro
+                if (isset($contrato_precio['cedula'])) {
+                    $cedula = $contrato_precio['cedula'];
+                    
+                    // Buscar el contrato por identificación del cliente
+                    $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                        ->where('c.nit', $cedula)
+                        ->where('contracts.status', 1)
+                        ->select('contracts.*')
+                        ->first();
+                    
+                    if (!$contrato) {
+                        $errores[] = "No se encontró contrato activo para identificación {$cedula}";
+                        continue;
+                    }
+                    
+                    $contrato_nro = $contrato->nro;
+                    
+                } elseif (isset($contrato_precio['contrato_nro'])) {
+                    $contrato_nro = $contrato_precio['contrato_nro'];
+                    
+                    // Buscar el contrato por número
+                    $contrato = Contrato::where('nro', $contrato_nro)->first();
+                    
+                    if (!$contrato) {
+                        $errores[] = "Contrato {$contrato_nro} no encontrado";
+                        continue;
+                    }
+                    
+                } else {
+                    $errores[] = "Debe proporcionar 'cedula' o 'contrato_nro'";
+                    continue;
+                }
+                
+                // Verificar que el contrato esté activo
+                // if ($contrato->status != 1) {
+                //     $errores[] = "Contrato {$contrato_nro} no está activo";
+                //     continue;
+                // }
+                
+                // PASO 1: Eliminar todos los registros existentes para este contrato_nro (versión segura)
+                $eliminados = self::eliminarRegistrosContratoSeguro($contrato_nro);
+                $registros_eliminados[] = [
+                    'contrato_nro' => $contrato_nro,
+                    'cedula' => $cedula,
+                    'eliminados' => $eliminados
+                ];
+                
+                // Log de eliminación
+                Log::info("Eliminados registros del contrato {$contrato_nro} (identificación: {$cedula}): " . json_encode($eliminados));
+                
+                // PASO 2: Crear nueva factura
+                
+                // Obtener el siguiente número de factura
+                $num = Factura::where('empresa', 1)->orderby('id', 'desc')->first();
+                $numero = $num ? $num->nro + 1 : 1;
+                
+                // Obtener numeración
+                $nro = NumeracionFactura::tipoNumeracion($contrato);
+                
+                if (!$nro) {
+                    $errores[] = "No se pudo obtener numeración para contrato {$contrato_nro}";
+                    continue;
+                }
+                
+                // Validar que el código sea único
+                $inicio = $nro->inicio;
+                while (Factura::where('codigo', $nro->prefijo . $inicio)->first()) {
+                    $inicio++;
+                }
+                
+                // Crear la factura
+                $factura = new Factura;
+                $factura->nro           = $numero;
+                $factura->codigo        = $nro->prefijo . $inicio;
+                $factura->numeracion    = $nro->id;
+                $factura->empresa       = 1;
+                $factura->cliente       = $contrato->client_id;
+                $factura->fecha         = Carbon::now()->format('Y-m-d');
+                $factura->tipo          = 1; // Normal
+                $factura->vencimiento   = "2025-07-30"; // 30 días
+                $factura->suspension    = "2025-07-30";
+                $factura->pago_oportuno = "2025-07-30"; // 15 días
+                $factura->observaciones = 'Factura generada manualmente con precio personalizado';
+                $factura->bodega        = 1;
+                $factura->vendedor      = 1;
+                $factura->prorrateo_aplicado = 0;
+                $factura->facturacion_automatica = 1;
+
+                if($contrato){
+                    $factura->contrato_id = $contrato->id;
+                }
+
+                //validacion extra antes de guardar que no haya ningun mismo codigo.
+                if(Factura::where('codigo',$factura->codigo)->count() == 0){
+                    $factura->save();
+
+                    // Crear el item de factura con el producto 348 y precio personalizado
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura = $factura->id;
+                    $item_reg->producto = 254; // Producto fijo como solicitado
+                    $item_reg->ref = 'PERSONALIZADO';
+                    $item_reg->precio = $precio;
+                    $item_reg->descripcion = 'Servicio personalizado - Contrato ' . $contrato_nro;
+                    $item_reg->id_impuesto = 0;
+                    $item_reg->impuesto = 0;
+                    $item_reg->cant = 1;
+                    $item_reg->desc = 0;
+                    $item_reg->save();
+                    
+                    // Crear la relación en facturas_contratos
+                    DB::table('facturas_contratos')->insert([
+                        'factura_id' => $factura->id,
+                        'contrato_nro' => $contrato_nro,
+                        'created_by' => 1, // Usuario manual
+                        'client_id' => $contrato->client_id,
+                        'is_cron' => 0, // No es automático
+                        'created_at' => Carbon::now()
+                    ]);
+                    
+                    // Actualizar numeración
+                    $nro->inicio = $inicio + 1;
+                    $nro->save();
+                    
+                    $facturas_generadas[] = [
+                        'factura_id' => $factura->id,
+                        'factura_codigo' => $factura->codigo,
+                        'contrato_nro' => $contrato_nro,
+                        'cedula' => $cedula,
+                        'precio' => $precio,
+                        'cliente_id' => $contrato->client_id
+                    ];
+                    
+                }else{
+                    $errores[] = "Factura con código {$factura->codigo} ya existe";
+                }
+            } catch (Exception $e) {
+                $errores[] = "Error generando factura para " . 
+                    ($cedula ? "identificación {$cedula}" : "contrato {$contrato_nro}") . 
+                    ": " . $e->getMessage();
+            }
+        }
+        
+        return [
+            'facturas_generadas' => $facturas_generadas,
+            'errores' => $errores,
+            'registros_eliminados' => $registros_eliminados,
+            'total_generadas' => count($facturas_generadas),
+            'total_errores' => count($errores),
+            'total_contratos_procesados' => count($contratos_precios)
+        ];
+    }
+
+    /**
+     * Ejemplo de uso del método generarFacturasPersonalizadas (actualizado)
+     * Se puede llamar desde una ruta o comando
+     */
+    public function ejemploGenerarFacturas() {
+        // Ejemplo de datos de entrada con ambos formatos
+        $contratos_precios = [
+            [
+                'contrato_nro' => 'C123',
+                'cedula' => '12345678',
+                'precio' => 100
+            ],
+            [
+                'contrato_nro' => 'C124',
+                'cedula' => '87654321',
+                'precio' => 200
+            ]
+        ];
+        
+        $resultado = self::generarFacturasPersonalizadas($contratos_precios);
+        
+        return response()->json($resultado);
+    }
 }
