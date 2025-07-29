@@ -800,6 +800,15 @@ class Factura extends Model
     public function info_cufeAPI($id, $impTotal, $empresa)
     {
         $factura = Factura::find($id);
+
+        $technicalKey = "";
+
+        if ($factura->technicalkey == null) {
+            $technicalKey = Empresa::Find(1)->technicalkey;
+        } else {
+            $technicalKey = $factura->technicalkey;
+        }
+
         $infoCufe = [
             'Numfac' => $factura->codigo,
             'FecFac' => Carbon::parse($factura->created_at)->format('Y-m-d'),
