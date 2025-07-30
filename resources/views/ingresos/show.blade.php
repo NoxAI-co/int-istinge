@@ -33,19 +33,20 @@
 		@endif
 
 		@if($ingreso->tipo!=3 && $ingreso->tipo!=4)
-		    @if(isset($_SESSION['permisos']['49']))
-		        <form action="{{ route('ingresos.anular',$ingreso->nro) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
-		        	{{ csrf_field() }}
-		        </form>
-		        @if($ingreso->estatus==1)
-		            <button class="btn btn-outline-info btn-xs"  type="button" title="Anular" onclick="confirmar('anular-ingreso{{$ingreso->id}}', '¿Está seguro de que desea anular el ingreso?', ' ');"><i class="fas fa-minus"></i>Anular</button>
-		        @else
-		            <button  class="btn btn-outline-info btn-xs" type="button" title="Abrir" onclick="confirmar('anular-ingreso{{$ingreso->id}}', '¿Está seguro de que desea abrir el ingreso?', ' ');">
-		            	<i class="fas fa-unlock-alt"> Convertir a Abierta</i>
-		            </button>
-		        @endif
-		    @endif
-		@endif
+            @if(isset($_SESSION['permisos']['49']))
+                <form action="{{ route('ingresos.anular',$ingreso->nro) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
+                    {{ csrf_field() }}
+                </form>
+                @if($ingreso->estatus==1)
+                    <button class="btn btn-outline-info btn-xs" type="button" title="Anular" onclick="confirmar('anular-ingreso{{$ingreso->id}}', '¿Está seguro de que desea anular el ingreso?', ' ');"><i class="fas fa-minus"></i>Anular</button>
+                @else
+                    <button class="btn btn-outline-info btn-xs" type="button" title="Abrir" onclick="confirmar('anular-ingreso{{$ingreso->id}}', '¿Está seguro de que desea abrir el ingreso?', ' ');"><i class="fas fa-unlock-alt"></i> Convertir a Abierta</button>
+                @endif
+            @endif
+        @endif
+
+
+
     @endif
 
     <div class="alert alert-warning nopadding onlymovil" style="text-align: center;">
@@ -135,6 +136,15 @@
 					</tbody>
 				</table>
 			</div>
+		</div>
+	</div>
+
+	<!-- Botón para descargar recibo de caja detallado -->
+	<div class="row card-description">
+		<div class="col-md-12 text-center">
+			<a href="{{ route('ingresos.imprimir.nombre', ['id' => $ingreso->nro, 'name' => 'Ingreso No. '.$ingreso->nro.'.pdf']) }}?detalle=1" class="btn btn-primary @if(Auth::user()->rol==47) btn-xl @else btn-lg @endif" title="Imprimir recibo detallado">
+				<i class="fas fa-print"></i> Imprimir Recibo de Caja Detallado
+			</a>
 		</div>
 	</div>
 

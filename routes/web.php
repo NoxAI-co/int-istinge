@@ -84,6 +84,7 @@ Route::get('/enviofacturawpp', 'CronController@envioFacturaWpp');
 Route::get('/estatus-emision-dian', 'CronController@validateEmisionApi');
 Route::get('/validar-factura-doble', 'CronController@validarFacturasDobles');
 Route::get('/validate-codigo-emision', 'CronController@validateCodeEmision');
+Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
 /*PAYU*/
 
 Route::get('/respuestapayu', 'Controller@respuestapayu')->name('respuestapayu');
@@ -839,6 +840,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/ingpendiente/{cliente}/{id?}', 'IngresosController@ingpendiente')->name('ingpendiente.pendiente');
 		Route::get('/{id}/imprimir', 'IngresosController@Imprimir')->name('ingresos.imprimir');
 		Route::get('tirilla/{id}/{name}', 'IngresosController@imprimirTirilla')->name('ingresos.tirilla');
+		Route::get('tirilla-doble/{id}', 'IngresosController@imprimirTirillaDoble')->name('ingresos.tirilla_doble');
 		Route::get('pdf/{id}/{name}', 'IngresosController@Imprimir')->name('ingresos.imprimir.nombre');
 		Route::get('/{id}/enviar', 'IngresosController@enviar')->name('ingresos.enviar');
 		Route::post('{id}/anular', 'IngresosController@anular')->name('ingresos.anular');

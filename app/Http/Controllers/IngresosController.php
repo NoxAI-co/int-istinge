@@ -1570,7 +1570,7 @@ class IngresosController extends Controller
         return redirect('empresa/ingresos')->with('error', 'No existe un registro con ese id');
     }
 
-    public function Imprimir($id){
+    public function Imprimir(Request $request, $id){
         view()->share(['title' => 'Imprimir Ingreso']);
         $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('nro', $id)->first();
         if ($ingreso) {
@@ -1586,7 +1586,12 @@ class IngresosController extends Controller
             }
             $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
             $empresa = Empresa::find($ingreso->empresa);
-            $pdf = PDF::loadView('pdf.ingreso', compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
+            
+            // Verificar si se solicita versión detallada
+            $detalle = $request->query('detalle', 0);
+            $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
+            
+            $pdf = PDF::loadView($vista, compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
             return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
         }
     }
