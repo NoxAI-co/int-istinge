@@ -222,7 +222,7 @@
             @if($ingreso->ingresofactura())
             <tr>
                 <th class="right smalltd">No. Contrato:</th>
-                <td>{{ $ingreso->ingresofactura()->factura()->nro }}</td>
+                <td>{{ isset($ingreso->ingresofactura()->factura()->contratoAsociado()->nro) ? $ingreso->ingresofactura()->factura()->contratoAsociado()->nro : 'N/A' }}</td>
             </tr>
             @endif
             <tr>
