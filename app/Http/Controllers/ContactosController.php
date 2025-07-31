@@ -959,6 +959,7 @@ class ContactosController extends Controller
             // Validación inicial del archivo
             $validator = Validator::make($request->all(), [
                 'archivo' => 'required|mimes:xlsx',
+                'preservar_campos_vacios' => 'nullable|boolean',
             ], [
                 'archivo.required' => 'Debe seleccionar un archivo para importar',
                 'archivo.mimes' => 'El archivo debe ser de extensión xlsx',
@@ -967,6 +968,9 @@ class ContactosController extends Controller
             if ($validator->fails()) {
                 return back()->withErrors($validator)->withInput();
             }
+
+            // Obtener la opción de preservar campos vacíos
+            $preservarCamposVacios = $request->has('preservar_campos_vacios') && $request->preservar_campos_vacios == '1';
 
             $create = 0;
             $modf = 0;
@@ -1137,35 +1141,91 @@ class ContactosController extends Controller
                 }
                 $request->tip_iden = $tipo_identifi;
                 $contacto = Contacto::where('nit', $request->nit)->where('empresa', Auth::user()->empresa)->where('status', 1)->first();
+                $esContactoExistente = false;
                 if (! $contacto) {
                     $contacto = new Contacto;
                     $contacto->empresa = Auth::user()->empresa;
                     $contacto->nit = $request->nit;
                     $create = $create + 1;
                 } else {
+                    $esContactoExistente = true;
                     $modf = $modf + 1;
                     // Agregar la identificación al array de modificados
                     $modificados[] = $request->nit;
                 }
 
                 $contacto->nombre = ucwords(mb_strtolower($request->nombre));
-                $contacto->apellido1 = ucwords(mb_strtolower($request->apellido1));
-                $contacto->apellido2 = ucwords(mb_strtolower($request->apellido2));
+                
+                // Aplicar lógica de preservar campos vacíos solo para contactos existentes
+                if ($preservarCamposVacios && $esContactoExistente) {
+                    // Solo actualizar si el campo no está vacío en el Excel
+                    if (!empty($request->apellido1)) {
+                        $contacto->apellido1 = ucwords(mb_strtolower($request->apellido1));
+                    }
+                    if (!empty($request->apellido2)) {
+                        $contacto->apellido2 = ucwords(mb_strtolower($request->apellido2));
+                    }
+                    if (!empty($request->ciudad)) {
+                        $contacto->ciudad = ucwords(mb_strtolower($request->ciudad));
+                    }
+                    if (!empty($request->direccion)) {
+                        $contacto->direccion = ucwords(mb_strtolower($request->direccion));
+                    }
+                    if (!empty($request->vereda)) {
+                        $contacto->vereda = ucwords(mb_strtolower($request->vereda));
+                    }
+                    if (!empty($request->barrio)) {
+                        $contacto->barrio = ucwords(mb_strtolower($request->barrio));
+                    }
+                    if (!empty($request->email)) {
+                        $contacto->email = mb_strtolower($request->email);
+                    }
+                    if (!empty($request->telefono1)) {
+                        $contacto->telefono1 = $request->telefono1;
+                    }
+                    if (!empty($request->celular)) {
+                        $contacto->celular = $request->celular;
+                    }
+                    if (!empty($request->observaciones)) {
+                        $contacto->observaciones = ucwords(mb_strtolower($request->observaciones));
+                    }
+                    if (!empty($request->fk_idpais)) {
+                        $contacto->fk_idpais = $request->fk_idpais;
+                    }
+                    if (!empty($request->fk_iddepartamento)) {
+                        $contacto->fk_iddepartamento = $request->fk_iddepartamento;
+                    }
+                    if (!empty($request->fk_idmunicipio)) {
+                        $contacto->fk_idmunicipio = $request->fk_idmunicipio;
+                    }
+                    if (!empty($request->codigopostal)) {
+                        $contacto->cod_postal = $request->codigopostal;
+                    }
+                    if (!empty($request->estrato)) {
+                        $contacto->estrato = $request->estrato;
+                    }
+                } else {
+                    // Comportamiento normal: actualizar todos los campos
+                    $contacto->apellido1 = ucwords(mb_strtolower($request->apellido1));
+                    $contacto->apellido2 = ucwords(mb_strtolower($request->apellido2));
+                    $contacto->ciudad = ucwords(mb_strtolower($request->ciudad));
+                    $contacto->direccion = ucwords(mb_strtolower($request->direccion));
+                    $contacto->vereda = ucwords(mb_strtolower($request->vereda));
+                    $contacto->barrio = ucwords(mb_strtolower($request->barrio));
+                    $contacto->email = mb_strtolower($request->email);
+                    $contacto->telefono1 = $request->telefono1;
+                    $contacto->celular = $request->celular;
+                    $contacto->observaciones = ucwords(mb_strtolower($request->observaciones));
+                    $contacto->fk_idpais = $request->fk_idpais;
+                    $contacto->fk_iddepartamento = $request->fk_iddepartamento;
+                    $contacto->fk_idmunicipio = $request->fk_idmunicipio;
+                    $contacto->cod_postal = $request->codigopostal;
+                    $contacto->estrato = $request->estrato;
+                }
+                
+                // Campos que siempre se actualizan
                 $contacto->tip_iden = $request->tip_iden;
-                $contacto->ciudad = ucwords(mb_strtolower($request->ciudad));
-                $contacto->direccion = ucwords(mb_strtolower($request->direccion));
-                $contacto->vereda = ucwords(mb_strtolower($request->vereda));
-                $contacto->barrio = ucwords(mb_strtolower($request->barrio));
-                $contacto->email = mb_strtolower($request->email);
-                $contacto->telefono1 = $request->telefono1;
-                $contacto->celular = $request->celular;
                 $contacto->tipo_contacto = $request->tipo_contacto;
-                $contacto->observaciones = ucwords(mb_strtolower($request->observaciones));
-                $contacto->fk_idpais = $request->fk_idpais;
-                $contacto->fk_iddepartamento = $request->fk_iddepartamento;
-                $contacto->fk_idmunicipio = $request->fk_idmunicipio;
-                $contacto->cod_postal = $request->codigopostal;
-                $contacto->estrato = $request->estrato;
                 $contacto->feliz_cumpleanos = '';  // Campo no incluido en importación Excel
 
                 if ($request->dv) {
@@ -1183,6 +1243,9 @@ class ContactosController extends Controller
                 $mensaje .= ' MODIFICADOS: '.$modf;
                 if (!empty($modificados)) {
                     $mensaje .= ' (Identificaciones: ' . implode(', ', $modificados) . ')';
+                }
+                if ($preservarCamposVacios) {
+                    $mensaje .= ' - Se preservaron campos existentes cuando los datos del Excel estaban vacíos';
                 }
             }
 

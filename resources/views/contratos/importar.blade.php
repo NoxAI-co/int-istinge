@@ -18,7 +18,7 @@
 
             {{-- <li class="ml-3">Verifique que el orden de las columnas en su documento sea correcto. <small>Si no lo conoce haga clic <a href="{{ route('contratos.ejemplo') }}"><b>aqui</b></a> para descargar archivo Excel de ejemplo.</small></li> --}}
             <li class="ml-3">Verifique que el comienzo de la data sea a partir de la fila 4.</li>
-            <li class="ml-3">Los campos obligatorios son <b>Identificacion, Servicio, Mikrotik, Plan, Estado, IP, Conexion, Interfaz, Segmento, Grupo de Corte, Facturacion, Tecnologia</b>.</li>
+            <li class="ml-3">Los campos obligatorios son <b>Identificacion, Servicio, Estado, IP, Conexion, Facturacion, Tecnologia</b> y al menos uno de <b>Plan (Internet) o Plan TV</b>.</li>
 
             <li class="ml-3">Las mikrotik disponibles son los siguientes:
                 <div class="col-md-6 my-2">
@@ -116,7 +116,7 @@
             </li>
 
             <li class="ml-3">No debe dejar linea por medio entre registros.</li>
-            <li class="ml-3">El sistema comprobará si nro de identificación está registrado, de ser asi modificara el registro con los nuevos valores del documento Excel que se cargue.</li>
+            <li class="ml-3">El comportamiento para contratos existentes dependerá de la opción "Modificar contratos existentes" que seleccione abajo (marcada por defecto).</li>
             <li class="ml-3">El archivo debe ser extensión <b>.xlsx</b></li>
         </ul>
 
@@ -129,6 +129,24 @@
                     <span class="help-block">
                         <strong>{{ $errors->first('archivo') }}</strong>
                     </span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group col-md-6 offset-md-3">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="permitir_modificaciones" id="permitir_modificaciones" value="1" checked>
+                        <label class="form-check-label" for="permitir_modificaciones">
+                            <strong>Modificar contratos existentes (por defecto)</strong>
+                            <br><small class="text-muted">Si está marcado, modificará los contratos existentes del cliente. Si no está marcado, creará contratos duplicados.</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="conservar_valores_existentes" id="conservar_valores_existentes" value="1">
+                        <label class="form-check-label" for="conservar_valores_existentes">
+                            <strong>Conservar valores existentes en campos vacíos</strong>
+                            <br><small class="text-muted">Si está marcado, mantendrá los valores existentes cuando las celdas del Excel estén vacías. Si no está marcado, sobreescribirá con valores nulos.</small>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="row">

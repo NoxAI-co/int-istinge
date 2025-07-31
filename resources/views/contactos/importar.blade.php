@@ -60,6 +60,7 @@
             <li class="ml-3">Los tipos de contactos son <b>Cliente, Proveedor, Cliente/Proveedor</b>. <br> Si escribe un valor que no sean los indicados el sistema por defecto creara o modificara el contacto por <b>Cliente/Proveedor</b>.</li>
             <li class="ml-3">No debe dejar linea por medio entre registros.</li>
             <li class="ml-3">El sistema comprobara si nro de identificación esta registrado, de ser asi modificara el registro con los nuevos valores del documento Excel que se cargue.</li>
+            <li class="ml-3"><strong>Preservar datos existentes:</strong> Si marca la opción "Preservar datos existentes cuando los campos del Excel estén vacíos", el sistema solo actualizará los campos que tengan datos en el Excel, manteniendo los valores actuales para campos vacíos en contactos ya registrados. Esta opción solo aplica para contactos existentes, no para nuevos contactos.</li>
             <li class="ml-3">El archivo debe ser extensión <b>.xlsx</b></li>
         </ul>
 
@@ -72,6 +73,19 @@
                     <span class="help-block">
                         <strong>{{ $errors->first('archivo') }}</strong>
                     </span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group col-md-6 offset-md-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="preservar_campos_vacios" name="preservar_campos_vacios" value="1">
+                        <label class="form-check-label" for="preservar_campos_vacios">
+                            <strong>Preservar datos existentes cuando los campos del Excel estén vacíos</strong>
+                        </label>
+                        <small class="form-text text-muted">
+                            Si está marcado, los campos vacíos en el Excel no sobrescribirán los datos existentes del contacto.
+                        </small>
+                    </div>
                 </div>
             </div>
             <div class="row">

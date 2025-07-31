@@ -4235,15 +4235,15 @@ class ContratosController extends Controller
         // Ahora puedes hacer lo que necesites con el valor de $conexion
         if ($conexion == 1) {
             // Lógica para PPPoE
-            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato', 'Profile', 'IP Local Address', 'Usuario', 'Contrasena');
+            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato', 'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Plan TV');
         } else {
             // Lógica para IP Estática
-            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik');
+            $titulosColumnas = array('Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Plan TV');
         }
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de Importación de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA');
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific171717
@@ -4339,6 +4339,7 @@ class ContratosController extends Controller
         $objPHPExcel->getActiveSheet()->getComment('S3')->setAuthor('Integra Colombia')->getText()->createTextRun('Fibra o Inalambrica');
         $objPHPExcel->getActiveSheet()->getComment('T3')->setAuthor('Integra Colombia')->getText()->createTextRun('Fecha en formato yyyy-mm-dd hh:mm:ss');
         $objPHPExcel->getActiveSheet()->getComment('U3')->setAuthor('Integra Colombia')->getText()->createTextRun('Indique son Si o No');
+        $objPHPExcel->getActiveSheet()->getComment('AA3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del plan TV ya registrado en el inventario con type TV (Opcional)');
 
         $estilo = array(
             'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
@@ -4352,9 +4353,9 @@ class ContratosController extends Controller
             )
         );
 
-        $objPHPExcel->getActiveSheet()->getStyle('A3:Z' . $j)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AA' . $j)->applyFromArray($estilo);
 
-        for ($i = 'A'; $i <= $letras[20]; $i++) {
+        for ($i = 'A'; $i <= $letras[26]; $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
         }
 
@@ -4386,6 +4387,8 @@ class ContratosController extends Controller
             'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
         ]);
 
+        $permitir_modificaciones = $request->has('permitir_modificaciones') ? true : false;
+        $conservar_valores_existentes = $request->has('conservar_valores_existentes') ? true : false;
         $create = 0;
         $modf = 0;
         $imagen = $request->file('archivo');
@@ -4439,6 +4442,7 @@ class ContratosController extends Controller
             $request->local_address = $sheet->getCell("X" . $row)->getValue();
             $request->usuario       = $sheet->getCell("Y" . $row)->getValue();
             $request->clave         = $sheet->getCell("Z" . $row)->getValue();
+            $request->plan_tv       = $sheet->getCell("AA" . $row)->getValue();
 
 
             $error = (object) array();
@@ -4454,25 +4458,26 @@ class ContratosController extends Controller
             if ($request->mikrotik != "") {
                 if (Mikrotik::where('nombre', $request->mikrotik)->count() == 0) {
                     $error->mikrotik = "El mikrotik ingresado no se encuentra en nuestra base de datos";
+                }else{
+                    $miko = Mikrotik::where('nombre', $request->mikrotik)->first();
+                    $mikoId = $miko->id;
+                    if ($request->plan != "") {
+                        // $miko = Mikrotik::where('nombre', $request->mikrotik)->first();
+        
+                        // if ($miko) {
+                        //     // El objeto $miko es válido, puedes acceder a su propiedad 'id'
+                        //     $mikoId = $miko->id;
+                        // } else {
+                        //     // Manejar el caso en el que $miko no sea un objeto válido
+                        // }
+                        $num = (PlanesVelocidad::where('name', $request->plan)->where('mikrotik', $mikoId)->get());
+                        if ($num === 0) {
+                            $error->plan = "El plan de velocidad " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
+                        }
+                    }
                 }
-                $miko = Mikrotik::where('nombre', $request->mikrotik)->first();
-                $mikoId = $miko->id;
             }
 
-            if ($request->plan != "") {
-                // $miko = Mikrotik::where('nombre', $request->mikrotik)->first();
-
-                // if ($miko) {
-                //     // El objeto $miko es válido, puedes acceder a su propiedad 'id'
-                //     $mikoId = $miko->id;
-                // } else {
-                //     // Manejar el caso en el que $miko no sea un objeto válido
-                // }
-                $num = (PlanesVelocidad::where('name', $request->plan)->where('mikrotik', $mikoId)->get());
-                if ($num === 0) {
-                    $error->plan = "El plan de velocidad " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
-                }
-            }
             if (!$request->state) {
                 $error->state = "El campo estado es obligatorio";
             }
@@ -4503,6 +4508,18 @@ class ContratosController extends Controller
             }
             if (!$request->mk) {
                 $error->mk = "Debe indicar Si o No en el campo Cliente en Mikrotik";
+            }
+
+            // Validación para plan TV
+            if ($request->plan_tv != "") {
+                if (Inventario::where('producto', $request->plan_tv)->where('type', 'like', '%TV%')->count() == 0) {
+                    $error->plan_tv = "El plan TV " . $request->plan_tv . " ingresado no se encuentra en nuestra base de datos";
+                }
+            }
+
+            // Validación: debe tener plan O plan TV (o ambos)
+            if (empty($request->plan) && empty($request->plan_tv)) {
+                $error->plan_requerido = "Debe indicar al menos un Plan de Internet o un Plan TV";
             }
 
             if (count((array) $error) > 0) {
@@ -4547,6 +4564,7 @@ class ContratosController extends Controller
             $request->local_address_pppoe = $sheet->getCell("X" . $row)->getValue();
             $request->usuario       = $sheet->getCell("Y" . $row)->getValue();
             $request->clave         = $sheet->getCell("Z" . $row)->getValue();
+            $request->plan_tv       = $sheet->getCell("AA" . $row)->getValue();
 
             if ($request->conexion ==  'PPPOE') {
                 $request->conexion = 1;
@@ -4574,6 +4592,16 @@ class ContratosController extends Controller
                 $request->grupo_corte = GrupoCorte::where('nombre', $request->grupo_corte)->first()->id;
             }
 
+            // Procesar plan TV
+            if ($request->plan_tv != "") {
+                $planTv = Inventario::where('producto', $request->plan_tv)->where('type', 'like', '%TV%')->first();
+                if ($planTv) {
+                    $request->plan_tv = $planTv->id;
+                } else {
+                    $request->plan_tv = null;
+                }
+            }
+
             if ($request->facturacion == 'Estandar') {
                 $request->facturacion = 1;
             } elseif ($request->facturacion == 'Electronica') {
@@ -4594,52 +4622,153 @@ class ContratosController extends Controller
 
             $request->mk = (strtoupper($request->mk) == 'NO') ? 0 : 1;
 
-            // Siempre crear un nuevo contrato, nunca actualizar uno existente
-            $nro = Numeracion::where('empresa', 1)->first();
-            $nro_contrato = $nro->contrato;
-
-            while (true) {
-                $numero = Contrato::where('nro', $nro_contrato)->count();
-                if ($numero == 0) {
-                    break;
-                }
-                $nro_contrato++;
+            // Verificar si existe un contrato para este cliente
+            $cliente_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
+            $contrato_existente = null;
+            
+            if ($permitir_modificaciones) {
+                // Buscar contrato existente del cliente
+                $contrato_existente = Contrato::where('client_id', $cliente_id)
+                    ->where('empresa', Auth::user()->empresa)
+                    ->where('status', 1)
+                    ->first();
             }
 
-            $contrato = new Contrato;
-            $contrato->empresa   = Auth::user()->empresa;
-            $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $nro_contrato;
-            $contrato->nro       = $nro_contrato;
-            $contrato->client_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
-            $create = $create + 1;
+            if ($contrato_existente && $permitir_modificaciones) {
+                // MODIFICAR CONTRATO EXISTENTE
+                $contrato = $contrato_existente;
+                $modf = $modf + 1;
+                
+                // Actualizar servicio si es necesario
+                if ($request->servicio) {
+                    $contrato->servicio = $this->normaliza($request->servicio) . '-' . $contrato->nro;
+                }
+            } else {
+                // CREAR NUEVO CONTRATO
+                $nro = Numeracion::where('empresa', 1)->first();
+                $nro_contrato = $nro->contrato;
 
-            $nro->contrato = $nro_contrato + 1;
-            $nro->save();
+                while (true) {
+                    $numero = Contrato::where('nro', $nro_contrato)->count();
+                    if ($numero == 0) {
+                        break;
+                    }
+                    $nro_contrato++;
+                }
 
-            $contrato->plan_id                 = $request->plan;
-            $contrato->server_configuration_id = $request->mikrotik;
-            $contrato->state                   = $request->state;
-            $contrato->ip                      = $request->ip;
-            $contrato->conexion                = $request->conexion;
-            $contrato->interfaz                = $request->interfaz;
-            $contrato->local_address           = $request->local_address;
-            $contrato->grupo_corte             = $request->grupo_corte;
-            $contrato->facturacion             = $request->facturacion;
-            $contrato->tecnologia              = $request->tecnologia;
-            $contrato->profile                 = $request->profile;
+                $contrato = new Contrato;
+                $contrato->empresa   = Auth::user()->empresa;
+                $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $nro_contrato;
+                $contrato->nro       = $nro_contrato;
+                $contrato->client_id = $cliente_id;
+                $create = $create + 1;
 
-            $contrato->descuento               = $request->descuento;
-            $contrato->canal                   = $request->canal;
-            $contrato->oficina                 = $request->oficina;
-            $contrato->nodo                    = $request->nodo;
-            $contrato->ap                      = $request->ap;
-            $contrato->mac_address             = $request->mac;
-            $contrato->serial_onu              = $request->serial_onu;
-            $contrato->created_at              = $request->created_at;
-            $contrato->mk                      = $request->mk;
-            $contrato->usuario                 = $request->usuario;
-            $contrato->password                = $request->clave;
-            $contrato->local_adress_pppoe      = $request->local_address_pppoe;
+                $nro->contrato = $nro_contrato + 1;
+                $nro->save();
+            }
+
+            // Asignar datos al contrato (lógica condicional para modificaciones)
+            if ($contrato_existente && $permitir_modificaciones && $conservar_valores_existentes) {
+                // Solo actualizar campos que tienen valor en el Excel
+                if (!empty($request->plan)) {
+                    $contrato->plan_id = $request->plan;
+                }
+                if (!empty($request->mikrotik)) {
+                    $contrato->server_configuration_id = $request->mikrotik;
+                }
+                if (!empty($request->state)) {
+                    $contrato->state = $request->state;
+                }
+                if (!empty($request->ip)) {
+                    $contrato->ip = $request->ip;
+                }
+                if (!empty($request->conexion)) {
+                    $contrato->conexion = $request->conexion;
+                }
+                if (!empty($request->interfaz)) {
+                    $contrato->interfaz = $request->interfaz;
+                }
+                if (!empty($request->local_address)) {
+                    $contrato->local_address = $request->local_address;
+                }
+                if (!empty($request->grupo_corte)) {
+                    $contrato->grupo_corte = $request->grupo_corte;
+                }
+                if (!empty($request->facturacion)) {
+                    $contrato->facturacion = $request->facturacion;
+                }
+                if (!empty($request->tecnologia)) {
+                    $contrato->tecnologia = $request->tecnologia;
+                }
+                if (!empty($request->profile)) {
+                    $contrato->profile = $request->profile;
+                }
+                if (!empty($request->descuento)) {
+                    $contrato->descuento = $request->descuento;
+                }
+                if (!empty($request->canal)) {
+                    $contrato->canal = $request->canal;
+                }
+                if (!empty($request->oficina)) {
+                    $contrato->oficina = $request->oficina;
+                }
+                if (!empty($request->nodo)) {
+                    $contrato->nodo = $request->nodo;
+                }
+                if (!empty($request->ap)) {
+                    $contrato->ap = $request->ap;
+                }
+                if (!empty($request->mac)) {
+                    $contrato->mac_address = $request->mac;
+                }
+                if (!empty($request->serial_onu)) {
+                    $contrato->serial_onu = $request->serial_onu;
+                }
+                if (!empty($request->created_at)) {
+                    $contrato->created_at = $request->created_at;
+                }
+                if (isset($request->mk)) {
+                    $contrato->mk = $request->mk;
+                }
+                if (!empty($request->usuario)) {
+                    $contrato->usuario = $request->usuario;
+                }
+                if (!empty($request->clave)) {
+                    $contrato->password = $request->clave;
+                }
+                if (!empty($request->local_address_pppoe)) {
+                    $contrato->local_adress_pppoe = $request->local_address_pppoe;
+                }
+                if (!empty($request->plan_tv)) {
+                    $contrato->servicio_tv = $request->plan_tv;
+                }
+            } else {
+                // Comportamiento original: asignar todos los campos (para creación o modificación completa)
+                $contrato->plan_id                 = $request->plan;
+                $contrato->server_configuration_id = $request->mikrotik;
+                $contrato->state                   = $request->state;
+                $contrato->ip                      = $request->ip;
+                $contrato->conexion                = $request->conexion;
+                $contrato->interfaz                = $request->interfaz;
+                $contrato->local_address           = $request->local_address;
+                $contrato->grupo_corte             = $request->grupo_corte;
+                $contrato->facturacion             = $request->facturacion;
+                $contrato->tecnologia              = $request->tecnologia;
+                $contrato->profile                 = $request->profile;
+                $contrato->descuento               = $request->descuento;
+                $contrato->canal                   = $request->canal;
+                $contrato->oficina                 = $request->oficina;
+                $contrato->nodo                    = $request->nodo;
+                $contrato->ap                      = $request->ap;
+                $contrato->mac_address             = $request->mac;
+                $contrato->serial_onu              = $request->serial_onu;
+                $contrato->created_at              = $request->created_at;
+                $contrato->mk                      = $request->mk;
+                $contrato->usuario                 = $request->usuario;
+                $contrato->password                = $request->clave;
+                $contrato->local_adress_pppoe      = $request->local_address_pppoe;
+                $contrato->servicio_tv             = $request->plan_tv;
+            }
 
             $contrato->save();
         }
@@ -4663,6 +4792,8 @@ class ContratosController extends Controller
             'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
         ]);
 
+        $permitir_modificaciones = $request->has('permitir_modificaciones') ? true : false;
+        $conservar_valores_existentes = $request->has('conservar_valores_existentes') ? true : false;
         $create = 0;
         $modf = 0;
         $imagen = $request->file('archivo');
@@ -4805,9 +4936,23 @@ class ContratosController extends Controller
 
             $request->mk = (strtoupper($request->mk) == 'NO') ? 0 : 1;
 
-            $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')->select('contracts.*', 'c.id as client_id')->where('c.nit', $nit)->where('contracts.empresa', Auth::user()->empresa)->where('contracts.status', 1)->where('c.status', 1)->first();
+            // Verificar si existe un contrato para este cliente según la opción elegida
+            $contrato = null;
+            $cliente_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
+            
+            if ($permitir_modificaciones) {
+                // Buscar contrato existente si se permite modificación
+                $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                    ->select('contracts.*', 'c.id as client_id')
+                    ->where('c.nit', $nit)
+                    ->where('contracts.empresa', Auth::user()->empresa)
+                    ->where('contracts.status', 1)
+                    ->where('c.status', 1)
+                    ->first();
+            }
 
             if (!$contrato) {
+                // CREAR NUEVO CONTRATO
                 $nro = Numeracion::where('empresa', 1)->first();
                 $nro_contrato = $nro->contrato;
 
@@ -4823,21 +4968,43 @@ class ContratosController extends Controller
                 $contrato->empresa   = Auth::user()->empresa;
                 $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $nro_contrato;
                 $contrato->nro       = $nro_contrato;
-                $contrato->client_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
+                $contrato->client_id = $cliente_id;
                 $create = $create + 1;
 
                 $nro->contrato = $nro_contrato + 1;
                 $nro->save();
             } else {
+                // MODIFICAR CONTRATO EXISTENTE
                 $modf = $modf + 1;
                 $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $contrato->nro;
             }
 
-            $contrato->servicio_tv             = $request->plan;
-            $contrato->state                   = $request->state;
-            $contrato->serial_onu              = $request->serial_onu;
-            $contrato->created_at              = $request->created_at;
-            $contrato->tecnologia              = $request->tecnologia;
+            // Asignar datos al contrato (lógica condicional para modificaciones)
+            if ($contrato && $permitir_modificaciones && $conservar_valores_existentes && $modf > 0) {
+                // Solo actualizar campos que tienen valor en el Excel
+                if (!empty($request->plan)) {
+                    $contrato->servicio_tv = $request->plan;
+                }
+                if (!empty($request->state)) {
+                    $contrato->state = $request->state;
+                }
+                if (!empty($request->serial_onu)) {
+                    $contrato->serial_onu = $request->serial_onu;
+                }
+                if (!empty($request->created_at)) {
+                    $contrato->created_at = $request->created_at;
+                }
+                if (!empty($request->tecnologia)) {
+                    $contrato->tecnologia = $request->tecnologia;
+                }
+            } else {
+                // Comportamiento original: asignar todos los campos (para creación o modificación completa)
+                $contrato->servicio_tv             = $request->plan;
+                $contrato->state                   = $request->state;
+                $contrato->serial_onu              = $request->serial_onu;
+                $contrato->created_at              = $request->created_at;
+                $contrato->tecnologia              = $request->tecnologia;
+            }
 
             $contrato->save();
         }
