@@ -1021,6 +1021,15 @@ class ContactosController extends Controller
                 $request->observaciones = $sheet->getCell('R'.$row)->getValue();
                 $request->tipo_contacto = $sheet->getCell('S'.$row)->getValue();
                 $request->estrato = $sheet->getCell('T'.$row)->getValue();
+                
+                // Verificar si el contacto ya existe
+                $contactoExistente = Contacto::where('nit', $request->nit)->where('empresa', Auth::user()->empresa)->where('status', 1)->first();
+                
+                // Si existe y la opción de preservar campos vacíos está marcada, omitir validaciones
+                if ($contactoExistente && $preservarCamposVacios) {
+                    continue; // Saltar validaciones para este registro
+                }
+                
                 $error = (object) [];
 
                 if (! $request->tip_iden) {

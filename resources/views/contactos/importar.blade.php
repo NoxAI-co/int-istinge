@@ -60,7 +60,14 @@
             <li class="ml-3">Los tipos de contactos son <b>Cliente, Proveedor, Cliente/Proveedor</b>. <br> Si escribe un valor que no sean los indicados el sistema por defecto creara o modificara el contacto por <b>Cliente/Proveedor</b>.</li>
             <li class="ml-3">No debe dejar linea por medio entre registros.</li>
             <li class="ml-3">El sistema comprobara si nro de identificación esta registrado, de ser asi modificara el registro con los nuevos valores del documento Excel que se cargue.</li>
-            <li class="ml-3"><strong>Preservar datos existentes:</strong> Si marca la opción "Preservar datos existentes cuando los campos del Excel estén vacíos", el sistema solo actualizará los campos que tengan datos en el Excel, manteniendo los valores actuales para campos vacíos en contactos ya registrados. Esta opción solo aplica para contactos existentes, no para nuevos contactos.</li>
+            <li class="ml-3"><strong>Preservar datos existentes:</strong> Si marca la opción "Preservar datos existentes cuando los campos del Excel estén vacíos", el sistema:
+                <ul class="ml-3">
+                    <li>Solo actualizará los campos que tengan datos en el Excel para contactos existentes</li>
+                    <li>Mantendrá los valores actuales para campos vacíos en contactos ya registrados</li>
+                    <li><strong>Omitirá las validaciones</strong> para contactos que ya existen en el sistema</li>
+                    <li>Esta opción solo aplica para contactos existentes, no para nuevos contactos</li>
+                </ul>
+            </li>
             <li class="ml-3">El archivo debe ser extensión <b>.xlsx</b></li>
         </ul>
 
