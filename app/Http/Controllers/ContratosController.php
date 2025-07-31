@@ -4391,6 +4391,7 @@ class ContratosController extends Controller
         $conservar_valores_existentes = $request->has('conservar_valores_existentes') ? true : false;
         $create = 0;
         $modf = 0;
+        $cedulas_procesadas = []; // Array para llevar control de cédulas ya procesadas
         $imagen = $request->file('archivo');
         $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
@@ -4626,16 +4627,19 @@ class ContratosController extends Controller
             $cliente_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
             $contrato_existente = null;
             
-            if ($permitir_modificaciones) {
-                // Buscar contrato existente del cliente
+            // Verificar si esta cédula ya fue procesada anteriormente en este mismo archivo
+            $cedula_ya_procesada = in_array($nit, $cedulas_procesadas);
+            
+            if ($permitir_modificaciones && !$cedula_ya_procesada) {
+                // Solo buscar contrato existente si se permite modificaciones Y es la primera vez que vemos esta cédula
                 $contrato_existente = Contrato::where('client_id', $cliente_id)
                     ->where('empresa', Auth::user()->empresa)
                     ->where('status', 1)
                     ->first();
             }
 
-            if ($contrato_existente && $permitir_modificaciones) {
-                // MODIFICAR CONTRATO EXISTENTE
+            if ($contrato_existente && $permitir_modificaciones && !$cedula_ya_procesada) {
+                // MODIFICAR CONTRATO EXISTENTE (solo la primera vez que se encuentra la cédula)
                 $contrato = $contrato_existente;
                 $modf = $modf + 1;
                 
@@ -4644,7 +4648,7 @@ class ContratosController extends Controller
                     $contrato->servicio = $this->normaliza($request->servicio) . '-' . $contrato->nro;
                 }
             } else {
-                // CREAR NUEVO CONTRATO
+                // CREAR NUEVO CONTRATO (siempre se crea cuando no se permite modificaciones O cuando la cédula ya fue procesada)
                 $nro = Numeracion::where('empresa', 1)->first();
                 $nro_contrato = $nro->contrato;
 
@@ -4665,6 +4669,11 @@ class ContratosController extends Controller
 
                 $nro->contrato = $nro_contrato + 1;
                 $nro->save();
+            }
+            
+            // Agregar esta cédula al array de procesadas
+            if (!$cedula_ya_procesada) {
+                $cedulas_procesadas[] = $nit;
             }
 
             // Asignar datos al contrato (lógica condicional para modificaciones)
@@ -4796,6 +4805,7 @@ class ContratosController extends Controller
         $conservar_valores_existentes = $request->has('conservar_valores_existentes') ? true : false;
         $create = 0;
         $modf = 0;
+        $cedulas_procesadas = []; // Array para llevar control de cédulas ya procesadas
         $imagen = $request->file('archivo');
         $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
@@ -4940,8 +4950,11 @@ class ContratosController extends Controller
             $contrato = null;
             $cliente_id = Contacto::where('nit', $nit)->where('status', 1)->first()->id;
             
-            if ($permitir_modificaciones) {
-                // Buscar contrato existente si se permite modificación
+            // Verificar si esta cédula ya fue procesada anteriormente en este mismo archivo
+            $cedula_ya_procesada = in_array($nit, $cedulas_procesadas);
+            
+            if ($permitir_modificaciones && !$cedula_ya_procesada) {
+                // Solo buscar contrato existente si se permite modificaciones Y es la primera vez que vemos esta cédula
                 $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
                     ->select('contracts.*', 'c.id as client_id')
                     ->where('c.nit', $nit)
@@ -4952,7 +4965,7 @@ class ContratosController extends Controller
             }
 
             if (!$contrato) {
-                // CREAR NUEVO CONTRATO
+                // CREAR NUEVO CONTRATO (cuando no se encuentra existente O cuando la cédula ya fue procesada)
                 $nro = Numeracion::where('empresa', 1)->first();
                 $nro_contrato = $nro->contrato;
 
@@ -4974,9 +4987,14 @@ class ContratosController extends Controller
                 $nro->contrato = $nro_contrato + 1;
                 $nro->save();
             } else {
-                // MODIFICAR CONTRATO EXISTENTE
+                // MODIFICAR CONTRATO EXISTENTE (solo la primera vez que se encuentra la cédula)
                 $modf = $modf + 1;
                 $contrato->servicio  = $this->normaliza($request->servicio) . '-' . $contrato->nro;
+            }
+            
+            // Agregar esta cédula al array de procesadas
+            if (!$cedula_ya_procesada) {
+                $cedulas_procesadas[] = $nit;
             }
 
             // Asignar datos al contrato (lógica condicional para modificaciones)
