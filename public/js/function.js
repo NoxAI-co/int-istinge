@@ -848,7 +848,7 @@ function contacto(selected, modificar = false, type = 1) {
 
                 //Validación de cuando es una factura estandar normal pero no tiene ningun contrato sale alerta.
                 if(window.location.pathname.split("/")[3] != "ordenes"){
-                     if (data.plan == null && type == 1 && data.servicio_tv == null && modulo == 0) {
+                     if (data.plan == null && type == 1 && data.servicio_tv == null && modulo == 0 && data.servicio_otro == 0) {
                     if ($("#dian").val() == null) {
                         Swal.fire({
                             position: 'top-center',

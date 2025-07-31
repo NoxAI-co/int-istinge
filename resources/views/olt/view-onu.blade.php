@@ -89,6 +89,14 @@
             margin-left: 10px;
         }
 
+        pre{
+            padding: 0px;
+            font-size: 14px;
+            line-height: 14px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
 </style>
 @section('content')
 <div class="mt-0 font-pair">
@@ -103,13 +111,13 @@
                 <div class="col-md-6">
                     <ul class="list-unstyled">
                         <li><span class="title">OLT:</span>
-                            <span class="value"><a href="#">{{ $details['olt_name'] }}</a></span>
+                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['olt_name'] }}</a></span>
                         </li>
                         <li><span class="title">Board:</span>
-                            <span class="value">{{ $details['board'] }}</span>
+                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['board'] }}</a></span>
                         </li>
                         <li><span class="title">Port:</span>
-                            <span class="value">{{ $details['port'] }}</span>
+                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['port'] }}</a></span>
                         </li>
                         <li><span class="title">ONU:</span>
                             <span class="value">{{ $details['pon_type'] . "/" . $details['board'] . "/" .
@@ -151,16 +159,62 @@
                     <img src="{{ $image_onu_type }}" alt="wifi modem" class="img-fluid mb-4">
                     <ul class="list-unstyled">
                         <li><span class="title">Status:</span>
-                            @if(isset($diferenciaDias) && $diferenciaDias != null)
-                            <span class="value">Online <i class="fas fa-globe-americas" style="color:#4db14b"></i> hace {{ $diferenciaDias }} </span>
-                            @else
-                            <span class="value">Power fail <i class="fas fa-globe-americas" style="color:red"></i></span>
-                            @endif
+
+                            <span class="value">
+                                {{ $onuStatus['onu_status'] }}
+
+                                @switch($onuStatus['onu_status'])
+                                    @case('Online')
+                                        <i class="fas fa-globe-americas" style="color:#4db14b"></i>
+                                        @break
+                                    @case('Power fail')
+                                        <i class="fas fa-plug" style="color:#6e7175"></i>
+                                        @break
+                                    @case('LOS')
+                                        <i class="fas fa-unlink" style="color:#ff0000"></i>
+                                        @break
+                                    @case('Offline')
+                                        <i class="fas fa-globe-americas" style="color:gray"></i>
+                                        @break
+                                    @case('Admin Disabled')
+                                        <i class="fas fa-ban" style="color:gray"></i>
+                                        @break
+
+                                    @default
+
+                                @endswitch
+
+                                ({{ $diferenciaHoras }})
+
+                            </span>
+
                         </li>
+
                         <li><span class="title">ONU/OLT Rx Signal:</span>
-                            <span class="value">{{ isset($signalOnu['Optical status']['OLT Rx']) ? $signalOnu['Optical status']['ONU Rx'] . "/" . $signalOnu['Optical status']['OLT Rx'] ."(" . $signalOnu['ONU details']['ONU Distance'] . ")"
-                            : 'none' }}
-                            {{-- <i class="fas fa-signal"></i> --}}
+                            <span class="value" style="display:inline-flex">
+                                <span id="onu_signal_value">{{ $onlySignal['onu_signal_value'] }}</span>
+                                @switch($onlySignal['onu_signal'])
+                                    @case('Very good')
+                                    @case('Good')
+                                        <i class="fas fa-signal" style="color:#4db14b; margin-left:4px;margin-top:2px"></i>
+                                        @break
+
+                                        @case('Warning')
+                                        <i class="fas fa-signal" style="color:darkorange; margin-left:4px;margin-top:2px"></i>
+                                        @break
+
+                                        @case('Critical')
+                                        <i class="fas fa-signal" style="color:red; margin-left:4px;margin-top:2px"></i>
+                                        @break
+                                    @default
+
+                                @endswitch
+
+                                <span id="distance" style="margin-left:5px;margin-top:0px">
+                                    <div id="preloader" style="display: block;">
+                                        <img src="https://i.gifer.com/ZZ5H.gif" alt="Cargando..." style="width:10px;" />
+                                    </div>
+                                </span>
                             </span>
                         </li>
                         <li><span class="title">Attached VLANs:</span>
@@ -197,12 +251,30 @@
                           <span class="title-2">Status:</span>
                           {{-- segunda version --}}
                           <span class="value">
-                            <span class="badge badge-info ml-1">Prontamente!</span></a>
-                            {{--
-                                <button class="btn btn-primary">Get Status</button>
-                                <button class="btn btn-primary">Show Running-Config</button>
-                                <button class="btn btn-primary">SW Info</button>
+                            {{-- <span class="badge badge-info ml-1">Prontamente!</span></a> --}}
+
+                                <button class="btn btn-primary" onclick="getFullstatus()">Get Status
+                                    <div id="preloader-status" style="display: none;width: 19px;">
+                                        <img src="https://i.gifer.com/ZZ5H.gif" alt="Cargando..." style="width:18px;" />
+                                    </div>
+                                </button>
+                                <button class="btn btn-primary" onclick="showRunningConfig()">Show Running-Config
+                                    <div id="preloader-show-running" style="display: none;width: 19px;">
+                                        <img src="https://i.gifer.com/ZZ5H.gif" alt="Cargando..." style="width:18px;" />
+                                    </div>
+                                </button>
+                                {{-- <button class="btn btn-primary">SW Info</button>
                                 <button class="btn btn-success">LIVE!</button> --}}
+
+                                <div class="container" id="full-status-div" style="display:none;">
+
+                                    <pre id="pre-text"></pre>
+                                </div>
+
+                                <div class="container" id="show-running-div" style="display:none;">
+
+                                    <pre id="pre-text-running"></pre>
+                                </div>
                            </span>
 
                         </li>
@@ -273,13 +345,30 @@
                                 <tbody>
                                     @foreach ($ethernetPorts as $port)
                                     <tr>
-                                        <td>{{ $port['name'] }}</td>
-                                        <td>{{ $port['adminState'] }}</td>
-                                        <td>{{ $port['mode'] }}</td>
+                                        <td>{{ $port['port'] }}</td>
+                                        <td>{{ $port['admin_state'] }}</td>
+                                        <td>
+                                            @if($port['mode'] == "Access")
+                                            {{ $port['mode'] }} VLAN: {{ $port['vlan'] }}
+                                            @elseif($port['mode'] == "Hybrid")
+                                            {{$port['mode']}}: Def-VLAN {{$port['vlan']}} + TAG {{$port['allowed_vlans']}}
+                                            @elseif ($port['mode'] == "Trunk")
+                                            {{$port['mode']}} VLANs: {{$port['allowed_vlans']}}
+                                            @else
+                                            {{ $port['mode'] }}
+                                            @endif
+                                        </td>
                                         <td>{{ $port['dhcp'] }}</td>
                                         <td>
-                                            <span class="badge badge-info ml-1">Prontamente!</span></a>
-                                            {{-- <a href="#">+ Configure</a> --}}
+                                            {{-- <span class="badge badge-info ml-1">Prontamente!</span></a> --}}
+                                            <a href="#" onclick="
+                                            openModalEthernet(
+                                                                `{{$port['port']}}`,
+                                                                `{{$port['admin_state']}}`,
+                                                                `{{$port['mode']}}`,
+                                                                `{{$port['dhcp']}}`
+                                                            )"
+                                            >+ Configure</a>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -317,8 +406,12 @@
                             <button class="btn-reboot" onclick="reboot_onu(`{{ $details['sn'] }}`)">Reboot</button>
                             <button class="btn-resync" onclick="resync_config(`{{ $details['sn'] }}`)">Resync config</button>
                             <button class="btn-restore" onclick="restore_factory_defaults(`{{ $details['sn'] }}`)">Restore defaults</button>
+                            @if($onuStatus['onu_status'] == "Offline")
+                            <button class="btn-disable" onclick="enable_onu(`{{ $details['sn'] }}`)">Enable ONU</button>
+                            @else
                             <button class="btn-disable" onclick="disable_onu(`{{ $details['sn'] }}`)">Disable ONU</button>
-                            <button class="btn-delete" onclick="delete_onu(`{{$details['sn']}},{{$details['olt_id']}}`)">Delete</button>
+                            @endif
+                            <button class="btn-delete" onclick="delete_onu(`{{$details['sn']}}`,`{{$details['olt_id']}}`)">Delete</button>
                         </div>
                     </span>
                 </li>
@@ -366,6 +459,8 @@
     </div>
   </div>
 
+  @include('olt.modals.ethernet-port')
+  @include('olt.modals.move-onu')
 
 @endsection
 
@@ -376,6 +471,7 @@
     let add_vlans = [];        // VLANs añadidas
     let remove_vlans = [];     // VLANs eliminadas
 
+    // FUNCIONES VLAN ATACCHED.
     function openVlanModal(oltId, selectedVlans = []) {
         initialVlans = [...selectedVlans]; // Guardamos copia original
         add_vlans = [];
@@ -407,13 +503,13 @@
             }
         });
     }
+
     $('#vlan-select').on('changed.bs.select', function (e, clickedIndex, isSelected, previousValue) {
         const currentVlans = $(this).val() || []; // siempre un array
 
         add_vlans = currentVlans.filter(vlan => !initialVlans.includes(vlan));
         remove_vlans = initialVlans.filter(vlan => !currentVlans.includes(vlan));
     });
-
 
     function update_vlan(){
 
@@ -451,6 +547,158 @@
                 }
             }
         });
+    }
+    // FUNCIONES VLAN ATACCHED.
+
+    // FUNCIONES ETHERNET PORTS
+    function openModalEthernet(name, adminState, mode, dhcp) {
+
+        console.log(name);
+        console.log(adminState);
+        console.log(mode);
+        console.log(dhcp);
+
+        $("#ethernetName").text(name)
+
+        $("#ethernetModal").modal('show');
+
+    }
+    // FUNCIONES ETHERNET PORTS
+
+
+    $(document).ready(function() {
+        // Función que realiza la petición AJAX cada 30 segundos
+        function refreshDistance() {
+
+            let sn = `{{ $details['sn'] }}`
+            if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/get-full-status/' + sn;
+            }else{
+                var url = '/Olt/get-full-status/' + sn;
+            }
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function() {
+                    $('#preloader').show();
+                    // $('#distance').hide();
+                },
+                success: function(response) {
+
+                    let rx = "undefined";
+                    let ry = "undefined";
+                    let distance = "-";
+
+                    if(response && response['full_status_json']['ONU details']['ONT distance(m)']){
+                        distance = response['full_status_json']['ONU details']['ONT distance(m)'];
+                    }
+
+                    if(response && response['full_status_json']['Optical status']['Rx optical power(dBm)']){
+                        rx = response['full_status_json']['Optical status']['Rx optical power(dBm)'];
+                        ry = response['full_status_json']['Optical status']['OLT Rx ONT optical power(dBm)'];
+                    }
+
+                    if(response && response['full_status_json']['ONU details']['ONU Distance']){
+                        distance = response['full_status_json']['ONU details']['ONU Distance'];
+                    }
+
+                    if(response && response['full_status_json']['Optical status']['ONU Rx']){
+                        rx = response['full_status_json']['Optical status']['ONU Rx'];
+                        ry = response['full_status_json']['Optical status']['OLT Rx'];
+                    }
+
+                    $('#distance').text("(" + distance + "m)");
+                    $('#onu_signal_value').text(rx + " / " + ry);
+
+                },
+                error: function(xhr, status, error) {
+                    $('#distance').text('Error al obtener datos');
+                },
+                complete: function() {
+                    $('#preloader').hide();
+                    $('#distance').show();
+                }
+            });
+        }
+
+        setTimeout(function() {
+            refreshDistance();  // Primer refresco después de 2 segundos
+        }, 2000); // 2000 ms = 2 segundos
+
+        setInterval(refreshDistance, 30000);
+    });
+
+    function getFullstatus(){
+
+        let sn = `{{ $details['sn'] }}`
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/get-full-status/' + sn;
+        }else{
+            var url = '/Olt/get-full-status/' + sn;
+        }
+
+        $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function() {
+
+                    $("#full-status-div").show();
+                    $("#preloader-status").css('display','inline');
+                    $('#preloader-status').show();
+
+                },
+                success: function(response) {
+
+                    var text = response.full_status_info;
+                    var formattedText = text.replace(/\n/g, "<br>");
+                    $("#pre-text").html(formattedText);
+
+                },
+                error: function(xhr, status, error) {
+                    $('#full-status-div').text('Error al obtener datos');
+                },
+                complete: function() {
+                    $('#preloader-status').hide();
+                }
+            });
+    }
+
+    function showRunningConfig(){
+        let sn = `{{ $details['sn'] }}`
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/show-running-config/' + sn;
+        }else{
+            var url = '/Olt/show-running-config/' + sn;
+        }
+
+        $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                beforeSend: function() {
+
+                    // $("#full-status-div").style('display','block');
+                    $("#show-running-div").show();
+                    $('#preloader-show-running').show();
+                    $("#preloader-show-running").css('display','inline')
+
+                },
+                success: function(response) {
+                    var text = response.running_config;
+                    var formattedText = text.replace(/\n/g, "<br>");
+                    $("#pre-text-running").html(formattedText);
+                },
+                error: function(xhr, status, error) {
+                    $('#show-running-div').text('Error al obtener datos');
+                },
+                complete: function() {
+                    $('#preloader-show-running').hide();
+                }
+            });
+
     }
 
     function reboot_onu(sn){
@@ -638,6 +886,52 @@
         })
     }
 
+    function enable_onu(sn){
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/enable-onu';
+        }else{
+            var url = '/Olt/disable-onu';
+        }
+
+        Swal.fire({
+        title: 'Activar ONU?',
+        text: "Esto habilitará los servicios en esta ONU. ¿Continuar?",
+        type: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Si, activar ONU'
+        }).then((result) => {
+            if (result.value) {
+
+                msg_procesando();
+
+            $.ajax({
+                url: url,
+                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                method: 'post',
+                data: {sn},
+                success: function (data) {
+                    if(data.status == 200){
+                        Swal.fire({
+                            title: 'ONU activada correctamente!',
+                            type: 'success',
+                            showConfirmButton: false,
+                            allowOutsideClick: false,
+                        });
+                        let url = `{{ route('olt.view-onu') }}?sn=${sn}`;
+                        window.location.href = url;
+                    }else{
+                        Swal.close();
+                        alert("Hubo un error comuniquese con soporte.")
+                    }
+                }
+            });
+            }
+        })
+    }
+
     function delete_onu(sn, olt_id){
         if (window.location.pathname.split("/")[1] === "software") {
             var url='/software/Olt/delete-onu';
@@ -696,5 +990,256 @@
             }
         });
     }
+
  </script>
+
+{{-- Scripts de Ethernet ports --}}
+<script>
+    function toggleFields() {
+        const status = $('input[name="status"]:checked').val();
+        const mode = $('input[name="mode"]:checked').val();
+
+        // Ocultar todos los grupos
+        $('#vlan-id-group').hide();
+        $('#allowed-vlans-group').hide();
+        $('#dhcp-group').hide();
+        // Si el puerto está apagado, no mostramos nada
+        if (status === 'shutdown'){
+            $('#options-mode').hide();
+            return;
+        } else{
+            $('#options-mode').show();
+        }
+
+        // Mostrar según el modo seleccionado
+        switch (mode) {
+            case 'LAN':
+            case 'Transparent':
+                $('#dhcp-group').show();
+                break;
+            case 'Access':
+                $('#dhcp-group').show();
+                $('#vlan-id-group').show();
+                break;
+            case 'Hybrid':
+                $('#dhcp-group').show();
+                $('#vlan-id-group').show();
+                $('#allowed-vlans-group').show();
+                break;
+            case 'Trunk':
+                $('#vlan-id-group').show();
+                $('#allowed-vlans-group').show();
+                break;
+        }
+    }
+
+    // Cuando cambian los radios
+    $(document).on('change', 'input[name="status"], input[name="mode"]', function () {
+        toggleFields();
+    });
+
+    // Cuando se abre el modal
+    $('#ethernetModal').on('shown.bs.modal', function () {
+        toggleFields();
+    });
+
+    function update_ethernet(){
+
+        let status = $('input[name="status"]:checked').val();
+        let mode = $('input[name="mode"]:checked').val();
+
+        let dhcp = $('#dhcp-select').val();
+        let allowedVlans = $("#allowed-vlans-select").val();
+        let vlanId = $('#vlan-id-select').val();
+
+        let ethernetPort = $("#ethernetName").text();
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/update-ethernet-port';
+        }else{
+            var url = '/Olt/update-ethernet-port';
+        }
+
+        $.ajax({
+            url: url,
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            method: 'post',
+            data: {
+                ethernet_port: ethernetPort,
+                status: status,
+                mode: mode,
+                dhcp: dhcp,
+                allowed_vlans: allowedVlans,
+                vlan: vlanId,
+                sn: `{{ $details['sn'] }}`
+            },
+            success: function (data) {
+                if(data.status == true){
+                    Swal.fire({
+                        title: 'Ethernet actualizado correctamente!',
+                        type: 'success',
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                    });
+                    $('#ethernetModal').modal('hide');
+                    location.reload(); // Recargar la página para reflejar los cambios
+
+                }else{
+                    Swal.close();
+                    alert("Hubo un error comuniquese con soporte.")
+                }
+            }
+        });
+
+
+    }
+</script>
+
+{{-- Scripts MOVE ONU --}}
+<script>
+    function modalMoveOnu() {
+
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url='/software/Olt/get-modal-onu';
+        }else{
+            var url = '/Olt/get-modal-onu';
+        }
+
+        // Mostrar preloader antes de enviar
+        Swal.fire({
+            title: 'Cargando información...',
+            type:'info',
+            allowOutsideClick: false
+        });
+
+        $.ajax({
+            url: url,
+            method: 'GET',
+            data: {
+                sn: `{{ $details['sn'] }}`,
+                olt_id: `{{ $details['olt_id'] }}`
+            },
+            success: function(response) {
+                console.log(response);
+
+                const selectOlt = $('#olt-select');
+                const selectBoard = $('#board-select');
+                const selectPort = $('#port-select');
+
+                selectOlt.empty();
+                selectBoard.empty();
+                selectPort.empty();
+
+                const dataOlt = response.olts.response;
+                const dataBoard = response.boards;
+
+                // Llenar OLTs
+                dataOlt.forEach(function(item) {
+                    const option = new Option(item.name, item.id);
+                    if (item.id == `{{ $details['olt_id'] }}`) {
+                        option.selected = true;
+                    }
+                    selectOlt.append(option);
+                });
+
+                // Llenar Boards
+                dataBoard.forEach(function(item) {
+                    const option = new Option(`Slot ${item.slot}`, item.slot);
+                    if (item.slot == `{{ $details['board'] }}`) {
+                        option.selected = true;
+                    }
+                    selectBoard.append(option);
+                });
+
+                // Obtener board seleccionada
+                const selectedBoardSlot = `{{ $details['board'] }}`;
+                const selectedBoard = dataBoard.find(b => b.slot == selectedBoardSlot);
+
+                if (selectedBoard && selectedBoard.ports) {
+                    const portCount = parseInt(selectedBoard.ports);
+                    for (let i = 0; i < portCount; i++) {
+                        const option = new Option(i, i);
+                        if (i == `{{ $details['port'] }}`) {
+                            option.selected = true;
+                        }
+                        selectPort.append(option);
+                    }
+                }
+
+                // Refrescar selects de Bootstrap Select
+                selectOlt.selectpicker('refresh');
+                selectBoard.selectpicker('refresh');
+                selectPort.selectpicker('refresh');
+
+                // Mostrar modal
+                $("#moveOnuModal").modal('show');
+            },
+            error: function() {
+                alert('Error al cargar OLTs');
+            }
+        });
+    }
+
+
+    function update_move_onu() {
+
+let board = $('#board-select').val();
+let port = $('#port-select').val();
+let olt = $('#olt-select').val();
+let sn = `{{ $details['sn'] }}`;
+
+if (window.location.pathname.split("/")[1] === "software") {
+    var url = '/software/Olt/move-onu-modal';
+} else {
+    var url = '/Olt/move-onu-modal';
+}
+
+// Mostrar preloader antes de enviar
+Swal.fire({
+    title: 'Moviendo ONU...',
+    type:'info',
+    html: 'Por favor espera mientras se actualiza la información.',
+    allowOutsideClick: false,
+    didOpen: () => {
+        Swal.showLoading();
+    }
+});
+
+$.ajax({
+    url: url,
+    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+    method: 'post',
+    data: {
+        sn: sn,
+        board: board,
+        port: port,
+        olt_id: olt
+    },
+    success: function (data) {
+        if (data.status == 200) {
+            Swal.fire({
+                title: '¡ONU movida correctamente!',
+                type: 'success',
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                timer: 2000
+            });
+            $('#moveOnuModal').modal('hide');
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            Swal.close();
+            alert("Hubo un error, comuníquese con soporte.");
+        }
+    },
+    error: function () {
+        Swal.close();
+        alert("Error en la conexión con el servidor.");
+    }
+});
+}
+
+
+</script>
 @endsection

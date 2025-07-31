@@ -350,19 +350,28 @@ Route::group(['prefix' => 'tecnico', 'middleware' => ['auth']], function () {
 	Route::get('get-location/{tecnico}', [TecnicoController::class, 'getLocation'])->name('tecnico.getLocation');
 });
 
-Route::group(['prefix' => 'Olt'], function () {
-	Route::get('unconfigured-onus/{olt?}', 'OltController@unConfiguredOnus_view')->name('olt.unconfigured');
-	Route::post('authorized-onus', 'OltController@authorizedOnus')->name('olt.authorized-onus');
-	Route::get('form-authorized-onu', 'OltController@formAuthorizeOnu')->name('olt.form-authorized-onus');
-	Route::post('move-onu', 'OltController@moveOnu')->name('olt.move-onu');
-	Route::post('resync-config-onu', 'OltController@resyncConfig')->name('olt.resync-config');
-	Route::post('reboot-onu', 'OltController@rebootOnuResponse')->name('olt.reboot-onu');
-	Route::post('restore-factory', 'OltController@restoreFactoryResponse')->name('olt.restore-factory');
-	Route::post('disable-onu', 'OltController@disableOnuResponse')->name('olt.disable-onu');
-	Route::post('delete-onu', 'OltController@deleteOnuResponse')->name('olt.delete-onu');
-	Route::get('view-onu/{sn?}', 'OltController@viewOnu')->name('olt.view-onu');
+Route::group(['prefix' => 'Olt'], function(){
+    Route::get('unconfigured-onus/{olt?}','OltController@unConfiguredOnus_view')->name('olt.unconfigured');
+    Route::post('authorized-onus','OltController@authorizedOnus')->name('olt.authorized-onus');
+    Route::get('form-authorized-onu','OltController@formAuthorizeOnu')->name('olt.form-authorized-onus');
+    Route::post('move-onu','OltController@moveOnu')->name('olt.move-onu');
+    Route::post('resync-config-onu','OltController@resyncConfig')->name('olt.resync-config');
+    Route::post('reboot-onu','OltController@rebootOnuResponse')->name('olt.reboot-onu');
+    Route::post('restore-factory','OltController@restoreFactoryResponse')->name('olt.restore-factory');
+    Route::post('disable-onu','OltController@disableOnuResponse')->name('olt.disable-onu');
+    Route::post('enable-onu','OltController@enableOnuResponse')->name('olt.enable-onu');
+    Route::post('delete-onu','OltController@deleteOnuResponse')->name('olt.delete-onu');
+    Route::get('view-onu/{sn?}','OltController@viewOnu')->name('olt.view-onu');
+    Route::get('get-full-status/{sn?}','OltController@getFullOnuSignal')->name('olt.fullstatus');
+    Route::get('show-running-config/{sn?}','OltController@runningConfig')->name('olt.running-config');
 	Route::get('vlan-oltid/{oltId?}', 'OltController@get_VLAN')->name('olt.get-vlan-oltid');
 	Route::post('update-vlan', 'OltController@update_vlan')->name('olt.update-vlan-sn');
+	Route::post('update-ethernet-port', 'OltController@update_ethernet_port')->name('olt.update-ethernet-port');
+
+	// Modales
+	Route::get('get-modal-onu', 'OltController@getModalMoveOnu')->name('olt.get-modal-onu');
+	Route::post('move-onu-modal', 'OltController@updateMoveOnuModal')->name('olt.update-modal-onu');
+
 });
 
 Route::group(['prefix' => 'siigo'], function () {

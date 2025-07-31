@@ -955,7 +955,6 @@ class OltController extends Controller
     {
 
         $sn = $request->sn;
-        // $sn = "CIOT096B956C";
         $this->getAllPermissions(Auth::user()->id);
         view()->share(['title' => $sn, 'icon' => '', 'seccion' => '']);
 
@@ -1018,13 +1017,7 @@ class OltController extends Controller
             }
         }
 
-        $ethernetPorts = [
-            ['name' => 'eth_0/1', 'adminState' => 'Enabled', 'mode' => 'LAN', 'dhcp' => 'No control'],
-            ['name' => 'eth_0/2', 'adminState' => 'Enabled', 'mode' => 'LAN', 'dhcp' => 'No control'],
-            ['name' => 'eth_0/3', 'adminState' => 'Enabled', 'mode' => 'LAN', 'dhcp' => 'No control'],
-            ['name' => 'eth_0/4', 'adminState' => 'Enabled', 'mode' => 'LAN', 'dhcp' => 'No control'],
-        ];
-
+        $ethernetPorts = isset($details['ethernet_ports']) ? $details['ethernet_ports'] : [];
         return view('olt.view-onu', compact(
             'details',
             'image_onu_type',
@@ -1067,5 +1060,296 @@ class OltController extends Controller
         curl_close($curl);
 
         return response()->json($response);
+    }
+
+    public function update_ethernet_port(Request $request){
+
+        if(isset($request->status) && $request->status == "enabled"){
+            switch ($request->mode) {
+                case 'LAN':
+                    $response = $this->update_ethernet_LAN($request->sn, $request->ethernet_port, $request->dhcp);
+                    break;
+
+                case 'Access':
+                    $response = $this->update_ethernet_Access($request->sn, $request->ethernet_port, $request->dhcp, $request->vlan);
+                    break;
+
+                case 'Hybrid':
+                    $response = $this->update_ethernet_Hybrid($request->sn, $request->ethernet_port, $request->dhcp, $request->vlan, implode(',', $request->allowed_vlans));
+                    break;
+
+                case 'Trunk':
+                    $response = $this->update_ethernet_Trunk($request->sn, $request->ethernet_port, $request->vlan, implode(',', $request->allowed_vlans));
+                    break;
+
+                case 'Trunk':
+                    $response = $this->update_ethernet_Transparent($request->sn, $request->ethernet_port, $request->dhcp);
+                    break;
+
+                default:
+                    break;
+             }
+
+             return response()->json($response);
+        }else{
+            $response = [
+                'status' => false,
+                'message' => 'El puerto ethernet no se puede deshabilitar'
+            ];
+            return response()->json($response);
+        }
+
+
+    }
+
+    public static function update_ethernet_LAN($sn, $ethernet_port,$dhcp){
+
+        $empresa = Empresa::Find(Auth::user()->empresa);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/onu/set_ethernet_port_lan/' . $sn,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => array(
+                'ethernet_port' => $ethernet_port,
+                'dhcp' => $dhcp,
+            ),
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $response = json_decode($response, true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public static function update_ethernet_Access($sn, $ethernet_port,$dhcp, $vlan){
+
+        $empresa = Empresa::Find(Auth::user()->empresa);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/onu/set_ethernet_port_access/' . $sn,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => array(
+                'ethernet_port' => $ethernet_port,
+                'dhcp' => $dhcp,
+                'vlan' => $vlan
+            ),
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $response = json_decode($response, true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public static function update_ethernet_Hybrid($sn, $ethernet_port,$dhcp, $vlan, $allowed_vlans){
+
+        $empresa = Empresa::Find(Auth::user()->empresa);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/onu/set_ethernet_port_hybrid/' . $sn,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => array(
+                'ethernet_port' => $ethernet_port,
+                'dhcp' => $dhcp,
+                'vlan' => $vlan,
+                'allowed_vlans' => $allowed_vlans
+            ),
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $response = json_decode($response, true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public static function update_ethernet_Trunk($sn, $ethernet_port, $vlan, $allowed_vlans){
+
+        $empresa = Empresa::Find(Auth::user()->empresa);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/onu/set_ethernet_port_trunk/' . $sn,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => array(
+                'ethernet_port' => $ethernet_port,
+                'vlan' => $vlan,
+                'allowed_vlans' => $allowed_vlans
+            ),
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $response = json_decode($response, true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public static function update_ethernet_Transparent($sn, $ethernet_port, $dhcp){
+
+        $empresa = Empresa::Find(Auth::user()->empresa);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/onu/set_ethernet_port_trunk/' . $sn,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => array(
+                'ethernet_port' => $ethernet_port,
+                'dhcp' => $dhcp
+            ),
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $response = json_decode($response, true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public function getPorts($olt_id){
+        $empresa = Empresa::Find(Auth::user()->empresa);
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/system/get_olt_pon_ports_details/' . $olt_id,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = json_decode(curl_exec($curl), true);
+        curl_close($curl);
+
+        return $response;
+    }
+
+    public function getBoards($olt_id){
+        $empresa = Empresa::Find(Auth::user()->empresa);
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $empresa->adminOLT . '/api/system/get_olt_cards_details/' . $olt_id,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => array(
+                'X-Token: ' . $empresa->smartOLT
+            ),
+        ));
+
+        $response = json_decode(curl_exec($curl), true);
+        curl_close($curl);
+
+        return $response;
+    }
+
+
+    public function getModalMoveOnu(Request $request){
+
+        try {
+            $olt = $this->getOlts();
+            $board = $this->getBoards($request->olt_id);
+            $ports = [];
+
+            $board = array_filter($board['response'], function ($item) {
+                return isset($item['type']) && $item['type'] === 'GTGH';
+            });
+
+            return response()->json([
+                'status' => true,
+                'olts' => $olt,
+                'boards' => array_values($board),
+                'ports' => $ports,
+                'sn' => $request->sn
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function updateMoveOnuModal(Request $request){
+
+        $response = $this->moveOnuSpecified($request->olt_id, $request->board, $request->port, $request->sn);
+
+        if (isset($response['response']) && $response['status'] == true) {
+            return response()->json([
+                'status' => 200
+            ]);
+        } else {
+            return response()->json([
+                'status' => 400
+            ]);
+        }
     }
 }
