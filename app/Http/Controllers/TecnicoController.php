@@ -39,16 +39,18 @@ class TecnicoController extends Controller
             foreach ($asignacion->items as $item) {
                 $totalMateriales += $item->cantidad;
 
-                // Agrupar materiales por tipo
-                $materialId = $item->material->id;
-                if (!isset($materialesAgrupados[$materialId])) {
-                    $materialesAgrupados[$materialId] = [
-                        'nombre' => $item->material->producto,
-                        'cantidad' => 0,
-                        'ref' => $item->material->ref
-                    ];
+                // Agrupar materiales por tipo (solo si el material existe)
+                if ($item->material) {
+                    $materialId = $item->material->id;
+                    if (!isset($materialesAgrupados[$materialId])) {
+                        $materialesAgrupados[$materialId] = [
+                            'nombre' => $item->material->producto,
+                            'cantidad' => 0,
+                            'ref' => $item->material->ref
+                        ];
+                    }
+                    $materialesAgrupados[$materialId]['cantidad'] += $item->cantidad;
                 }
-                $materialesAgrupados[$materialId]['cantidad'] += $item->cantidad;
             }
         }
 

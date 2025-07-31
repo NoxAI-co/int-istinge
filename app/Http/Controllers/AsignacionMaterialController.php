@@ -159,7 +159,11 @@ class AsignacionMaterialController extends Controller
         //se obtiene la fecha de hoy
         $fecha = date('d-m-Y');
 
-        $asignar_material = AsignarMaterial::find($asignar_material);
+        $asignar_material = AsignarMaterial::with(['items.material'])->find($asignar_material);
+        
+        if (!$asignar_material) {
+            return redirect('empresa/asignacion_material')->with('error', 'Asignación de material no encontrada');
+        }
 
         $bodega = Bodega::where('empresa', $empresa->id)->where('status', 1)->first();
         $inventario = Inventario::select(

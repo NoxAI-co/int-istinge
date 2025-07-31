@@ -121,7 +121,7 @@
                                     </td>
                                     <td>
                                         <div class="resp-refer">
-                                            <input type="text" class="form-control form-control-sm" id="ref{{$key + 1}}" name="ref[]" placeholder="Referencia" required="" value="{{ $item->material->ref }}">
+                                            <input type="text" class="form-control form-control-sm" id="ref{{$key + 1}}" name="ref[]" placeholder="Referencia" required="" value="{{ $item->material ? $item->material->ref : '' }}">
                                         </div>
                                     <td  style="padding-top: 1% !important;">
                                         <div class="resp-descripcion">
