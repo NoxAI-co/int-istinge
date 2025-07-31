@@ -22,8 +22,9 @@
     body {
         font-family: Helvetica, Arial, sans-serif;
         font-size: 15px;
-        color: #222;
+        color: #000;
         background: #fff;
+        font-weight: bold;
     }
 
     h4 {
@@ -32,7 +33,7 @@
         margin: 0 0 8px 0;
         font-size: 17px;
         letter-spacing: 0.25px;
-        color: #222;
+        color: #000;
     }
 
     .small {
@@ -166,11 +167,14 @@
         background: none;
         font-size: 14px;
         text-align: left;
+        color: #000;
     }
 
     .tirilla-table td {
         border-bottom: 1px solid #eee;
         font-size: 14px;
+        color: #000;
+        font-weight: bold;
     }
 
     .tirilla-table tr:last-child td {
@@ -190,8 +194,8 @@
     }
 
     .tirilla-label {
-        color: #444;
-        font-weight: 500;
+        color: #000;
+        font-weight: bold;
         font-size: 14px;
     }
 
@@ -212,14 +216,14 @@
 <div class="tirilla-section" style="text-align: center;">
     <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="Logo" style="max-width: 180px; max-height:90px; object-fit:contain; margin-bottom: 2px;">
     <h4>{{Auth::user()->empresa()->nombre}}</h4>
-    <div style="font-size:12px; line-height:13px;">
+    <div style="font-size:12px; line-height:13px; font-weight: bold; color: #000;">
         {{Auth::user()->empresa()->tip_iden('mini')}} {{Auth::user()->empresa()->nit}}<br>
         {{Auth::user()->empresa()->direccion}}<br>
         {{Auth::user()->empresa()->telefono}}<br>
         @if(Auth::user()->empresa()->web)
         {{Auth::user()->empresa()->web}}<br>
         @endif
-        <span style="font-size:10px;">{{Auth::user()->empresa()->email}}</span>
+        <span style="font-size:10px; font-weight: bold;">{{Auth::user()->empresa()->email}}</span>
     </div>
 </div>
 <hr class="tirilla-hr">
@@ -316,7 +320,7 @@
 </div>
 <hr class="tirilla-hr">
 <div class="tirilla-section" style="text-align: center;">
-    <div style="font-size:9px; color:#888;">
+    <div style="font-size:9px; color:#000; font-weight: bold;">
         @if(isset($resolucion->resolucion))
         RESOLUCIÓN DIAN #{{$resolucion->resolucion}}<br>RANGO DEL {{$resolucion->inicioverdadero}} HASTA {{$resolucion->final}}.<br>
         @endif
