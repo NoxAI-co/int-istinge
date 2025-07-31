@@ -29,7 +29,7 @@
         color: white;
     }
 
-    
+
 
     .process-left:after {
         content: "";
@@ -545,6 +545,13 @@
     function formHabilitación(tipo) {
         var settestid = $("#test_id").val();
 
+        if (window.location.pathname.split("/")[1] === "software") {
+            var url = '/software/empresa/nominadian/proceso-habilitacion';
+        } else {
+
+            var url = '/empresa/nominadian/proceso-habilitacion';
+        }
+
         $(document).ajaxStart(function() {
 
             const Toast = Swal.mixin({
@@ -566,7 +573,7 @@
         });
 
         $.ajax({
-            url: '/empresa/nominadian/proceso-habilitacion',
+            url: url,
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
@@ -577,7 +584,7 @@
             },
             success: function(response) {
                 console.log(response);
-               
+
             }
         })
 
@@ -598,7 +605,7 @@
                 type: 'success',
                 title: 'Emisiones realizadas correctamente...',
             })
-            
+
              if(tipo == 2){
                     location.reload();
             }
