@@ -1133,15 +1133,30 @@ class ContactosController extends Controller
                 // es igual a uno, pero aquí no se tiene eso en cuenta y arroja
                 // un error por ello.
                 if ($request->fk_idpais != '') {
-                    $request->fk_idpais = DB::table('pais')->where('nombre', $request->fk_idpais)->first()->codigo;
+                    $pais = DB::table('pais')->where('nombre', $request->fk_idpais)->first();
+                    if ($pais) {
+                        $request->fk_idpais = $pais->codigo;
+                    } else {
+                        $request->fk_idpais = '';
+                    }
                 }
 
                 if ($request->fk_iddepartamento != '') {
-                    $request->fk_iddepartamento = DB::table('departamentos')->where('nombre', $request->fk_iddepartamento)->first()->id;
+                    $departamento = DB::table('departamentos')->where('nombre', $request->fk_iddepartamento)->first();
+                    if ($departamento) {
+                        $request->fk_iddepartamento = $departamento->id;
+                    } else {
+                        $request->fk_iddepartamento = '';
+                    }
                 }
 
                 if ($request->fk_idmunicipio != '') {
-                    $request->fk_idmunicipio = DB::table('municipios')->where('nombre', $request->fk_idmunicipio)->first()->id;
+                    $municipio = DB::table('municipios')->where('nombre', $request->fk_idmunicipio)->first();
+                    if ($municipio) {
+                        $request->fk_idmunicipio = $municipio->id;
+                    } else {
+                        $request->fk_idmunicipio = '';
+                    }
                 }
 
                 $tipo_identifi_arr = TipoIdentificacion::where('identificacion', 'like', '%'.$request->tip_iden.'%')->first();
