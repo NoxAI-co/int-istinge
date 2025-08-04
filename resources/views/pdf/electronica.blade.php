@@ -751,7 +751,7 @@
 
     <div class="nota-content">
         <p>
-            Estimado Cliente, paga oportunamente y evita la suspensión del servicio, cobro de reconexión e intereses demora. El incumplimiento en los pagos genera reportes a
+            Estimado Cliente, paga oportunamente y evita la suspensión del servicio y cobro de reconexión. El incumplimiento en los pagos genera reportes a
             Centrales de Riesgo como moroso. Una vez realices tu pago, este se aplicará a más tardar el siguiente día hábil. Si ya realizaste el pago, haz caso omiso.
         </p>
     </div>
