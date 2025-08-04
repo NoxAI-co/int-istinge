@@ -707,9 +707,9 @@
             <td style="border: none !important;" width="35%">
                  <table class="tableinterna" width="100%" >
                     <tbody>
-                    <tr>
+                    {{-- <tr>
                     <td style="border:1px solid {{$empresa->color}}; border-radius:5px; padding:4px;">INTERESES DE MORA</td>
-                    </tr>
+                    </tr> --}}
                     <tr>
                     <td style="border:1px solid {{$empresa->color}}; border-radius:5px; padding:4px;">IVA</td>
                     </tr>
