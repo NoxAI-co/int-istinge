@@ -1533,11 +1533,13 @@ class FacturasController extends Controller{
                     $producto = Inventario::where('id', $request->item[$i])->first();
                     //Si el producto es inventariable y existe esa bodega, restará el valor registrado
                     if ($producto->tipo_producto==1) {
-                        $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $producto->id)->first();
-                        if ($ajuste) {
-                            $ajuste->nro-=$request->cant[$i];
-                            $ajuste->save();
-                        }
+                        if($bodega){
+                            $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $item->producto)->first();
+                           if ($ajuste) {
+                           $ajuste->nro+=$item->cant;
+                           $ajuste->save();
+                           }
+                       }
                     }
                     $items->factura=$factura->id;
                     $items->producto=$request->item[$i];

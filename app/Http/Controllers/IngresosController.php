@@ -512,7 +512,13 @@ class IngresosController extends Controller
             }
 
             if(isset($request->uso_saldo) && $request->uso_saldo){
-                $request->cuenta = Banco::where('empresa',$user->empresa)->where('nombre','like','Saldos a favor')->first()->id;
+                $banco_favor = Banco::where('empresa',$user->empresa)->where('nombre','like','Saldos a favor')->first();
+                if($banco_favor){
+                    $request->cuenta = $banco_favor->id;
+                }else{
+                    $mensaje='DISCULPE, NO SE ENCUENTRA REGISTRADO UN BANCO CON EL NOMBRE "SALDOS A FAVOR"';
+                    return back()->with('danger', $mensaje)->withInput();
+                }
             }
 
             $ingreso = new Ingreso;
@@ -1586,11 +1592,11 @@ class IngresosController extends Controller
             }
             $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
             $empresa = Empresa::find($ingreso->empresa);
-            
+
             // Verificar si se solicita versión detallada
             $detalle = $request->query('detalle', 0);
             $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
-            
+
             $pdf = PDF::loadView($vista, compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
             return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
         }
