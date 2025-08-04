@@ -312,7 +312,7 @@ class ContratosController extends Controller
             }
             if ($request->c_barrio) {
                 $contratos->where(function ($query) use ($request) {
-                    $query->orWhere('contactos.barrio_id', $request->c_barrio);
+                    $query->orWhereIn('contactos.barrio_id', $request->c_barrio);
                 });
             }
             if ($request->c_celular) {

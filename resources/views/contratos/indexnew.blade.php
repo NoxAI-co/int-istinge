@@ -107,7 +107,7 @@
         				</div>
 
                         <div class="col-md-2 pl-1 pt-1">
-        					<select title="Barrio" class="form-control selectpicker" id="barrio" name="barrio" data-size="5" data-live-search="true">
+        					<select title="Barrio" class="form-control selectpicker" id="barrio" name="barrio" data-size="5" data-live-search="true" multiple>
         						@foreach ($barrios as $barrio)
         						<option value="{{ $barrio->id }}">{{ $barrio->nombre }}</option>
         						@endforeach
