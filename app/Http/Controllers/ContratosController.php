@@ -4646,6 +4646,7 @@ class ContratosController extends Controller
             $contrato->usuario                 = $request->usuario;
             $contrato->password                = $request->clave;
             $contrato->local_adress_pppoe      = $request->local_address_pppoe;
+            $contrato->created_at              = Carbon::now();
 
             $contrato->save();
         }
