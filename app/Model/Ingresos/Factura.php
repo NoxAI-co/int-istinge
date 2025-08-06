@@ -1416,9 +1416,15 @@ public function forma_pago()
                 $inicioCorte =  $inicioCorte->subMonth();
             }
             else{
-                if($empresa->periodo_facturacion == 1){
-                    $finCorte = Carbon::parse($finCorte)->addMonth();
-                    $inicioCorte =  $inicioCorte->addMonth();
+                if ($empresa->periodo_facturacion == 1) {
+                    $corteActual = Carbon::createFromDate(
+                        Carbon::parse($this->fecha)->year,
+                        Carbon::parse($this->fecha)->month,
+                        $grupo->fecha_corte
+                    )->addMonth(); // Corte del mes siguiente
+
+                    $inicioCorte = $corteActual->copy(); // Día del corte
+                    $finCorte = $corteActual->copy()->addMonth()->subDay(); // Un día antes del siguiente corte
                 }
             }
             //se comenta por que etsaba creando conflicto

@@ -1030,6 +1030,7 @@ class IngresosController extends Controller
 
         } catch (\Throwable $th) {
             // DB::rollBack();
+            Log::error($th->getMessage());
             return back()->with('danger', $th->getMessage());
         }
     }
@@ -1821,6 +1822,10 @@ class IngresosController extends Controller
             fclose($gestor);
 
             foreach ($registros as $registro) {
+
+                if(!isset(explode(',', $registro[0])[4])){
+                    return back()->with('danger','ERROR: Estructura no válida.');
+                }
 
                 $nit = explode(',', $registro[0])[4];
                 $precio = $this->precision(explode(',', $registro[0])[6]);
