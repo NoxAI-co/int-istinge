@@ -4533,7 +4533,8 @@ class ExportarReportesController extends Controller
             'Subtotal',
             'IVA',
             'Retencion',
-            'Total'
+            'Total',
+            'Emitida'
         );
         $letras = array(
             'A',
@@ -4582,14 +4583,14 @@ class ExportarReportesController extends Controller
                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
             )
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A1:H1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:I1')->applyFromArray($estilo);
         $estilo = array(
             'fill' => array(
                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
                 'color' => array('rgb' => 'd08f50')
             )
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:H3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:I3')->applyFromArray($estilo);
 
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
@@ -4616,7 +4617,7 @@ class ExportarReportesController extends Controller
             ->where('notas_credito.empresa', auth()->user()->empresa)
             ->where('notas_credito.fecha', '>=', $desde)->where('notas_credito.fecha', '<=', $hasta)
             ->select('notas_credito.id as id', 'notas_credito.nro', 'c.id as cliente', 'c.nombre',
-                'notas_credito.fecha', 'f.id as fid', 'f.codigo', 'f.nro as fnro')
+                'notas_credito.fecha', 'f.id as fid', 'f.codigo', 'f.nro as fnro','notas_credito.emitida')
             ->orderBy('id', 'DESC')->groupBy('notas_credito.id');
 
         $notasc = $notasc->paginate(1000000)->appends([
@@ -4653,7 +4654,9 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[4] . $i, $nota->subtotal)
                 ->setCellValue($letras[5] . $i, $nota->iva)
                 ->setCellValue($letras[6] . $i, $nota->retenido)
-                ->setCellValue($letras[7] . $i, $nota->total);
+                ->setCellValue($letras[7] . $i, $nota->total)
+                ->setCellValue($letras[8] . $i, $nota->emitida)
+                ;
             $i++;
         }
         $objPHPExcel->setActiveSheetIndex(0)
@@ -4662,7 +4665,6 @@ class ExportarReportesController extends Controller
             ->setCellValue($letras[5] . $i, $iva)
             ->setCellValue($letras[6] . $i, $retenciones)
             ->setCellValue($letras[7] . $i, $total);
-
 
         $estilo = array(
             'font' => array('size' => 12, 'name' => 'Times New Roman'),
@@ -4673,7 +4675,7 @@ class ExportarReportesController extends Controller
             ),
             'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:H' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:I' . $i)->applyFromArray($estilo);
 
 
         for ($i = 'A'; $i <= $letras[20]; $i++) {
