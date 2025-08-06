@@ -4655,7 +4655,7 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[5] . $i, $nota->iva)
                 ->setCellValue($letras[6] . $i, $nota->retenido)
                 ->setCellValue($letras[7] . $i, $nota->total)
-                ->setCellValue($letras[8] . $i, $nota->emitida)
+                ->setCellValue($letras[8] . $i, $nota->emitida == 1 ? 'Si' : 'No')
                 ;
             $i++;
         }
