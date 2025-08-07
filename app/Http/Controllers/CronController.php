@@ -1032,6 +1032,22 @@ class CronController extends Controller
                                                 $READ = $API->read();
                                             }
                                             #ELIMINAMOS DE IP_AUTORIZADAS#
+
+                                            #SE SACA DE LA ACTIVE CONNECTIONS
+                                               if($contrato->conexion == 1 && $contrato->usuario != null){
+
+                                                $API->write('/ppp/active/print', false);
+                                                $API->write('?name=' . $contrato->usuario);
+                                                $response = $API->read();
+
+                                                if(isset($response['0']['.id'])){
+                                                    $API->comm("/ppp/active/remove", [
+                                                        ".id" => $response['0']['.id']
+                                                    ]);
+                                                }
+
+                                            }
+                                            #SE SACA DE LA ACTIVE CONNECTIONS
                                         }
                                         $i++;
                                     }
@@ -4084,56 +4100,56 @@ class CronController extends Controller
             'items_factura' => 0,
             'facturas_contratos' => 0
         ];
-        
+
         try {
             // Obtener las facturas existentes para este contrato_nro
             $facturas_existentes = DB::table('facturas_contratos')
                 ->where('contrato_nro', $contrato_nro)
                 ->pluck('factura_id');
-            
+
             if ($facturas_existentes->count() > 0) {
                 $facturas_ids = $facturas_existentes->toArray();
-                
+
                 Log::info("Iniciando eliminación para contrato {$contrato_nro}. Facturas: " . implode(',', $facturas_ids));
-                
+
                 // Eliminar en orden específico para evitar violaciones de integridad referencial
-                
+
                 // 1. Eliminar items_factura
                 $eliminados['items_factura'] = DB::table('items_factura')
                     ->whereIn('factura', $facturas_ids)
                     ->delete();
-                
+
                 // 2. Eliminar facturas_contratos (relación)
                 $eliminados['facturas_contratos'] = DB::table('facturas_contratos')
                     ->where('contrato_nro', $contrato_nro)
                     ->delete();
-                
+
                 // 3. Finalmente eliminar facturas
                 $eliminados['facturas'] = DB::table('factura')
                     ->whereIn('id', $facturas_ids)
                     ->delete();
-                
+
                 Log::info("Eliminación completada para contrato {$contrato_nro}");
-                
+
             } else {
                 // Solo eliminar registros huérfanos en facturas_contratos
                 $eliminados['facturas_contratos'] = DB::table('facturas_contratos')
                     ->where('contrato_nro', $contrato_nro)
                     ->delete();
             }
-            
+
         } catch (Exception $e) {
             Log::error("Error en eliminación del contrato {$contrato_nro}: " . $e->getMessage());
             throw $e;
         }
-        
+
         return $eliminados;
     }
 
     /**
      * Genera facturas para números de contratos específicos con precios personalizados
      * Elimina registros existentes antes de crear nuevos (versión mejorada)
-     * @param array $contratos_precios Array con formato: 
+     * @param array $contratos_precios Array con formato:
      *   [['contrato_nro' => '123', 'precio' => 50000], ...] o
      *   [['cedula' => '12345678', 'precio' => 50000], ...]
      * @return array Resultado con las facturas generadas
@@ -4143,54 +4159,54 @@ class CronController extends Controller
         $facturas_generadas = [];
         $errores = [];
         $registros_eliminados = [];
-        
+
         foreach ($contratos_precios as $contrato_precio) {
             $precio = $contrato_precio['precio'];
             $contrato = null;
             $contrato_nro = null;
             $cedula = null;
-            
+
             try {
                 // Determinar si viene cedula o contrato_nro
                 if (isset($contrato_precio['cedula'])) {
                     $cedula = $contrato_precio['cedula'];
-                    
+
                     // Buscar el contrato por identificación del cliente
                     $contrato = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
                         ->where('c.nit', $cedula)
                         ->where('contracts.status', 1)
                         ->select('contracts.*')
                         ->first();
-                    
+
                     if (!$contrato) {
                         $errores[] = "No se encontró contrato activo para identificación {$cedula}";
                         continue;
                     }
-                    
+
                     $contrato_nro = $contrato->nro;
-                    
+
                 } elseif (isset($contrato_precio['contrato_nro'])) {
                     $contrato_nro = $contrato_precio['contrato_nro'];
-                    
+
                     // Buscar el contrato por número
                     $contrato = Contrato::where('nro', $contrato_nro)->first();
-                    
+
                     if (!$contrato) {
                         $errores[] = "Contrato {$contrato_nro} no encontrado";
                         continue;
                     }
-                    
+
                 } else {
                     $errores[] = "Debe proporcionar 'cedula' o 'contrato_nro'";
                     continue;
                 }
-                
+
                 // Verificar que el contrato esté activo
                 // if ($contrato->status != 1) {
                 //     $errores[] = "Contrato {$contrato_nro} no está activo";
                 //     continue;
                 // }
-                
+
                 // PASO 1: Eliminar todos los registros existentes para este contrato_nro (versión segura)
                 $eliminados = self::eliminarRegistrosContratoSeguro($contrato_nro);
                 $registros_eliminados[] = [
@@ -4198,30 +4214,30 @@ class CronController extends Controller
                     'cedula' => $cedula,
                     'eliminados' => $eliminados
                 ];
-                
+
                 // Log de eliminación
                 Log::info("Eliminados registros del contrato {$contrato_nro} (identificación: {$cedula}): " . json_encode($eliminados));
-                
+
                 // PASO 2: Crear nueva factura
-                
+
                 // Obtener el siguiente número de factura
                 $num = Factura::where('empresa', 1)->orderby('id', 'desc')->first();
                 $numero = $num ? $num->nro + 1 : 1;
-                
+
                 // Obtener numeración
                 $nro = NumeracionFactura::tipoNumeracion($contrato);
-                
+
                 if (!$nro) {
                     $errores[] = "No se pudo obtener numeración para contrato {$contrato_nro}";
                     continue;
                 }
-                
+
                 // Validar que el código sea único
                 $inicio = $nro->inicio;
                 while (Factura::where('codigo', $nro->prefijo . $inicio)->first()) {
                     $inicio++;
                 }
-                
+
                 // Crear la factura
                 $factura = new Factura;
                 $factura->nro           = $numero;
@@ -4260,7 +4276,7 @@ class CronController extends Controller
                     $item_reg->cant = 1;
                     $item_reg->desc = 0;
                     $item_reg->save();
-                    
+
                     // Crear la relación en facturas_contratos
                     DB::table('facturas_contratos')->insert([
                         'factura_id' => $factura->id,
@@ -4270,11 +4286,11 @@ class CronController extends Controller
                         'is_cron' => 0, // No es automático
                         'created_at' => Carbon::now()
                     ]);
-                    
+
                     // Actualizar numeración
                     $nro->inicio = $inicio + 1;
                     $nro->save();
-                    
+
                     $facturas_generadas[] = [
                         'factura_id' => $factura->id,
                         'factura_codigo' => $factura->codigo,
@@ -4283,17 +4299,17 @@ class CronController extends Controller
                         'precio' => $precio,
                         'cliente_id' => $contrato->client_id
                     ];
-                    
+
                 }else{
                     $errores[] = "Factura con código {$factura->codigo} ya existe";
                 }
             } catch (Exception $e) {
-                $errores[] = "Error generando factura para " . 
-                    ($cedula ? "identificación {$cedula}" : "contrato {$contrato_nro}") . 
+                $errores[] = "Error generando factura para " .
+                    ($cedula ? "identificación {$cedula}" : "contrato {$contrato_nro}") .
                     ": " . $e->getMessage();
             }
         }
-        
+
         return [
             'facturas_generadas' => $facturas_generadas,
             'errores' => $errores,
@@ -4322,9 +4338,9 @@ class CronController extends Controller
                 'precio' => 200
             ]
         ];
-        
+
         $resultado = self::generarFacturasPersonalizadas($contratos_precios);
-        
+
         return response()->json($resultado);
     }
 }

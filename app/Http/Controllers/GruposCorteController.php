@@ -133,6 +133,7 @@ class GruposCorteController extends Controller
         $grupo->prorroga_tv = $request->prorroga_tv ?? 0;
         $grupo->created_by = Auth::user()->id;
         $grupo->empresa = Auth::user()->empresa;
+        $grupo->nro_factura_vencida = isset($request->nro_factura_vencida) ? $request->nro_factura_vencida : 0;
         $grupo->save();
 
         $mensaje='SE HA CREADO SATISFACTORIAMENTE EL GRUPO DE CORTE';
@@ -241,6 +242,7 @@ class GruposCorteController extends Controller
             $grupo->status                = $request->status;
             $grupo->prorroga_tv           = $request->prorroga_tv;
             $grupo->updated_by            = Auth::user()->id;
+            $grupo->nro_factura_vencida = isset($request->nro_factura_vencida) ? $request->nro_factura_vencida : 0;
             $grupo->save();
 
             $mensaje='SE HA MODIFICADO SATISFACTORIAMENTE EL GRUPO DE CORTE';

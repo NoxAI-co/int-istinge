@@ -97,14 +97,25 @@
 	            </span>
 	        </div>
 
-            {{-- <div class="col-md-3 form-group">
-	            <label class="control-label">Dias Prorroga suspensión TV <span class="text-danger">*</span></label>
-                <a><i data-tippy-content="Si agregas un dia mayor a 0 se tomará en cuenta para darle un tiempo de espera con la ultima factura vencida para suspender la televisión." class="icono far fa-question-circle"></i></a>
-                <input type="text" class="form-control"  id="prorroga_tv" name="prorroga_tv" value="{{$grupo->prorroga_tv}}" maxlength="200">
+
+	        <div class="col-md-3 form-group" id="swSuspension">
+	            <label class="control-label">Suspender al tener <span class="text-danger">*</span></label>
+	            <select class="form-control selectpicker" name="nro_factura_vencida" id="nro_factura_vencida" title="Seleccione" required="">
+	                <option value="0" {{ $grupo->nro_factura_vencida == 0 ? 'selected':'' }}>No aplica</option>
+	                <option value="1" {{ $grupo->nro_factura_vencida == 1 ? 'selected':'' }}>1 Factura Vencida</option>
+	                <option value="2" {{ $grupo->nro_factura_vencida == 2 ? 'selected':'' }}>2 Facturas Vencidas</option>
+	                <option value="3" {{ $grupo->nro_factura_vencida == 3 ? 'selected':'' }}>3 Facturas Vencidas</option>
+	                <option value="4" {{ $grupo->nro_factura_vencida == 4 ? 'selected':'' }}>4 Facturas Vencidas</option>
+	                <option value="5" {{ $grupo->nro_factura_vencida == 5 ? 'selected':'' }}>5 Facturas Vencidas</option>
+	                <option value="6" {{ $grupo->nro_factura_vencida == 6 ? 'selected':'' }}>6 Facturas Vencidas</option>
+	                <option value="7" {{ $grupo->nro_factura_vencida == 7 ? 'selected':'' }}>7 Facturas Vencidas</option>
+	                <option value="8" {{ $grupo->nro_factura_vencida == 8 ? 'selected':'' }}>8 Facturas Vencidas</option>
+	            </select>
 	            <span class="help-block error">
-	                <strong>{{ $errors->first('status') }}</strong>
+	                <strong>{{ $errors->first('nro_factura_vencida') }}</strong>
 	            </span>
-	        </div> --}}
+	        </div>
+
 	    </div>
 	    <small>Los campos marcados con <span class="text-danger">*</span> son obligatorios</small>
 	    <hr>

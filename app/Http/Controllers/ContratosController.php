@@ -2535,6 +2535,23 @@ class ContratosController extends Controller
                             // }
                             // #DESHABILITACION DEL PPOE#
 
+
+                            #SE SACA DE LA ACTIVE CONNECTIONS
+                            if($contrato->conexion == 1 && $contrato->usuario != null){
+
+                                $API->write('/ppp/active/print', false);
+                                $API->write('?name=' . $contrato->usuario);
+                                $response = $API->read();
+
+                                if(isset($response['0']['.id'])){
+                                    $API->comm("/ppp/active/remove", [
+                                        ".id" => $response['0']['.id']
+                                    ]);
+                                }
+
+                            }
+                            #SE SACA DE LA ACTIVE CONNECTIONS
+
                             $contrato->state = 'disabled';
                             $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Habilitado a Deshabilitado<br>';
                         } else {
@@ -3852,6 +3869,7 @@ class ContratosController extends Controller
 
                         $contrato->state = $state;
                     } else {
+
                         #ELIMINAMOS DE MOROSOS#
                         $API->write('/ip/firewall/address-list/print', false);
                         $API->write('?address=' . $contrato->ip, false);
@@ -3875,6 +3893,22 @@ class ContratosController extends Controller
                             )
                         );
                         #AGREGAMOS A IP_AUTORIZADAS#
+
+                        #SE SACA DE LA ACTIVE CONNECTIONS
+                        if($contrato->conexion == 1 && $contrato->usuario != null){
+
+                            $API->write('/ppp/active/print', false);
+                            $API->write('?name=' . $contrato->usuario);
+                            $response = $API->read();
+
+                            if(isset($response['0']['.id'])){
+                                $API->comm("/ppp/active/remove", [
+                                    ".id" => $response['0']['.id']
+                                ]);
+                            }
+
+                        }
+                        #SE SACA DE LA ACTIVE CONNECTIONS
 
                         $contrato->state = $state;
                     }
