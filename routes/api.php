@@ -51,6 +51,7 @@ Route::post('contrato-digital/{key}', function (Request $request, $key) {
 Route::post('token-combopay', 'CronController@tokenComboPay');
 Route::post('combopay/payment-link', 'CronController@crearLinkPago');
 
+
 Route::get('getInterfaces/{mikrotik}', 'Controller@getInterfaces');
 Route::get('getDetails/{cliente}/{contrato?}', 'Controller@getDetails');
 Route::get('getPlanes/{mikrotik}', 'Controller@getPlanes');
