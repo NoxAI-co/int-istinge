@@ -3,7 +3,13 @@
     <a href="{{route('notascredito.show',$nro)}}"  class="btn btn-outline-info btn-icons" title="Ver"><i class="far fa-eye"></i></i></a>
     <a href="{{route('notascredito.imprimir.nombre',['id' => $nro, 'name'=> 'Nota Credito No. '.$nro.'.pdf'])}}" target="_blank" class="btn btn-outline-primary btn-icons" title="Imprimir"><i class="fas fa-print"></i></a>
     @if(Auth::user()->empresa()->form_fe == 1 && $emitida == 0 && Auth::user()->empresa()->estado_dian == 1 && Auth::user()->empresa()->technicalkey != null)
-        <a onclick="confirmSendDian('{{route('xml.notacredito',$id)}}','{{$nro}}')" href="#"  class="btn btn-outline-primary btn-icons"title="Emitir Nota crédito"><i class="fas fa-sitemap"></i></a>
+        <a
+            onclick="confirmSendDian('{{route('xml.notacredito',$id)}}','{{$nro}}')"
+            {{-- onclick="confirmSendDian('{{route('json.dian-notacredito', $id)}}','{{$nro}}')" --}}
+            href="#"
+            class="btn btn-outline-primary btn-icons"
+            title="Emitir Nota crédito">
+            <i class="fas fa-sitemap"></i></a>
     @endif
     @if($emitida !=1)
         <a href="{{route('notascredito.edit',$nro)}}"  class="btn btn-outline-primary btn-icons" title="Editar"><i class="fas fa-edit"></i></a>

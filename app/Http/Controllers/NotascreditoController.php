@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Banco;
+use App\Builders\JsonBuilders\InvoiceJsonBuilder;
 use App\Categoria;
 use App\Contacto;
 use App\Funcion;
@@ -40,6 +41,8 @@ use ZipArchive;
 use App\Campos;
 use App\PucMovimiento;
 use App\FormaPago;
+use App\NumeracionPos;
+use App\Services\BTWService;
 
 class NotascreditoController extends Controller
 {
@@ -1416,6 +1419,149 @@ public function facturas_retenciones($id){
         );
 
         return json_encode($json_data);
+    }
+
+
+    public function jsonDianNotaCredito($id, $emails = false) {
+
+        try {
+
+            $nota = NotaCredito::Find($id);
+            $empresa = Empresa::Find($nota->empresa);
+            $cliente = $nota->clienteObj;
+            $modoBTW = env('BTW_TEST_MODE') == 1 ? 'test' : 'prod';
+
+            if (!$nota && !$empresa) {
+                if(request()->ajax()){
+                    return response()->json(['status'=>'error', 'message' => 'Nota crédito o empresa no encontrada'], 404);
+                }else{
+                    return redirect('/empresa/facturas')->with('message_denied', 'Nota crédito o empresa no encontrada');
+                }
+            }
+
+            $factura = $nota->facturaNotaCredito->facturaObj;
+
+            if (!$factura) {
+                if(request()->ajax()){
+                    return response()->json(['status'=>'error', 'message' => 'Factura relacionada no encontrada'], 404);
+                }else{
+                    return redirect('/empresa/facturas')->with('message_denied', 'Factura relacionada no encontrada');
+                }
+            }
+
+            // Numeracion Factura o POS
+            if($factura->tipo == 6){
+
+                $resolucion = NumeracionPos::where('empresa', Auth::user()->empresa)
+                ->where('preferida', 1)->first();
+                $factura->technicalkey = $resolucion->technical_key;
+                $factura->save();
+
+            }else{
+
+                $resolucion = NumeracionFactura::where('empresa', Auth::user()->empresa)
+                ->where('num_equivalente', 0)
+                ->where('nomina', 0)
+                ->where('preferida', 1)->first();
+
+            }
+
+            // Construccion del json por partes.
+            $jsonInvoiceHead = InvoiceJsonBuilder::buildFromHeadCreditNote($nota,$factura,$resolucion,$modoBTW);
+            $jsonInvoiceDetails = InvoiceJsonBuilder::buildFromDetails($factura,$resolucion,$modoBTW);
+            $jsonInvoiceCompany = InvoiceJsonBuilder::buildFromCompany($empresa, $modoBTW);
+            $jsonInvoiceCustomer = InvoiceJsonBuilder::buildFromCustomer($cliente,$empresa, $modoBTW);
+
+            $fullJson = InvoiceJsonBuilder::buildFullInvoice([
+                'head'     => $jsonInvoiceHead,
+                'details'  => $jsonInvoiceDetails,
+                'company'  => $jsonInvoiceCompany,
+                'customer' => $jsonInvoiceCustomer,
+                'mode'     => $modoBTW
+            ]);
+
+            // Envio de json completo a microservicio de gestoru.
+            // return $fullJson;
+            $btw = new BTWService;
+            $response = (object)$btw->sendInvoiceBTW($fullJson);
+
+            if(isset($response->status) && $response->status == 'success'){
+
+                $nota->emitida = 1;
+                $nota->dian_response = $response->cufe;
+                $nota->save();
+
+                if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Nota crédito enviada correctamente',
+                        'data' => $response
+                    ]);
+                }else{
+                    return redirect('/empresa/notascredito')->with('message_success', 'Nota crédito emitida correctamente con el cufe: ' .$response->cufe);
+                }
+            }
+
+            if(isset($response->success) && $response->success == false){
+
+                if(isset($response->result)){
+
+                    $message = $this->formatedResponseErrorBTW($response->result->descResponseDian);
+                    if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Error en campos mandatorios.',
+                        'error' => $message
+                    ]);
+                    }else{
+                        return redirect('/empresa/notascredito')->with('message_denied_btw', $message);
+                    }
+                }
+
+                if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Error al enviar la factura',
+                        'error' => $response->message
+                    ], 500);
+                }else{
+                    return redirect('/empresa/notascredito')->with('message_denied_btw', $response->message);
+                }
+
+            }else{
+
+                if(isset($response->statusCode) && $response->statusCode == 500){
+
+                    $message = $this->formatedResponseErrorBTW($response->th['btw_response']);
+
+                    if(request()->ajax()){
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Error al procesar la solicitud',
+                            'error' => $message
+                        ], 500);
+                    }else{
+                        return redirect('/empresa/notascredito')->with('message_denied_btw', $message);
+                    }
+                }
+
+                return redirect()->back()->with('message_denied_btw', 'Error al procesar la solicitud, por favor intente nuevamente.');
+            }
+
+        } catch (\Throwable $th) {
+
+            if(request()->ajax()){
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al procesar la solicitud',
+                    'error' => 'Error al procesar la solicitud: ' . $th->getMessage()],
+                     500
+                );
+            }
+            else{
+                return redirect('/empresa/notascredito')->with('message_denied_btw', $th->getMessage());
+            }
+        }
     }
 
     public function xmlNotaCredito($id)

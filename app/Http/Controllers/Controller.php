@@ -2543,4 +2543,31 @@ if ($mikrotik) {
         return true;
     }
 
+    public static function formatedResponseErrorBTW($message){
+
+        $raw = $message;
+
+        // Opcionalmente, puedes limpiar espacios innecesarios
+        $cleaned = preg_replace('/\s+/', ' ', $raw);
+
+        // Separar por "Regla:" y luego reconstruir
+        $parts = preg_split('/Regla:/', $cleaned);
+
+        $formatted = "<strong>Status:</strong><br>";
+
+        $formatted .= nl2br(trim($parts[0])) . "<br><br>";
+
+        if (count($parts) > 1) {
+            $formatted .= "<strong>Errores:</strong><ul>";
+            foreach (array_slice($parts, 1) as $regla) {
+                $formatted .= "<li><strong>Regla:</strong> " . trim($regla) . "</li>";
+            }
+            $formatted .= "</ul>";
+        }
+
+        return $formatted;
+
+    }
+
+
 }

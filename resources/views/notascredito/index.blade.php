@@ -28,6 +28,11 @@
 </div>
 @endif
 
+@if (session('message_denied_btw'))
+<div class="alert alert-danger">
+    {!! session('message_denied_btw') !!}
+</div>
+@endif
 
 @if (Session::has('message_denied'))
 <div class="alert alert-danger" role="alert">

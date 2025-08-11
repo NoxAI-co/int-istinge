@@ -42,6 +42,13 @@
 		</script>
 	@endif
 
+    @if (session('message_denied_btw'))
+        <div class="alert alert-danger">
+        {!! session('message_denied_btw') !!}
+        </div>
+    @endif
+
+
     @if(Session::has('danger'))
         <div class="alert alert-danger">
         	{{Session::get('danger')}}

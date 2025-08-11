@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Builders\JsonBuilders\InvoiceJsonBuilder;
 use App\CamposExtra;
 use App\Model\Ingresos\IngresosRetenciones;
 use http\Url;
@@ -53,6 +55,8 @@ use App\Services\ElectronicBillingService;
 use App\CRM;
 use App\Instance;
 use App\MovimientoLOG;
+use App\NumeracionPos;
+use App\Services\BTWService;
 use App\Services\WapiService;
 use Facade\FlareClient\View;
 use Illuminate\Support\Facades\Auth;
@@ -544,7 +548,7 @@ class FacturasController extends Controller{
 
         if(Auth::user()->empresa()->oficina){
             if(auth()->user()->oficina){
-                $facturas->where('cs.oficina', auth()->user()->oficina);
+                $facturas->where('cs1.oficina', auth()->user()->oficina);
             }
         }
 
@@ -2434,6 +2438,137 @@ class FacturasController extends Controller{
         }
 
         return back()->with('message_success', "Importacion masiva temrinada");
+    }
+
+    public function jsonDianFacturaVenta($id, $emails = false) {
+
+        try {
+
+            $factura = Factura::Find($id);
+            $empresa = Empresa::Find($factura->empresa);
+            $cliente = $factura->clienteObj;
+            $modoBTW = env('BTW_TEST_MODE') == 1 ? 'test' : 'prod';
+
+            if (!$factura && !$empresa) {
+                if(request()->ajax()){
+                    return response()->json(['status'=>'error', 'message' => 'Factura o empresa no encontrada'], 404);
+                }else{
+                    return redirect('/empresa/facturas')->with('message_denied', 'Factura o empresa no encontrada');
+                }
+            }
+
+            // Numeracion Factura o POS
+            if($factura->tipo == 6){
+
+                $resolucion = NumeracionPos::where('empresa', Auth::user()->empresa)
+                ->where('preferida', 1)->first();
+                $factura->technicalkey = $resolucion->technical_key;
+                $factura->save();
+
+            }else{
+
+                $resolucion = NumeracionFactura::where('empresa', Auth::user()->empresa)
+                ->where('num_equivalente', 0)
+                ->where('nomina', 0)
+                ->where('preferida', 1)->first();
+
+            }
+
+            // Construccion del json por partes.
+            $jsonInvoiceHead = InvoiceJsonBuilder::buildFromHeadInvoice($factura,$resolucion,$modoBTW);
+            $jsonInvoiceDetails = InvoiceJsonBuilder::buildFromDetails($factura,$resolucion,$modoBTW);
+            $jsonInvoiceCompany = InvoiceJsonBuilder::buildFromCompany($empresa, $modoBTW);
+            $jsonInvoiceCustomer = InvoiceJsonBuilder::buildFromCustomer($cliente,$empresa, $modoBTW);
+
+            $fullJson = InvoiceJsonBuilder::buildFullInvoice([
+                'head'     => $jsonInvoiceHead,
+                'details'  => $jsonInvoiceDetails,
+                'company'  => $jsonInvoiceCompany,
+                'customer' => $jsonInvoiceCustomer,
+                'mode'     => $modoBTW
+            ]);
+            // return $fullJson;
+
+            // Envio de json completo a microservicio de gestoru.
+            $btw = new BTWService;
+            $response = (object)$btw->sendInvoiceBTW($fullJson);
+
+            if(isset($response->status) && $response->status == 'success'){
+
+                $factura->emitida = 1;
+                $factura->uuid = $response->cufe;
+                $factura->save();
+
+                if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Factura enviada correctamente',
+                        'data' => $response
+                    ]);
+                }else{
+                    return redirect('/empresa/facturas')->with('message_success', 'Factura emitida correctamente con el cufe: ' .$response->cufe);
+                }
+            }
+
+            if(isset($response->success) && $response->success == false){
+
+                if(isset($response->result)){
+
+                    $message = $this->formatedResponseErrorBTW($response->result->descResponseDian);
+                    if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Error en campos mandatorios.',
+                        'error' => $message
+                    ]);
+                    }else{
+                        return redirect('/empresa/facturas')->with('message_denied_btw', $message);
+                    }
+                }
+
+                if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Error al enviar la factura',
+                        'error' => $response->message
+                    ], 500);
+                }else{
+                    return redirect('/empresa/facturas')->with('message_denied_btw', $response->message);
+                }
+
+            }else{
+
+                if(isset($response->statusCode) && $response->statusCode == 500){
+
+                    $message = $this->formatedResponseErrorBTW($response->th['btw_response']);
+                    if(request()->ajax()){
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Error al procesar la solicitud',
+                            'error' => $message
+                        ], 500);
+                    }else{
+                        return redirect('/empresa/facturas')->with('message_denied_btw', $message);
+                    }
+                }
+
+                return redirect()->back()->with('message_denied_btw', 'Error al procesar la solicitud, por favor intente nuevamente.');
+            }
+
+        } catch (\Throwable $th) {
+
+            if(request()->ajax()){
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al procesar la solicitud',
+                    'error' => 'Error al procesar la solicitud: ' . $th->getMessage()],
+                     500
+                );
+            }
+            else{
+                return redirect('/empresa/facturas')->with('message_denied_btw', $th->getMessage());
+            }
+        }
     }
 
     public function xmlFacturaVenta($id){

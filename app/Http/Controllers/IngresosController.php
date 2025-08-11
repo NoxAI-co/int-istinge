@@ -1832,6 +1832,7 @@ class IngresosController extends Controller
                 $cliente = Contacto::where('nit',$nit)->first();
 
                 if(!$cliente){
+                    $mensaje .= 'CLIENTE CON CC '.$nit.' NO EXISTE<br>';
                     continue;
                 }
 
@@ -2023,7 +2024,7 @@ class IngresosController extends Controller
                         }
                     }
                 }else{
-                    $mensaje .= '(FACTURA N° '.$codigo.') NO ENCONTRADA<br>';
+                    $mensaje .= 'FACTURA NO ENCONTRADA PARA EL CLIENTE CON NIT ' .$nit. '<br>';
                 }
             }
             return back()->with('success', $mensaje);

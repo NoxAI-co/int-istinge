@@ -510,6 +510,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('remision/{id}', 'FacturasController@remisionAfactura')->name('factura.remision');
 		/**/
 
+        //json factura microservicio
+        Route::get('jsondian/{id?}/{emails?}', 'FacturasController@jsonDianFacturaVenta')->name('json.dian-factura');
+
         Route::get('logs/{contrato}', 'FacturasController@logs');
         Route::get('{id}/log', 'FacturasController@log')->name('facturas.log');
 
@@ -876,6 +879,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	});
 
 	Route::group(['prefix' => 'notascredito'], function () {
+
+        //json factura microservicio
+        Route::get('jsondian/{id?}/{emails?}', 'NotascreditoController@jsonDianNotaCredito')->name('json.dian-notacredito');
 
 		Route::get('xml/{id}', 'NotascreditoController@xmlNotaCredito')->name('xml.notacredito');
 		Route::get('descargar/{nro}', 'NotascreditoController@xml')->name('notascredito.xml');
