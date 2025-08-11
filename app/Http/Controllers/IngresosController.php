@@ -389,43 +389,29 @@ class IngresosController extends Controller
                     return back()->with('danger', $mensaje)->withInput();
                 }
             }
-
-            //Si es tipo 1, osea coversion de factura estandar a electrónica con emisión
+            //Si es tipo 1 osea pagos a facturas.
             if ($request->tipo == 1) {
 
-                //Validacion
-                foreach ($request->factura_pendiente as $key => $factura_id) {
-                    $montoPago = $this->precision($request->precio[$key]);
-
-                    $pagoRepetido = IngresosFactura::where('factura', $factura_id)
-                        ->where('pagado', $montoPago)
-                        ->whereHas('ingresoRelation', function ($query) {
-                            $query->whereBetween('created_at', [now()->subSeconds(120), now()]);
-                        })
-                    ->exists();
-
-                    if ($pagoRepetido) {
-                        $factura = Factura::find($factura_id);
-                        return back()->with('danger', 'Ya has registrado un pago de $' . number_format($montoPago, 0, ',', '.') . ' recientemente para la factura N° ' . $factura->codigo . '. Evita pagos duplicados.')->withInput();
-                    }
-                }
-
+                //Validaciones
                 if(is_array($request->factura_pendiente)){
-                    foreach ($request->factura_pendiente as $key => $value) {
 
+                    foreach ($request->factura_pendiente as $key => $factura_id) {
+
+                        $montoPago = $this->precision($request->precio[$key]);
                         $factura = Factura::find($request->factura_pendiente[$key]);
 
-                        if($factura->contratos() !== false && $contrato = $factura->contratos()->first()){
-                            $contrato = $contrato->contrato_nro;
-                            $contrato = Contrato::where('nro',$contrato)->first();
+                        $pagoRepetido = IngresosFactura::where('factura', $factura_id)
+                            ->where('pagado', $montoPago)
+                            ->whereHas('ingresoRelation', function ($query) {
+                                $query->whereBetween('created_at', [now()->subSeconds(600), now()]);
+                            })
+                            ->exists();
 
-                            if($contrato && $contrato->pago_siigo_contrato == 1){
-                                $siigo = new SiigoController();
-                                $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
-                                if(isset($response['success']) && $response['success'] == false){
-                                    return back()->with('danger', "No se ha podido establecer conexión con siigo y no se ha generado el pago")->withInput();
-                                }
-                            }
+
+                        if ($pagoRepetido) {
+                            $factura = Factura::find($factura_id);
+                            Log::info("No permitio la creacion de un pago duplicado" . $factura_id);
+                            return back()->with('danger', ' Ya has registrado un pago de $' . number_format($montoPago, 0, ',', '.') . ' recientemente para la factura N° ' . $factura->codigo . '. Evita pagos duplicados, intenta en dos minutos de nuevo.')->withInput();
                         }
 
                         if($factura->estatus == 0){
@@ -433,12 +419,30 @@ class IngresosController extends Controller
                             return back()->with('danger', $mensaje)->withInput();
                         }
 
+                        if(!$pagoRepetido){
+                            $sumaPagos = round(IngresosFactura::join('ingresos as i','i.id','ingresos_factura.ingreso')
+                            ->where('factura',$factura_id)
+                            ->where('i.estatus',1)
+                            ->sum('pago')
+                            );
+                            $totalFact = $factura->total()->total;
+
+                            if($sumaPagos >= $totalFact){
+
+                                $factura->estatus = 0;
+                                $factura->save();
+
+                                Log::info("No permitio la creacion de un pago duplicado" . $factura_id);
+                                $mensaje='La factura que estas intentando pagar ya tiene el total de la factura pagado. FACTURA N° '.$factura->codigo;
+                                return back()->with('danger', $mensaje)->withInput();
+                            }
+                        }
+
                         //Conversión de factura estandar a factura electrónica.
-                        if(isset($request->tipo_electronica) && $request->tipo_electronica == 1 ||
-                           isset($request->tipo_electronica) && $request->tipo_electronica == 2){
+                        if(isset($request->tipo_electronica) && $request->tipo_electronica == 1){
 
                             //primero recuperamos
-                            $nro=NumeracionFactura::where('empresa',$empresa->id)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                            $nro=NumeracionFactura::where('empresa',1)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
                             $inicio = $nro->inicio;
 
                             if($factura->tipo != 2 && $request->precio[$key] > 0)
@@ -456,19 +460,20 @@ class IngresosController extends Controller
                                 $nro->save();
                             }
                         }
-                    }
 
-                    if($request->tipo_electronica == 2){
-                        foreach ($request->factura_pendiente as $key => $value) {
-                            $factura = Factura::find($request->factura_pendiente[$key]);
-                            //si tiene el tipo 2 es por que desean emitir la(s) factura(s).
-                            if($factura->emitida != 1){
-                                $emision = app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
-                                Log::info($emision);
-                            }
+                        //tipo_electronica 2
+                        if(isset($request->tipo_electronica) && $request->tipo_electronica == 2){
+                                //si tiene el tipo 2 es por que desean emitir la(s) factura(s).
+                                if($factura->emitida != 1){
+
+                                    if($factura->tipo == 1){
+                                        $conversion = app(FacturasController::class)->convertirelEctronica($factura->id,0,1);
+                                    }
+
+                                    $emision = app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                }
                         }
                     }
-
                 }else {
                         $mensaje='No hay facturas pendientes seleccionadas.';
                         return back()->with('danger', $mensaje)->withInput();

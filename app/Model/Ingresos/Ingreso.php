@@ -346,4 +346,23 @@ class Ingreso extends Model
         ->sum('credito');
     }
 
+    public function uniqueNroFresh(){
+        if(Ingreso::where('nro',$this->nro)->count() > 1){
+            $nro = Numeracion::where('empresa', 1)->first();
+            $caja = $nro->caja;
+
+             // Validacion para que solo asigne numero consecutivo si no existe.
+             while (Ingreso::where('empresa', 1)->where('nro', $caja)->first()) {
+                $nro = $nro->fresh();
+                $nro->caja+= 1;
+                $caja=$nro->caja;
+                $nro->save();
+            }
+
+            $this->nro = $caja;
+            $this->save();
+
+        }
+    }
+
 }
