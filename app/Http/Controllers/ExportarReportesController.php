@@ -411,7 +411,7 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas Estándar desde ".$request->fecha." hasta ".$request->hasta;
 
-        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Estrato', 'Municipio','Celular','Direccion','Barrio','Creacion','Vencimiento','Dian','Estatus','Forma Pago','Periodo Cobrado','Items','Iva','Antes de Impuesto','Despues de Impuesto','Por Pagar','Pagado');
+        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Contrato','Estrato', 'Municipio','Celular','Direccion','Barrio','Creacion','Vencimiento','Dian','Estatus','Forma Pago','Periodo Cobrado','Items','Iva','Antes de Impuesto','Despues de Impuesto','Por Pagar','Pagado');
         $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
         ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
@@ -422,17 +422,17 @@ class ExportarReportesController extends Controller
         ->setCategory("Reporte excel"); //Categorias
         // Se combinan las celdas A1 hasta D1, para colocar ah��� el titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:T1');
+            ->mergeCells('A1:U1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1',$tituloReporte);
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman' ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:T1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:U1')->applyFromArray($estilo);
         $estilo =array('fill' => array(
             'type' => PHPExcel_Style_Fill::FILL_SOLID,
             'color' => array('rgb' => 'd08f50')));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:T3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:U3')->applyFromArray($estilo);
 
 
         for ($i=0; $i <count($titulosColumnas) ; $i++) {
@@ -440,9 +440,11 @@ class ExportarReportesController extends Controller
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i].'3', utf8_decode($titulosColumnas[$i]));
         }
 
-        $facturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
+        $facturas = Factura::
+        join('contactos as c', 'factura.cliente', '=', 'c.id')
+        ->leftJoin('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
         ->select('factura.id', 'factura.codigo', 'factura.nro','factura.cot_nro', DB::raw('c.nombre as nombrecliente'),
-            'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa', 'factura.emitida')
+            'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa', 'factura.emitida','fc.contrato_nro')
         ->where('factura.tipo',1)
         ->where('factura.empresa',Auth::user()->empresa)
         ->groupBy('factura.id');
@@ -501,32 +503,33 @@ class ExportarReportesController extends Controller
             ->setCellValue($letras[0].$i, $factura->codigo)
             ->setCellValue($letras[1].$i, $cliente->nombre.' '.$cliente->apellidos())
             ->setCellValue($letras[2].$i, $cliente->nit)
-            ->setCellValue($letras[3].$i, $cliente->estrato)
-            ->setCellValue($letras[4].$i, $cliente->municipio()->nombre)
-            ->setCellValue($letras[5].$i, $cliente->celular)
-            ->setCellValue($letras[6].$i, $cliente->direccion)
-            ->setCellValue($letras[7].$i, $cliente->barrio()->nombre)
-            ->setCellValue($letras[8].$i, date('d-m-Y', strtotime($factura->fecha)))
-            ->setCellValue($letras[9].$i, date('d-m-Y', strtotime($factura->vencimiento)))
-            ->setCellValue($letras[10].$i, $factura->emitida == 1 ? 'Emitida' : 'No Emitida')
-            ->setCellValue($letras[11].$i, $factura->estatus())
-            ->setCellValue($letras[12].$i, $formaPago != "" ? $formaPago : "No tiene forma de pago.")
-            ->setCellValue($letras[13].$i, $factura->periodoCobradoTexto())
-            ->setCellValue($letras[14].$i, $factura->listItems())
-            ->setCellValue($letras[15].$i, $totalFactura->valImpuesto)
-            ->setCellValue($letras[16].$i, $totalFactura->subtotal)
-            ->setCellValue($letras[17].$i, $totalFactura->total)
-            ->setCellValue($letras[18].$i, $porPagar)
-            ->setCellValue($letras[19].$i, $pagado)
+            ->setCellValue($letras[3].$i, $factura->contrato_nro)
+            ->setCellValue($letras[4].$i, $cliente->estrato)
+            ->setCellValue($letras[5].$i, $cliente->municipio()->nombre)
+            ->setCellValue($letras[6].$i, $cliente->celular)
+            ->setCellValue($letras[7].$i, $cliente->direccion)
+            ->setCellValue($letras[8].$i, $cliente->barrio()->nombre)
+            ->setCellValue($letras[9].$i, date('d-m-Y', strtotime($factura->fecha)))
+            ->setCellValue($letras[10].$i, date('d-m-Y', strtotime($factura->vencimiento)))
+            ->setCellValue($letras[11].$i, $factura->emitida == 1 ? 'Emitida' : 'No Emitida')
+            ->setCellValue($letras[12].$i, $factura->estatus())
+            ->setCellValue($letras[13].$i, $formaPago != "" ? $formaPago : "No tiene forma de pago.")
+            ->setCellValue($letras[14].$i, $factura->periodoCobradoTexto())
+            ->setCellValue($letras[15].$i, $factura->listItems())
+            ->setCellValue($letras[16].$i, $totalFactura->valImpuesto)
+            ->setCellValue($letras[17].$i, $totalFactura->subtotal)
+            ->setCellValue($letras[18].$i, $totalFactura->total)
+            ->setCellValue($letras[19].$i, $porPagar)
+            ->setCellValue($letras[20].$i, $pagado)
             ;
             $i++;
         }
 
         $objPHPExcel->setActiveSheetIndex(0)
-            ->setCellValue($letras[16].$i, "TOTAL: ")
-            ->setCellValue($letras[17].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($total))
-            ->setCellValue($letras[18].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($porPagarTotal))
-            ->setCellValue($letras[19].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($pagadoTotal));
+            ->setCellValue($letras[17].$i, "TOTAL: ")
+            ->setCellValue($letras[18].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($total))
+            ->setCellValue($letras[19].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($porPagarTotal))
+            ->setCellValue($letras[20].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($pagadoTotal));
 
         $estilo =array('font'  => array('size'  => 12, 'name'  => 'Times New Roman' ),
             'borders' => array(
@@ -534,7 +537,7 @@ class ExportarReportesController extends Controller
                     'style' => PHPExcel_Style_Border::BORDER_THIN
                 )
             ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:T'.$i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:U'.$i)->applyFromArray($estilo);
 
 
         for($i = 'A'; $i <= $letras[20]; $i++){

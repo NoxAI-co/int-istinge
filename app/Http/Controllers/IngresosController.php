@@ -1906,46 +1906,7 @@ class IngresosController extends Controller
                             $contrato = Contrato::where('client_id', $cliente->id)->first();
                             $res = DB::table('contracts')->where('client_id',$cliente->id)->update(["state" => 'enabled']);
 
-                            /* * * API MK * * */
-                            if($contrato && $contrato->server_configuration_id){
-                                $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-
-                                $API = new RouterosAPI();
-                                $API->port = $mikrotik->puerto_api;
-
-                                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                    $API->write('/ip/firewall/address-list/print', TRUE);
-                                    $ARRAYS = $API->read();
-
-                                    #ELIMINAMOS DE MOROSOS#
-                                    $API->write('/ip/firewall/address-list/print', false);
-                                    $API->write('?address='.$contrato->ip, false);
-                                    $API->write("?list=morosos",false);
-                                    $API->write('=.proplist=.id');
-                                    $ARRAYS = $API->read();
-
-                                    if(count($ARRAYS)>0){
-                                        $API->write('/ip/firewall/address-list/remove', false);
-                                        $API->write('=.id='.$ARRAYS[0]['.id']);
-                                        $READ = $API->read();
-                                    }
-                                    #ELIMINAMOS DE MOROSOS#
-
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "list" => 'ips_autorizadas'
-                                        )
-                                    );
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-
-                                    $API->disconnect();
-
-                                    $contrato->state = 'enabled';
-                                    $contrato->save();
-                                }
-                            }
-                            /* * * API MK * * */
+                            //LA EJECUCION DE FUNCIONES MIKROTIK SE DEJARA EN EL CRONJOB REFRESHCORTEINTERNETTV
 
                             /* * * ENVÍO SMS * * */
                             $servicio = Integracion::where('empresa', Auth::user()->empresa)->where('tipo', 'SMS')->where('status', 1)->first();
