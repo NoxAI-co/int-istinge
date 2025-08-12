@@ -369,6 +369,7 @@ Route::group(['prefix' => 'Olt'], function(){
 	Route::post('update-ethernet-port', 'OltController@update_ethernet_port')->name('olt.update-ethernet-port');
 
 	// Modales
+    Route::get('get-modal-location', 'OltController@getModalLocationDetail')->name('olt.get-modal-location');
 	Route::get('get-modal-onu', 'OltController@getModalMoveOnu')->name('olt.get-modal-onu');
 	Route::post('move-onu-modal', 'OltController@updateMoveOnuModal')->name('olt.update-modal-onu');
 
