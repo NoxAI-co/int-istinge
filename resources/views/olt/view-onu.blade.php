@@ -97,6 +97,11 @@
             word-break: break-word;
         }
 
+        .value.strong{
+            font-weight: bold;
+            color: #333;
+        }
+
 </style>
 @section('content')
 <div class="mt-0 font-pair">
@@ -111,13 +116,13 @@
                 <div class="col-md-6">
                     <ul class="list-unstyled">
                         <li><span class="title">OLT:</span>
-                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['olt_name'] }}</a></span>
+                            <span class="value strong"><a href="#" onclick="modalMoveOnu()">{{ $details['olt_name'] }}</a></span>
                         </li>
                         <li><span class="title">Board:</span>
-                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['board'] }}</a></span>
+                            <span class="value strong"><a href="#" onclick="modalMoveOnu()">{{ $details['board'] }}</a></span>
                         </li>
                         <li><span class="title">Port:</span>
-                            <span class="value"><a href="#" onclick="modalMoveOnu()">{{ $details['port'] }}</a></span>
+                            <span class="value strong"><a href="#" onclick="modalMoveOnu()">{{ $details['port'] }}</a></span>
                         </li>
                         <li><span class="title">ONU:</span>
                             <span class="value">{{ $details['pon_type'] . "/" . $details['board'] . "/" .
@@ -130,7 +135,7 @@
                             <span class="value"><a href="#">{{ $details['onu_type_name'] }}</a></span>
                         </li>
                         <li><span class="title">Zone:</span>
-                            <span class="value"><a href="#">{{ $details['zone_name'] }}</a></span>
+                            <span class="value strong"><a href="#" onclick="modalLocationDetails()">{{ $details['zone_name'] }}</a></span>
                         </li>
                         <li><span class="title">ODB (Splitter):</span>
                             <span class="value">None</span>
@@ -461,6 +466,7 @@
 
   @include('olt.modals.ethernet-port')
   @include('olt.modals.move-onu')
+  @include('olt.modals.location-details')
 
 @endsection
 
@@ -1097,13 +1103,26 @@
 
 {{-- Scripts MOVE ONU --}}
 <script>
+
+    function modalLocationDetails(){
+
+        var url = `{{ route('olt.get-modal-location') }}`
+
+        // Mostrar preloader antes de enviar
+        Swal.fire({
+            title: 'Cargando información...',
+            type:'info',
+            allowOutsideClick: false
+        });
+
+        // Mostrar modal
+        $("#locationDetails").modal('show');
+
+    }
+
     function modalMoveOnu() {
 
-        if (window.location.pathname.split("/")[1] === "software") {
-            var url='/software/Olt/get-modal-onu';
-        }else{
-            var url = '/Olt/get-modal-onu';
-        }
+        var url = `{{ route('olt.get-modal-onu') }}`
 
         // Mostrar preloader antes de enviar
         Swal.fire({
@@ -1183,61 +1202,61 @@
 
     function update_move_onu() {
 
-let board = $('#board-select').val();
-let port = $('#port-select').val();
-let olt = $('#olt-select').val();
-let sn = `{{ $details['sn'] }}`;
+    let board = $('#board-select').val();
+    let port = $('#port-select').val();
+    let olt = $('#olt-select').val();
+    let sn = `{{ $details['sn'] }}`;
 
-if (window.location.pathname.split("/")[1] === "software") {
-    var url = '/software/Olt/move-onu-modal';
-} else {
-    var url = '/Olt/move-onu-modal';
-}
-
-// Mostrar preloader antes de enviar
-Swal.fire({
-    title: 'Moviendo ONU...',
-    type:'info',
-    html: 'Por favor espera mientras se actualiza la información.',
-    allowOutsideClick: false,
-    didOpen: () => {
-        Swal.showLoading();
+    if (window.location.pathname.split("/")[1] === "software") {
+        var url = '/software/Olt/move-onu-modal';
+    } else {
+        var url = '/Olt/move-onu-modal';
     }
-});
 
-$.ajax({
-    url: url,
-    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-    method: 'post',
-    data: {
-        sn: sn,
-        board: board,
-        port: port,
-        olt_id: olt
-    },
-    success: function (data) {
-        if (data.status == 200) {
-            Swal.fire({
-                title: '¡ONU movida correctamente!',
-                type: 'success',
-                showConfirmButton: false,
-                allowOutsideClick: false,
-                timer: 2000
-            });
-            $('#moveOnuModal').modal('hide');
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            Swal.close();
-            alert("Hubo un error, comuníquese con soporte.");
+    // Mostrar preloader antes de enviar
+    Swal.fire({
+        title: 'Moviendo ONU...',
+        type:'info',
+        html: 'Por favor espera mientras se actualiza la información.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
         }
-    },
-    error: function () {
-        Swal.close();
-        alert("Error en la conexión con el servidor.");
-    }
-});
+    });
+
+    $.ajax({
+        url: url,
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        method: 'post',
+        data: {
+            sn: sn,
+            board: board,
+            port: port,
+            olt_id: olt
+        },
+        success: function (data) {
+            if (data.status == 200) {
+                Swal.fire({
+                    title: '¡ONU movida correctamente!',
+                    type: 'success',
+                    showConfirmButton: false,
+                    allowOutsideClick: false,
+                    timer: 2000
+                });
+                $('#moveOnuModal').modal('hide');
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                Swal.close();
+                alert("Hubo un error, comuníquese con soporte.");
+            }
+        },
+        error: function () {
+            Swal.close();
+            alert("Error en la conexión con el servidor.");
+        }
+    });
 }
 
 
