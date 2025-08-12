@@ -3,11 +3,11 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Move ONU <span id="ethernetName"></span></h5>
-          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Cerrar">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
           </button>
         </div>
-  
+
         <div class="modal-body container">
 
 
@@ -19,7 +19,7 @@
                 </select>
                 </div>
             </div>
-            
+
             <!-- BOARD -->
             <div id="board-group" class="row mb-3 align-items-center">
                 <label class="col-sm-2 col-form-label fw-bold">BOARD</label>
@@ -37,8 +37,8 @@
                 </select>
                 </div>
             </div>
-    
-    
+
+
             <div style="text-align:end">
                 <button type="button" class="btn btn-secondary mt-3" data-dismiss="modal" aria-label="Cerrar">
                     <i class="fas fa-times"></i>
@@ -49,9 +49,8 @@
                     Actualizar
                 </button>
             </div>
-  
+
         </div>
       </div>
     </div>
   </div>
-    
