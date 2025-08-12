@@ -1352,4 +1352,19 @@ class OltController extends Controller
             ]);
         }
     }
+
+    public function getModalLocationDetail(Request $request){
+        try {
+
+            return response()->json([
+                'status' => true,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 }
