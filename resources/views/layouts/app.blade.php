@@ -322,10 +322,15 @@
                             </div>
                         </li>
                         <li class="nav-item" id="">
+                            @if(Auth::user()->rol == 4)
+                            <a  class="nav-link"  href="{{route('tecnico.dashboard')}}">
+                            @else
                             <a  class="nav-link"  href="{{route('home')}}">
+                            @endif
                                 <i class="menu-icon fas fa-home"></i>
                                 <span class="menu-title">Inicio</span>
                             </a>
+
                         </li>
                         @include('layouts.includes.menu')
                     </ul>
