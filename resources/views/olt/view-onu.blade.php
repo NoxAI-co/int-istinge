@@ -1153,22 +1153,28 @@
                 const dataBoard = response.boards;
 
                 // Llenar OLTs
-                dataOlt.forEach(function(item) {
-                    const option = new Option(item.name, item.id);
-                    if (item.id == `{{ $details['olt_id'] }}`) {
-                        option.selected = true;
-                    }
-                    selectOlt.append(option);
-                });
+                if(dataOlt.length > 0){
+                    dataOlt.forEach(function(item) {
+                        const option = new Option(item.name, item.id);
+                        if (item.id == `{{ $details['olt_id'] }}`) {
+                            option.selected = true;
+                        }
+                        selectOlt.append(option);
+                    });
+                    selectOlt.selectpicker('refresh');
+                }
 
                 // Llenar Boards
-                dataBoard.forEach(function(item) {
-                    const option = new Option(`Slot ${item.slot}`, item.slot);
-                    if (item.slot == `{{ $details['board'] }}`) {
-                        option.selected = true;
-                    }
-                    selectBoard.append(option);
-                });
+                if(dataBoard.length > 0){
+                    dataBoard.forEach(function(item) {
+                        const option = new Option(`Slot ${item.slot}`, item.slot);
+                        if (item.slot == `{{ $details['board'] }}`) {
+                            option.selected = true;
+                        }
+                        selectBoard.append(option);
+                    });
+                    selectBoard.selectpicker('refresh');
+                }
 
                 // Obtener board seleccionada
                 const selectedBoardSlot = `{{ $details['board'] }}`;
@@ -1183,12 +1189,8 @@
                         }
                         selectPort.append(option);
                     }
+                    selectPort.selectpicker('refresh');
                 }
-
-                // Refrescar selects de Bootstrap Select
-                selectOlt.selectpicker('refresh');
-                selectBoard.selectpicker('refresh');
-                selectPort.selectpicker('refresh');
 
                 // Mostrar modal
                 $("#moveOnuModal").modal('show');

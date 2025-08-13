@@ -1196,6 +1196,11 @@ class CronController extends Controller
                         }
                     }
 
+                    $promesaExtendida = DB::table('promesa_pago')->where('factura', $factura->id)->where('vencimiento', '>=', $fecha)->count();
+                    if($promesaExtendida > 0){
+                        continue;
+                    }
+
                     //2. Debemos recorrer el o los contratos para que haga el disabled.
                         foreach($contratos as $contrato){
 

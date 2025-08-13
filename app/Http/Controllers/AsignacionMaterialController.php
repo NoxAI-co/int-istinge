@@ -64,7 +64,7 @@ class AsignacionMaterialController extends Controller
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
-            ->where('type', 'MATERIAL')
+            // ->where('type', 'MATERIAL')
             ->havingRaw('if(inventario.tipo_producto=1, id in (Select producto from productos_bodegas where bodega=' . $bodega->id . '), true)')
             ->orderBy('producto', 'ASC')
             ->get();
@@ -160,7 +160,7 @@ class AsignacionMaterialController extends Controller
         $fecha = date('d-m-Y');
 
         $asignar_material = AsignarMaterial::with(['items.material'])->find($asignar_material);
-        
+
         if (!$asignar_material) {
             return redirect('empresa/asignacion_material')->with('error', 'Asignación de material no encontrada');
         }
