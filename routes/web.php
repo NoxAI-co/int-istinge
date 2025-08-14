@@ -161,6 +161,7 @@ Route::get('/testerroute54', 'Controller@tester54');
 Route::get('qrcode', function () {
 	return QrCode::generate('Make me into a QrCode!');
 });
+Route::post('configuracion_separacion_numero_contrato', 'ConfiguracionController@contratoNumeracion')->name('configuracion.contrato_numeracion');
 Route::post('configuracion_facturas_contratos_off', 'ConfiguracionController@facturaContratoOff');
 Route::post('configuracion_chat_ia', 'ConfiguracionController@chatIA');
 Route::post('configuracion_facturacionAutomatica', 'ConfiguracionController@facturacionAutomatica');

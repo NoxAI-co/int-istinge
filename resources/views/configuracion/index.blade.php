@@ -165,6 +165,9 @@
                         <a href="javascript:facturacionContratosOff()">{{ Auth::user()->empresa()->factura_contrato_off == 0 ? 'Habilitar':'Deshabilitar' }} facturas en contratos deshabilitados</a><br>
 			            <input type="hidden" id="factura_contrato_off" value="{{Auth::user()->empresa()->factura_contrato_off}}">
 
+                        <a href="javascript:separarNumeracionContrato()">{{ Auth::user()->empresa()->separar_numeracion == 0 ? 'Separar':'Unificar' }} Numeración por servidor</a><br>
+			            <input type="hidden" id="separar_numeracion" value="{{Auth::user()->empresa()->separar_numeracion}}">
+
                         {{-- Valor de reconexion generico --}}
                         <a href="javascript:reconexionGenerica()">{{ Auth::user()->empresa()->reconexion_generica == 0 ? 'Habilitar' : 'Deshabilitar' }}
                             Valor de reconexión genérico</a><br>
@@ -881,6 +884,65 @@
 
                 }
             })
+        }
+
+        function separarNumeracionContrato(){
+
+        let url = `{{ route('configuracion.contrato_numeracion') }}`;
+
+        if ($("#separar_numeracion").val() == 0) {
+            $titleswal = "¿Desea separar la numeración del contrato por servidor?";
+        }
+
+        if ($("#separar_numeracion").val() == 1) {
+            $titleswal = "¿Desea unificar la numeración de los contratos sin separarla por servidor?";
+        }
+
+        Swal.fire({
+            title: $titleswal,
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Aceptar',
+        }).then((result) => {
+            if (result.value) {
+                $.ajax({
+                    url: url,
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    method: 'post',
+                    data: { separar_numeracion: $("#separar_numeracion").val() },
+                    success: function (data) {
+                        console.log(data);
+                        if (data == 1) {
+                            Swal.fire({
+                                type: 'success',
+                                title: 'Nuemración de contratos configurada para separar por servidor',
+                                showConfirmButton: false,
+                                timer: 5000
+                            })
+                            $("#separar_numeracion").val(1);
+                        } else {
+                            Swal.fire({
+                                type: 'success',
+                                title: 'Numeración de contratos configurada para unificar sin separar por servidor',
+                                showConfirmButton: false,
+                                timer: 5000
+                            })
+                            $("#separar_numeracion").val(0);
+                        }
+                        setTimeout(function(){
+                            var a = document.createElement("a");
+                            a.href = window.location.pathname;
+                            a.click();
+                        }, 1000);
+                    }
+                });
+
+            }
+        })
+
         }
 
         function facturacionContratosOff() {

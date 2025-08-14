@@ -59,7 +59,7 @@
         <span class="help-block error">
           <strong>{{ $errors->first('servidor') }}</strong>
         </span>
-      </div>
+    </div>
 
     @if(Auth::user()->empresa()->oficina)
     <div class="col-md-4 form-group">

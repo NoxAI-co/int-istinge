@@ -169,7 +169,7 @@ class ContratosController extends Controller
             ->leftJoin('municipios', 'contactos.fk_idmunicipio', '=', 'municipios.id')
             ->leftJoin('barrios as barrio', 'barrio.id', 'contactos.barrio_id');
 
-
+        //Buscamos los contratos con server configuration + los que no tienen conf pero son de tv.
         if ($user->servidores->count() > 0) {
             $servers = $user->servidores->pluck('id')->toArray();
 
