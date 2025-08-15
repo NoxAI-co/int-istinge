@@ -296,6 +296,34 @@
 
 	  	<hr>
 
+        	<!-- Sección de Adjuntos -->
+	  	<div class="row">
+            <div class="col-md-12">
+                <h5><i class="fas fa-paperclip"></i> Documentos Adjuntos</h5>
+                <p class="text-muted">Puedes adjuntar hasta 3 documentos (PDF, JPG, PNG, DOCX - Máximo 5MB cada uno)</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="form-group col-md-4">
+                <label class="control-label">Documento 1</label>
+                <input type="file" class="form-control-file" name="adjunto1" id="adjunto1" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                <small class="text-muted">Máximo 5MB</small>
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">Documento 2</label>
+                <input type="file" class="form-control-file" name="adjunto2" id="adjunto2" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                <small class="text-muted">Máximo 5MB</small>
+            </div>
+            <div class="form-group col-md-4">
+                <label class="control-label">Documento 3</label>
+                <input type="file" class="form-control-file" name="adjunto3" id="adjunto3" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                <small class="text-muted">Máximo 5MB</small>
+            </div>
+        </div>
+
+        <hr>
+
 	  	<div class="row" style="text-align: right;">
 	  		<div class="col-md-12">
 	  			<a href="{{route('ventas-externas.index')}}" class="btn btn-outline-light" >Cancelar</a>

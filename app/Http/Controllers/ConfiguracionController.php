@@ -1980,6 +1980,22 @@ class ConfiguracionController extends Controller
     }
   }
 
+
+  public function consultasMikrotik(Request $request){
+    $empresa = Empresa::find(auth()->user()->empresa);
+
+    if ($request->consultas_mk == 0) {
+      $empresa->consultas_mk = 1;
+      $empresa->save();
+      return 1;
+    } else {
+      $empresa->consultas_mk = 0;
+      $empresa->save();
+      return 0;
+    }
+  }
+
+
   public function facturacionSmsAutomatica(Request $request){
     $empresa = Empresa::find(auth()->user()->empresa);
 

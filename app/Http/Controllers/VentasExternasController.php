@@ -217,9 +217,36 @@ class VentasExternasController extends Controller{
 
         $contacto->save();
 
+        // Procesar adjuntos
+        $adjuntos = ['adjunto1', 'adjunto2', 'adjunto3'];
+        foreach ($adjuntos as $index => $adjunto) {
+            if ($request->hasFile($adjunto)) {
+                $file = $request->file($adjunto);
+
+                // Validar el archivo
+                if ($file->isValid()) {
+                    $nombreOriginal = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    $nombreArchivo = time() . '_' . ($index + 1) . '_' . $contacto->id . '.' . $extension;
+
+                    // Mover el archivo a la carpeta de destino
+                    $rutaArchivo = $file->move(public_path('adjuntos/ventas_externas'), $nombreArchivo);
+
+                    // Guardar en la base de datos
+                    VentasExternasAdjunto::create([
+                        'venta_externa_id' => $contacto->id,
+                        'nombre_archivo' => $nombreOriginal,
+                        'ruta_archivo' => 'software/adjuntos/ventas_externas/' . $nombreArchivo,
+                        'tipo_documento' => 'documento' . ($index + 1)
+                    ]);
+                }
+            }
+        }
+
         $mensaje = 'SE HA CREADO SATISFACTORIAMENTE LA VENTA EXTERNA';
         return redirect('empresa/ventas-externas')->with('success', $mensaje);
     }
+
 
     public function edit($id){
         $this->getAllPermissions(Auth::user()->id);
@@ -240,6 +267,7 @@ class VentasExternasController extends Controller{
     }
 
     public function update(Request $request, $id){
+
         $contacto = VentasExternas::where('id',$id)->where('empresa',Auth::user()->empresa)->first();
         if ($contacto) {
             $contacto->empresa           = Auth::user()->empresa;
@@ -276,6 +304,46 @@ class VentasExternasController extends Controller{
             $contacto->plan_velocidad    = $request->plan;
             $contacto->costo_instalacion = $request->costo_instalacion;
             $contacto->save();
+
+            // Procesar nuevos adjuntos
+            $nuevosAdjuntos = ['nuevo_adjunto1', 'nuevo_adjunto2', 'nuevo_adjunto3'];
+            $adjuntosExistentes = VentasExternasAdjunto::where('venta_externa_id', $contacto->id)->count();
+
+            // Verificar límite total de adjuntos (máximo 10 por ejemplo)
+            $adjuntosASubir = 0;
+            foreach ($nuevosAdjuntos as $adjunto) {
+                if ($request->hasFile($adjunto)) {
+                    $adjuntosASubir++;
+                }
+            }
+
+            if (($adjuntosExistentes + $adjuntosASubir) > 10) {
+                return redirect()->back()->with('danger', 'No se pueden agregar más adjuntos. Límite máximo: 10 archivos por venta externa.');
+            }
+
+            foreach ($nuevosAdjuntos as $index => $adjunto) {
+                if ($request->hasFile($adjunto)) {
+                    $file = $request->file($adjunto);
+
+                    // Validar el archivo
+                    if ($file->isValid()) {
+                        $nombreOriginal = $file->getClientOriginalName();
+                        $extension = $file->getClientOriginalExtension();
+                        $nombreArchivo = time() . '_' . ($adjuntosExistentes + $index + 1) . '_' . $contacto->id . '.' . $extension;
+
+                        // Mover el archivo a la carpeta de destino
+                        $rutaArchivo = $file->move(public_path('adjuntos/ventas_externas'), $nombreArchivo);
+
+                        // Guardar en la base de datos
+                        VentasExternasAdjunto::create([
+                            'venta_externa_id' => $contacto->id,
+                            'nombre_archivo' => $nombreOriginal,
+                            'ruta_archivo' => 'software/adjuntos/ventas_externas/' . $nombreArchivo,
+                            'tipo_documento' => 'documento_adicional_' . ($adjuntosExistentes + $index + 1)
+                        ]);
+                    }
+                }
+            }
 
             return redirect('empresa/ventas-externas')->with('success', 'SE HA MODIFICADO SATISFACTORIAMENTE LA VENTA EXTERNA');
         }

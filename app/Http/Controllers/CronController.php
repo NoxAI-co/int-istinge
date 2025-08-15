@@ -938,7 +938,7 @@ class CronController extends Controller
 
                         if($promesaExtendida > 0){
 
-                            if($contrato->state != 'enabled'){
+                            if($contrato->state != 'enabled' && $empresa->consultas_mk ==1){
 
                                 if(isset($contrato->server_configuration_id) && $factura->estatus != 0){
 
@@ -1008,6 +1008,7 @@ class CronController extends Controller
                                 $API = new RouterosAPI();
                                 $API->port = $mikrotik->puerto_api;
 
+                                if($empresa->consultas_mk ==1){
                                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
                                     $API->write('/ip/firewall/address-list/print', TRUE);
                                     $ARRAYS = $API->read();
@@ -1037,6 +1038,8 @@ class CronController extends Controller
                                     }
                                     $API->disconnect();
                                 }
+                                }
+
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();

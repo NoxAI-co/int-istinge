@@ -92,6 +92,8 @@
             <a href="{{ route('configuracion.servicios') }}">Servicios</a> <br>
             <a href="{{ route('miusuario') }}">Mi perfil</a><br>
             <a href="#" data-toggle="modal" data-target="#seguridad">Seguridad</a><br>
+            <a href="javascript:consultasMk()">{{ Auth::user()->empresa()->consultas_mk == 0 ? 'Habilitar':'Deshabilitar' }} consultas a la mikrotik</a><br>
+			<input type="hidden" id="consultas_mk" value="{{Auth::user()->empresa()->consultas_mk}}">
         </div>
 
         @if (isset($_SESSION['permisos']['40']) || isset($_SESSION['permisos']['258']))
@@ -944,6 +946,63 @@
         })
 
         }
+
+        function consultasMk(){
+			let url = `{{ route('configuracion.consultas_mikrotik') }}`;
+
+		    if ($("#separar_numeracion").val() == 0) {
+		        $titleswal = "¿Desea habilitar las consultas a la mikrotik?";
+		    }
+
+		    if ($("#separar_numeracion").val() == 1) {
+		        $titleswal = "¿Desea deshabilitar las consultas a la mikrotik?";
+		    }
+
+		    Swal.fire({
+		        title: $titleswal,
+		        type: 'warning',
+		        showCancelButton: true,
+		        confirmButtonColor: '#3085d6',
+		        cancelButtonColor: '#d33',
+		        cancelButtonText: 'Cancelar',
+		        confirmButtonText: 'Aceptar',
+		    }).then((result) => {
+		        if (result.value) {
+		            $.ajax({
+		                url: url,
+		                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+		                method: 'post',
+		                data: { consultas_mk: $("#consultas_mk").val() },
+		                success: function (data) {
+		                    console.log(data);
+		                    if (data == 1) {
+		                        Swal.fire({
+		                            type: 'success',
+		                            title: 'Consultas mikrotik se ejecutarán.',
+		                            showConfirmButton: false,
+		                            timer: 5000
+		                        })
+		                        $("#consultas_mk").val(1);
+		                    } else {
+		                        Swal.fire({
+		                            type: 'success',
+		                            title: 'Consultas mikrotik no se ejecutarán.',
+		                            showConfirmButton: false,
+		                            timer: 5000
+		                        })
+		                        $("#consultas_mk").val(0);
+		                    }
+		                    setTimeout(function(){
+		                    	var a = document.createElement("a");
+		                    	a.href = window.location.pathname;
+		                    	a.click();
+		                    }, 1000);
+		                }
+		            });
+
+		        }
+		    })
+		}
 
         function facturacionContratosOff() {
 			if (window.location.pathname.split("/")[1] === "software") {

@@ -563,7 +563,9 @@ class IngresosController extends Controller
                         }
 
                         if($contrato){
-                            $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                            if($empresa->consultas_mk == 1){
+                                $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                            }
                         }
 
                         /*
@@ -603,7 +605,6 @@ class IngresosController extends Controller
                         sobre el total de la factura por que el resto es saldo a favor.
                         */
                         if($factura->total()->total < $request->precio[$key]){
-
 
                             // $items->pago = $factura->total()->total; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
                             $items->pago = $this->precision($request->precio[$key]);
