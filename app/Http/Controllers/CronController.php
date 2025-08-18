@@ -976,13 +976,14 @@ class CronController extends Controller
                                     );
                                     #AGREGAMOS A IP_AUTORIZADAS#
 
-                                    // #HABILITACION DEL PPOE#
-                                    // if($contrato->conexion == 1 && $contrato->usuario != null){
-                                    //     $API->write('/ppp/secret/enable', false);
-                                    //     $API->write('=numbers=' . $contrato->usuario);
-                                    //     $response = $API->read();
-                                    // }
-                                    // #HABILITACION DEL PPOE#
+                                    #HABILITACION DEL PPOE#
+                                    if($contrato->conexion == 1 && $contrato->usuario != null){
+                                        $API->write('/ppp/secret/enable', false);
+                                        $API->write('=numbers=' . $contrato->usuario);
+                                        $response = $API->read();
+                                    }
+                                    #HABILITACION DEL PPOE#
+
                                     $API->disconnect();
                                     }
                                 }
@@ -1032,6 +1033,14 @@ class CronController extends Controller
                                                 $READ = $API->read();
                                             }
                                             #ELIMINAMOS DE IP_AUTORIZADAS#
+
+                                            #HABILITACION DEL PPOE#
+                                            if($contrato->conexion == 1 && $contrato->usuario != null){
+                                                $API->write('/ppp/secret/disable', false);
+                                                $API->write('=numbers=' . $contrato->usuario);
+                                                $response = $API->read();
+                                            }
+                                            #HABILITACION DEL PPOE#
 
                                             #SE SACA DE LA ACTIVE CONNECTIONS
                                                if($contrato->conexion == 1 && $contrato->usuario != null){
