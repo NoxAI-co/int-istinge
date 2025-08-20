@@ -515,7 +515,7 @@ class Controller extends BaseController
                 "Content-Type: application/json",
                 "Postman-Token: 13e97781-32ef-49b7-ad05-3461f465d410",
                 "cache-control: no-cache",
-                "efacturaAuthorizationToken:62808bf1-d446-46ee-8120-00162e95c059"
+                "efacturaAuthorizationToken:OhtRSpXG-QHqV-nW5G-04NH-xPG7rHXSR2CB"
             ),
         ));
         $response = curl_exec($curl);
