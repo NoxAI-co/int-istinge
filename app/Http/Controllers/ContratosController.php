@@ -1572,7 +1572,7 @@ class ContratosController extends Controller
                 $API->port = $mikrotik->puerto_api;
                 //$API->debug = true;
 
-                if($empresa->contratos_mk == 1){
+                if($empresa->consultas_mk == 1){
                 if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
                     ## ELIMINAMOS DE MK ##
                     if ($contrato->conexion == 1) {
