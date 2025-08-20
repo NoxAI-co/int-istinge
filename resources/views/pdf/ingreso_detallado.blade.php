@@ -216,7 +216,7 @@
         </thead>
         <tbody>
             <tr>
-                <th width="15%" class="right smalltd">Mes cancelado:</th>
+                <th width="15%" class="right smalltd">Periodo Cobrado:</th>
                 <td>{{$ingreso->ingresofactura()->factura()->periodoCobradoTexto()}}</td>
             </tr>
             @if($ingreso->ingresofactura())
