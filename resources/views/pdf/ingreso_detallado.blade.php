@@ -216,8 +216,8 @@
         </thead>
         <tbody>
             <tr>
-                <th width="15%" class="right smalltd">Mes cancelado:</th>
-                <td>{{ \Carbon\Carbon::parse($ingreso->fecha)->locale('es')->translatedFormat('F Y') }}</td>
+                <th width="15%" class="right smalltd">Periodo Cobrado:</th>
+                <td>{{$ingreso->ingresofactura()->factura()->periodoCobradoTexto()}}</td>
             </tr>
             @if($ingreso->ingresofactura())
             <tr>
@@ -256,9 +256,9 @@
             </tr>
             @endforeach
 
-            @if($cont<7) 
-                @php $cont=7-$cont; @endphp 
-                @for($i=1; $i<=$cont; $i++) 
+            @if($cont<7)
+                @php $cont=7-$cont; @endphp
+                @for($i=1; $i<=$cont; $i++)
                 <tr>
                     <td colspan="2" class="border_left @if($cont==$i) border_bottom @endif" style="height: 15px;"></td>
                     <td class="border_right @if($cont==$i) border_bottom @endif" style="height: 15px;"></td>
@@ -290,7 +290,7 @@
                 <th class="right padding-right">Total</th>
                 <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->pago())}} </th>
             </tr>
-            
+
             @if($ingreso->ingresofactura() && $ingreso->ingresofactura()->factura()->porpagar() > 0)
             <tr class="foot">
                 <td> </td>
