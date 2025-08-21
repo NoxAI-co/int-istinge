@@ -1319,6 +1319,7 @@ class IngresosController extends Controller
     public function show($id){
         $this->getAllPermissions(Auth::user()->id);
         $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('id', $id)->first();
+
         if ($ingreso) {
             if ($ingreso->tipo==1) {
                 $titulo='Pago a facturas de venta';
@@ -1630,8 +1631,15 @@ class IngresosController extends Controller
             ->where('num_equivalente', 0)->where('nomina',0)->where('tipo',2)->where('preferida', 1)->first();
             $empresa = Empresa::find($ingreso->empresa);
             $paper_size = array(0,0,270,580);
-            $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact('ingreso', 'items', 'retenciones',
-             'itemscount','empresa', 'resolucion'));
+
+            if($ingreso->valor_anticipo > 0){
+                $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla_anticipo', compact('ingreso', 'items', 'retenciones',
+                'itemscount','empresa', 'resolucion'));
+            }else{
+                $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact('ingreso', 'items', 'retenciones',
+                'itemscount','empresa', 'resolucion'));
+            }
+
             $pdf->setPaper($paper_size, 'portrait');
             return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
         }
