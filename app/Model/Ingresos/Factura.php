@@ -1560,6 +1560,11 @@ public function forma_pago()
                 //Buscamos el contrato al que esta asociada la factura
                 $contrato = Contrato::find($this->contrato_id);
 
+                if($contrato->created_at == "0000-00-00 00:00:00"){
+                    $contrato->created_at = $contrato->updated_at;
+                    $contrato->save();
+                }
+
                 $yearContrato = Carbon::parse($contrato->created_at)->format('Y');
                 $mesContrato = Carbon::parse($contrato->created_at)->format('m');
                 $diaContrato = Carbon::parse($contrato->created_at)->format('d');
