@@ -4537,9 +4537,14 @@ function modificarPromesa(id) {
                                 <label class="control-label">Hora máxima de Pago <span class="text-danger">*</span></label>
                                 <select class="form-control selectpicker" title="Seleccione" name="hora_pago" id="hora_pago-${id}" required="">
                                     <option value="00:00">12:00 AM</option>
+                                    <option value="03:00">3:00 AM</option>
                                     <option value="06:00">6:00 AM</option>
+                                    <option value="09:00">9:00 AM</option>
                                     <option value="12:00">12:00 PM</option>
+                                    <option value="15:00">15:00 PM</option>
                                     <option value="18:00">6:00 PM</option>
+                                    <option value="21:00">9:00 PM</option>
+                                    <option value="23:00">11:00 PM</option>
                                 </select>
                             </div>
                         </div>
