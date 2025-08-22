@@ -2363,7 +2363,8 @@ class FacturasController extends Controller{
                $nestedData[] = date('d-m-Y', strtotime($factura->vencimiento));
             }
             if($pagado > 0 && $factura->estatus==0){
-                $nestedData[] = '<spam class="text-success">'.date('d-m-Y', strtotime($factura->ingreso()->fecha)).'</spam>';
+                $fecha = isset($factura->ingreso()->fecha) ? date('d-m-Y', strtotime($factura->ingreso()->fecha)) : '';
+                $nestedData[] = '<spam class="text-success">'.$fecha.'</spam>';
             }else{
                 $nestedData[] = '<spam class="text-danger">Fac no cerrada</spam>';
             }
