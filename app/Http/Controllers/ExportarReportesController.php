@@ -3719,10 +3719,16 @@ class ExportarReportesController extends Controller
                 }
             }
 
+            $barrio = "";
+            if($movimiento->cliente() != ""){
+                $movimiento->cliente()->barrio()->nombre;
+            }
+
+
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0].$i, date('d-m-Y', strtotime($movimiento->fecha)))
                 ->setCellValue($letras[1].$i, $movimiento->show_modulo()!=null?$movimiento->show_modulo()->nro:$movimiento->id_modulo)
-                ->setCellValue($letras[2].$i, $movimiento->cliente()->barrio()->nombre)
+                ->setCellValue($letras[2].$i, $barrio)
                 ->setCellValue($letras[3].$i, $nombres)
                 ->setCellValue($letras[4].$i, $identificacion)
                 ->setCellValue($letras[5].$i, $nroContrato)

@@ -2501,6 +2501,7 @@ class ContratosController extends Controller
         $contrato = Contrato::find($id);
         $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
         $empresa = Auth::user()->empresa();
+        $descripcion = "";
 
         //$API->debug = true;
             if($contrato){
