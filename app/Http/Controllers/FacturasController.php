@@ -4379,6 +4379,8 @@ class FacturasController extends Controller{
             return back()->with('danger', 'No se pudo enviar el mensaje, por favor intente nuevamente.');
         }
 
+        $factura->whatsapp = 1;
+        $factura->save();
         return back()->with('success', 'Mensaje enviado correctamente.');
 
     }

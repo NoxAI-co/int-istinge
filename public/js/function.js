@@ -4541,7 +4541,7 @@ function modificarPromesa(id) {
                                     <option value="06:00">6:00 AM</option>
                                     <option value="09:00">9:00 AM</option>
                                     <option value="12:00">12:00 PM</option>
-                                    <option value="15:00">15:00 PM</option>
+                                    <option value="15:00">3:00 PM</option>
                                     <option value="18:00">6:00 PM</option>
                                     <option value="21:00">9:00 PM</option>
                                     <option value="23:00">11:00 PM</option>
