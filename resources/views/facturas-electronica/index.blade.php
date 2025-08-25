@@ -70,7 +70,7 @@
 	    	</button>
 	    </div>
 	@endif
-
+{{--
     @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
@@ -86,7 +86,7 @@
             <span aria-hidden="true">&times;</span>
         </button>
     </div>
-    @endif
+    @endif --}}
 
 
 	<div class="container-fluid d-none" id="form-filter">
