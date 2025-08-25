@@ -403,6 +403,7 @@ class FacturasController extends Controller{
             'c.email as emailcliente',
             'c.celular as celularcliente',
             'c.nombre as nombrecliente',
+            'c.nit as nitcliente',
             'c.apellido1 as ape1cliente',
             'c.apellido2 as ape2cliente',
             'factura.tipo',
@@ -537,7 +538,7 @@ class FacturasController extends Controller{
                         $query->orWhere('factura.emitida', 0)->where('factura.dian_response',null);
                     }
                     else{
-                        $query->orWhere('factura.emitida', 0)->whereIn('factura.dian_response',[409,504]);
+                        $query->orWhere('factura.emitida', 0)->whereIn('factura.dian_response',[409,504,401]);
                     }
                 });
             }

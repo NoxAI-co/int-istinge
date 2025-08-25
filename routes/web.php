@@ -1426,6 +1426,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('ejemplo', 'ContratosController@ejemplo')->name('contratos.ejemplo');
 		Route::post('importar', 'ContratosController@cargando')->name('contratos.importar_cargando');
 
+        Route::get('actualizar', 'ContratosController@actualizar')->name('contratos.actualizar');
+        Route::post('data-ejemplo', 'ContratosController@data_ejemplo')->name('contratos.data_ejemplo');
+
 		Route::get('importarMK', 'ContratosController@importarMK')->name('contratos.importarMK');
 		Route::post('opciones_dian', 'ContratosController@opcion_dian');
 

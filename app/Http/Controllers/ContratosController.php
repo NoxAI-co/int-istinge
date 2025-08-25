@@ -4244,6 +4244,190 @@ class ContratosController extends Controller
         return view('contratos.importar')->with(compact('mikrotiks', 'planes', 'grupos'));
     }
 
+    public function actualizar()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Actualizar Contratos Internet desde Excel', 'full' => true]);
+
+        $mikrotiks = Mikrotik::all();
+        $planes = PlanesVelocidad::all();
+        $grupos = GrupoCorte::all();
+
+        return view('contratos.actualizar')->with(compact('mikrotiks', 'planes', 'grupos'));
+    }
+
+    public function data_ejemplo(Request $request){
+
+        $conexion = $request->input('conexion');
+
+        // Ahora puedes hacer lo que necesites con el valor de $conexion
+        if ($conexion == 1) {
+            // Lógica para PPPoE
+            $titulosColumnas = array('nro contrato','Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato', 'Profile', 'IP Local Address', 'Usuario', 'Contrasena');
+        } else {
+            // Lógica para IP Estática
+            $titulosColumnas = array('nro contrato','Identificacion', 'Servicio', 'Serial ONU', 'Plan', 'Mikrotik', 'Estado', 'IP', 'MAC', 'Conexion', 'Interfaz', 'Segmento', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento', 'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik');
+        }
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = "Archivo de actualizacion de Contratos Internet " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+
+        $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
+            ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific171717
+            ->setTitle("Archivo Actualización Contratos") // Titulo
+            ->setSubject("Archivo Actualización Contratos") //Asunto
+            ->setDescription("Archivo Actualización Contratos") //Descripción
+            ->setKeywords("Archivo Actualización Contratos") //Etiquetas
+            ->setCategory("Archivo Actualización"); //Categorias
+        // Se combinan las celdas A1 hasta D1, para colocar ah171717 el titulo del reporte
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:N1');
+        // Se agregan los titulos del reporte
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        // Titulo del reporte
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:N2');
+        // Se agregan los titulos del reporte
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y')); // Titulo del reporte
+
+        $estilo = array(
+            'font'  => array(
+                'bold'  => true,
+                'size'  => 12,
+                'name'  => 'Times New Roman'
+            ),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
+            )
+        );
+
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AA3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array(
+                'bold'  => true,
+                'size'  => 12,
+                'name'  => 'Times New Roman',
+                'color' => array(
+                    'rgb' => 'FFFFFF'
+                ),
+            ),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
+            )
+        );
+
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AA3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        $contratos = Contrato::all();
+        $j = 4;
+
+        $objPHPExcel->getActiveSheet()->getComment('B3')->setAuthor('Integra Colombia')->getText()->createTextRun('Identificacion del Cliente ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('E3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del plan ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('F3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre de la mikrotik ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('G3')->setAuthor('Integra Colombia')->getText()->createTextRun('Habilitado o Deshabilitado');
+        $objPHPExcel->getActiveSheet()->getComment('J3')->setAuthor('Integra Colombia')->getText()->createTextRun('PPPOE, DHCP, IP Estatica o VLAN');
+        $objPHPExcel->getActiveSheet()->getComment('M3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del nodo ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('N3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del access point ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('O3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del grupo de corte ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('P3')->setAuthor('Integra Colombia')->getText()->createTextRun('Estandar o Electronica');
+        $objPHPExcel->getActiveSheet()->getComment('R3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre del canal ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('S3')->setAuthor('Integra Colombia')->getText()->createTextRun('Nombre de la oficina ya registrado en el sistema');
+        $objPHPExcel->getActiveSheet()->getComment('T3')->setAuthor('Integra Colombia')->getText()->createTextRun('Fibra o Inalambrica');
+        $objPHPExcel->getActiveSheet()->getComment('U3')->setAuthor('Integra Colombia')->getText()->createTextRun('Fecha en formato yyyy-mm-dd hh:mm:ss');
+        $objPHPExcel->getActiveSheet()->getComment('V3')->setAuthor('Integra Colombia')->getText()->createTextRun('Indique son Si o No');
+
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array(
+                'allborders' => array(
+                    'style' => PHPExcel_Style_Border::BORDER_THIN
+                )
+            ),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
+            )
+        );
+
+        $objPHPExcel->getActiveSheet()->getStyle('A3:Z' . $j)->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $letras[20]; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        $contratos = Contrato::all();
+        //Llenado de datos
+        foreach ($contratos as $contrato) {
+
+            $cliente = $contrato->cliente();
+            $plan = PlanesVelocidad::find($contrato->plan_id);
+            $microtik = Mikrotik::find($contrato->server_configuration_id);
+            $grupo = GrupoCorte::find($contrato->grupo_corte);
+            $facturacion = $contrato->facturacion == 1 ? 'Estandar' : 'Electronica';
+
+
+            $objPHPExcel->setActiveSheetIndex(0)
+
+                ->setCellValue("A$j", $contrato->nro ?? '')
+                ->setCellValue("B$j", $cliente->nit ?? '')
+                ->setCellValue("C$j", $contrato->servicio ?? '')
+                ->setCellValue("D$j", $contrato->serial_onu ?? '')
+                ->setCellValue("E$j", $plan->name ?? '')
+                ->setCellValue("F$j", $microtik->nombre ?? '')
+                ->setCellValue("G$j", $contrato->state ?? '')
+                ->setCellValue("H$j", $contrato->ip ?? '')
+                ->setCellValue("I$j", $contrato->mac_address ?? '')
+                ->setCellValue("J$j", $contrato->conexion() ?? '')
+                ->setCellValue("K$j", $contrato->interfaz ?? '')
+                ->setCellValue("L$j", $contrato->local_address ?? '')
+                ->setCellValue("M$j", $contrato->nodo ?? '')
+                ->setCellValue("N$j", $contrato->access_point ?? '')
+                ->setCellValue("O$j", $grupo->nombre ?? '')
+                ->setCellValue("P$j", $facturacion ?? '')
+                ->setCellValue("Q$j", $contrato->descuento ?? '')
+                ->setCellValue("R$j", $contrato->canal ?? '')
+                ->setCellValue("S$j", $contrato->oficina ?? '')
+                ->setCellValue("T$j", $contrato->tecnologia ?? '')
+                ->setCellValue("U$j", $contrato->fecha_contrato ?? '')
+                ->setCellValue("V$j", $contrato->cliente_en_mikrotik ?? '')
+                ->setCellValue("W$j", $contrato->tipo_contrato ?? '')
+                ->setCellValue("X$j", $contrato->profile ?? '')
+                ->setCellValue("Y$j", $contrato->ip_local_address ?? '')
+                ->setCellValue("Z$j", $contrato->usuario ?? '')
+                ->setCellValue("AA$j", $contrato->contrasena ?? '');
+
+            $j++;
+        }
+
+        // Se asigna el nombre a la hoja
+        $objPHPExcel->getActiveSheet()->setTitle('Contratos');
+
+        // Se activa la hoja para que sea la que se muestre cuando el archivo se abre
+        $objPHPExcel->setActiveSheetIndex(0);
+
+        // Inmovilizar paneles
+        $objPHPExcel->getActiveSheet(0)->freezePane('A5');
+        $objPHPExcel->getActiveSheet(0)->freezePaneByColumnAndRow(0, 5);
+        $objPHPExcel->setActiveSheetIndex(0);
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Archivo_Importacion_Contratos.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+
     public function ejemplo(Request $request)
     {
         $conexion = $request->input('conexion');
