@@ -353,6 +353,7 @@ class FacturasController extends Controller{
 
         // 2. Consultar todas las facturas con ese prefijo
         $facturas = Factura::where('codigo', 'like', $prefijo . '%')
+        ->where('tipo',2)
         ->pluck('codigo')
         ->toArray();
 

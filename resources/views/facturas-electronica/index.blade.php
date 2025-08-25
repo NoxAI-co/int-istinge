@@ -86,6 +86,13 @@
             <span aria-hidden="true">&times;</span>
         </button>
     </div>
+    @else
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <span>✅ No tienes consecutivos salteados.</span>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
     @endif
 
 
