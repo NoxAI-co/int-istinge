@@ -348,7 +348,7 @@ class FacturasController extends Controller{
 
 
         $prefijo = $numeracionActual->prefijo;   // FE
-        $inicio  = (int) $numeracionActual->inicio; // 567
+        $inicio  = (int) $numeracionActual->inicioverdadero; // 567
         $final   = (int) $numeracionActual->final;  // 10000
 
         // 2. Consultar todas las facturas con ese prefijo
