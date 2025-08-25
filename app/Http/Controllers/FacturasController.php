@@ -346,8 +346,44 @@ class FacturasController extends Controller{
         ->where('tipo',2)
         ->first();
 
+
+        $prefijo = $numeracionActual->prefijo;   // FE
+        $inicio  = (int) $numeracionActual->inicio; // 567
+        $final   = (int) $numeracionActual->final;  // 10000
+
+        // 2. Consultar todas las facturas con ese prefijo
+        $facturas = Factura::where('numeracion',$numeracionActual->id)
+            ->pluck('codigo')
+            ->toArray();
+
+        // 3. Extraer solo el número
+        $usados = array_map(function($codigo) use ($prefijo) {
+            return (int) str_replace($prefijo, '', $codigo);
+        }, $facturas);
+
+        sort($usados);
+
+        // 4. Buscar el último consecutivo usado
+        $ultimoUsado = !empty($usados) ? max($usados) : $inicio - 1;
+
+        // 5. Generar todos los posibles consecutivos hasta el último usado
+        $todos = range($inicio, $ultimoUsado);
+
+        // 6. Calcular los faltantes
+        $faltantes = array_diff($todos, $usados);
+
+        $reporteFaltantes =  [
+            'prefijo' => $prefijo,
+            'inicio' => $inicio,
+            'final' => $final,
+            'ultimo_usado' => $ultimoUsado,
+            'faltantes' => array_values($faltantes),
+        ];
+
+
+
         view()->share(['title' => 'Facturas de Venta Electrónica', 'subseccion' => 'venta-electronica']);
-        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte','empresa'));
+        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte','empresa','reporteFaltantes'));
     }
 
     /*
