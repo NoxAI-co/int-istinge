@@ -3407,6 +3407,7 @@ class CronController extends Controller
             ->where('factura.whatsapp', 0)
             ->whereIn('c.grupo_corte', $grupos_corte_array)
             ->select('factura.*')
+            ->orderBy('factura.updated_at', 'asc')
             ->limit(45)
             ->get();
 
@@ -3418,6 +3419,9 @@ class CronController extends Controller
                 $facturaPDF = $this->getPdfFactura($factura->id);
                 $facturabase64 = base64_encode($facturaPDF);
                 $instance = Instance::where('company_id', $empresa->id)->where('type',1)->first();
+
+                $factura->updated_at = now();
+                $factura->save();
 
                 if(is_null($instance) || empty($instance)){
                     Log::error('Instancia no está creada.');
