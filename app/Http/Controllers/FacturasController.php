@@ -352,9 +352,9 @@ class FacturasController extends Controller{
         $final   = (int) $numeracionActual->final;  // 10000
 
         // 2. Consultar todas las facturas con ese prefijo
-        $facturas = Factura::where('numeracion',$numeracionActual->id)
-            ->pluck('codigo')
-            ->toArray();
+        $facturas = Factura::where('codigo', 'like', $prefijo . '%')
+        ->pluck('codigo')
+        ->toArray();
 
         // 3. Extraer solo el número
         $usados = array_map(function($codigo) use ($prefijo) {
