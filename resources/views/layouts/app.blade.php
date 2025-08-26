@@ -940,5 +940,97 @@
                 checkSubscriptionStatus();
             });
         </script>
+
+        <!-- Script de respaldo para asistencias - Solo se ejecuta si el script del navbar no se ejecutó -->
+        <script>
+        // Esperar a que el DOM esté completamente cargado
+        $(document).ready(function() {
+            console.log('Layout principal cargado - verificando asistencias...');
+            
+            // Dar tiempo a que se ejecute el script del navbar
+            setTimeout(function() {
+                // Solo ejecutar si no se inicializó desde el navbar
+                if (typeof window.asistenciaInicializada === 'undefined' || !window.asistenciaInicializada) {
+                    console.log('Sistema de asistencias no inicializado, ejecutando desde layout principal...');
+                    
+                    // Solo ejecutar si existe el botón de asistencia
+                    if ($('#btn-asistencia').length > 0) {
+                        console.log('Botón de asistencia encontrado, inicializando...');
+
+                        if (window.location.pathname.split("/")[1] === "software") {
+                            var url = '/software/empresa/asistencias/estado-actual';
+                        }else{
+                            var url = '/empresa/asistencias/estado-actual';
+                        }
+                        // Verificar estado de asistencia
+                        function verificarEstadoAsistenciaBackup() {
+                            $.ajax({
+                                url: url,
+                                method: 'GET',
+                                dataType: 'json',
+                                timeout: 10000,
+                                success: function(response) {
+                                    console.log('Estado asistencia (backup):', response);
+                                    
+                                    const texto = $('#texto-asistencia');
+                                    const icono = $('#icono-asistencia');
+                                    const boton = $('#btn-asistencia');
+                                    
+                                    if (icono.length === 0) return;
+                                    
+                                    if(response.ultimo_registro) {
+                                        const estado = response.ultimo_registro.tipo;
+                                        
+                                        if(estado === 'ingreso') {
+                                            icono.css('color', '#28a745');
+                                            texto.hide(); // Ocultar texto cuando está en el trabajo
+                                            boton.attr('title', 'En el trabajo - Último ingreso: ' + response.ultimo_registro.hora);
+                                            boton.removeClass('btn-pulse');
+                                        } else {
+                                            icono.css('color', '#ffc107');
+                                            texto.show().css('color', '#ffc107').text('Marcar Ingreso');
+                                            boton.attr('title', 'Fuera del trabajo - Última salida: ' + response.ultimo_registro.hora);
+                                            boton.removeClass('btn-pulse');
+                                        }
+                                    } else {
+                                        icono.css('color', '#6c757d');
+                                        texto.show().css('color', '#6c757d').text('Marcar Ingreso');
+                                        boton.attr('title', 'Sin registros hoy - Haz clic para marcar ingreso');
+                                        boton.addClass('btn-pulse');
+                                    }
+                                    
+                                    console.log('Estado actualizado (backup)');
+                                    
+                                    // Marcar como inicializado
+                                    window.asistenciaInicializada = true;
+                                    window.actualizarEstadoAsistencia = verificarEstadoAsistenciaBackup;
+                                },
+                                error: function(xhr, status, error) {
+                                    console.log('Error en backup de asistencias:', status, error);
+                                }
+                            });
+                        }
+                        
+                        // Ejecutar verificación
+                        verificarEstadoAsistenciaBackup();
+                        
+                        // Configurar tooltip
+                        $('#btn-asistencia').tooltip({
+                            placement: 'bottom',
+                            trigger: 'hover'
+                        });
+                    }
+                } else {
+                    console.log('Sistema de asistencias ya inicializado desde navbar');
+                }
+                
+                // Forzar actualización si existe la función global
+                if (typeof window.actualizarEstadoAsistencia === 'function') {
+                    console.log('Actualizando estado desde función global...');
+                    window.actualizarEstadoAsistencia();
+                }
+            }, 1500); // Esperar 1.5 segundos antes de ejecutar el respaldo
+        });
+        </script>
     </body>
 </html>

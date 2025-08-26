@@ -1697,3 +1697,24 @@ Route::group(['middleware' => ['auth']], function () {
 	// Ruta para generar PDF de asignación de material
 	Route::get('empresa/asignacion_material/pdf/{id}', 'AsignacionMaterialController@pdf')->name('asignacion_material.pdf');
 });
+
+Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
+	Route::group(['prefix' => 'asistencias'], function () {
+		Route::get('/', 'AsistenciasController@index')->name('asistencias.index');
+		Route::get('/reportes', 'AsistenciasController@reportes')->name('asistencias.reportes');
+		Route::get('/exportar-excel', 'AsistenciasController@exportarExcel')->name('asistencias.exportar');
+
+		// Ruta especial para que el usuario acceda a su propio QR (DEBE IR ANTES de /{usuarioId}/qr)
+		Route::get('/mi-qr', 'AsistenciasController@miQR')->name('asistencias.mi-qr');
+
+		// Ruta para obtener el estado actual del usuario autenticado
+		Route::get('/estado-actual', 'AsistenciasController@estadoActual')->name('asistencias.estado-actual');
+
+		Route::get('/{usuarioId}/qr', 'AsistenciasController@mostrarQR')->name('asistencias.qr');
+		Route::post('/marcar-admin', 'AsistenciasController@marcarAdmin')->name('asistencias.marcar.admin');
+	});
+});
+
+// RUTAS PÚBLICAS PARA MARCACIÓN QR (sin middleware auth)
+Route::get('/marcar-asistencia/{token}', 'AsistenciasController@paginaMarcar')->name('asistencias.marcar');
+Route::post('/marcar-asistencia/{token}', 'AsistenciasController@marcar')->name('asistencias.marcar.post');
