@@ -124,7 +124,7 @@
                 <input type="hidden" id="efectyid" value="{{ Auth::user()->empresa()->efecty }}">
                 <a href="javascript:facturacionSmsAutomatica()">{{ Auth::user()->empresa()->factura_sms_auto == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     SMS automaticos</a><br>
-                    <a href="javascript:periodoTirilla()">{{ Auth::user()->empresa()->periodo_tirilla == 0 ? 'Habilitar' : 'Deshabilitar' }}
+                <a href="javascript:periodoTirilla()">{{ Auth::user()->empresa()->periodo_tirilla == 0 ? 'Habilitar' : 'Deshabilitar' }}
                         periodo en tirilla</a><br>
                 <input type="hidden" id="periodoTirilla" value="{{ Auth::user()->empresa()->periodo_tirilla }}">
             </div>

@@ -52,7 +52,7 @@ onclick="confirmar('cambiar-statecatv{{$id}}',
 @endif
 @endif
 
-@if($serial_onu != null && isset($_SESSION['permisos']['859']))
+@if($serial_onu != null && isset($_SESSION['permisos']['859']) && Auth::user()->empresa()->eatado_olt == 1 && $olt_sn_mac == null)
 <a class="btn btn-icons btn-outline-primary" title="ver configuracion olt" href="{{ route('olt.view-onu',$serial_onu) }}">
     <i class="fas fa-wrench"></i>
 </a>
