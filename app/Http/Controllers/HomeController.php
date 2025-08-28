@@ -69,6 +69,10 @@ class HomeController extends Controller
     {
         $this->getAllPermissions(Auth::user()->id);
 
+        if(Auth::user()->rol == 4){
+            return redirect('/tecnico/dashboard');
+        }
+
         $radicados = Radicado::all()->where('empresa', Auth::user()->empresa)->count();
         $radicados_pendiente = Radicado::whereIn('estatus', [0, 2])->where('empresa', Auth::user()->empresa)->count();
         $radicados_solventado = Radicado::whereIn('estatus', [1, 3])->where('empresa', Auth::user()->empresa)->count();
@@ -90,7 +94,7 @@ class HomeController extends Controller
             ->where('tipo', 2)  // tipo 2 es para facturas electrónicas
             ->count();
 
-        // Calcular el total facturado sumando el total de cada factura 
+        // Calcular el total facturado sumando el total de cada factura
         $total_facturado = Factura::where('factura.empresa', Auth::user()->empresa)
             ->join('items_factura as if', 'factura.id', '=', 'if.factura')
             ->whereIn('factura.estatus', [0, 1]) // Considerar facturas activas y cerradas
