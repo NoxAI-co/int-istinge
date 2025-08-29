@@ -1343,7 +1343,8 @@ class AsignacionesController extends Controller
     public function enviar($id)
     {
         view()->share(['title' => 'Contrato de Internet']);
-        $contact = ContratoDigital::Find($id);
+        $digital = ContratoDigital::Find($id);
+        $contact = $digital->cliente;
         if($contact) {
             if (!$contact->cliente->email) {
                 return back()->with('danger', 'EL CLIENTE NO TIENE UN CORREO ELECTRÓNICO REGISTRADO');
@@ -1393,6 +1394,7 @@ class AsignacionesController extends Controller
                 'company',
                 'contract',
                 'contractDetails',
+                'digital'
             ]))->stream();
 
             $email = $contact->cliente->email;
@@ -1401,7 +1403,7 @@ class AsignacionesController extends Controller
                 $message->attachData($pdf, 'contrato_digital_servicios.pdf', ['mime' => 'application/pdf']);
                 $message->to($contact->cliente->email)->subject("Contrato Digital de Servicios - ".Auth::user()->empresa()->nombre);
             });
-            return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact->cliente->apellidos()));
+            return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact0->apellidos()));
         }
         return back()->with('danger', 'CONTRATO DIGITAL NO ENVIADO');
     }
