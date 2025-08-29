@@ -439,7 +439,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -503,7 +503,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -550,7 +550,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -581,7 +581,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -638,7 +638,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
