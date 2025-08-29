@@ -40,7 +40,7 @@ Route::post('contrato-digital/{key}', function (Request $request, $key) {
         $contacto->referencia_asignacion = null;
         $contacto->save();
 
-        $empresa = Empresa::find($contacto->empresa);
+        $empresa = Empresa::find(1);
         $formulario = false;
         $title = $empresa->nombre;
         view()->share(['seccion' => 'contratos', 'subseccion' => 'asignaciones', 'title' => 'Asignaciones', 'icon' =>'fas fa-file-contract']);
@@ -222,7 +222,7 @@ Route::get('contrato-digital/{key}', function ($key) {
     $contacto = ContratoDigital::where('referencia_asignacion', $key)->first();
 
     if($contacto){
-        $empresa = Empresa::find($contacto->empresa);
+        $empresa = Empresa::find(1);
         $title = $empresa->nombre;
         view()->share(['seccion' => 'contratos', 'subseccion' => 'asignaciones', 'title' => 'Asignaciones', 'icon' =>'fas fa-file-contract']);
         $formulario = true;
