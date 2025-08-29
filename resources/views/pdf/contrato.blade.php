@@ -736,16 +736,16 @@
  @endif
 
  {{-- contacto Adjunto A --}}
- @if($contact->imgA)
+ @if($digital->imgA)
  @php
-     $path = public_path('adjuntos/documentos/' . $contact->imgA);
+     $path = public_path('adjuntos/documentos/' . $digital->imgA);
      $type = pathinfo($path, PATHINFO_EXTENSION);
      $data = file_exists($path) ? base64_encode(file_get_contents($path)) : null;
  @endphp
 
  @if($data)
      <div style="page-break-before: always;">
-         <h3 style="text-align: center;">{{ $contact->imgA }}</h3>
+         <h3 style="text-align: center;">{{ $digital->imgA }}</h3>
          <div style="text-align: center; margin-top: 20px;">
              <img src="data:image/{{ $type }};base64,{{ $data }}"
                   alt="Documento del Contacto"
@@ -758,16 +758,16 @@
 @endif
 
  {{-- contacto Adjunto B --}}
- @if($contact->imgB)
+ @if($digital->imgB)
  @php
-     $path = public_path('adjuntos/documentos/' . $contact->imgB);
+     $path = public_path('adjuntos/documentos/' . $digital->imgB);
      $type = pathinfo($path, PATHINFO_EXTENSION);
      $data = file_exists($path) ? base64_encode(file_get_contents($path)) : null;
  @endphp
 
  @if($data)
      <div style="page-break-before: always;">
-         <h3 style="text-align: center;">{{ $contact->imgB }}</h3>
+         <h3 style="text-align: center;">{{ $digital->imgB }}</h3>
          <div style="text-align: center; margin-top: 20px;">
              <img src="data:image/{{ $type }};base64,{{ $data }}"
                   alt="Documento del Contacto"
@@ -780,16 +780,16 @@
 @endif
 
  {{-- contacto Adjunto B --}}
- @if($contact->imgC)
+ @if($digital->imgC)
  @php
-     $path = public_path('adjuntos/documentos/' . $contact->imgC);
+     $path = public_path('adjuntos/documentos/' . $digital->imgC);
      $type = pathinfo($path, PATHINFO_EXTENSION);
      $data = file_exists($path) ? base64_encode(file_get_contents($path)) : null;
  @endphp
 
  @if($data)
      <div style="page-break-before: always;">
-         <h3 style="text-align: center;">{{ $contact->imgC }}</h3>
+         <h3 style="text-align: center;">{{ $digital->imgC }}</h3>
          <div style="text-align: center; margin-top: 20px;">
              <img src="data:image/{{ $type }};base64,{{ $data }}"
                   alt="Documento del Contacto"
