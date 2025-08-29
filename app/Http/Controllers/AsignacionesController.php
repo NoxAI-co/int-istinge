@@ -1346,7 +1346,7 @@ class AsignacionesController extends Controller
         $digital = ContratoDigital::Find($id);
         $contact = $digital->cliente;
         if($contact) {
-            if (!$contact->cliente->email) {
+            if (!$contact->email) {
                 return back()->with('danger', 'EL CLIENTE NO TIENE UN CORREO ELECTRÓNICO REGISTRADO');
             }
             $host = ServidorCorreo::where('estado', 1)->where('empresa', Auth::user()->empresa)->first();
