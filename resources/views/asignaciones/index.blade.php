@@ -79,10 +79,10 @@
 					<tbody>
 						@foreach($contratos as $contrato)
 							<tr>
-								<td><a href="{{ route('contactos.show',$contrato->id )}}"  title="Ver">{{ $contrato->nombre }} {{ $contrato->apellido1 }} {{ $contrato->apellido2 }}</a></td>
-								<td>{{ $contrato->nit }}</td>
+								<td><a href="{{ route('contactos.show',$contrato->id )}}"  title="Ver">{{ $contrato->cliente->nombre }} {{ $contrato->cliente->apellido1 }} {{ $contrato->cliente->apellido2 }}</a></td>
+								<td>{{ $contrato->cliente->nit }}</td>
+								<td>{{date('d-m-Y', strtotime($contrato->fecha_firma))}}</td>
 								<td class="font-weight-bold text-{{ $contrato->asignacion('firma', true) }}">{{ $contrato->asignacion('firma', false) }}</td>
-								<td>{{date('d-m-Y', strtotime($contrato->fecha_isp))}}</td>
 								<td class="text-center">
 									@if(auth()->user()->modo_lectura())
 									@else
@@ -92,18 +92,18 @@
                                         <input name="_method" type="hidden" value="DELETE">
                                     </form>
                                     @endif
-									<a href="{{ route('contactos.show',$contrato->id )}}" class="btn btn-outline-info btn-icons" title="Ver Detalle"><i class="far fa-eye"></i></i></a>
+									<a href="{{ route('contactos.show',$contrato->cliente_id )}}" class="btn btn-outline-info btn-icons" title="Ver Detalle"><i class="far fa-eye"></i></i></a>
 									@if(isset($_SESSION['permisos']['817']))
 									<a href="{{ route('asignaciones.imprimir',$contrato->id )}}" class="btn btn-outline-danger btn-icons" title="Imprimir Contrato Digital" target="_blank"><i class="fas fa-print"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['818']))
-									<a href="{{ route('asignaciones.enviar',$contrato->id )}}" onclick="cargando('true');" class="btn btn-outline-success btn-icons" title="Enviar Contrato Digital"><i class="fas fa-envelope"></i></a>
+									{{-- <a href="{{ route('asignaciones.enviar',$contrato->id )}}" onclick="cargando('true');" class="btn btn-outline-success btn-icons" title="Enviar Contrato Digital"><i class="fas fa-envelope"></i></a> --}}
 									@endif
 									@if(isset($_SESSION['permisos']['844']))
 									<a href="javascript:void(0);" onclick="generar_link({{ $contrato->id }});" class="btn btn-outline-warning btn-icons" title="Generar Link de Actualización de Firma"><i class="fas fa-fw fa-link"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['846']))
-									<a href="{{ route('asignaciones.edit',$contrato->id )}}" class="btn btn-outline-primary btn-icons" title="Cargar Documentos"><i class="fas fa-fw fa-upload"></i></a>
+									{{-- <a href="{{ route('asignaciones.edit',$contrato->id )}}" class="btn btn-outline-primary btn-icons" title="Cargar Documentos"><i class="fas fa-fw fa-upload"></i></a> --}}
 									@endif
                                     @if(isset($_SESSION['permisos']['850']))
                                     <button type="button" class="btn btn-outline-danger btn-icons" type="submit" title="Eliminar" onclick="confirmar('eliminar{{$contrato->id}}', '¿Está seguro que desear eliminar esta asignación de contrato?', 'Se borrara de forma permanente');"><i class="fas fa-times"></i></button>

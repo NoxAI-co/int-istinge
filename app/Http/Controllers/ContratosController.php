@@ -239,6 +239,17 @@ class ContratosController extends Controller
                     $query->orWhere('contracts.ip', 'like', "%{$request->ip}%");
                 });
             }
+            if(isset($request->state_olt_catv)){
+                if($request->state_olt_catv == 1){
+                    $contratos->where(function ($query) use ($request) {
+                        $query->orWhere('contracts.state_olt_catv', $request->state_olt_catv);
+                    });
+                }else{
+                    $contratos->where(function ($query) use ($request) {
+                        $query->orWhere('contracts.state_olt_catv', $request->state_olt_catv)->where('contracts.olt_sn_mac', '!=', null);
+                    });
+                }
+            }
             if ($request->mac) {
                 $contratos->where(function ($query) use ($request) {
                     $query->orWhere('contracts.mac_address', 'like', "%{$request->mac}%");

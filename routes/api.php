@@ -2,6 +2,7 @@
 
 use App\Contacto;
 use App\Contrato;
+use App\ContratoDigital;
 use App\Empresa;
 use App\Http\Controllers\ContratosController;
 use App\Model\Ingresos\Factura;
@@ -32,10 +33,10 @@ use Illuminate\Support\Facades\Log;
 */
 Route::post('contrato-digital/{key}', function (Request $request, $key) {
 
-    $contacto = Contacto::where('referencia_asignacion', $key)->first();
+    $contacto = ContratoDigital::where('referencia_asignacion', $key)->first();
     if($contacto){
-        $contacto->firma_isp = $request->firma_isp;
-        $contacto->fecha_isp = date('Y-m-d');
+        $contacto->firma = $request->firma_isp;
+        $contacto->fechafirma = date('Y-m-d');
         $contacto->referencia_asignacion = null;
         $contacto->save();
 
@@ -217,18 +218,18 @@ Route::get('NotaCreditoElectronica/{id}', function ($id) {
 /**
  * FIRMA DIGITAL
  */
- Route::get('contrato-digital/{key}', function ($key) {
-     $contacto = Contacto::where('referencia_asignacion', $key)->first();
+Route::get('contrato-digital/{key}', function ($key) {
+    $contacto = ContratoDigital::where('referencia_asignacion', $key)->first();
 
-     if($contacto){
-         $empresa = Empresa::find($contacto->empresa);
-         $title = $empresa->nombre;
-         view()->share(['seccion' => 'contratos', 'subseccion' => 'asignaciones', 'title' => 'Asignaciones', 'icon' =>'fas fa-file-contract']);
-         $formulario = true;
-         return view('asignaciones.firma')->with(compact('contacto', 'title', 'empresa', 'formulario'));
-     }
-     abort(403, 'ACCIÓN NO AUTORIZADA');
- });
+    if($contacto){
+        $empresa = Empresa::find($contacto->empresa);
+        $title = $empresa->nombre;
+        view()->share(['seccion' => 'contratos', 'subseccion' => 'asignaciones', 'title' => 'Asignaciones', 'icon' =>'fas fa-file-contract']);
+        $formulario = true;
+        return view('asignaciones.firma')->with(compact('contacto', 'title', 'empresa', 'formulario'));
+    }
+    abort(403, 'ACCIÓN NO AUTORIZADA');
+});
 
 
  Route::get('deudacontrato', function (Request $request) {
