@@ -138,7 +138,7 @@
                             <p style="text-align: justify;" class="small pl-2">Identificación: <b>{{ $contact->tip_iden('corta') }} {{ $contact->nit }}@if($contact->dv != null || $contact->dv === 0)-{{$contact->dv}} @endif</b></p>
                             <p style="text-align: justify;" class="small pl-2">Correo electrónico: <b>{{ $contact->email }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Teléfono de contacto: <b>{{ $contact->celular }}</b></p>
-                            <p style="text-align: justify;" class="small pl-2">Dirección Servicio: <b>{{ $contact->direccion }}</b> Estrato: <b>{{ $contact->estrato ? $contact->estrato : '   ' }}</b></p>
+                            <p style="text-align: justify;" class="small pl-2">Dirección Servicio: <b>{{ $contract->address_street }}</b> Estrato: <b>{{ $contact->estrato ? $contact->estrato : '   ' }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Departamento: <b>{{ $contact->departamento()->nombre }}</b> Municipio: <b>{{ $contact->municipio()->nombre }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Dirección Suscriptor: <b>{{ $contact->direccion }}</b></p><br>
                         </div>
@@ -428,7 +428,7 @@
                         @endif
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -492,7 +492,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -539,7 +539,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -570,7 +570,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -627,7 +627,7 @@
                     </td>
                     <td style="vertical-align:top;" width="50%">
                         <div style="border: 1px  solid #000; margin-top: 0px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 

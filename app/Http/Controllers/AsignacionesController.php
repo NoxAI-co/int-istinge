@@ -1254,6 +1254,7 @@ class AsignacionesController extends Controller
                 'company',
                 'contract',
                 'contractDetails',
+                'digital'
             ]));
             return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
         }
