@@ -69,6 +69,7 @@
 				<table class="table table-striped table-hover" id="example">
 					<thead class="thead-dark">
 						<tr>
+                            <th>Nro</th>
                             <th>Contrato Asociado Nro</th>
 							<th>Cliente</th>
 							<th>Cédula</th>
@@ -80,6 +81,7 @@
 					<tbody>
 						@foreach($contratos as $contrato)
 							<tr>
+								<td>{{ $contrato->id }}</td>
 								<td>{{ $contrato->contrato->nro }}</td>
 								<td><a href="{{ route('contactos.show',$contrato->id )}}"  title="Ver">{{ $contrato->cliente->nombre }} {{ $contrato->cliente->apellido1 }} {{ $contrato->cliente->apellido2 }}</a></td>
 								<td>{{ $contrato->cliente->nit }}</td>
