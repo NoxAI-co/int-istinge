@@ -173,6 +173,7 @@ Route::post('configuracion_aplicacionsaldosfavor', 'ConfiguracionController@apli
 Route::post('configuracion_factcronabiertas', 'ConfiguracionController@factCronAbiertas');
 Route::post('configuracion_facturacionSmsAutomatica', 'ConfiguracionController@facturacionSmsAutomatica');
 Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTirilla');
+Route::post('configuracion_envio_wpp_ingreso', 'ConfiguracionController@envioWppIngreso');
 Route::post('configuracion_limpiarCache', 'ConfiguracionController@limpiarCache');
 Route::post('configuracion_olt', 'ConfiguracionController@configurarOLT');
 Route::post('prorrateo', 'ConfiguracionController@actDescProrrateo');

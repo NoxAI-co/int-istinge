@@ -1029,6 +1029,9 @@ class IngresosController extends Controller
                 }
 
                 // DB::commit();
+                if(isset($empresa->envio_wpp_ingreso) && $empresa->envio_wpp_ingreso == 1){
+                    return redirect('empresa/ingresos/tirillawpp/'.$ingreso->id);
+                }
 
                 $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO. ' . $morosos;
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
