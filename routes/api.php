@@ -36,7 +36,7 @@ Route::post('contrato-digital/{key}', function (Request $request, $key) {
     $contacto = ContratoDigital::where('referencia_asignacion', $key)->first();
     if($contacto){
         $contacto->firma = $request->firma_isp;
-        $contacto->fechafirma = date('Y-m-d');
+        $contacto->fecha_firma = date('Y-m-d');
         $contacto->referencia_asignacion = null;
         $contacto->save();
 
