@@ -1401,7 +1401,7 @@ class AsignacionesController extends Controller
                 $message->attachData($pdf, 'contrato_digital_servicios.pdf', ['mime' => 'application/pdf']);
                 $message->to($contact->cliente->email)->subject("Contrato Digital de Servicios - ".Auth::user()->empresa()->nombre);
             });
-            return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact->apellidos()));
+            return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact->cliente->apellidos()));
         }
         return back()->with('danger', 'CONTRATO DIGITAL NO ENVIADO');
     }
