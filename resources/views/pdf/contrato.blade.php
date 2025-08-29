@@ -648,9 +648,9 @@
             </tbody>
         </table>
     </div>
-    @if($contact->documento)
+    @if($digital->documento)
         @php
-            $path = public_path('adjuntos/documentos/' . $contact->documento);
+            $path = public_path('adjuntos/documentos/' . $digital->documento);
             $type = pathinfo($path, PATHINFO_EXTENSION);
             $data = file_exists($path) ? base64_encode(file_get_contents($path)) : null;
         @endphp
