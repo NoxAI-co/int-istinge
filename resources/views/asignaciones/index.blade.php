@@ -101,7 +101,7 @@
 									<a href="{{ route('asignaciones.imprimir',$contrato->id )}}" class="btn btn-outline-danger btn-icons" title="Imprimir Contrato Digital" target="_blank"><i class="fas fa-print"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['818']))
-									{{-- <a href="{{ route('asignaciones.enviar',$contrato->id )}}" onclick="cargando('true');" class="btn btn-outline-success btn-icons" title="Enviar Contrato Digital"><i class="fas fa-envelope"></i></a> --}}
+									<a href="{{ route('asignaciones.enviar',$contrato->id )}}" onclick="cargando('true');" class="btn btn-outline-success btn-icons" title="Enviar Contrato Digital"><i class="fas fa-envelope"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['844']))
 									<a href="javascript:void(0);" onclick="generar_link({{ $contrato->id }});" class="btn btn-outline-warning btn-icons" title="Generar Link de Actualización de Firma"><i class="fas fa-fw fa-link"></i></a>
