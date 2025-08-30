@@ -1397,11 +1397,11 @@ class AsignacionesController extends Controller
                 'digital'
             ]))->stream();
 
-            $email = $contact->cliente->email;
-            $cliente = $contact->cliente->nombre;
+            $email = $contact->email;
+            $cliente = $contact->nombre;
             self::sendMail('emails.contrato', compact('contact'), compact('pdf', 'contact', 'email', 'cliente'), function ($message) use ($pdf, $contact) {
                 $message->attachData($pdf, 'contrato_digital_servicios.pdf', ['mime' => 'application/pdf']);
-                $message->to($contact->cliente->email)->subject("Contrato Digital de Servicios - ".Auth::user()->empresa()->nombre);
+                $message->to($contact->email)->subject("Contrato Digital de Servicios - ".Auth::user()->empresa()->nombre);
             });
             return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact0->apellidos()));
         }
