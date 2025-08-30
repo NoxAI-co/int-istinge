@@ -1373,7 +1373,7 @@ class AsignacionesController extends Controller
             $company = ((object) FacadesAuth::user())->empresa();
 
             try {
-                $contract = $contact->contrato;
+                $contract = $digital->contrato;
                 // TODO: This should be within the contract method, but right now it
                 // will break other things, so it will stay here.
                 if (is_null($contract)) {
