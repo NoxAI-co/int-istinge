@@ -1384,7 +1384,7 @@ class AsignacionesController extends Controller
             }
 
             try {
-                $contractDetails = $contact->contacto;
+                $contractDetails = $digital->contrato;
             } catch (ModelNotFoundException $e) {
                 return back()->with('danger', 'Los detalles del contrato no fueron encontrados.');
             }
