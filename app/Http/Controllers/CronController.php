@@ -186,7 +186,7 @@ class CronController extends Controller
 
             $grupos_corte = GrupoCorte::
             where('fecha_factura', $date)
-            ->where('hora_creacion_factura','<=',$horaActual)
+            ->whereRaw("STR_TO_DATE(hora_creacion_factura, '%H:%i') <= STR_TO_DATE(?, '%H:%i')", [$horaActual])
             ->where('status', 1)->get();
 
             $fecha = Carbon::now()->format('Y-m-d');
