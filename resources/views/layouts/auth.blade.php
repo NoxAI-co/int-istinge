@@ -620,7 +620,7 @@ label{
 
 <body>
   <div class="limiter">
-    <div class="container-login100" style="background-image: url('{{ '../../images/slide-1.jpg' }}');">
+    <div class="container-login100" style="background-image: url('{{asset('/images/slide-1.jpg')}}');">
       <div class="wrap-login100 p-t-190 p-b-30">
         @yield('content')
       </div>
