@@ -4574,6 +4574,24 @@ class FacturasController extends Controller{
             $nro->save();
 
             $factura->codigo = $nro->prefijo . $inicio;
+
+            $codigoUsado = Factura::where('empresa', 1)->where('codigo', $factura->codigo)->orderBy('nro', 'asc')->get()->last();
+
+            if($codigoUsado){
+
+                if (!$masivo) {
+                    return back()->with('danger', 'Revisar la ultima factura del segmento y modificar la numeracion. Razon: Codigo duplicado');
+                }
+
+                return [
+                    'success' => false,
+                    'message' => 'Revisar la ultima factura del segmento y modificar la numeracion. Razon: Codigo duplicado',
+                    'factura_id' => $facturaId,
+                ];
+
+            }
+
+
             $factura->nro = $numero;
             $factura->numeracion = $nro->id;
             $factura->tipo = 2;
