@@ -170,12 +170,12 @@
 	            $('#modal').modal("show");
 	        });
 
-	        $('.saldo').click(function(){
+	          $('.saldo').click(function(){
 	            $('#form-recarga').trigger("reset");
-	            var url = 'saldoUsuario';
+	            let urlSaldo = 'saldoUsuario';
 	            var _token =   $('meta[name="csrf-token"]').attr('content');
 	            $("#modal-title").html($(this).attr('title'));
-	            $.post(url,{ id : $(this).attr('idUser'), _token : _token },function(resul){
+	            $.post(urlSaldo,{ id : $(this).attr('idUser'), _token : _token },function(resul){
 	                $("#modal-body").html(resul);
 	            });
 	            $('#modal').modal("show");
