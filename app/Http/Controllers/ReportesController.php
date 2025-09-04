@@ -2465,6 +2465,8 @@ class ReportesController extends Controller
             $appends['hasta']=$request->hasta;
         }
 
+            $appends['documento'] = $request->documento;
+
         if($request->documento == 1){
             $documentos = Factura::leftjoin('contactos as c', 'cliente', '=', 'c.id')
             ->select('factura.*', 'c.nombre', 'factura.codigo as nro')
