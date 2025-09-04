@@ -71,6 +71,17 @@
 	    </div>
 	@endif
 
+    @if(isset($dianFecthSync) && $dianFecthSync)
+
+         <div class="alert alert-warning alert-dismissible fade show" role="alert">
+             <strong>⚠️ Volver a emitir facturas: {{ $dianFecthSync }} para revalidar el estado de emisión</strong><br>
+             <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+
+    @endif
+
     @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>

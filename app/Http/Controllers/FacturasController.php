@@ -383,8 +383,33 @@ class FacturasController extends Controller{
 
 
 
+        try {
+
+        $dianFecthSync = DB::table('factura')
+                                ->selectRaw("GROUP_CONCAT(CONCAT(codigo, ' - (', fecha, ')') SEPARATOR ', ') as alertas")
+                                ->where('dian_response', 'like', '%409%')
+                                ->whereIn('estatus', [0, 2])
+                                ->where('statusdian', 1)
+                                ->where('dian_service', 0)
+                                ->where('emitida', 0)
+                                ->whereRaw('MONTH(fecha) = MONTH(CURDATE())')
+                                ->whereRaw('YEAR(fecha) = YEAR(CURDATE())')
+                                ->orderByDesc('id')
+                                ->limit(10)
+                                ->value('alertas');
+
+        }catch (\Throwable $e) {
+
+                $dianFecthSync = '';
+               
+                \Log::error("Error consultando facturas con 409: " . $e->getMessage());
+               
+        }
+
+
+
         view()->share(['title' => 'Facturas de Venta Electrónica', 'subseccion' => 'venta-electronica']);
-        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte','empresa','reporteFaltantes'));
+        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','grupos_corte','empresa','reporteFaltantes', 'dianFecthSync'));
     }
 
     /*
