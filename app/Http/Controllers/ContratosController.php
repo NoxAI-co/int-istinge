@@ -5211,6 +5211,10 @@ class ContratosController extends Controller
         // Opciones de auto-relleno (enviadas desde el modal de configuración)
         $autofillIp = $request->input('autofill_ip', 0);
         $autofillIpCount = 0;
+        
+        $autofillState = $request->input('autofill_state', 0);
+        $autofillStateValue = $request->input('autofill_state_value', 'habilitado');
+        $autofillStateCount = 0;
 
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
 
@@ -5528,7 +5532,14 @@ class ContratosController extends Controller
                 }
             }
             if (!$request->state) {
-                $error->state = "El campo estado es obligatorio";
+                if ($autofillState) {
+                    // Auto-relleno activo
+                } else {
+                    if (!isset($validacionesSolucionables['estados_vacios'])) {
+                        $validacionesSolucionables['estados_vacios'] = 0;
+                    }
+                    $validacionesSolucionables['estados_vacios']++;
+                }
             }
             if ($request->conexion != 2 && !$request->ip) {
                 if ($autofillIp) {
@@ -5993,7 +6004,14 @@ class ContratosController extends Controller
 
             $contrato->plan_id                 = $request->plan;
             $contrato->server_configuration_id = $request->mikrotik;
-            $contrato->state                   = $request->state;
+            
+            // Auto-rellenar Estado si está vacío
+            if (empty($request->state) && $autofillState) {
+                $contrato->state = $autofillStateValue;
+                $autofillStateCount++;
+            } else {
+                $contrato->state = $request->state;
+            }
             // Auto-rellenar IP si está vacía y autofill está activo
             if (empty($request->ip) && $request->conexion != 2 && $autofillIp) {
                 $contrato->ip = '000.000.0.00';
@@ -6092,6 +6110,9 @@ class ContratosController extends Controller
         }
         if ($autofillIpCount > 0) {
             $mensaje .= '. ' . $autofillIpCount . ' registro(s) fueron agregados con la IP 000.000.0.00 porque no fue ingresada.';
+        }
+        if ($autofillStateCount > 0) {
+            $mensaje .= '. ' . $autofillStateCount . ' registro(s) fueron agregados con el Estado ' . ucfirst($autofillStateValue) . ' porque no fue ingresado.';
         }
 
         if ($mensajeErroresAlert != '') {

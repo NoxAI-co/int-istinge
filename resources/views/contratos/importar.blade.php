@@ -198,7 +198,32 @@
                     </div>
                     <div style="margin-left: 15px;">
                         <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
-                            <input type="checkbox" class="autofill-switch" data-field="autofill_ip" checked style="opacity: 0; width: 0; height: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillIp" data-field="autofill_ip" checked style="opacity: 0; width: 0; height: 0;">
+                            <span class="autofill-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Switch: Estado vacío -->
+                @if(isset(session('validaciones_importacion')['estados_vacios']))
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+                    <div style="flex: 1;">
+                        <strong><i class="fas fa-toggle-on"></i> Estado obligatorio</strong>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85rem;">
+                            Se encontraron <strong>{{ session('validaciones_importacion')['estados_vacios'] }}</strong> registro(s) sin Estado.
+                            <br>Si activa esta opción, puede elegir el estado por defecto.
+                        </p>
+                        <div id="stateValueContainer" style="margin-top: 10px;">
+                            <select id="selectAutofillStateValue" class="form-control form-control-sm" style="width: 150px;">
+                                <option value="habilitado">Habilitado</option>
+                                <option value="deshabilitado">Deshabilitado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillState" data-field="autofill_state" checked style="opacity: 0; width: 0; height: 0;" onchange="document.getElementById('stateValueContainer').style.display = this.checked ? 'block' : 'none'">
                             <span class="autofill-slider"></span>
                         </label>
                     </div>
@@ -325,6 +350,17 @@
                 input.value = value;
                 form.appendChild(input);
             });
+
+            // Si el switch de estado está marcado, recoger el valor seleccionado
+            var switchState = document.getElementById('switchAutofillState');
+            if (switchState && switchState.checked) {
+                var stateVal = document.getElementById('selectAutofillStateValue').value;
+                var inputVal = document.createElement('input');
+                inputVal.type = 'hidden';
+                inputVal.name = 'autofill_state_value';
+                inputVal.value = stateVal;
+                form.appendChild(inputVal);
+            }
 
             // Ocultar overlay y mostrar preloader
             var overlay = document.getElementById('autofillOverlay');
