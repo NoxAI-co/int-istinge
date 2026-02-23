@@ -244,6 +244,7 @@ class CronController extends Controller
     public static function CrearFactura($fechaRef = null, $idGrupo = null){
 
         $fecha = $fechaRef ? $fechaRef : Carbon::now()->format('Y-m-d');
+        $horaActual = $fechaRef ? "23:59" : date('H:i');
 
         ini_set('max_execution_time', 500);
         setlocale(LC_TIME, 'es_ES.UTF-8', 'es_ES', 'spanish');
@@ -257,8 +258,6 @@ class CronController extends Controller
             $date = $fechaRef ? (int)Carbon::parse($fechaRef)->format('d') : getdate()['mday'] * 1;
             $numeros = [];
             $bulk = '';
-            $horaActual = date('H:i');
-
             $query = GrupoCorte::query();
             
             if ($idGrupo) {

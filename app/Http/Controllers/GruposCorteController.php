@@ -1308,7 +1308,9 @@ class GruposCorteController extends Controller
         $empresa = Auth::user()->empresa;
         
         // Query optimizada: obtener contratos con su última factura en una sola consulta
+        // Aseguramos que el cliente exista con el inner join a contactos
         $contratos = DB::table('contracts')
+            ->join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->leftJoin(DB::raw('(SELECT f1.contrato_id, f1.id as factura_id, f1.codigo as factura_codigo, f1.fecha as factura_fecha, f1.estatus as factura_estatus FROM factura f1 INNER JOIN (SELECT contrato_id, MAX(id) as max_id FROM factura GROUP BY contrato_id) f2 ON f1.id = f2.max_id) as uf'), 'contracts.id', '=', 'uf.contrato_id')
             ->where('contracts.grupo_corte', $idGrupo)
             ->where('contracts.empresa', $empresa)

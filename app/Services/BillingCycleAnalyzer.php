@@ -166,7 +166,8 @@ class BillingCycleAnalyzer
         $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
 
         // Obtener contratos del grupo (incluyendo deshabilitados para poder diagnosticar)
-        $contratos = Contrato::leftJoin('contactos as c', 'c.id', '=', 'contracts.client_id')
+        // Usamos un INNER JOIN explícito con contactos para garantizar que el cliente exista
+        $contratos = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
             // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
@@ -572,12 +573,13 @@ class BillingCycleAnalyzer
         }
 
         // Query 1: Contratos por mes (1 query agregada con CASE WHEN)
-        // Para cada periodo, contar contratos creados antes del fin de mes con status=1
+        // Para cada periodo, contar contratos creados antes del fin de mes con status=1 y que tengan cliente existente
         $contratosCountByPeriodo = [];
         foreach ($periodos as $p) {
-            $contratosCountByPeriodo[$p['periodo']] = Contrato::where('grupo_corte', $grupoCorteId)
-                ->where('created_at', '<=', $p['fechaFinMes'])
-                ->where('status', 1)
+            $contratosCountByPeriodo[$p['periodo']] = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                ->where('contracts.grupo_corte', $grupoCorteId)
+                ->where('contracts.created_at', '<=', $p['fechaFinMes'])
+                ->where('contracts.status', 1)
                 ->count();
         }
 
