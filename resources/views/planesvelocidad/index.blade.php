@@ -32,6 +32,8 @@
         @if(isset($_SESSION['permisos']['435']))
             <a href="{{route('planes-velocidad.create')}}" class="btn btn-primary btn-sm" ><i class="fas fa-plus"></i> Nuevo Plan</a>
         @endif
+        <a href="{{route('planes-velocidad.importar')}}" class="btn btn-success btn-sm my-1"><i class="fas fa-file-import"></i> Importar Planes</a>
+        <a href="{{route('planes-velocidad.actualizar-masivo')}}" class="btn btn-warning btn-sm my-1"><i class="fas fa-sync-alt"></i> Actualizar Planes</a>
         <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
     @endif
 @endsection

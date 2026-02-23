@@ -1708,6 +1708,16 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/{planes}/{state}/state_lote', 'PlanesVelocidadController@state_lote')->name('planes-velocidad.state_lote');
 		Route::get('/{planes}/destroy_lote', 'PlanesVelocidadController@destroy_lote')->name('planes-velocidad.destroy_lote');
 		Route::get('/{planes}/crear-mikrotik/{mikrotik_id}', 'PlanesVelocidadController@crear_en_mikrotik')->name('planes-velocidad.crear_mikrotik');
+
+		// Importar planes de velocidad
+		Route::get('importar', 'PlanesVelocidadController@importar')->name('planes-velocidad.importar');
+		Route::post('ejemplo-importar', 'PlanesVelocidadController@ejemploImportar')->name('planes-velocidad.ejemplo-importar');
+		Route::post('importar', 'PlanesVelocidadController@importarCargando')->name('planes-velocidad.importar-cargando');
+
+		// Actualizar planes de velocidad masivo
+		Route::get('actualizar-masivo', 'PlanesVelocidadController@actualizarMasivo')->name('planes-velocidad.actualizar-masivo');
+		Route::post('ejemplo-actualizar', 'PlanesVelocidadController@ejemploActualizar')->name('planes-velocidad.ejemplo-actualizar');
+		Route::post('actualizar-masivo', 'PlanesVelocidadController@actualizarCargando')->name('planes-velocidad.actualizar-cargando');
 	});
 
 	Route::resource('planes-velocidad', 'PlanesVelocidadController');

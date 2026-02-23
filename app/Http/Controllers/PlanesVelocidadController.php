@@ -28,11 +28,18 @@ use App\Contrato;
 
 include_once(app_path() . '/../public/routeros_api.class.php');
 include_once(app_path() . '/../public/api_mt_include2.php');
+include_once(app_path() . '/../public/PHPExcel/Classes/PHPExcel.php');
 
 use routeros_api;
 use RouterosAPI;
 use StdClass;
 use App\Campos;
+use PHPExcel;
+use PHPExcel_IOFactory;
+use PHPExcel_Style_Alignment;
+use PHPExcel_Style_Fill;
+use PHPExcel_Style_Border;
+use PHPExcel_Cell_DataValidation;
 
 class PlanesVelocidadController extends Controller
 {
@@ -283,8 +290,8 @@ class PlanesVelocidadController extends Controller
             $plan->mikrotik = $request->mikrotik[$i];
             $plan->name = $request->name;
             $plan->price = $request->price;
-            $plan->upload = $request->upload . '' . $request->inicial_download;
-            $plan->download = $request->download . '' . $request->inicial_upload;
+            $plan->upload = $request->upload . '' . $request->inicial_upload;
+            $plan->download = $request->download . '' . $request->inicial_download;
             $plan->type = $request->type;
             $plan->address_list = $request->address_list;
             $plan->created_by = Auth::user()->id;
@@ -424,8 +431,8 @@ class PlanesVelocidadController extends Controller
             $plan->mikrotik               = $request->mikrotik[$i];
             $plan->name                   = $request->name;
             $plan->price                  = $request->price;
-            $plan->upload                 = $request->upload . '' . $request->inicial_download;
-            $plan->download               = $request->download . '' . $request->inicial_upload;
+            $plan->upload                 = $request->upload . '' . $request->inicial_upload;
+            $plan->download               = $request->download . '' . $request->inicial_download;
             $plan->type                   = $request->type;
             $plan->address_list           = $request->address_list;
             $plan->created_by             = Auth::user()->id;
@@ -513,8 +520,8 @@ class PlanesVelocidadController extends Controller
             // }
             $plan->name                   = $request->name;
             $plan->price                  = $request->price;
-            $plan->upload                 = $request->upload . '' . $request->inicial_download;
-            $plan->download               = $request->download . '' . $request->inicial_upload;
+            $plan->upload                 = $request->upload . '' . $request->inicial_upload;
+            $plan->download               = $request->download . '' . $request->inicial_download;
             $plan->type                   = $request->type;
             $plan->address_list           = $request->address_list;
             $plan->updated_by             = Auth::user()->id;
@@ -1083,5 +1090,539 @@ class PlanesVelocidadController extends Controller
             'fallidos'  => $fail,
             'correctos' => $succ
         ]);
+    }
+
+    // ==================== IMPORTAR PLANES DE VELOCIDAD ====================
+
+    public function importar()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Importar Planes de Velocidad', 'full' => true]);
+        $mikrotiks = Mikrotik::where('empresa', Auth::user()->empresa)->get();
+        return view('planesvelocidad.importar')->with(compact('mikrotiks'));
+    }
+
+    public function ejemploImportar()
+    {
+        $titulosColumnas = array(
+            'Nombre', 'Referencia', 'Precio (sin puntos)', 'Vel. de Descarga', 'Unidad Descarga',
+            'Vel. de Subida', 'Unidad Subida', 'Mikrotik', 'Tipo', 'IVA 19%'
+        );
+
+        $comentarios = array(
+            'A' => 'Nombre del plan de velocidad. Obligatorio.',
+            'B' => 'Referencia única del plan (se guarda en inventario). Obligatorio. No puede repetirse.',
+            'C' => 'Precio del plan sin puntos ni separadores. Obligatorio.',
+            'D' => 'Valor numérico de la velocidad de descarga. Obligatorio.',
+            'E' => 'Unidad de descarga: Mbps o Kbps. Obligatorio.',
+            'F' => 'Valor numérico de la velocidad de subida. Obligatorio.',
+            'G' => 'Unidad de subida: Mbps o Kbps. Obligatorio.',
+            'H' => 'Nombre de la mikrotik ya registrada en el sistema. Obligatorio.',
+            'I' => 'Tipo de plan: queue o pcq. Obligatorio.',
+            'J' => 'Indica si el plan tiene IVA 19%: si o no. Obligatorio.',
+        );
+
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = "Archivo de Importación de Planes de Velocidad - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Importación Planes Velocidad")
+            ->setSubject("Importación Planes Velocidad")
+            ->setDescription("Importación Planes Velocidad")
+            ->setKeywords("Importación Planes Velocidad")
+            ->setCategory("Importación");
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Agregar validaciones de lista desplegable para Unidad Descarga (E) y Unidad Subida (G)
+        for ($row = 4; $row <= 100; $row++) {
+            $validationE = $objPHPExcel->getActiveSheet()->getCell('E' . $row)->getDataValidation();
+            $validationE->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationE->setAllowBlank(false);
+            $validationE->setShowDropDown(true);
+            $validationE->setFormula1('"Mbps,Kbps"');
+
+            $validationG = $objPHPExcel->getActiveSheet()->getCell('G' . $row)->getDataValidation();
+            $validationG->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationG->setAllowBlank(false);
+            $validationG->setShowDropDown(true);
+            $validationG->setFormula1('"Mbps,Kbps"');
+
+            $validationI = $objPHPExcel->getActiveSheet()->getCell('I' . $row)->getDataValidation();
+            $validationI->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationI->setAllowBlank(false);
+            $validationI->setShowDropDown(true);
+            $validationI->setFormula1('"queue,pcq"');
+
+            $validationJ = $objPHPExcel->getActiveSheet()->getCell('J' . $row)->getDataValidation();
+            $validationJ->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationJ->setAllowBlank(false);
+            $validationJ->setShowDropDown(true);
+            $validationJ->setFormula1('"si,no"');
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Planes');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Importacion_Planes_Velocidad.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function importarCargando(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $create = 0;
+        $errores = [];
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'archivo_planes.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        Ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $nombre = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($nombre)) {
+                break;
+            }
+
+            $referencia       = trim($sheet->getCell("B" . $row)->getValue());
+            $precio           = trim($sheet->getCell("C" . $row)->getValue());
+            $vel_descarga     = trim($sheet->getCell("D" . $row)->getValue());
+            $unidad_descarga  = trim($sheet->getCell("E" . $row)->getValue());
+            $vel_subida       = trim($sheet->getCell("F" . $row)->getValue());
+            $unidad_subida    = trim($sheet->getCell("G" . $row)->getValue());
+            $mikrotik_nombre  = trim($sheet->getCell("H" . $row)->getValue());
+            $tipo             = strtolower(trim($sheet->getCell("I" . $row)->getValue()));
+            $iva              = strtolower(trim($sheet->getCell("J" . $row)->getValue()));
+
+            // Validaciones
+            if (empty($nombre) || empty($referencia) || empty($precio) || empty($vel_descarga) ||
+                empty($unidad_descarga) || empty($vel_subida) || empty($unidad_subida) ||
+                empty($mikrotik_nombre) || empty($tipo) || empty($iva)) {
+                $errores[] = "Fila $row: Todos los campos son obligatorios.";
+                continue;
+            }
+
+            // Validar referencia única
+            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
+                ->where('ref', strtoupper($referencia))
+                ->where('type', 'PLAN')
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe en el inventario.";
+                continue;
+            }
+
+            // Buscar mikrotik por nombre
+            $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
+                ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
+                ->first();
+            if (!$mikrotik) {
+                $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
+                continue;
+            }
+
+            // Determinar tipo (0 = queue, 1 = pcq)
+            $type = ($tipo == 'pcq') ? 1 : 0;
+
+            // Determinar tipo_plan según IVA
+            $tipo_plan = ($iva == 'si') ? 2 : 1;
+
+            // Determinar sufijos de velocidad
+            $sufijo_download = (strtolower($unidad_descarga) == 'mbps') ? 'M' : 'k';
+            $sufijo_upload   = (strtolower($unidad_subida) == 'mbps') ? 'M' : 'k';
+
+            // Crear inventario
+            $inventario                = new Inventario;
+            $inventario->empresa       = Auth::user()->empresa;
+            $inventario->producto      = strtoupper($nombre);
+            $inventario->ref           = strtoupper($referencia);
+            $inventario->precio        = $this->precision($precio);
+            $inventario->id_impuesto   = ($tipo_plan == 2) ? 1 : 2;
+            $inventario->impuesto      = ($tipo_plan == 2) ? 19 : 0;
+            $inventario->tipo_producto = 2;
+            $inventario->unidad        = 1;
+            $inventario->nro           = 0;
+            $inventario->categoria     = 116;
+            $inventario->lista         = 0;
+            $inventario->type          = 'PLAN';
+            $inventario->save();
+
+            // Crear plan de velocidad
+            $plan              = new PlanesVelocidad;
+            $plan->mikrotik    = $mikrotik->id;
+            $plan->name        = $nombre;
+            $plan->price       = $precio;
+            $plan->download    = $vel_descarga . $sufijo_download;
+            $plan->upload      = $vel_subida . $sufijo_upload;
+            $plan->type        = $type;
+            $plan->created_by  = Auth::user()->id;
+            $plan->tipo_plan   = $tipo_plan;
+            $plan->item        = $inventario->id;
+            $plan->empresa     = Auth::user()->empresa;
+            $plan->save();
+
+            $create++;
+        }
+
+        // Limpiar archivo temporal
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('planes-velocidad.importar')
+                ->withErrors($errores)
+                ->with('success', "Se importaron $create planes correctamente.");
+        }
+
+        return redirect('empresa/planes-velocidad')
+            ->with('success', "Se importaron $create planes de velocidad correctamente.");
+    }
+
+    // ==================== ACTUALIZAR PLANES DE VELOCIDAD ====================
+
+    public function actualizarMasivo()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Actualizar Planes de Velocidad', 'full' => true]);
+        $mikrotiks = Mikrotik::where('empresa', Auth::user()->empresa)->get();
+        return view('planesvelocidad.actualizar')->with(compact('mikrotiks'));
+    }
+
+    public function ejemploActualizar()
+    {
+        $titulosColumnas = array(
+            'ID', 'Nombre', 'Referencia', 'Precio (sin puntos)', 'Vel. de Descarga', 'Unidad Descarga',
+            'Vel. de Subida', 'Unidad Subida', 'Mikrotik', 'Tipo', 'IVA 19%'
+        );
+
+        $comentarios = array(
+            'A' => 'ID del plan para identificarlo y actualizarlo. Obligatorio. No modificar.',
+            'B' => 'Nombre del plan de velocidad. Obligatorio.',
+            'C' => 'Referencia única del plan (se guarda en inventario). Obligatorio.',
+            'D' => 'Precio del plan sin puntos ni separadores. Obligatorio.',
+            'E' => 'Valor numérico de la velocidad de descarga. Obligatorio.',
+            'F' => 'Unidad de descarga: Mbps o Kbps. Obligatorio.',
+            'G' => 'Valor numérico de la velocidad de subida. Obligatorio.',
+            'H' => 'Unidad de subida: Mbps o Kbps. Obligatorio.',
+            'I' => 'Nombre de la mikrotik ya registrada en el sistema. Obligatorio.',
+            'J' => 'Tipo de plan: queue o pcq. Obligatorio.',
+            'K' => 'Indica si el plan tiene IVA 19%: si o no. Obligatorio.',
+        );
+
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = "Archivo de Actualización de Planes de Velocidad - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Actualización Planes Velocidad")
+            ->setSubject("Actualización Planes Velocidad")
+            ->setDescription("Actualización Planes Velocidad")
+            ->setKeywords("Actualización Planes Velocidad")
+            ->setCategory("Actualización");
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Llenar con datos existentes
+        $planes = PlanesVelocidad::where('empresa', Auth::user()->empresa)->get();
+        $j = 4;
+        foreach ($planes as $plan) {
+            $mikrotikObj = $plan->mikrotik();
+            $inventario = Inventario::find($plan->item);
+
+            // Parsear download/upload para extraer número y unidad
+            $downloadVal = preg_replace('/[^0-9]/', '', $plan->download);
+            $downloadUnit = (strpos($plan->download, 'M') !== false) ? 'Mbps' : 'Kbps';
+            $uploadVal = preg_replace('/[^0-9]/', '', $plan->upload);
+            $uploadUnit = (strpos($plan->upload, 'M') !== false) ? 'Mbps' : 'Kbps';
+
+            $tipoTexto = ($plan->type == 0) ? 'queue' : 'pcq';
+            $ivaTexto = ($plan->tipo_plan == 2) ? 'si' : 'no';
+
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue("A$j", $plan->id)
+                ->setCellValue("B$j", $plan->name)
+                ->setCellValue("C$j", $inventario ? $inventario->ref : '')
+                ->setCellValue("D$j", $plan->price)
+                ->setCellValue("E$j", $downloadVal)
+                ->setCellValue("F$j", $downloadUnit)
+                ->setCellValue("G$j", $uploadVal)
+                ->setCellValue("H$j", $uploadUnit)
+                ->setCellValue("I$j", $mikrotikObj ? $mikrotikObj->nombre : '')
+                ->setCellValue("J$j", $tipoTexto)
+                ->setCellValue("K$j", $ivaTexto);
+
+            $j++;
+        }
+
+        // Agregar validaciones de lista desplegable
+        for ($row = 4; $row <= max(100, $j + 10); $row++) {
+            $validationF = $objPHPExcel->getActiveSheet()->getCell('F' . $row)->getDataValidation();
+            $validationF->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationF->setAllowBlank(false);
+            $validationF->setShowDropDown(true);
+            $validationF->setFormula1('"Mbps,Kbps"');
+
+            $validationH = $objPHPExcel->getActiveSheet()->getCell('H' . $row)->getDataValidation();
+            $validationH->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationH->setAllowBlank(false);
+            $validationH->setShowDropDown(true);
+            $validationH->setFormula1('"Mbps,Kbps"');
+
+            $validationJ = $objPHPExcel->getActiveSheet()->getCell('J' . $row)->getDataValidation();
+            $validationJ->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationJ->setAllowBlank(false);
+            $validationJ->setShowDropDown(true);
+            $validationJ->setFormula1('"queue,pcq"');
+
+            $validationK = $objPHPExcel->getActiveSheet()->getCell('K' . $row)->getDataValidation();
+            $validationK->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationK->setAllowBlank(false);
+            $validationK->setShowDropDown(true);
+            $validationK->setFormula1('"si,no"');
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Planes');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Actualizacion_Planes_Velocidad.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function actualizarCargando(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $updated = 0;
+        $errores = [];
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'archivo_planes_act.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        Ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $id = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($id)) {
+                break;
+            }
+
+            $nombre           = trim($sheet->getCell("B" . $row)->getValue());
+            $referencia       = trim($sheet->getCell("C" . $row)->getValue());
+            $precio           = trim($sheet->getCell("D" . $row)->getValue());
+            $vel_descarga     = trim($sheet->getCell("E" . $row)->getValue());
+            $unidad_descarga  = trim($sheet->getCell("F" . $row)->getValue());
+            $vel_subida       = trim($sheet->getCell("G" . $row)->getValue());
+            $unidad_subida    = trim($sheet->getCell("H" . $row)->getValue());
+            $mikrotik_nombre  = trim($sheet->getCell("I" . $row)->getValue());
+            $tipo             = strtolower(trim($sheet->getCell("J" . $row)->getValue()));
+            $iva              = strtolower(trim($sheet->getCell("K" . $row)->getValue()));
+
+            // Validaciones
+            if (empty($nombre) || empty($referencia) || empty($precio) || empty($vel_descarga) ||
+                empty($unidad_descarga) || empty($vel_subida) || empty($unidad_subida) ||
+                empty($mikrotik_nombre) || empty($tipo) || empty($iva)) {
+                $errores[] = "Fila $row: Todos los campos son obligatorios.";
+                continue;
+            }
+
+            // Buscar plan existente
+            $plan = PlanesVelocidad::where('id', $id)
+                ->where('empresa', Auth::user()->empresa)
+                ->first();
+            if (!$plan) {
+                $errores[] = "Fila $row: No se encontró un plan con ID '<b>$id</b>'.";
+                continue;
+            }
+
+            // Validar referencia única (excluyendo el inventario actual del plan)
+            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
+                ->where('ref', strtoupper($referencia))
+                ->where('type', 'PLAN')
+                ->where('id', '!=', $plan->item)
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe en otro plan.";
+                continue;
+            }
+
+            // Buscar mikrotik por nombre
+            $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
+                ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
+                ->first();
+            if (!$mikrotik) {
+                $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
+                continue;
+            }
+
+            // Determinar tipo
+            $type = ($tipo == 'pcq') ? 1 : 0;
+
+            // Determinar tipo_plan según IVA
+            $tipo_plan = ($iva == 'si') ? 2 : 1;
+
+            // Determinar sufijos de velocidad
+            $sufijo_download = (strtolower($unidad_descarga) == 'mbps') ? 'M' : 'k';
+            $sufijo_upload   = (strtolower($unidad_subida) == 'mbps') ? 'M' : 'k';
+
+            // Actualizar plan
+            $plan->mikrotik   = $mikrotik->id;
+            $plan->name       = $nombre;
+            $plan->price      = $precio;
+            $plan->download   = $vel_descarga . $sufijo_download;
+            $plan->upload     = $vel_subida . $sufijo_upload;
+            $plan->type       = $type;
+            $plan->updated_by = Auth::user()->id;
+            $plan->tipo_plan  = $tipo_plan;
+            $plan->save();
+
+            // Actualizar inventario asociado
+            $inventario = Inventario::find($plan->item);
+            if ($inventario) {
+                $inventario->producto    = strtoupper($nombre);
+                $inventario->ref         = strtoupper($referencia);
+                $inventario->precio      = $this->precision($precio);
+                $inventario->id_impuesto = ($tipo_plan == 2) ? 1 : 2;
+                $inventario->impuesto    = ($tipo_plan == 2) ? 19 : 0;
+                $inventario->save();
+            }
+
+            $updated++;
+        }
+
+        // Limpiar archivo temporal
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('planes-velocidad.actualizar-masivo')
+                ->withErrors($errores)
+                ->with('success', "Se actualizaron $updated planes correctamente.");
+        }
+
+        return redirect('empresa/planes-velocidad')
+            ->with('success', "Se actualizaron $updated planes de velocidad correctamente.");
     }
 }
