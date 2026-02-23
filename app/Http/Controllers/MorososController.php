@@ -167,6 +167,7 @@ class MorososController extends Controller
         // Asumiendo que state='disabled' es lo que buscamos
         $contratosDisabled = \App\Contrato::where('server_configuration_id', $mikrotikId)
             ->where('state', 'disabled')
+            ->where('status', 1)
             ->whereNotNull('ip')
             ->get();
 
