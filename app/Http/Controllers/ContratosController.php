@@ -5253,6 +5253,7 @@ class ContratosController extends Controller
         $ipsDuplicadas = [];
         $ipsRegistradasEnArchivo = [];
         $validacionesSolucionables = [];
+        $erroresRecopilados = [];
 
         // Verificar el encabezado en la fila 3 para determinar si es actualización
         // Si la columna A en la fila 3 dice "Nro Contrato", entonces todas las filas tienen nro contrato
@@ -5582,22 +5583,43 @@ class ContratosController extends Controller
             }
 
             if (count((array) $error) > 0) {
-                $fila["error"] = 'FILA ' . $row;
-                $error = (array) $error;
-                var_dump($error);
-                var_dump($fila);
-
-                array_unshift($error, $fila);
-                $result = (object) $error;
-                return back()->withErrors($result)->withInput();
+                $erroresRecopilados[] = [
+                    'fila' => $row,
+                    'errores' => (array) $error
+                ];
             }
         }
 
         // Si hay validaciones solucionables y no se han confirmado las opciones de auto-relleno
+        // Mostrar el modal PRIMERO, incluso si también hay errores duros
         if (count($validacionesSolucionables) > 0 && !$autofillIp) {
-            return back()->with('validaciones_importacion', $validacionesSolucionables)
-                         ->with('archivo_guardado', $nombre_imagen)
-                         ->withInput();
+            $redirect = back()->with('validaciones_importacion', $validacionesSolucionables)
+                              ->with('archivo_guardado', $nombre_imagen)
+                              ->withInput();
+            // Si también hay errores duros, incluirlos para que se muestren junto al modal
+            if (count($erroresRecopilados) > 0) {
+                $allErrors = [];
+                foreach ($erroresRecopilados as $item) {
+                    $allErrors[] = 'FILA ' . $item['fila'];
+                    foreach ($item['errores'] as $msg) {
+                        $allErrors[] = $msg;
+                    }
+                }
+                $redirect = $redirect->withErrors($allErrors);
+            }
+            return $redirect;
+        }
+
+        // Si solo hay errores duros (sin validaciones solucionables), mostrarlos
+        if (count($erroresRecopilados) > 0) {
+            $allErrors = [];
+            foreach ($erroresRecopilados as $item) {
+                $allErrors[] = 'FILA ' . $item['fila'];
+                foreach ($item['errores'] as $msg) {
+                    $allErrors[] = $msg;
+                }
+            }
+            return back()->withErrors($allErrors)->withInput();
         }
 
         $mensajeErroresAlert = '';
