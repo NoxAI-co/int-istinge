@@ -1285,9 +1285,14 @@ class PlanesVelocidadController extends Controller
             // Validaciones
             if (empty($nombre) || empty($referencia) || empty($precio) || empty($vel_descarga) ||
                 empty($unidad_descarga) || empty($vel_subida) || empty($unidad_subida) ||
-                empty($mikrotik_nombre) || empty($tipo) || empty($iva)) {
-                $errores[] = "Fila $row: Todos los campos son obligatorios.";
+                empty($mikrotik_nombre) || empty($tipo)) {
+                $errores[] = "Fila $row: Los campos nombre, referencia, precio, velocidades, unidades, mikrotik y tipo son obligatorios.";
                 continue;
+            }
+
+            // IVA es opcional, por defecto 'no'
+            if (empty($iva)) {
+                $iva = 'no';
             }
 
             // Buscar mikrotik por nombre (antes de validar ref, necesitamos el ID)
@@ -1569,9 +1574,14 @@ class PlanesVelocidadController extends Controller
             // Validaciones
             if (empty($nombre) || empty($referencia) || empty($precio) || empty($vel_descarga) ||
                 empty($unidad_descarga) || empty($vel_subida) || empty($unidad_subida) ||
-                empty($mikrotik_nombre) || empty($tipo) || empty($iva)) {
-                $errores[] = "Fila $row: Todos los campos son obligatorios.";
+                empty($mikrotik_nombre) || empty($tipo)) {
+                $errores[] = "Fila $row: Los campos nombre, referencia, precio, velocidades, unidades, mikrotik y tipo son obligatorios.";
                 continue;
+            }
+
+            // IVA es opcional, por defecto 'no'
+            if (empty($iva)) {
+                $iva = 'no';
             }
 
             // Buscar plan existente
