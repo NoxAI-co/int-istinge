@@ -1186,12 +1186,18 @@ class ContactosController extends Controller
                     $req->fk_idpais = DB::table('pais')->where('nombre', $req->fk_idpais)->first()->codigo;
                 }
 
-                if ($req->fk_iddepartamento != '') {
-                    $req->fk_iddepartamento = DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->first()->id;
+                if ($req->fk_idmunicipio != '') {
+                    $municipio = DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->first();
+                    if ($municipio) {
+                        $req->fk_idmunicipio = $municipio->id;
+                        if ($req->fk_iddepartamento == '') {
+                            $req->fk_iddepartamento = $municipio->departamento_id;
+                        }
+                    }
                 }
 
-                if ($req->fk_idmunicipio != '') {
-                    $req->fk_idmunicipio = DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->first()->id;
+                if ($req->fk_iddepartamento != '' && !is_numeric($req->fk_iddepartamento)) {
+                    $req->fk_iddepartamento = DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->first()->id;
                 }
 
                 // Tipo identificación
