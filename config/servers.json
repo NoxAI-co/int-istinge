@@ -2,6 +2,7 @@
   "servers": [
     {
       "name": "Server - nobunet",
+      "secret_name": "NOBUNET",
       "host": "148.113.168.53",
       "port": 2222,
       "user": "nobunets",
@@ -12,6 +13,7 @@
     },
     {
       "name": "Server - intersolarcolombia",
+      "secret_name": "INTERSOLARCOLOMBIA",
       "host": "148.113.168.53",
       "port": 2222,
       "user": "nobunets",
@@ -22,6 +24,7 @@
     },
     {
       "name": "Server - rednube",
+      "secret_name": "REDNUBE",
       "host": "148.113.168.53",
       "port": 2222,
       "user": "nobunets",
