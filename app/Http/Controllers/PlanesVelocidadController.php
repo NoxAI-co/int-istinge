@@ -650,7 +650,18 @@ class PlanesVelocidadController extends Controller
     {
         $plan = PlanesVelocidad::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
         if ($plan) {
+            $itemId = $plan->item;
             $plan->delete();
+
+            // Eliminar inventario asociado si no está en facturas
+            if ($itemId) {
+                $enFactura = DB::table('items_factura')->where('producto', $itemId)->exists();
+                $enFacturaProv = DB::table('items_factura_proveedor')->where('producto', $itemId)->exists();
+                if (!$enFactura && !$enFacturaProv) {
+                    Inventario::where('id', $itemId)->delete();
+                }
+            }
+
             return redirect('empresa/planes-velocidad')->with('success', 'Se ha eliminado correctamente el Plan');
         }
         return redirect('empresa/planes-velocidad')->with('danger', 'No existe un registro con ese id');
@@ -936,8 +947,23 @@ class PlanesVelocidadController extends Controller
 
         for ($i = 0; $i < count($planes); $i++) {
             $plan = PlanesVelocidad::find($planes[$i]);
+            if (!$plan) {
+                $fail++;
+                continue;
+            }
             if ($plan->uso() == 0) {
+                $itemId = $plan->item;
                 $plan->delete();
+
+                // Eliminar inventario asociado si no está en facturas
+                if ($itemId) {
+                    $enFactura = DB::table('items_factura')->where('producto', $itemId)->exists();
+                    $enFacturaProv = DB::table('items_factura_proveedor')->where('producto', $itemId)->exists();
+                    if (!$enFactura && !$enFacturaProv) {
+                        Inventario::where('id', $itemId)->delete();
+                    }
+                }
+
                 $succ++;
             } else {
                 $fail++;
@@ -1264,22 +1290,23 @@ class PlanesVelocidadController extends Controller
                 continue;
             }
 
-            // Validar referencia única
-            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
-                ->where('ref', strtoupper($referencia))
-                ->where('type', 'PLAN')
-                ->first();
-            if ($existeRef) {
-                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe en el inventario.";
-                continue;
-            }
-
-            // Buscar mikrotik por nombre
+            // Buscar mikrotik por nombre (antes de validar ref, necesitamos el ID)
             $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
                 ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
                 ->first();
             if (!$mikrotik) {
                 $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
+                continue;
+            }
+
+            // Validar referencia única por mikrotik (la ref puede repetirse si es otra mikrotik)
+            $existeRef = PlanesVelocidad::join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
+                ->where('planes_velocidad.empresa', Auth::user()->empresa)
+                ->where('planes_velocidad.mikrotik', $mikrotik->id)
+                ->where('inventario.ref', strtoupper($referencia))
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe para la mikrotik '<b>$mikrotik_nombre</b>'.";
                 continue;
             }
 
@@ -1556,23 +1583,24 @@ class PlanesVelocidadController extends Controller
                 continue;
             }
 
-            // Validar referencia única (excluyendo el inventario actual del plan)
-            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
-                ->where('ref', strtoupper($referencia))
-                ->where('type', 'PLAN')
-                ->where('id', '!=', $plan->item)
-                ->first();
-            if ($existeRef) {
-                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe en otro plan.";
-                continue;
-            }
-
-            // Buscar mikrotik por nombre
+            // Buscar mikrotik por nombre (antes de validar ref, necesitamos el ID)
             $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
                 ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
                 ->first();
             if (!$mikrotik) {
                 $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
+                continue;
+            }
+
+            // Validar referencia única por mikrotik (la ref puede repetirse si es otra mikrotik)
+            $existeRef = PlanesVelocidad::join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
+                ->where('planes_velocidad.empresa', Auth::user()->empresa)
+                ->where('planes_velocidad.mikrotik', $mikrotik->id)
+                ->where('inventario.ref', strtoupper($referencia))
+                ->where('planes_velocidad.id', '!=', $id)
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe para la mikrotik '<b>$mikrotik_nombre</b>'.";
                 continue;
             }
 
