@@ -173,6 +173,70 @@
         </div>
     </div>
 
+    <!-- Modal de Configuración de Auto-Relleno -->
+    <div class="modal fade" id="modalAutofill" tabindex="-1" role="dialog" aria-labelledby="modalAutofillLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: {{Auth::user()->empresa()->color}}; color: #fff;">
+                    <h5 class="modal-title" id="modalAutofillLabel">
+                        <i class="fas fa-exclamation-triangle"></i> Configuración de Importación
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Se encontraron registros con campos vacíos que pueden ser auto-rellenados. Configure las opciones:</p>
+
+                    <!-- Switch: IP vacía -->
+                    @if(session('validaciones_importacion') && isset(session('validaciones_importacion')['ip_vacias']))
+                    <div class="d-flex align-items-center justify-content-between p-3 mb-2 border rounded" style="background-color: #fff3cd;">
+                        <div>
+                            <strong><i class="fas fa-network-wired"></i> IP vacía</strong>
+                            <p class="mb-0 text-muted small">
+                                Se encontraron <strong>{{ session('validaciones_importacion')['ip_vacias'] }}</strong> registro(s) sin IP.
+                                <br>Si activa esta opción, se asignará la IP <code>000.000.0.00</code> por defecto.
+                            </p>
+                        </div>
+                        <div class="custom-control custom-switch ml-3">
+                            <input type="checkbox" class="custom-control-input autofill-switch" id="switchAutofillIp" data-field="autofill_ip" checked>
+                            <label class="custom-control-label" for="switchAutofillIp"></label>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- EXTENSIBLE: Agregar más switches aquí para futuras validaciones solucionables --}}
+                    {{-- Ejemplo:
+                    @if(session('validaciones_importacion') && isset(session('validaciones_importacion')['otro_campo']))
+                    <div class="d-flex align-items-center justify-content-between p-3 mb-2 border rounded" style="background-color: #fff3cd;">
+                        <div>
+                            <strong><i class="fas fa-icon"></i> Otro Campo</strong>
+                            <p class="mb-0 text-muted small">Descripción...</p>
+                        </div>
+                        <div class="custom-control custom-switch ml-3">
+                            <input type="checkbox" class="custom-control-input autofill-switch" id="switchAutofillOtro" data-field="autofill_otro">
+                            <label class="custom-control-label" for="switchAutofillOtro"></label>
+                        </div>
+                    </div>
+                    @endif
+                    --}}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="btnCancelAutofill">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnConfirmAutofill">
+                        <i class="fas fa-check"></i> Continuar Importación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form oculto para re-enviar con opciones de auto-relleno -->
+    <form id="autofillForm" method="POST" action="{{ route('contratos.importar_cargando') }}" style="display: none;">
+        @csrf
+        <input type="hidden" name="archivo_guardado" id="archivoGuardado" value="{{ session('archivo_guardado', '') }}">
+        <!-- Los hidden inputs de autofill se agregan dinámicamente -->
+    </form>
+
     <!-- Preloader con progreso -->
     <div id="preloader" style="display: none;">
         <div class="preloader-overlay">
@@ -215,6 +279,19 @@
             font-weight: bold;
             color: #fff;
         }
+        .custom-switch .custom-control-label::before {
+            width: 2.5rem;
+            height: 1.5rem;
+            border-radius: 1rem;
+        }
+        .custom-switch .custom-control-label::after {
+            width: 1.2rem;
+            height: 1.2rem;
+            border-radius: 50%;
+        }
+        .custom-switch .custom-control-input:checked ~ .custom-control-label::after {
+            transform: translateX(1rem);
+        }
     </style>
 
     <script>
@@ -225,7 +302,7 @@
             nextSibling.innerText = fileName;
         });
 
-        // Manejar envío del formulario
+        // Manejar envío del formulario principal
         document.getElementById('importForm').addEventListener('submit', function(e) {
             var form = this;
             var preloader = document.getElementById('preloader');
@@ -243,7 +320,7 @@
             var interval = setInterval(function() {
                 progress += Math.random() * 15;
                 if (progress > 90) {
-                    progress = 90; // Dejar espacio para la finalización
+                    progress = 90;
                 }
                 progressBar.style.width = progress + '%';
                 progressText.textContent = Math.round(progress) + '%';
@@ -256,9 +333,42 @@
                     progressMessage.textContent = 'Procesando registros...';
                 }
             }, 300);
+        });
 
-            // El formulario se enviará normalmente
-            // Si hay un error, el preloader se ocultará al recargar la página
+        // Mostrar modal si hay validaciones solucionables
+        @if(session('validaciones_importacion'))
+        $(document).ready(function() {
+            $('#modalAutofill').modal('show');
+        });
+        @endif
+
+        // Botón Cancelar del modal
+        document.getElementById('btnCancelAutofill').addEventListener('click', function() {
+            $('#modalAutofill').modal('hide');
+        });
+
+        // Botón Continuar del modal: re-enviar con opciones
+        document.getElementById('btnConfirmAutofill').addEventListener('click', function() {
+            var form = document.getElementById('autofillForm');
+            
+            // Recoger estado de cada switch y agregar como hidden input
+            var switches = document.querySelectorAll('.autofill-switch');
+            switches.forEach(function(sw) {
+                var fieldName = sw.getAttribute('data-field');
+                var value = sw.checked ? 1 : 0;
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = fieldName;
+                input.value = value;
+                form.appendChild(input);
+            });
+
+            // Ocultar modal y mostrar preloader
+            $('#modalAutofill').modal('hide');
+            document.getElementById('preloader').style.display = 'block';
+
+            // Enviar formulario
+            form.submit();
         });
     </script>
 @endsection

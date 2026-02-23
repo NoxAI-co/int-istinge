@@ -4835,7 +4835,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -4871,12 +4871,14 @@ class ContratosController extends Controller
             'AC' => 'IP Local Address para PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AD' => 'Usuario para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AE' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
-            'AF' => 'Línea. Opcional en todos los tipos de conexión.'
+            'AF' => 'Línea. Opcional en todos los tipos de conexión.',
+            'AG' => 'Estrato del contrato. Opcional.',
+            'AH' => 'Dirección de instalación del contrato. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de actualizacion de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema")
@@ -5023,7 +5025,9 @@ class ContratosController extends Controller
                 ->setCellValue("AC$j", $contrato->local_adress_pppoe ?? '')
                 ->setCellValue("AD$j", $contrato->usuario ?? '')
                 ->setCellValue("AE$j", $contrato->password ?? '')
-                ->setCellValue("AF$j", $contrato->linea ?? '');
+                ->setCellValue("AF$j", $contrato->linea ?? '')
+                ->setCellValue("AG$j", $contrato->estrato ?? '')
+                ->setCellValue("AH$j", $contrato->address_street ?? '');
 
             $j++;
         }
@@ -5058,7 +5062,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -5093,12 +5097,14 @@ class ContratosController extends Controller
             'AB' => 'IP Local Address para PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AC' => 'Usuario para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AD' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
-            'AE' => 'Línea. Opcional en todos los tipos de conexión.'
+            'AE' => 'Línea. Opcional en todos los tipos de conexión.',
+            'AF' => 'Estrato del contrato. Opcional.',
+            'AG' => 'Dirección de instalación del contrato. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de Importación de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
@@ -5199,20 +5205,36 @@ class ContratosController extends Controller
 
     public function cargando(Request $request)
     {
-        $request->validate([
-            'archivo' => 'required|mimes:xlsx',
-        ], [
-            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
-        ]);
-
         $create = 0;
         $modf = 0;
-        $imagen = $request->file('archivo');
-        $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
+
+        // Opciones de auto-relleno (enviadas desde el modal de configuración)
+        $autofillIp = $request->input('autofill_ip', 0);
+        $autofillIpCount = 0;
+
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
-        $imagen->move($path, $nombre_imagen);
+
+        // Si viene del modal de configuración, re-usar el archivo ya subido
+        if ($request->input('archivo_guardado')) {
+            $nombre_imagen = $request->input('archivo_guardado');
+            $fileWithPath = $path . "/" . $nombre_imagen;
+            if (!file_exists($fileWithPath)) {
+                return back()->withErrors(['archivo' => 'El archivo ya no existe. Por favor, vuelva a subirlo.'])->withInput();
+            }
+        } else {
+            // Primera vez: validar y subir archivo
+            $request->validate([
+                'archivo' => 'required|mimes:xlsx',
+            ], [
+                'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+            ]);
+            $imagen = $request->file('archivo');
+            $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
+            $imagen->move($path, $nombre_imagen);
+            $fileWithPath = $path . "/" . $nombre_imagen;
+        }
+
         Ini_set('max_execution_time', 500);
-        $fileWithPath = $path . "/" . $nombre_imagen;
         //Identificando el tipo de archivo
         $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
         //Creando el lector.
@@ -5230,6 +5252,7 @@ class ContratosController extends Controller
         $identificacionesNoEncontradas = [];
         $ipsDuplicadas = [];
         $ipsRegistradasEnArchivo = [];
+        $validacionesSolucionables = [];
 
         // Verificar el encabezado en la fila 3 para determinar si es actualización
         // Si la columna A en la fila 3 dice "Nro Contrato", entonces todas las filas tienen nro contrato
@@ -5374,6 +5397,8 @@ class ContratosController extends Controller
             $colUsuario = $esNroContrato ? 'AD' : 'AC';
             $colClave = $esNroContrato ? 'AE' : 'AD';
             $colLinea = $esNroContrato ? 'AF' : 'AE';
+            $colEstrato = $esNroContrato ? 'AG' : 'AF';
+            $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
 
             // Leer todos los campos de la estructura unificada
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
@@ -5399,6 +5424,8 @@ class ContratosController extends Controller
             $request->usuario = $sheet->getCell($colUsuario . $row)->getValue();
             $request->clave = $sheet->getCell($colClave . $row)->getValue();
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
+            $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
+            $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto antes de validar
             if (!empty($request->grupo_corte)) {
@@ -5503,7 +5530,15 @@ class ContratosController extends Controller
                 $error->state = "El campo estado es obligatorio";
             }
             if ($request->conexion != 2 && !$request->ip) {
-                $error->ip = "El campo IP es obligatorio";
+                if ($autofillIp) {
+                    // Auto-relleno activo: no generar error, se asignará IP por defecto en el segundo bucle
+                } else {
+                    // Registrar como validación solucionable en lugar de error directo
+                    if (!isset($validacionesSolucionables['ip_vacias'])) {
+                        $validacionesSolucionables['ip_vacias'] = 0;
+                    }
+                    $validacionesSolucionables['ip_vacias']++;
+                }
             }
             if (!$request->conexion) {
                 $error->conexion = "El campo conexión es obligatorio";
@@ -5556,6 +5591,13 @@ class ContratosController extends Controller
                 $result = (object) $error;
                 return back()->withErrors($result)->withInput();
             }
+        }
+
+        // Si hay validaciones solucionables y no se han confirmado las opciones de auto-relleno
+        if (count($validacionesSolucionables) > 0 && !$autofillIp) {
+            return back()->with('validaciones_importacion', $validacionesSolucionables)
+                         ->with('archivo_guardado', $nombre_imagen)
+                         ->withInput();
         }
 
         $mensajeErroresAlert = '';
@@ -5726,6 +5768,8 @@ class ContratosController extends Controller
             $colUsuario = $esNroContrato ? 'AD' : 'AC';
             $colClave = $esNroContrato ? 'AE' : 'AD';
             $colLinea = $esNroContrato ? 'AF' : 'AE';
+            $colEstrato = $esNroContrato ? 'AG' : 'AF';
+            $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
 
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
             $request->mac = $sheet->getCell($colMAC . $row)->getValue();
@@ -5750,6 +5794,8 @@ class ContratosController extends Controller
             $request->usuario = $sheet->getCell($colUsuario . $row)->getValue();
             $request->clave = $sheet->getCell($colClave . $row)->getValue();
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
+            $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
+            $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto
             if (!empty($request->grupo_corte)) {
@@ -5926,7 +5972,13 @@ class ContratosController extends Controller
             $contrato->plan_id                 = $request->plan;
             $contrato->server_configuration_id = $request->mikrotik;
             $contrato->state                   = $request->state;
-            $contrato->ip                      = $request->ip;
+            // Auto-rellenar IP si está vacía y autofill está activo
+            if (empty($request->ip) && $request->conexion != 2 && $autofillIp) {
+                $contrato->ip = '000.000.0.00';
+                $autofillIpCount++;
+            } else {
+                $contrato->ip = $request->ip;
+            }
             $contrato->conexion                = $request->conexion;
             $contrato->simple_queue            = $request->simple_queue ?? null;
             $contrato->interfaz                = $request->interfaz ?? null;
@@ -5951,6 +6003,8 @@ class ContratosController extends Controller
             $contrato->password                = $request->clave ?? null;
             $contrato->local_adress_pppoe      = $request->local_address_pppoe ?? null;
             $contrato->linea                   = $request->linea ?? null;
+            $contrato->estrato                 = $request->estrato ?? null;
+            $contrato->address_street          = $request->address_street ?? null;
 
             // Manejar caja NAP y puerto
             if ($cajaNap != null) {
@@ -6013,6 +6067,9 @@ class ContratosController extends Controller
         }
         if ($modf > 0) {
             $mensaje .= ' MODIFICADOS: ' . $modf;
+        }
+        if ($autofillIpCount > 0) {
+            $mensaje .= '. ' . $autofillIpCount . ' registro(s) fueron agregados con la IP 000.000.0.00 porque no fue ingresada.';
         }
 
         if ($mensajeErroresAlert != '') {
