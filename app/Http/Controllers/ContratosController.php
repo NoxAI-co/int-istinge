@@ -5215,6 +5215,10 @@ class ContratosController extends Controller
         $autofillState = $request->input('autofill_state', 0);
         $autofillStateValue = $request->input('autofill_state_value', 'habilitado');
         $autofillStateCount = 0;
+        
+        $autofillFacturacion = $request->input('autofill_facturacion', 0);
+        $autofillFacturacionValue = $request->input('autofill_facturacion_value', 'estandar');
+        $autofillFacturacionCount = 0;
 
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
 
@@ -5583,7 +5587,14 @@ class ContratosController extends Controller
                 }
             }
             if (!$request->facturacion) {
-                $error->facturacion = "El campo facturacion es obligatorio";
+                if ($autofillFacturacion) {
+                    // Auto-relleno activo
+                } else {
+                    if (!isset($validacionesSolucionables['facturacion_vacias'])) {
+                        $validacionesSolucionables['facturacion_vacias'] = 0;
+                    }
+                    $validacionesSolucionables['facturacion_vacias']++;
+                }
             }
 
             if (!$request->tecnologia) {
@@ -6024,7 +6035,14 @@ class ContratosController extends Controller
             $contrato->interfaz                = $request->interfaz ?? null;
             $contrato->local_address           = $request->local_address ?? null;
             $contrato->grupo_corte             = $request->grupo_corte;
-            $contrato->facturacion             = $request->facturacion;
+            
+            // Auto-rellenar Facturación si está vacía
+            if (empty($request->facturacion) && $autofillFacturacion) {
+                $contrato->facturacion = $autofillFacturacionValue;
+                $autofillFacturacionCount++;
+            } else {
+                $contrato->facturacion = $request->facturacion;
+            }
             $contrato->tecnologia              = $request->tecnologia;
             $contrato->tipo_contrato           = $request->tipo_contrato;
             $contrato->profile                 = $request->profile ?? null;
@@ -6113,6 +6131,9 @@ class ContratosController extends Controller
         }
         if ($autofillStateCount > 0) {
             $mensaje .= '. ' . $autofillStateCount . ' registro(s) fueron agregados con el Estado ' . ucfirst($autofillStateValue) . ' porque no fue ingresado.';
+        }
+        if ($autofillFacturacionCount > 0) {
+            $mensaje .= '. ' . $autofillFacturacionCount . ' registro(s) fueron agregados con la Facturación ' . ucfirst($autofillFacturacionValue) . ' porque no fue ingresada.';
         }
 
         if ($mensajeErroresAlert != '') {

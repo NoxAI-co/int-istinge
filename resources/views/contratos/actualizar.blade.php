@@ -235,6 +235,31 @@
                 </div>
                 @endif
 
+                <!-- Switch: Facturación vacía -->
+                @if(isset(session('validaciones_importacion')['facturacion_vacias']))
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+                    <div style="flex: 1;">
+                        <strong><i class="fas fa-file-invoice-dollar"></i> Facturación obligatoria</strong>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85rem;">
+                            Se encontraron <strong>{{ session('validaciones_importacion')['facturacion_vacias'] }}</strong> registro(s) sin Facturación.
+                            <br>Si activa esta opción, puede elegir el tipo por defecto.
+                        </p>
+                        <div id="facturacionValueContainer" style="margin-top: 10px;">
+                            <select id="selectAutofillFacturacionValue" class="form-control form-control-sm" style="width: 150px;">
+                                <option value="estandar">Estandar</option>
+                                <option value="electronica">Electronica</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillFacturacion" data-field="autofill_facturacion" checked style="opacity: 0; width: 0; height: 0;" onchange="document.getElementById('facturacionValueContainer').style.display = this.checked ? 'block' : 'none'">
+                            <span class="autofill-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
                 @if(count($errors) > 0)
                 <div style="margin-top: 15px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; font-size: 0.85rem;">
                     <strong><i class="fas fa-info-circle"></i> Nota:</strong> También se encontraron errores que requieren corrección manual en el archivo Excel. Estos se mostrarán después de continuar.
@@ -355,6 +380,17 @@
                 inputVal.name = 'autofill_state_value';
                 inputVal.value = stateVal;
                 form.appendChild(inputVal);
+            }
+
+            // Si el switch de facturacion está marcado, recoger el valor seleccionado
+            var switchFact = document.getElementById('switchAutofillFacturacion');
+            if (switchFact && switchFact.checked) {
+                var factVal = document.getElementById('selectAutofillFacturacionValue').value;
+                var inputValF = document.createElement('input');
+                inputValF.type = 'hidden';
+                inputValF.name = 'autofill_facturacion_value';
+                inputValF.value = factVal;
+                form.appendChild(inputValF);
             }
 
             var overlay = document.getElementById('autofillOverlay');
