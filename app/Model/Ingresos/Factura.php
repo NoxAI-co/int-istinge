@@ -1878,7 +1878,7 @@ public function forma_pago()
 
     public function contract(){
 
-        $contrato = Contrato::join('facturas_contratos','facturas_contratos.contrato_nro','contrato.nro')
+        $contrato = Contrato::join('facturas_contratos','facturas_contratos.contrato_nro','contracts.nro')
         ->where('facturas_contratos.factura_id',$this->id)->first();
         if($contrato){
             return $contrato;
