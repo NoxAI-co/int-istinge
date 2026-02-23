@@ -476,6 +476,16 @@ class BillingCycleAnalyzer
                         'color' => 'primary'
                     ];
                 }
+
+                // 4. Validación: Facturas abiertas bloquean nueva facturación (cron_fact_abiertas = 0)
+                if ($ultimaFactura->estatus == 1 && $empresa->cron_fact_abiertas == 0) {
+                    return [
+                        'code' => 'open_invoices_blocked',
+                        'title' => 'Facturación bloqueada por facturas abiertas',
+                        'description' => 'El contrato tiene una factura abierta antigua y la empresa (cron_fact_abiertas = 0) no permite generar nuevas facturas.',
+                        'color' => 'warning'
+                    ];
+                }
             }
         }
         
