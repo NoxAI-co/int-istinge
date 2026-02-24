@@ -7031,29 +7031,18 @@ class FacturasController extends Controller{
                         }
                     }
 
-                    // Eliminar items_factura (esto también elimina los impuestos asociados que están en la misma tabla)
-                    ItemsFactura::where('factura', $factura->id)->delete();
-
-                    // Eliminar factura_retenciones (retenciones asociadas a la factura)
+                    // Eliminar registros de todas las tablas que puedan tener llaves foráneas a factura
+                    DB::table('items_factura')->where('factura', $factura->id)->delete();
                     DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
-
-                    // Eliminar ingresos_retenciones relacionados con esta factura
                     DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
-
-                    // Eliminar la relación en facturas_contratos por factura_id
-                    DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-
-                    // Eliminar descuentos relacionados
-                    Descuento::where('factura', $factura->id)->delete();
-
-                    // Eliminar notas_factura relacionadas
+                    DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
                     DB::table('notas_factura')->where('factura', $factura->id)->delete();
-
-                    //Elimnar registros del CRM
-                    CRM::where('factura', $factura->id)->delete();
-
-                    // Eliminar promesas de pago asociadas a la factura
-                    PromesaPago::where('factura', $factura->id)->delete();
+                    DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+                    DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
+                    DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
+                    DB::table('descuentos')->where('factura', $factura->id)->delete();
+                    DB::table('crm')->where('factura', $factura->id)->delete();
+                    DB::table('promesa_pago')->where('factura', $factura->id)->delete();
 
                     // Eliminar factura en OnePay si existe
                     if ($factura->onepay_invoice_id) {
