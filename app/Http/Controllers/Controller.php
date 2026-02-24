@@ -2413,6 +2413,7 @@ class Controller extends BaseController
         $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
         $resolucion = NumeracionFactura::where('id',$factura->numeracion)->first();
         $tipo = $factura->tipo;
+        $title = 'Factura ' . $factura->codigo;
 
         if($factura->emitida == 1){
             $impTotal = 0;
@@ -2450,9 +2451,9 @@ class Controller extends BaseController
             /*..............................
             Construcción del código qr a la factura
             ................................*/
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
         }else{
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
         }
     }
 
