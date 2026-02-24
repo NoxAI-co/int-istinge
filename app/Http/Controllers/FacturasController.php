@@ -7013,6 +7013,9 @@ class FacturasController extends Controller{
 
                 // Si pasa todas las validaciones, eliminar factura y registros relacionados
                 try {
+                    // Usar savepoint para que un error en una factura no revierta las demás
+                    DB::statement('SAVEPOINT factura_'.$i);
+
                     // Generar MovimientoLog
                     $factura_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                     if ($factura_contrato) {
@@ -7062,8 +7065,10 @@ class FacturasController extends Controller{
                     $factura->delete();
                     $eliminadas++;
 
+                    DB::statement('RELEASE SAVEPOINT factura_'.$i);
+
                 } catch (\Exception $e) {
-                    DB::rollBack();
+                    DB::statement('ROLLBACK TO SAVEPOINT factura_'.$i);
                     $errores[] = "Factura {$factura->codigo}: Error al eliminar - " . $e->getMessage();
                 }
             }
