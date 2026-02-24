@@ -1829,27 +1829,27 @@ public function forma_pago()
         return $list;
     }
 
-        //Nos trae la lista de formas de pago de la factura nada mas.
-        public function formaPagoListIngreso(){
+    //Nos trae la lista de nombres de las formas de pago de la factura nada mas.
+    public function formaPagoListIngreso(){
+        $formasPago = DB::table('ingresos_factura as if')
+            ->join('forma_pago as fp', 'if.puc_banco', '=', 'fp.id')
+            ->where('if.factura', $this->id)
+            ->select('fp.nombre')
+            ->distinct()
+            ->get();
 
-            $ingresosFactura = IngresosFactura::select('puc_banco')->where('factura',$this->id)->get();
-            $list = "";
-            $cont = $ingresosFactura->count();
-            $i = 1;
+        $list = "";
+        $cont = $formasPago->count();
+        $i = 1;
 
-            foreach($ingresosFactura as $ingreso){
-                $forma = FormaPago::find($ingreso->puc_banco);
-                if($forma){
-                    if($i != $cont){
-                        $list.=$forma->nombre . ",";
-                    }else{
-                        $list.=$forma->nombre;
-                    }
-                }
-                $i++;
+        foreach($formasPago as $forma){
+            if($forma){
+                $list .= $forma->nombre . ($i < $cont ? ", " : "");
             }
-            return $list;
+            $i++;
         }
+        return $list;
+    }
 
     //Nos trae la lista de formas de pago de la factura nada mas.
     public function cuentaPagoListIngreso(){

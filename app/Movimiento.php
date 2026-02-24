@@ -241,4 +241,27 @@ class Movimiento extends Model
             return Gastos::find($this->id_modulo);
         }
     }
+
+    public function forma_pago(){
+        if ($this->modulo == 1) { // Ingreso
+            $ingresoFactura = \DB::table('ingresos_factura as if')
+                ->join('forma_pago as fp', 'if.puc_banco', '=', 'fp.id')
+                ->where('if.ingreso', $this->id_modulo)
+                ->select('fp.nombre')
+                ->first();
+            if ($ingresoFactura) {
+                return $ingresoFactura->nombre;
+            }
+
+            $ingresoCategoria = \DB::table('ingresos_categoria as ic')
+                ->join('forma_pago as fp', 'ic.puc_banco', '=', 'fp.id')
+                ->where('ic.ingreso', $this->id_modulo)
+                ->select('fp.nombre')
+                ->first();
+            if ($ingresoCategoria) {
+                return $ingresoCategoria->nombre;
+            }
+        }
+        return '';
+    }
 }
