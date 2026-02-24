@@ -175,7 +175,7 @@
     <!-- Overlay de Configuración de Auto-Relleno (Vanilla CSS/JS, sin dependencia de jQuery/Bootstrap modal) -->
     @if(session('validaciones_importacion'))
     <div id="autofillOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
-        <div style="background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 550px; width: 90%; overflow: hidden;">
+        <div style="background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 550px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
             <!-- Header -->
             <div style="background-color: {{Auth::user()->empresa()->color}}; color: #fff; padding: 15px 20px;">
                 <h5 style="margin: 0; font-size: 1.1rem;">
@@ -183,7 +183,7 @@
                 </h5>
             </div>
             <!-- Body -->
-            <div style="padding: 20px;">
+            <div style="padding: 20px; overflow-y: auto; flex-grow: 1;">
                 <p style="margin-bottom: 15px;">Se encontraron registros con campos vacíos que pueden ser auto-rellenados. Configure las opciones:</p>
 
                 <!-- Switch: IP vacía -->

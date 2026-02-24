@@ -1283,7 +1283,7 @@ class PlanesVelocidadController extends Controller
             $iva              = strtolower(trim($sheet->getCell("J" . $row)->getValue()));
 
             // Validaciones
-            if (empty($nombre) || empty($referencia) || empty($precio) || empty($vel_descarga) ||
+            if (empty($nombre) || empty($referencia) || $precio == "" || empty($vel_descarga) ||
                 empty($unidad_descarga) || empty($vel_subida) || empty($unidad_subida) ||
                 empty($mikrotik_nombre) || empty($tipo)) {
                 $errores[] = "Fila $row: Los campos nombre, referencia, precio, velocidades, unidades, mikrotik y tipo son obligatorios.";
