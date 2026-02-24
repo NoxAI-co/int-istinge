@@ -29,12 +29,31 @@
 <p>Medios de pago Nequi: 3206909290 Cuenta de ahorros Bancolombia 42081411021 CC 1001912928 Ximena Herrera representante legal. Adjunte su pago para reactivar su membresía</p>
 	    </div>
 	@else
-        @if(isset($_SESSION['permisos']['435']))
-            <a href="{{route('planes-velocidad.create')}}" class="btn btn-primary btn-sm" ><i class="fas fa-plus"></i> Nuevo Plan</a>
-        @endif
-        <a href="{{route('planes-velocidad.importar')}}" class="btn btn-success btn-sm my-1"><i class="fas fa-file-import"></i> Importar Planes</a>
-        <a href="{{route('planes-velocidad.actualizar-masivo')}}" class="btn btn-warning btn-sm my-1"><i class="fas fa-sync-alt"></i> Actualizar Planes</a>
-        <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
+        <div class="btn-group btn-group-sm" role="group">
+            @if(isset($_SESSION['permisos']['435']))
+                <a href="{{ route('planes-velocidad.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nuevo Plan
+                </a>
+            @endif
+
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="{{ route('planes-velocidad.importar') }}">
+                        <i class="fas fa-file-import fa-fw mr-1 text-success"></i> Importar planes
+                    </a>
+                    <a class="dropdown-item" href="{{ route('planes-velocidad.actualizar-masivo') }}">
+                        <i class="fas fa-sync-alt fa-fw mr-1 text-warning"></i> Actualizar planes
+                    </a>
+                </div>
+            </div>
+
+            <a href="javascript:abrirFiltrador()" class="btn btn-outline-info" id="boton-filtrar">
+                <i class="fas fa-search"></i> Filtrar
+            </a>
+        </div>
     @endif
 @endsection
 
