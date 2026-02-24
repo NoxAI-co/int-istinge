@@ -1079,7 +1079,7 @@ class ContactosController extends Controller
                 $req->codigopostal      = $sheet->getCell('J'.$row)->getValue();
                 $req->telefono1         = $sheet->getCell('K'.$row)->getValue(); // Teléfono1
                 $req->telefono2         = $sheet->getCell('L'.$row)->getValue(); // Teléfono2 (NO obligatorio)
-                $req->celular           = $sheet->getCell('M'.$row)->getValue(); // Celular
+                $req->celular           = $this->cleanCelular($sheet->getCell('M'.$row)->getValue()); // Celular
                 $req->direccion         = $this->repairEncoding($sheet->getCell('N'.$row)->getValue());
                 $req->vereda            = $this->repairEncoding($sheet->getCell('O'.$row)->getValue());
                 $req->barrio            = $this->repairEncoding($sheet->getCell('P'.$row)->getValue());
@@ -1162,7 +1162,7 @@ class ContactosController extends Controller
                 $req->codigopostal      = $sheet->getCell('J'.$row)->getValue();
                 $req->telefono1         = $sheet->getCell('K'.$row)->getValue();
                 $req->telefono2         = $sheet->getCell('L'.$row)->getValue();
-                $req->celular           = $sheet->getCell('M'.$row)->getValue();
+                $req->celular           = $this->cleanCelular($sheet->getCell('M'.$row)->getValue());
                 $req->direccion         = $this->repairEncoding($sheet->getCell('N'.$row)->getValue());
                 $req->vereda            = $this->repairEncoding($sheet->getCell('O'.$row)->getValue());
                 $req->barrio            = $this->repairEncoding($sheet->getCell('P'.$row)->getValue());

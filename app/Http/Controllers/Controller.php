@@ -161,6 +161,25 @@ class Controller extends BaseController
     }
 
     /**
+     * Limpia el número de celular del prefijo +57 si lo tiene
+     * @param string $celular
+     * @return string
+     */
+    public function cleanCelular($celular)
+    {
+        if (empty($celular)) return $celular;
+
+        $celular = (string)$celular;
+        $celular = trim($celular);
+
+        if (strpos($celular, '+57') === 0) {
+            $celular = substr($celular, 3);
+        }
+
+        return $celular;
+    }
+
+    /**
      * Valida si una fecha es válida y la retorna, de lo contrario retorna la fecha actual
      * @param mixed $date
      * @return \Carbon\Carbon
