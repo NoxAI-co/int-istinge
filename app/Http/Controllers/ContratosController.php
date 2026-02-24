@@ -5483,17 +5483,41 @@ class ContratosController extends Controller
                 }
             }
 
+            if ($request->mikrotik != "") {
+                // Buscar en minúsculas
+                $miko = Mikrotik::whereRaw('LOWER(nombre) = ?', [strtolower($request->mikrotik)])->first();
+                if (!$miko) {
+                    $error->mikrotik = "El mikrotik ingresado no se encuentra en nuestra base de datos";
+                    $mikoId = 0;
+                } else {
+                    $mikoId = $miko->id;
+                }
+            } else {
+                $mikoId = 0;
+            }
+
+            if (!$request->servicio) {
+                $error->servicio = "El campo Servicio es obligatorio";
+            }
+
             if (!empty($request->ip)) {
                 $queryIp = Contrato::where('ip', $request->ip)->where('empresa', Auth::user()->empresa);
+                
+                // El conteo de IPs repetidas se hace por mikrotik (server_configuration_id)
+                if ($mikoId > 0) {
+                    $queryIp->where('server_configuration_id', $mikoId);
+                }
+
                 if ($esNroContrato && $nro_contrato_actualizar) {
                     $queryIp->where('nro', '!=', $nro_contrato_actualizar);
                 }
                 
                 $isDuplicateInFile = false;
-                if (isset($ipsRegistradasEnArchivo[$request->ip])) {
+                // Tracking por Mikrotik en el archivo
+                if (isset($ipsRegistradasEnArchivo[$mikoId][$request->ip])) {
                     $isDuplicateInFile = true;
                 } else {
-                    $ipsRegistradasEnArchivo[$request->ip] = true;
+                    $ipsRegistradasEnArchivo[$mikoId][$request->ip] = true;
                 }
 
                 if ($queryIp->count() > 0 || $isDuplicateInFile) {
@@ -5501,19 +5525,6 @@ class ContratosController extends Controller
                         'fila' => $row,
                         'ip' => $request->ip
                     ];
-                }
-            }
-
-            if (!$request->servicio) {
-                $error->servicio = "El campo Servicio es obligatorio";
-            }
-            if ($request->mikrotik != "") {
-                // Buscar en minúsculas
-                $miko = Mikrotik::whereRaw('LOWER(nombre) = ?', [strtolower($request->mikrotik)])->first();
-                if (!$miko) {
-                    $error->mikrotik = "El mikrotik ingresado no se encuentra en nuestra base de datos";
-                } else {
-                    $mikoId = $miko->id;
                 }
             }
 
