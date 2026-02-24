@@ -5539,10 +5539,17 @@ class ContratosController extends Controller
                         $mikoId = 0;
                     }
 
-                    // Buscar en minúsculas
+                    // Buscar primero como plan de velocidad
                     $num = PlanesVelocidad::whereRaw('LOWER(name) = ?', [strtolower($planValue)])->where('mikrotik', $mikoId)->count();
                     if ($num == 0) {
-                        $error->plan = "El plan de velocidad " . $planValue . " ingresado no se encuentra en nuestra base de datos. Verifique que la columna Plan (F) contenga el nombre correcto del plan.";
+                        // Fallback: buscar como item de inventario type TV
+                        $inventarioTV = Inventario::whereRaw('LOWER(producto) = ?', [strtolower($planValue)])
+                            ->where('empresa', Auth::user()->empresa)
+                            ->where('type', 'TV')
+                            ->first();
+                        if (!$inventarioTV) {
+                            $error->plan = "El plan de velocidad o servicio de TV '" . $planValue . "' no se encuentra en nuestra base de datos. Verifique que la columna Plan (F) contenga el nombre correcto del plan o del servicio de TV.";
+                        }
                     }
                 }
             }
@@ -5891,14 +5898,24 @@ class ContratosController extends Controller
                     return back()->withErrors(['mikrotik' => 'El mikrotik ingresado no se encuentra en nuestra base de datos'])->withInput();
                 }
             }
+            $request->es_tv = false;
             if ($request->plan != "") {
-                // Buscar en minúsculas
+                // Buscar primero como plan de velocidad
                 $planesVelocidad = PlanesVelocidad::whereRaw('LOWER(name) = ?', [strtolower($request->plan)])->first();
                 if ($planesVelocidad) {
                     $request->plan = $planesVelocidad->id;
                 } else {
-                    // Manejar el caso en el que no se encuentra el plan de velocidad
-                    $error->plan = "El plan de velocidad " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
+                    // Fallback: buscar como item de inventario type TV
+                    $inventarioTV = Inventario::whereRaw('LOWER(producto) = ?', [strtolower($request->plan)])
+                        ->where('empresa', Auth::user()->empresa)
+                        ->where('type', 'TV')
+                        ->first();
+                    if ($inventarioTV) {
+                        $request->plan = $inventarioTV->id;
+                        $request->es_tv = true;
+                    } else {
+                        $error->plan = "El plan de velocidad o servicio de TV " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
+                    }
                 }
             }
             if ($request->grupo_corte != "") {
@@ -6025,7 +6042,16 @@ class ContratosController extends Controller
                 $contrato->servicio = $this->normaliza($request->servicio) . '-' . $contrato->nro;
             }
 
-            $contrato->plan_id                 = $request->plan;
+            // Si es un servicio de TV, guardar en servicio_tv; si es plan de velocidad, guardar en plan_id
+            if (isset($request->es_tv) && $request->es_tv) {
+                $contrato->servicio_tv             = $request->plan;
+                // No sobreescribir plan_id si ya tiene uno y estamos actualizando
+                if (!$esNroContrato || !$nro_contrato_actualizar) {
+                    $contrato->plan_id             = null;
+                }
+            } else {
+                $contrato->plan_id                 = $request->plan;
+            }
             $contrato->server_configuration_id = $request->mikrotik;
             
             // Auto-rellenar Estado si está vacío
