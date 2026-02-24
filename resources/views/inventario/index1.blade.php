@@ -20,12 +20,21 @@
 
 	<a href="{{route('inventario.exportar')}}" class="btn btn-secondary btn-sm oclt-btneximp" ><i class="fas fa-download"></i> Exportar</a> --}}
 	    @if($type == 'TV')
+	        <div class="btn-group" role="group">
+	            <button id="btnImportTV" type="button" class="btn btn-secondary dropdown-toggle btn-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	                <i class="fas fa-file-excel"></i> Excel
+	            </button>
+	            <div class="dropdown-menu" aria-labelledby="btnImportTV">
+	                <a class="dropdown-item" href="{{ route('inventario.television.importar') }}"><i class="fas fa-upload mr-1"></i> Importar planes de TV</a>
+	                <a class="dropdown-item" href="{{ route('inventario.television.actualizar') }}"><i class="fas fa-sync-alt mr-1"></i> Actualizar planes de TV</a>
+	            </div>
+	        </div>
 	        <a href="{{route('inventario.television_create')}}" class="btn btn-primary btn-sm" ><i class="fas fa-plus"></i> Nuevo Plan de TV</a>
 	    @else
 	        <a href="{{route('inventario.create')}}" class="btn btn-primary btn-sm" ><i class="fas fa-plus"></i> Nuevo Producto</a>
 	    @endif
 	@endif
-@endsection		
+@endsection	
 @section('content')
 	@if(Session::has('success'))
 		<div class="alert alert-success" >

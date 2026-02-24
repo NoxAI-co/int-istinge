@@ -610,6 +610,14 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/television', 'InventarioController@television')->name('inventario.television');
 		Route::get('/television/create', 'InventarioController@television_create')->name('inventario.television_create');
 
+		// Importar / Actualizar Televisión
+		Route::get('/television/importar', 'InventarioController@importarTelevision')->name('inventario.television.importar');
+		Route::post('/television/ejemplo-importar', 'InventarioController@ejemploImportarTelevision')->name('inventario.television.ejemplo-importar');
+		Route::post('/television/importar-cargando', 'InventarioController@importarCargandoTelevision')->name('inventario.television.importar-cargando');
+		Route::get('/television/actualizar', 'InventarioController@actualizarMasivoTelevision')->name('inventario.television.actualizar');
+		Route::post('/television/ejemplo-actualizar', 'InventarioController@ejemploActualizarTelevision')->name('inventario.television.ejemplo-actualizar');
+		Route::post('/television/actualizar-cargando', 'InventarioController@actualizarCargandoTelevision')->name('inventario.television.actualizar-cargando');
+
 		Route::post('/diaiva', 'InventarioController@diaIva');
 
 
