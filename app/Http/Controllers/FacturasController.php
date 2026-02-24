@@ -6392,7 +6392,7 @@ class FacturasController extends Controller{
                 if ($factura && $factura->cliente) {
                     $cliente = $factura->cliente();
                     if (!$cliente || !isset($cliente->email) || empty($cliente->email)) {
-                        $factura->dian_response = 409;
+                        $factura->dian_response = 401;
                         $factura->save();
                         $erroresValidacion[] = "La factura #{$factura->codigo} no se puede emitir porque el cliente " . ($cliente && isset($cliente->nombre) ? $cliente->nombre : 'Desconocido') . " no tiene correo electrónico configurado.";
                     }
