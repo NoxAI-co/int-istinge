@@ -1109,13 +1109,13 @@ class ContactosController extends Controller
                 }
 
                 if ($req->fk_iddepartamento != '') {
-                    if (DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->count() == 0) {
+                    if (DB::table('departamentos')->where('nombre', 'like', '%'.$req->fk_iddepartamento.'%')->count() == 0) {
                         $error->fk_iddepartamento = 'El nombre del departamento ingresado no se encuentra en nuestra base de datos';
                     }
                 }
 
                 if ($req->fk_idmunicipio != '') {
-                    if (DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->count() == 0) {
+                    if (DB::table('municipios')->where('nombre', 'like', '%'.$req->fk_idmunicipio.'%')->count() == 0) {
                         $error->fk_idmunicipio = 'El nombre del municipio ingresado no se encuentra en nuestra base de datos';
                     }
                 }
