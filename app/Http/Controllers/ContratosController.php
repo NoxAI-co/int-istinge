@@ -5665,7 +5665,8 @@ class ContratosController extends Controller
         }
 
         if (count($ipsDuplicadas) > 0) {
-            $mensajeErroresAlert .= "<strong>Las siguientes filas no fueron registradas porque las IPs ya están registradas:</strong><br><ul style='margin-top: 10px; margin-bottom: 10px;'>";
+            $numDuplicados = count($ipsDuplicadas);
+            $mensajeErroresAlert .= "<strong>Las siguientes filas no fueron registradas porque las IPs ya están registradas un total de $numDuplicados:</strong><br><ul style='margin-top: 10px; margin-bottom: 10px;'>";
             foreach ($ipsDuplicadas as $item) {
                 $mensajeErroresAlert .= "<li>Fila {$item['fila']}: <strong>{$item['ip']}</strong></li>";
             }
