@@ -474,8 +474,10 @@ class AvisosController extends Controller
                         $responseData = json_decode(json_encode($response), true);
                         $status = 'error';
 
-                        if (isset($responseData['messaging_product']) && $responseData['messaging_product'] === 'whatsapp') {
-                            if (isset($responseData['messages']) && count($responseData['messages']) > 0) {
+                        $data = isset($responseData['data']) ? $responseData['data'] : $responseData;
+
+                        if (isset($data['messaging_product']) && $data['messaging_product'] === 'whatsapp') {
+                            if (isset($data['messages']) && count($data['messages']) > 0) {
                                 $status = 'success';
                             }
                         }
