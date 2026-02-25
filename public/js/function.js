@@ -1989,27 +1989,47 @@ function crearDivRetentionFact(id) {
 }
 
 function max_value_valor_recibido(id, ides = null, pref = null) {
-    total = parseFloat($('#totalfact' + id).val());
+    var total_por_pagar = parseFloat($('#totalfact' + id).val());
+    var total_retenciones = 0;
     $('#retenciones_factura_' + id + ' div').each(function () {
         var id_reten = $(this).attr('id');
         if (id_reten) {
             id_reten = id_reten.split('_')[2];
-            retencion = $('#fact' + id + '_precio_reten' + id_reten).val();
+            var retencion = $('#fact' + id + '_precio_reten' + id_reten).val();
             if (retencion) {
-                total -= parseFloat(retencion);
+                total_retenciones += parseFloat(retencion.toString().replace(/,/g, ''));
             }
         }
 
     });
+    
+    var total = total_por_pagar - total_retenciones;
     total = number_format(total, false);
-    if ($('#editmonto' + id).val() == 1 && pref) {
-        $('#precio' + id).val(number_format(total, false));
-        $('#precio' + id).trigger("change");
+    
+    if ($('#editmonto' + id).val() == 1) {
+        if (pref) {
+            $('#precio' + id).val(number_format(total, false));
+            $('#precio' + id).trigger("change");
+        }
+    } else {
+        var gross = parseFloat($('#precio' + id).data('gross'));
+        if (isNaN(gross)) {
+            var current_val = parseFloat($('#precio' + id).val().toString().replace(/,/g, ''));
+            if (isNaN(current_val)) current_val = 0;
+            gross = current_val + total_retenciones;
+            $('#precio' + id).data('gross', gross);
+        }
+        
+        var new_net = gross - total_retenciones;
+        if (new_net < 0) new_net = 0;
+        
+        if (pref) {
+            $('#precio' + id).val(number_format(new_net, false));
+            $('#precio' + id).trigger("change");
+        }
     }
-    // $("#precio"+id).attr('max', number_format(total,false));
 
-
-    if (number_format(total, false) < 0) {
+    if (parseFloat(total) < 0) {
         $('#p_error_' + id).html('El total de las retenciones es mayor al valor por pagar');
         if (!$('#button-guardar').attr("disabled")) { $('#button-guardar').attr("disabled", "disabled"); }
         return false;
@@ -2252,12 +2272,29 @@ function totales_ingreso(input = true) {
 
 function editmonto(id) {
 
-    if ($('#precio' + id).val()) {
-
+    if ($('#precio' + id).val() !== '') {
         $('#editmonto' + id).val(0);
+        
+        var current_retenciones = 0;
+        $('#retenciones_factura_' + id + ' div').each(function () {
+            var id_reten = $(this).attr('id');
+            if (id_reten) {
+                id_reten = id_reten.split('_')[2];
+                var retencion = $('#fact' + id + '_precio_reten' + id_reten).val();
+                if (retencion) {
+                    current_retenciones += parseFloat(retencion.toString().replace(/,/g, ''));
+                }
+            }
+        });
+        
+        var current_val = parseFloat($('#precio' + id).val().toString().replace(/,/g, ''));
+        if (isNaN(current_val)) current_val = 0;
+        
+        var gross = current_val + current_retenciones;
+        $('#precio' + id).data('gross', gross);
     } else {
-
         $('#editmonto' + id).val(1);
+        $('#precio' + id).data('gross', 0);
     }
 }
 
