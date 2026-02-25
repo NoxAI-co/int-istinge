@@ -2534,44 +2534,37 @@ class Controller extends BaseController
         }
 
         //Calculo fecha pago oportuno.
-        $y = Carbon::now()->format('Y');
-        $m = Carbon::now()->format('m');
-        $d = substr(str_repeat(0, 2).$grupo_corte->fecha_pago, - 2);
-        if($d == 0){
-            $d = 30;
+        $dia_pago = $grupo_corte->fecha_pago == 0 ? 30 : $grupo_corte->fecha_pago;
+        $mes_pago = Carbon::now()->month;
+        $anyo_pago = Carbon::now()->year;
+        
+        if ($grupo_corte->fecha_factura > $grupo_corte->fecha_pago) {
+            $mes_pago++;
         }
-
-        if($grupo_corte->fecha_factura > $grupo_corte->fecha_pago && $m!=12){
-            $m=$m+1;
+        
+        $date_pagooportuno_carbon = Carbon::create($anyo_pago, $mes_pago, 1);
+        $date_pagooportuno_carbon->day = min($dia_pago, $date_pagooportuno_carbon->daysInMonth);
+        
+        if ($date_pagooportuno_carbon->copy()->startOfDay()->lt(Carbon::now()->startOfDay())) {
+            $date_pagooportuno_carbon->addMonthNoOverflow();
+            $date_pagooportuno_carbon->day = min($dia_pago, $date_pagooportuno_carbon->daysInMonth);
         }
-
-        if($m == 12 && $grupo_corte->fecha_factura > $grupo_corte->fecha_pago){
-            $y = $y+1;
-            $m = 01;
-        }
-        $date_pagooportuno = $y . "-" . $m . "-" . $d;
+        $date_pagooportuno = $date_pagooportuno_carbon->format('Y-m-d');
         //Fin calculo fecha de pago oportuno
 
         //calculo fecha suspension
-        $y = Carbon::now()->format('Y');
-        $m = Carbon::now()->format('m');
-        $ds = substr(str_repeat(0, 2).$grupo_corte->fecha_suspension, - 2);
-        $da = Carbon::now()->format('d')*1;
-         if($da > $grupo_corte->fecha_suspension && $m!=12){
-            $m=$m+1;
-        }
-
-        if($m == 12){
-            if($da > $grupo_corte->fecha_suspension){
-
-                if(Carbon::now()->format('m') != 11){
-                    $m = 01;
-                    $y = $y+1;
-                }
-            }
-        }
+        $dia_suspension = $grupo_corte->fecha_suspension == 0 ? 30 : $grupo_corte->fecha_suspension;
+        $mes_susp = Carbon::now()->month;
+        $anyo_susp = Carbon::now()->year;
         
-        $date_suspension = $y . "-" . $m . "-" . $ds;
+        $date_suspension_carbon = Carbon::create($anyo_susp, $mes_susp, 1);
+        $date_suspension_carbon->day = min($dia_suspension, $date_suspension_carbon->daysInMonth);
+        
+        if ($date_suspension_carbon->copy()->startOfDay()->lte(Carbon::now()->startOfDay())) {
+            $date_suspension_carbon->addMonthNoOverflow();
+            $date_suspension_carbon->day = min($dia_suspension, $date_suspension_carbon->daysInMonth);
+        }
+        $date_suspension = $date_suspension_carbon->format('Y-m-d');
         //Fin calculo fecha suspension
 
         //Obtenemos el número depende del contrato que tenga asignado (con fact electrpinica o estandar).
