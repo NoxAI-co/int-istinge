@@ -9,6 +9,7 @@
 	@else
         <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
         <a href="{{route('ingresos.create')}}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nuevo Ingreso</a>
+        <a href="{{route('ingresos.importar')}}" class="btn btn-success btn-sm"><i class="fas fa-file-excel"></i> Importar Pagos</a>
     @endif
 @endsection
 

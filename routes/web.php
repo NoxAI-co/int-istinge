@@ -1056,6 +1056,11 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('efecty-xlsx', 'IngresosController@efecty_xlsx')->name('ingresos.efecty_xlsx');
 		Route::post('efecty_store_xlsx', 'IngresosController@efecty_store_xlsx')->name('ingresos.efecty_store_xlsx');
 
+		// Importación de Ingresos
+		Route::get('/importar', 'IngresosController@importar')->name('ingresos.importar');
+		Route::post('/ejemplo-importar', 'IngresosController@ejemploImportar')->name('ingresos.ejemplo-importar');
+		Route::post('/importar-cargando', 'IngresosController@importarCargando')->name('ingresos.importar-cargando');
+
 		Route::get('/movimiento/{id}', 'IngresosController@showMovimiento')->name('ingresos.showmovimiento');
 		Route::get('/tirillawpp/{id}', 'IngresosController@tirillaWpp')->name('ingresos.tirillawpp');
 		Route::post('/preview-next-invoice', 'IngresosController@previewNextInvoice')->name('ingresos.preview_next_invoice');
