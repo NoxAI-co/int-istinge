@@ -265,7 +265,7 @@
 
 	{{-- Modal de Reporte Final --}}
 	<div class="modal fade" id="modalReporte" tabindex="-1" role="dialog">
-		<div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+		<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
 			<div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
 				<div class="modal-header" id="reporte-header" style="border: none; padding: 28px 30px;">
 					<h5 class="modal-title text-white" style="font-weight: 600; font-size: 1.2em;">
