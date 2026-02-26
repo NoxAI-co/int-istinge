@@ -7496,6 +7496,6 @@ class FacturasController extends Controller{
             return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales existosamente. Hubieron algunos errores.");
         }
 
-        return redirect('empresa/facturas')->with('success', "Se han importado $creados saldos iniciales existosamente!");
+        return redirect('empresa/factura-index')->with('success', "Se han importado $creados saldos iniciales existosamente!");
     }
 }

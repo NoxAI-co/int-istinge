@@ -35,9 +35,13 @@
                         <label for="usar_fechas_corte" style="font-weight: bold; cursor:pointer;" class="mb-2">
                             ¿Desea crear la factura que va a importar relacionada con las fechas del grupo de corte que tenga el cliente registrado en el contrato?
                         </label>
-                        <div class="custom-control custom-switch mt-2">
-                            <input type="checkbox" class="custom-control-input" id="usar_fechas_corte" name="usar_fechas_corte" value="1">
-                            <label class="custom-control-label" for="usar_fechas_corte">Sí / No</label>
+                        <div class="d-flex align-items-center justify-content-center mt-2">
+                            <label class="switch mb-0">
+                                <input type="hidden" name="usar_fechas_corte" value="0">
+                                <input type="checkbox" name="usar_fechas_corte" id="usar_fechas_corte" value="1">
+                                <span class="slider round"></span>
+                            </label>
+                            <span class="ml-2" id="usar_fechas_corte_label">No</span>
                         </div>
                     </div>
                 </div>
@@ -72,4 +76,16 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+    $('#usar_fechas_corte').change(function() {
+        if ($(this).is(':checked')) {
+            $('#usar_fechas_corte_label').text('Si');
+        } else {
+            $('#usar_fechas_corte_label').text('No');
+        }
+    });
+</script>
 @endsection
