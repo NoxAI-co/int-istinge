@@ -1778,6 +1778,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/envio/email', 'AvisosController@email')->name('avisos.envio.email');
 		Route::get('/envio/whatsapp', 'AvisosController@whatsapp')->name('avisos.envio_whatsapp');
 		Route::post('/envio_aviso', 'AvisosController@envio_aviso')->name('avisos.envio_aviso');
+		Route::post('/envio_aviso_batch', 'AvisosController@envio_aviso_batch')->name('avisos.envio_aviso_batch');
 		Route::get('/envio/{id}/email', 'AvisosController@email')->name('avisos.envio.email.cliente');
 		Route::get('/envio/{id}/sms', 'AvisosController@sms')->name('avisos.envio.sms.cliente');
 		Route::post('/envio_personalizado', 'AvisosController@envio_personalizado')->name('avisos.envio_personalizado');

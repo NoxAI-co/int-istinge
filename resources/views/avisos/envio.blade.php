@@ -132,7 +132,13 @@
 									barrio-{{ strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $contrato->c_barrio ?? 'no')) }}
 									factura-{{ $contrato->factura_id != null ?  'si' : 'no'}}
                                     "
-									value="{{$contrato->id}}" {{$contrato->client_id==$id?'selected':''}}>
+									value="{{$contrato->id}}" {{$contrato->client_id==$id?'selected':''}}
+									data-nombre="{{ $contrato->c_nombre }} {{ $contrato->c_apellido1 }} {{ $contrato->c_apellido2 }}"
+									data-nit="{{ $contrato->c_nit }}"
+									data-nro="{{ $contrato->nro }}"
+									data-grupo-corte="{{ $contrato->grupo_corte_nombre ?? 'Sin grupo' }}"
+									data-factura-codigo="{{ $contrato->factura_codigo ?? '' }}"
+								>
 									{{$contrato->c_nombre}} {{ $contrato->c_apellido1 }}
 									{{ $contrato->c_apellido2 }} - {{$contrato->c_nit}}
 									(contrato: {{ $contrato->nro }})
@@ -147,6 +153,32 @@
         	        <strong>{{ $errors->first('cliente') }}</strong>
         	    </span>
         	</div>
+
+			{{-- DataTable de clientes seleccionados --}}
+			<div class="col-md-12 mt-3" id="tabla-seleccionados-container" style="display:none;">
+				<div class="card border-0 shadow-sm">
+					<div class="card-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border-radius: 8px 8px 0 0;">
+						<div class="d-flex justify-content-between align-items-center">
+							<h6 class="mb-0"><i class="fab fa-whatsapp mr-2"></i>Clientes Seleccionados para Envío</h6>
+							<span class="badge badge-light" id="badge_seleccionados" style="font-size: 0.9em;">0</span>
+						</div>
+					</div>
+					<div class="card-body p-0">
+						<table id="tabla-seleccionados" class="table table-striped table-hover mb-0" style="width:100%">
+							<thead class="thead-light">
+								<tr>
+									<th>Cliente</th>
+									<th>Nro Contrato</th>
+									<th>Grupo de Corte</th>
+									<th>Cód. Factura</th>
+									<th class="text-center" style="width: 90px;">Acciones</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
 
 
 			<!-- Removed isAbierta here because it's now in the filters row -->
@@ -173,10 +205,134 @@
 	   <div class="row" >
 	       <div class="col-sm-12" style="text-align: right;  padding-top: 1%;">
 	           <a href="{{route('avisos.index')}}" class="btn btn-outline-secondary">Cancelar</a>
+			   @if($opcion == 'whatsapp')
+	           <button type="button" id="btn-enviar-batch" onclick="iniciarEnvioBatch()" class="btn btn-success btn-lg" style="background: linear-gradient(135deg, #25D366, #128C7E); border: none; box-shadow: 0 4px 15px rgba(37,211,102,0.3);">
+				   <i class="fab fa-whatsapp mr-1"></i> Enviar Notificaciones
+			   </button>
+			   @else
 	           <button type="submit" id="submitcheck" onclick="submitLimit(this.id); alert_swal();" class="btn btn-success">Guardar</button>
+			   @endif
 	       </div>
 	   </div>
     </form>
+
+	{{-- Modal de Progreso --}}
+	<div class="modal fade" id="modalProgreso" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+				<div class="modal-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); border: none; padding: 28px 30px;">
+					<h5 class="modal-title text-white" style="font-weight: 600; font-size: 1.2em;">
+						<i class="fab fa-whatsapp mr-2" style="font-size: 1.3em;"></i>Enviando Notificaciones
+					</h5>
+				</div>
+				<div class="modal-body" style="padding: 30px;">
+					<div class="text-center mb-4">
+						<div class="spinner-container mb-3">
+							<div class="whatsapp-spinner"></div>
+						</div>
+						<p class="text-muted mb-1" id="progreso-texto" style="font-size: 1.05em;">Preparando envío...</p>
+						<p class="text-muted mb-0" style="font-size: 0.9em;" id="progreso-lote">Lote 0 de 0</p>
+					</div>
+					<div class="progress" style="height: 24px; border-radius: 12px; background-color: #e9ecef; overflow: hidden;">
+						<div class="progress-bar" role="progressbar" id="progreso-bar"
+							style="width: 0%; background: linear-gradient(90deg, #25D366, #128C7E); transition: width 0.4s ease; border-radius: 12px; font-weight: 600; font-size: 0.85em;"
+							aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+					</div>
+					<div class="row mt-4 text-center">
+						<div class="col-4">
+							<div class="p-3 rounded" style="background: #f0fdf4;">
+								<h4 class="mb-0 text-success" id="progreso-enviados" style="font-weight: 700;">0</h4>
+								<small class="text-muted">Enviados</small>
+							</div>
+						</div>
+						<div class="col-4">
+							<div class="p-3 rounded" style="background: #fef2f2;">
+								<h4 class="mb-0 text-danger" id="progreso-fallidos" style="font-weight: 700;">0</h4>
+								<small class="text-muted">Fallidos</small>
+							</div>
+						</div>
+						<div class="col-4">
+							<div class="p-3 rounded" style="background: #eff6ff;">
+								<h4 class="mb-0 text-info" id="progreso-total" style="font-weight: 700;">0</h4>
+								<small class="text-muted">Total</small>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	{{-- Modal de Reporte Final --}}
+	<div class="modal fade" id="modalReporte" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+			<div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+				<div class="modal-header" id="reporte-header" style="border: none; padding: 28px 30px;">
+					<h5 class="modal-title text-white" style="font-weight: 600; font-size: 1.2em;">
+						<i class="fas fa-chart-bar mr-2"></i> Reporte de Envío
+					</h5>
+					<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" style="opacity: 1;">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body" style="padding: 30px;">
+					{{-- Resumen --}}
+					<div class="row mb-4">
+						<div class="col-md-4">
+							<div class="card border-0 text-center" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px;">
+								<div class="card-body py-4">
+									<i class="fas fa-check-circle text-success mb-2" style="font-size: 2em;"></i>
+									<h3 class="mb-0 text-success" id="reporte-exitosos" style="font-weight: 700;">0</h3>
+									<p class="text-muted mb-0">Enviados Exitosamente</p>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="card border-0 text-center" style="background: linear-gradient(135deg, #fef2f2, #fecaca); border-radius: 12px;">
+								<div class="card-body py-4">
+									<i class="fas fa-times-circle text-danger mb-2" style="font-size: 2em;"></i>
+									<h3 class="mb-0 text-danger" id="reporte-fallidos" style="font-weight: 700;">0</h3>
+									<p class="text-muted mb-0">Fallidos</p>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="card border-0 text-center" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 12px;">
+								<div class="card-body py-4">
+									<i class="fas fa-paper-plane text-info mb-2" style="font-size: 2em;"></i>
+									<h3 class="mb-0 text-info" id="reporte-total" style="font-weight: 700;">0</h3>
+									<p class="text-muted mb-0">Total Procesados</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					{{-- Tabla de resultados --}}
+					<div class="table-responsive">
+						<table id="tabla-reporte" class="table table-striped table-hover" style="width:100%">
+							<thead class="thead-dark">
+								<tr>
+									<th>#</th>
+									<th>Cliente</th>
+									<th>Nro Contrato</th>
+									<th>Teléfono</th>
+									<th>Estado</th>
+									<th>Detalle</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+				<div class="modal-footer" style="border-top: 1px solid #eee; padding: 15px 30px;">
+					<button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+					<button type="button" class="btn btn-success" onclick="exportarReporte()">
+						<i class="fas fa-file-excel mr-1"></i> Exportar Reporte
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 @endsection
 
 @section('scripts')
@@ -186,6 +342,7 @@
 	// ============================================================
 	let plantillaMetaActual = null;
 	let bodyTextValues = [];
+	let tablaSeleccionados = null;
 
 	@include('includes.campos-dinamicos')
 
@@ -195,7 +352,328 @@
 			cargarPlantillaSeleccionada();
 		}
         refreshClient();
+
+		// Inicializar DataTable de seleccionados
+		tablaSeleccionados = $('#tabla-seleccionados').DataTable({
+			language: {
+				url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+				emptyTable: 'No hay clientes seleccionados'
+			},
+			pageLength: 10,
+			lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+			order: [[0, 'asc']],
+			columns: [
+				{ data: 'nombre' },
+				{ data: 'nro' },
+				{ data: 'grupo_corte' },
+				{ data: 'factura_codigo' },
+				{
+					data: 'id',
+					className: 'text-center',
+					orderable: false,
+					searchable: false,
+					render: function(data) {
+						return '<button type="button" class="btn btn-sm btn-outline-danger btn-quitar-seleccion" data-id="' + data + '" title="Quitar selección">' +
+							'<i class="fas fa-times"></i></button>';
+					}
+				}
+			],
+			drawCallback: function() {
+				$('#badge_seleccionados').text(this.api().rows().count());
+			}
+		});
+
+		// Evento quitar selección desde DataTable
+		$('#tabla-seleccionados').on('click', '.btn-quitar-seleccion', function() {
+			let contratoId = $(this).data('id');
+			// Deseleccionar del selectpicker
+			$('#contrato_sms option[value="' + contratoId + '"]').prop('selected', false);
+			$('#contrato_sms').selectpicker('refresh');
+			// Actualizar tabla
+			sincronizarTablaSeleccionados();
+			// Actualizar contador
+			let count = $("#contrato_sms option:selected").length;
+			$('#client_count').text(count);
+		});
+
+		// Escuchar cambios en el selectpicker para sincronizar con DataTable
+		$('#contrato_sms').on('changed.bs.select', function() {
+			sincronizarTablaSeleccionados();
+		});
 	});
+
+	function sincronizarTablaSeleccionados() {
+		if (!tablaSeleccionados) return;
+
+		tablaSeleccionados.clear();
+
+		let seleccionados = $('#contrato_sms option:selected');
+		let filas = [];
+
+		seleccionados.each(function() {
+			let $opt = $(this);
+			filas.push({
+				id: $opt.val(),
+				nombre: ($opt.data('nombre') || $opt.text()).trim(),
+				nro: $opt.data('nro') || '',
+				grupo_corte: $opt.data('grupo-corte') || 'Sin grupo',
+				factura_codigo: $opt.data('factura-codigo') || '—'
+			});
+		});
+
+		if (filas.length > 0) {
+			tablaSeleccionados.rows.add(filas).draw();
+			$('#tabla-seleccionados-container').slideDown(300);
+		} else {
+			tablaSeleccionados.draw();
+			$('#tabla-seleccionados-container').slideUp(300);
+		}
+
+		$('#badge_seleccionados').text(filas.length);
+	}
+
+	// ============================================================
+	// ENVÍO POR LOTES (BATCH)
+	// ============================================================
+	const BATCH_SIZE = 10;
+	let batchResults = [];
+	let batchCancelled = false;
+
+	function iniciarEnvioBatch() {
+		// Validar plantilla
+		let plantillaId = $('#plantilla_dinamico').val();
+		if (!plantillaId) {
+			Swal.fire({ icon: 'warning', title: 'Atención', text: 'Debe seleccionar una plantilla' });
+			return;
+		}
+
+		// Obtener contratos seleccionados
+		let contratos = $('#contrato_sms').val();
+		if (!contratos || contratos.length === 0) {
+			Swal.fire({ icon: 'warning', title: 'Atención', text: 'Debe seleccionar al menos un cliente' });
+			return;
+		}
+
+		// Confirmar envío
+		Swal.fire({
+			icon: 'question',
+			title: '¿Confirmar envío?',
+			html: 'Se enviarán <strong>' + contratos.length + '</strong> notificaciones por WhatsApp.<br><small class="text-muted">El envío se procesará en lotes de ' + BATCH_SIZE + ' para evitar sobrecargar el servidor.</small>',
+			showCancelButton: true,
+			confirmButtonColor: '#25D366',
+			cancelButtonColor: '#6c757d',
+			confirmButtonText: '<i class="fab fa-whatsapp mr-1"></i> Enviar',
+			cancelButtonText: 'Cancelar'
+		}).then((result) => {
+			if (result.value) {
+				ejecutarEnvioBatch(contratos, plantillaId);
+			}
+		});
+	}
+
+	async function ejecutarEnvioBatch(contratos, plantillaId) {
+		batchResults = [];
+		batchCancelled = false;
+
+		// Preparar body_dinamic params
+		let bodyDinamicParams = [];
+		$('.parametro-meta-input').each(function() {
+			bodyDinamicParams.push($(this).val() || '');
+		});
+
+		let bodyDinamic = null;
+		if (bodyDinamicParams.length > 0) {
+			bodyDinamic = JSON.stringify([bodyDinamicParams]);
+		}
+
+		// Dividir contratos en lotes
+		let lotes = [];
+		for (let i = 0; i < contratos.length; i += BATCH_SIZE) {
+			lotes.push(contratos.slice(i, i + BATCH_SIZE));
+		}
+
+		let totalProcesados = 0;
+		let totalExitosos = 0;
+		let totalFallidos = 0;
+
+		// Mostrar modal de progreso
+		$('#progreso-bar').css('width', '0%').text('0%');
+		$('#progreso-texto').text('Preparando envío...');
+		$('#progreso-lote').text('Lote 0 de ' + lotes.length);
+		$('#progreso-enviados').text('0');
+		$('#progreso-fallidos').text('0');
+		$('#progreso-total').text(contratos.length);
+		$('#modalProgreso').modal('show');
+
+		let csrfToken = $('meta[name="csrf-token"]').attr('content');
+
+		for (let i = 0; i < lotes.length; i++) {
+			if (batchCancelled) break;
+
+			$('#progreso-texto').text('Enviando lote ' + (i + 1) + ' de ' + lotes.length + '...');
+			$('#progreso-lote').text('Procesando ' + lotes[i].length + ' mensajes');
+
+			try {
+				let response = await $.ajax({
+					url: '{{ route("avisos.envio_aviso_batch") }}',
+					method: 'POST',
+					headers: { 'X-CSRF-TOKEN': csrfToken },
+					contentType: 'application/json',
+					data: JSON.stringify({
+						contratos: lotes[i],
+						plantilla_id: plantillaId,
+						body_dinamic_params: bodyDinamicParams,
+						body_dinamic: bodyDinamic,
+						is_first_batch: (i === 0)
+					}),
+					timeout: 120000 // 2 min per batch
+				});
+
+				if (response.error) {
+					// Error global del lote
+					lotes[i].forEach(function(cId) {
+						batchResults.push({
+							contrato_id: cId,
+							contrato_nro: 'N/A',
+							cliente: 'Error en lote',
+							telefono: '',
+							status: 'error',
+							message_id: null,
+							error: response.error
+						});
+						totalFallidos++;
+					});
+				} else if (response.results) {
+					response.results.forEach(function(r) {
+						batchResults.push(r);
+						if (r.status === 'success') {
+							totalExitosos++;
+						} else {
+							totalFallidos++;
+						}
+					});
+				}
+
+			} catch (err) {
+				// Error de red o timeout
+				lotes[i].forEach(function(cId) {
+					batchResults.push({
+						contrato_id: cId,
+						contrato_nro: 'N/A',
+						cliente: 'Error de conexión',
+						telefono: '',
+						status: 'error',
+						message_id: null,
+						error: err.statusText || 'Error de conexión con el servidor'
+					});
+					totalFallidos++;
+				});
+			}
+
+			totalProcesados += lotes[i].length;
+			let porcentaje = Math.round((totalProcesados / contratos.length) * 100);
+			$('#progreso-bar').css('width', porcentaje + '%').text(porcentaje + '%');
+			$('#progreso-enviados').text(totalExitosos);
+			$('#progreso-fallidos').text(totalFallidos);
+
+			// Pequeña pausa entre lotes para no saturar la API
+			if (i < lotes.length - 1) {
+				await new Promise(resolve => setTimeout(resolve, 500));
+			}
+		}
+
+		// Ocultar progreso y mostrar reporte
+		$('#modalProgreso').modal('hide');
+
+		setTimeout(function() {
+			mostrarReporte(totalExitosos, totalFallidos, batchResults);
+		}, 500);
+	}
+
+	function mostrarReporte(exitosos, fallidos, resultados) {
+		let total = exitosos + fallidos;
+
+		// Color del header según resultado
+		if (fallidos === 0) {
+			$('#reporte-header').css('background', 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)');
+		} else if (exitosos === 0) {
+			$('#reporte-header').css('background', 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)');
+		} else {
+			$('#reporte-header').css('background', 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)');
+		}
+
+		$('#reporte-exitosos').text(exitosos);
+		$('#reporte-fallidos').text(fallidos);
+		$('#reporte-total').text(total);
+
+		// Destruir DataTable anterior si existe
+		if ($.fn.DataTable.isDataTable('#tabla-reporte')) {
+			$('#tabla-reporte').DataTable().destroy();
+			$('#tabla-reporte tbody').empty();
+		}
+
+		// Llenar tabla de reporte
+		let tbody = '';
+		resultados.forEach(function(r, idx) {
+			let badgeClass = r.status === 'success' ? 'badge-success' : 'badge-danger';
+			let badgeIcon = r.status === 'success' ? 'fa-check' : 'fa-times';
+			let badgeText = r.status === 'success' ? 'Enviado' : 'Error';
+			let detalle = '';
+			if (r.status === 'success') {
+				detalle = '<span class="text-success"><i class="fas fa-check-circle mr-1"></i>Mensaje aceptado</span>';
+			} else {
+				detalle = '<span class="text-danger" title="' + (r.error || '').replace(/"/g, '&quot;') + '"><i class="fas fa-exclamation-circle mr-1"></i>' + (r.error || 'Error desconocido') + '</span>';
+			}
+
+			tbody += '<tr>';
+			tbody += '<td>' + (idx + 1) + '</td>';
+			tbody += '<td>' + (r.cliente || '') + '</td>';
+			tbody += '<td>' + (r.contrato_nro || '') + '</td>';
+			tbody += '<td>' + (r.telefono || '') + '</td>';
+			tbody += '<td><span class="badge ' + badgeClass + '" style="padding: 6px 12px; font-size: 0.85em;"><i class="fas ' + badgeIcon + ' mr-1"></i>' + badgeText + '</span></td>';
+			tbody += '<td>' + detalle + '</td>';
+			tbody += '</tr>';
+		});
+
+		$('#tabla-reporte tbody').html(tbody);
+
+		// Inicializar DataTable del reporte
+		$('#tabla-reporte').DataTable({
+			language: {
+				url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+			},
+			pageLength: 25,
+			lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+			order: [[4, 'asc'], [0, 'asc']], // Errores primero
+			dom: 'Bfrtip',
+			buttons: []
+		});
+
+		$('#modalReporte').modal('show');
+	}
+
+	function exportarReporte() {
+		if (!batchResults || batchResults.length === 0) return;
+
+		let csv = 'No.,Cliente,Nro Contrato,Teléfono,Estado,Error\n';
+		batchResults.forEach(function(r, idx) {
+			let error = (r.error || '').replace(/"/g, '""');
+			csv += (idx + 1) + ',"' + (r.cliente || '') + '","' + (r.contrato_nro || '') + '","' + (r.telefono || '') + '","' + r.status + '","' + error + '"\n';
+		});
+
+		let blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+		let url = URL.createObjectURL(blob);
+		let link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', 'reporte_whatsapp_' + new Date().toISOString().slice(0, 10) + '.csv');
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	}
+
+	// ============================================================
+	// PLANTILLAS META (sin cambios)
+	// ============================================================
 
 	function cargarPlantillaSeleccionada() {
 		const plantillaId = $('#plantilla_dinamico').val();
@@ -431,7 +909,7 @@
 		`).show();
 	}
 
-	// Guardar body_dinamic antes de enviar
+	// Guardar body_dinamic antes de enviar (para SMS/EMAIL forms)
 	$('#form-retencion').on('submit', function(e) {
 		if (plantillaMetaActual && plantillaMetaActual.tipo == 3) {
 			const bodyDinamicValues = [];
@@ -551,6 +1029,79 @@
 		overflow-x: visible !important;
 		overflow-y: visible !important;
 	}
+
+	/* WhatsApp Spinner */
+	.whatsapp-spinner {
+		width: 50px;
+		height: 50px;
+		border: 4px solid #e9ecef;
+		border-top: 4px solid #25D366;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin: 0 auto;
+	}
+
+	@keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	}
+
+	/* DataTable styling */
+	#tabla-seleccionados-container .card {
+		border-radius: 12px;
+		overflow: hidden;
+	}
+
+	#tabla-seleccionados thead th {
+		font-size: 0.85em;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		padding: 12px 15px;
+		border: none;
+	}
+
+	#tabla-seleccionados tbody td {
+		padding: 10px 15px;
+		vertical-align: middle;
+		font-size: 0.9em;
+	}
+
+	.btn-quitar-seleccion {
+		border-radius: 50%;
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+	}
+
+	.btn-quitar-seleccion:hover {
+		background-color: #dc3545;
+		color: white;
+		transform: scale(1.1);
+	}
+
+	/* Report modal styling */
+	#tabla-reporte thead th {
+		font-size: 0.85em;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+
+	/* Btn enviar styling */
+	#btn-enviar-batch {
+		transition: all 0.3s ease;
+		border-radius: 8px;
+		padding: 10px 24px;
+		font-weight: 600;
+	}
+
+	#btn-enviar-batch:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 25px rgba(37,211,102,0.4) !important;
+	}
 </style>
 
 <script type="text/javascript">
@@ -663,6 +1214,9 @@
         // Actualizar contador de clientes
         let count = $("#contrato_sms option:selected").length;
         $('#client_count').text(count);
+
+		// Sincronizar con DataTable
+		sincronizarTablaSeleccionados();
     }
 
 
