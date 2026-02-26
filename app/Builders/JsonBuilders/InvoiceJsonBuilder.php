@@ -184,7 +184,7 @@ class InvoiceJsonBuilder
                 'currencyCode' => 'COP',
                 'salesRepCode1' => null,
                 'docWHTaxAmt' => round($totalRetenciones,2),
-                'salesRepName1' => $factura->vendedorObj->nombre,
+                'salesRepName1' => isset($factura->vendedorObj->nombre) ? $factura->vendedorObj->nombre : "Vendedor General",
                 'invoiceComment' => $nota->observaciones,
                 'resolution1' => $resolucion_msj,
                 'resolution2' => '',
