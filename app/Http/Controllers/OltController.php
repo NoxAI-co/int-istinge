@@ -327,6 +327,7 @@ class OltController extends Controller
             $odbList = [];
         }
 
+        $speedProfiles = $this->getSpeedProfiles();
         if (isset($speedProfiles['response'])) {
             $speedProfiles = $speedProfiles['response'];
         } else {

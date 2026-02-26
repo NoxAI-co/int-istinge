@@ -157,7 +157,7 @@
 	            <label class="control-label">Name<span class="text-danger">*</span></label>
 	            <input type="text" class="form-control" name="name" id="name">
 	            <span class="help-block error">
-	                <strong>{{ $errors->first('upload_speed') }}</strong>
+	                <strong>{{ $errors->first('name') }}</strong>
 	            </span>
 	        </div>
 	        <div class="col-md-6 form-group">
@@ -176,7 +176,7 @@
 	        </div>
 
             <div class="form-group col-md-4">
-                <label class="control-label">Crear factura a contrato con prorrateo? <a><i
+                <label class="control-label">Crear factura a contrato con prorrateo? <a href="javascript:void(0)"><i
                             data-tippy-content="Decida si la factura que genere este contrato llevará prorrateo."
                             class="icono far fa-question-circle"></i></a></label>
                 <div class="d-flex align-items-center">
@@ -232,8 +232,11 @@
                 divContrato.classList.add('d-none');
                 label.innerText = 'No';
                 // Reset select
-                document.getElementById('contrato_id').value = "";
-                $('.selectpicker').selectpicker('refresh');
+                var selectContrato = document.getElementById('contrato_id');
+                if (selectContrato) {
+                    selectContrato.value = "";
+                    $(selectContrato).selectpicker('refresh');
+                }
             }
         }
     </script>
