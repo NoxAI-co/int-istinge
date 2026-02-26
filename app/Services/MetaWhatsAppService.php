@@ -45,6 +45,8 @@ class MetaWhatsAppService
      */
     public function sendTemplate(string $phoneNumberId, string $to, string $templateName, string $languageCode = 'es', array $components = [])
     {
+        $components = $this->sanitizeTemplateComponents($components);
+
         return $this->sendRequest($phoneNumberId, [
             'messaging_product' => 'whatsapp',
             'to'                => $to,
@@ -277,5 +279,31 @@ class MetaWhatsAppService
         $expectedSignature = 'sha256=' . hash_hmac('sha256', $payload, $appSecret);
         
         return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
+     * Sanitize template components to comply with Meta API restrictions:
+     * - No new-line/tab characters
+     * - No more than 4 consecutive spaces
+     */
+    private function sanitizeTemplateComponents(array $components): array
+    {
+        foreach ($components as &$component) {
+            if (isset($component['parameters']) && is_array($component['parameters'])) {
+                foreach ($component['parameters'] as &$parameter) {
+                    if (isset($parameter['type']) && $parameter['type'] === 'text' && isset($parameter['text'])) {
+                        // 1. Remove newlines and tabs (replace with a space)
+                        $text = str_replace(["\n", "\r", "\t"], " ", strval($parameter['text']));
+                        
+                        // 2. Replace 2 or more consecutive spaces with a single space
+                        // This handles the "more than 4 consecutive spaces" restriction proactively
+                        $text = preg_replace('/ {2,}/', ' ', $text);
+                        
+                        $parameter['text'] = trim($text);
+                    }
+                }
+            }
+        }
+        return $components;
     }
 }
