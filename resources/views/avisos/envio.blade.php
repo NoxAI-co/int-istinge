@@ -160,7 +160,7 @@
 					<div class="card-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border-radius: 8px 8px 0 0;">
 						<div class="d-flex justify-content-between align-items-center">
 							<h6 class="mb-0"><i class="fab fa-whatsapp mr-2"></i>Clientes Seleccionados para Envío</h6>
-							<span class="badge badge-light" id="badge_seleccionados" style="font-size: 0.9em;">0</span>
+							<span class="badge badge-light" id="badge_seleccionados" style="font-size: 0.9em; color:#000000">0</span>
 						</div>
 					</div>
 					<div class="card-body p-0">
