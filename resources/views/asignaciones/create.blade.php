@@ -376,6 +376,29 @@
             $('#cancelar').click(function () {
                 $('#forma').trigger("reset");
             });
+
+            // Si hay un cliente pre-seleccionado (viene desde la URL con ?contrato=xxx),
+            // cargar sus contratos automáticamente al abrir la página
+            var preSelectedClient = document.getElementById('idCliente').value;
+            var preSelectedContrato = '{{ request()->contrato ?? '' }}';
+            if (preSelectedClient) {
+                var url = window.routeContratos.replace(':id', preSelectedClient);
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    success: function(response) {
+                        updateContratosSelect(response);
+                        // Si venía un contrato pre-seleccionado desde la URL, seleccionarlo
+                        if (preSelectedContrato) {
+                            $('#idcontrato').val(preSelectedContrato);
+                        }
+                        $('#idcontrato').selectpicker('refresh');
+                    },
+                    error: function(error) {
+                        console.error('Error al cargar contratos iniciales:', error);
+                    }
+                });
+            }
         });
     </script>
     <script>
