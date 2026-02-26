@@ -1011,6 +1011,12 @@ class NotascreditoController extends Controller
             ->first();
 
         if (!$nota) {
+            $nota = NotaCredito::where('empresa', $empresa->id)
+                ->where('id', $id)
+                ->first();
+        }
+
+        if (!$nota) {
             return back()->with('error', 'No se ha encontrado la nota de crédito');
         }
 
