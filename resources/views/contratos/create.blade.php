@@ -275,7 +275,7 @@
                             </div>
 
 
-                            <div class="col-md-4 form-group d-none" id="div_direccion">
+                            <div class="col-md-4 form-group" id="div_direccion">
                                 <label class="control-label">¿Usar la misma dirección del contacto? <span
                                         class="text-danger">*</span></label>
                                 <div class="input-group">
@@ -291,7 +291,7 @@
                                 </span>
                             </div>
 
-                            <div class="col-md-4 form-group d-none" id="div_address_street">
+                            <div class="col-md-4 form-group" id="div_address_street">
                                 <label class="control-label">Dirección de Instalación <span
                                         class="text-danger">*</span></label>
                                 <div class="input-group">
