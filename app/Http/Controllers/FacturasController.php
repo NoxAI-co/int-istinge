@@ -6091,13 +6091,13 @@ class FacturasController extends Controller{
 
             }
 
-
             // Guardar código anterior antes de actualizar
             $codigoAnterior = $factura->codigo;
 
             // Calcular la diferencia de días entre la fecha y el vencimiento original
             $fechaOriginal = Carbon::parse($factura->fecha);
             $vencimientoOriginal = Carbon::parse($factura->vencimiento);
+
             $diferenciaDias = $fechaOriginal->diffInDays($vencimientoOriginal, false);
 
             $factura->nro = $numero;
@@ -6105,7 +6105,11 @@ class FacturasController extends Controller{
             $factura->tipo = 2;
             $factura->fecha = Carbon::now()->format('Y-m-d');
             // Aplicar la diferencia de días a la nueva fecha de vencimiento
-            $factura->vencimiento = Carbon::parse($factura->fecha)->addDays($diferenciaDias)->format('Y-m-d');
+            
+            if($vencimientoOriginal <= $factura->fecha){
+                $factura->vencimiento = Carbon::parse($factura->fecha)->addDays($diferenciaDias)->format('Y-m-d');    
+            }
+            
             $factura->save();
 
             // Crear log para la conversión (solo si no es masivo, porque en masivo se crea después)
