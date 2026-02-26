@@ -222,8 +222,10 @@ class AvisosController extends Controller
 
         $servidores = Mikrotik::where('empresa', auth()->user()->empresa)->get();
         $gruposCorte = GrupoCorte::where('empresa', Auth::user()->empresa)->get();
+        // Extraer todos los barrios únicos de los contratos
+        $barrios = $contratos->pluck('c_barrio')->filter()->unique()->values();
 
-        return view('avisos.envio')->with(compact('plantillas','contratos','opcion','id', 'servidores', 'gruposCorte', 'isFiberNet'));
+        return view('avisos.envio')->with(compact('plantillas','contratos','opcion','id', 'servidores', 'gruposCorte', 'isFiberNet', 'barrios'));
     }
 
     /**

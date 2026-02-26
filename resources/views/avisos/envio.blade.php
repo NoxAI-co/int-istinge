@@ -28,21 +28,7 @@
 	    @csrf
 	    <input type="hidden" value="{{$opcion}}" name="type">
 	    <div class="row">
-			<div class="col-md-3 form-group">
-				@if(!request()->vencimiento)
-					<label>Facturas vencidas (opcional)</label>
-					<input type="text" class="form-control datepicker"  id="vencimiento" value="" name="vencimiento">
-				@else
-				<a href="{{ url()->current() }}">
-				<button type="button" class="btn btn-primary position-relative">
-					Vencidas: {{ request()->vencimiento }}
-					<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-					  X
-					</span>
-				</button>
-				</a>
-				@endif
-			</div>
+
 
 	        <div class="col-md-3 form-group">
 	            <label class="control-label">Plantilla <span class="text-danger">*</span></label>
@@ -60,85 +46,79 @@
         	    </span>
         	</div>
 
-			@if(isset($servidores))
-			<div class="col-md-3 form-group">
-	            <label class="control-label">Servidor<span class="text-danger"></span></label>
-        	    <select name="servidor" id="servidor" class="form-control selectpicker " onchange="refreshClient()" title="Seleccione" data-live-search="true" data-size="5">
-        	        @foreach($servidores as $servidor)
-        	        <option {{old('servidor')==$servidor->id?'selected':''}} value="{{$servidor->id}}">{{$servidor->nombre}}</option>
-        	        @endforeach
-        	    </select>
-        	    <span class="help-block error">
-        	        <strong>{{ $errors->first('servidor') }}</strong>
-        	    </span>
-        	</div>
-			@endif
+			<!-- Filtros Adicionales en Tarjeta Secundaria -->
+            <div class="col-md-12 mt-3">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros de Selección</h6>
+                    </div>
+                    <div class="card-body row">
+                        @if(isset($servidores))
+                        <div class="col-md-3 form-group">
+                            <label class="control-label">Servidor</label>
+                            <select name="servidor" id="servidor" class="form-control selectpicker filtros-dinamicos" onchange="refreshClient()" title="Todos los Servidores" data-live-search="true" data-size="5">
+                                <option value="">Todos los Servidores</option>
+                                @foreach($servidores as $servidor)
+                                <option {{old('servidor')==$servidor->id?'selected':''}} value="{{$servidor->id}}">{{$servidor->nombre}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
 
-			@if(isset($gruposCorte))
-			<div class="col-md-3 form-group">
-	            <label class="control-label">Grupo corte<span class="text-danger"></span></label>
-        	    <select name="corte" id="corte" class="form-control selectpicker" onchange="refreshClient()" title="Seleccione" data-live-search="true" data-size="5">
-        	        @foreach($gruposCorte as $corte)
-        	        <option {{old('corte')==$corte->id?'selected':''}} value="{{$corte->id}}">{{$corte->nombre}}</option>
-        	        @endforeach
-        	    </select>
-        	    <span class="help-block error">
-        	        <strong>{{ $errors->first('corte') }}</strong>
-        	    </span>
-        	</div>
-			@endif
+                        @if(isset($gruposCorte))
+                        <div class="col-md-3 form-group">
+                            <label class="control-label">Grupo corte</label>
+                            <select name="corte" id="corte" class="form-control selectpicker filtros-dinamicos" onchange="refreshClient()" title="Todos los Grupos" data-live-search="true" data-size="5">
+                                <option value="">Todos los Grupos</option>
+                                @foreach($gruposCorte as $corte)
+                                <option {{old('corte')==$corte->id?'selected':''}} value="{{$corte->id}}">{{$corte->nombre}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
 
-        	<div class="col-md-3 form-group">
-	            <label class="control-label">Barrio</label>
-        	    <input class="form-control" type="text" name="barrio" id="barrio">
-        	    <span class="help-block error">
-        	        <strong>{{ $errors->first('barrio') }}</strong>
-        	    </span>
-        	</div>
+                        @if(isset($barrios))
+                        <div class="col-md-3 form-group">
+                            <label class="control-label">Barrio</label>
+                            <select name="barrio" id="barrio" class="form-control selectpicker filtros-dinamicos" onchange="refreshClient()" title="Todos los Barrios" data-live-search="true" data-size="5">
+                                <option value="">Todos los Barrios</option>
+                                @foreach($barrios as $barrio)
+                                <option value="{{$barrio}}">{{$barrio}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
 
-            <div class="col-md-3 form-group">
-	            <label class="control-label">ESTADO CLIENTE<span class="text-danger"></span></label>
-        	    <select name="options" id="options" class="form-control selectpicker" onchange="chequeo()" title="Seleccione" data-live-search="true" data-size="5">
-        	        <option {{old('options')==1?'selected':''}} value="1" id='radio_1'>HABILITADOS</option>
-        	        <option {{old('options')==2?'selected':''}} value="2" id='radio_2'>DESHABILITADOS</option>
-        	        <option {{old('options')==3?'selected':''}} value="3" id='radio_3'>MANUAL</option>
-        	    </select>
-        	    <span class="help-block error">
-        	        <strong>{{ $errors->first('options') }}</strong>
-        	    </span>
-        	</div>
+                        <div class="col-md-3 form-group">
+                            <label class="control-label">Estado de Contrato</label>
+                            <select name="estado_contrato" id="estado_contrato" class="form-control selectpicker filtros-dinamicos" onchange="refreshClient()" title="Todos los Estados">
+                                <option value="">Todos los Estados</option>
+                                <option value="enabled">Habilitados</option>
+                                <option value="disabled">Deshabilitados</option>
+                            </select>
+                        </div>
 
-            <div class="col-md-3 form-group">
-                <label class="control-label">OPCIONES SALDO<span class="text-danger"></span></label>
-                <select name="opciones_saldo" id="opciones_saldo" class="form-control selectpicker" onchange="refreshClient()" title="Seleccione" data-live-search="true" data-size="5">
-                    <option {{old('opciones_saldo')=='mayor_a'?'selected':''}} value="mayor_a">SALDO MAYOR A</option>
-                    <option {{old('opciones_saldo')=='mayor_igual'?'selected':''}} value="mayor_igual">SALDO MAYOR O IGUAL A</option>
-                    <option {{old('opciones_saldo')=='igual_a'?'selected':''}} value="igual_a">SALDO IGUAL A</option>
-                    <option {{old('opciones_saldo')=='menor_a'?'selected':''}} value="menor_a">SALDO MENOR A</option>
-                    <option {{old('opciones_saldo')=='menor_igual'?'selected':''}} value="menor_igual">SALDO MENOR IGUAL A</option>
-                </select>
-                <span class="help-block error">
-        	        <strong>{{ $errors->first('options') }}</strong>
-        	    </span>
+                        <div class="col-md-3 form-group">
+                            <label class="control-label" style="display:block;">Solo facturas abiertas</label>
+                            <div class="d-flex align-items-center mt-2">
+                                <label class="switch mb-0">
+                                    <input type="checkbox" class="filtros-dinamicos" id="isAbierta" name="isAbierta" value="true" onchange="refreshClient()">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="ml-2" id="isAbierta_label">No</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 form-group d-flex align-items-end">
+                            <div class="alert alert-info py-2 px-3 mb-0 w-100">
+                                <strong>Destinatarios:</strong> <span id="client_count">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="col-md-3 form-group">
-                <label class="control-label">Corregimiento / Vereda</label>
-                <input class="form-control" type="text" name="vereda" id="vereda" autocomplete="off">
-                <span class="help-block error">
-        	        <strong>{{ $errors->first('vereda') }}</strong>
-        	    </span>
-            </div>
-
-            <div class="col-md-3 form-group">
-                <label class="control-label">Valor Saldo</label>
-                <input class="form-control" type="text" name="valor_saldo" id="valor_saldo"  oninput="refreshClient()">
-                <span class="help-block error">
-        	        <strong>{{ $errors->first('barrio') }}</strong>
-        	    </span>
-            </div>
-
-        	<div class="col-md-3 form-group" id="seleccion_manual">
+        	<div class="col-md-12 form-group mt-4" id="seleccion_manual">
 	            <label class="control-label">Selección manual de clientes</label>
         	    <select name="contrato[]" id="contrato_sms" class="form-control selectpicker" title="Seleccione" data-live-search="true" data-size="5" required multiple data-actions-box="true" data-select-all-text="Todos" data-deselect-all-text="Ninguno">
         	        @php $estados=\App\Contrato::tipos();@endphp
@@ -149,11 +129,10 @@
         	                    <option class="{{$contrato->state}}
 									grupo-{{ $contrato->grupo_corte()->id ?? 'no' }}
 									servidor-{{ $contrato->servidor()->id ?? 'no' }}
+									barrio-{{ strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $contrato->c_barrio ?? 'no')) }}
 									factura-{{ $contrato->factura_id != null ?  'si' : 'no'}}
-                                    vereda-{{ $contrato->vereda != null ? $contrato->vereda : 'no' }}
                                     "
-									value="{{$contrato->id}}" {{$contrato->client_id==$id?'selected':''}}
-                                        data-saldo="<?php echo e($contrato->factura_total); ?>">
+									value="{{$contrato->id}}" {{$contrato->client_id==$id?'selected':''}}>
 									{{$contrato->c_nombre}} {{ $contrato->c_apellido1 }}
 									{{ $contrato->c_apellido2 }} - {{$contrato->c_nit}}
 									(contrato: {{ $contrato->nro }})
@@ -170,12 +149,7 @@
         	</div>
 
 
-			<div class="col-md-3">
-				<div class="form-check form-check-inline d-flex p-3">
-					<input class="form-check-input" type="checkbox" id="isAbierta" name="isAbierta" value="true" onclick="refreshClient()">
-					<label class="form-check-label" for="isAbierta"  style="font-weight:bold">Solo facturas abiertas</label>
-				</div>
-			</div>
+			<!-- Removed isAbierta here because it's now in the filters row -->
 
 			<!-- Sección de parámetros para plantillas Meta -->
 			<div class="col-md-12" id="parametros-meta" style="display: none;">
@@ -220,6 +194,7 @@
 		if (plantillaId) {
 			cargarPlantillaSeleccionada();
 		}
+        refreshClient();
 	});
 
 	function cargarPlantillaSeleccionada() {
@@ -586,131 +561,110 @@
 	var ultimoVencimiento = null;
 
 	window.addEventListener('load', function() {
-
-		$('#vencimiento').on('change', function(){
-			if($(this).val() == ultimoVencimiento){
-
-			}else{
-				ultimoVencimiento = $(this).val();
-				window.location.href =  window.location.pathname + '?' + 'vencimiento=' + ultimoVencimiento;
-			}
-		});
-
-        //Buscar barrio
-		$('#barrio').on('keyup',function(e) {
+        $('#barrio').on('keyup',function(e) {
         	if(e.which > 32 || e.which == 8) {
-        		if($('#barrio').val().length > 3){
-        		if (window.location.pathname.split("/")[1] === "software") {
-        				var url = '/software/getContractsBarrio/'+$('#barrio').val();
-        			}else{
-        				var url = '/getContractsBarrio/'+$('#barrio').val();
-        			}
-
-        			cargando(true);
-
-        			$.ajax({
-        				url: url,
-        				headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        				method: 'get',
-        				success: function (data) {
-        					console.log(data);
-        					cargando(false);
-
-        					var $select = $('#contrato_sms');
-        					$select.empty();
-        					$.each(data.data,function(key, value){
-        						var apellidos = '';
-        						if(value.apellido1){
-        							apellidos += ' '+value.apellido1;
-        						}
-        						if(value.apellido2){
-        							apellidos += ' '+value.apellido2;
-        						}
-        						$select.append('<option value='+value.id+' class="'+value.state+'">'+value.nombre+' '+apellidos+' - '+value.nit+'</option>');
-        					});
-        					$select.selectpicker('refresh');
-							refreshClient();
-        				},
-        				error: function(data){
-        					cargando(false);
-        				}
-        			});
-        		}
-        		return false;
+        		// Viejo ajax call ignorado
         	}
         });
 
-        //Buscar vereda
-        $('#vereda').on('keyup',function(e) {
-        	if(e.which > 32 || e.which == 8) {
-        		if($('#vereda').val().length > 3){
-        			if (window.location.pathname.split("/")[1] === "software") {
-        				var url = '/software/getContractsVereda/'+$('#vereda').val();
-        			}else{
-        				var url = '/getContractsVereda/'+$('#vereda').val();
-        			}
-
-        			cargando(true);
-
-        			$.ajax({
-                    url: url,
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    method: 'get',
-                    success: function (data) {
-                        console.log(data);
-                        cargando(false);
-
-                        var $select = $('#contrato_sms');
-                        $select.empty();
-                        $.each(data.data, function (key, value) {
-                            var apellidos = '';
-                            if (value.apellido1) {
-                                apellidos += ' ' + value.apellido1;
-                            }
-                            if (value.apellido2) {
-                                apellidos += ' ' + value.apellido2;
-                            }
-
-                            var grupoCorte = value.grupo_corte && value.grupo_corte.id ? 'grupo-' + value.grupo_corte.id : 'grupo-no';
-                            var servidor = value.server_configuration_id && value.server_configuration_id ? 'servidor-' + value.server_configuration_id : 'servidor-no';
-                            var factura = value.factura_id != null ? 'factura-si' : 'factura-no';
-                            var vereda = value.vereda != null ? 'vereda-' + value.vereda : 'vereda-no';
-
-                            var clasesExtra = value.state + ' ' + grupoCorte + ' ' + servidor + ' ' + factura + ' ' + vereda;
-
-                            $select.append('<option value="' + value.id + '" class="' + clasesExtra + '">' + value.nombre + apellidos + ' - ' + value.nit + '</option>');
-                        });
-                        $select.selectpicker('refresh');
-                        refreshClient();
-                    },
-                    error: function (data) {
-                        cargando(false);
-                    }
-                });
-        		}
-        		return false;
-        	}
-        });
+        // Filtro local con refreshClient() ya implementado
 
 
     });
 
-    function chequeo(){
-        if($("#radio_1").is(":selected")){
-            $(".enabled").attr('selected','selected');
-            $(".disabled").removeAttr("selected");
+    // Nuevo refreshClient() para filtrado local total
+    function refreshClient(){
+        // Obtener valores de los filtros
+        let servidor = $('#servidor').val() || '';
+        let grupoCorte = $('#corte').val() || '';
+        let barrio = $('#barrio').val() || '';
+        let estadoContrato = $('#estado_contrato').val() || '';
+        let factAbierta = $('#isAbierta').is(":checked");
+        let tipoSaldo = $('#opciones_saldo').val() || '';
+        let valorSaldo = parseFloat($('#valor_saldo').val());
 
-			refreshClient('enabled',1);
-        }else if($("#radio_2").is(":selected")){
-            $(".disabled").attr('selected','selected');
-            $(".enabled").removeAttr("selected");
+        // Actualizar label del switch
+        $('#isAbierta_label').text(factAbierta ? 'Sí' : 'No');
 
-			refreshClient('disabled',1);
-        }else if($("#radio_3").is(":selected")){
+        // Deseleccionar todas las opciones primero
+        $("#contrato_sms option:selected").prop("selected", false);
+        $("#contrato_sms option").prop("selected", false); // asegura que todas esten deseleccionadas en DOM real
 
-        }
-        $("#contrato").selectpicker('refresh');
+        // Filtrar las opciones que cumplen las condiciones
+        let $opcionesCandidatas = $("#contrato_sms option");
+
+        $opcionesCandidatas = $opcionesCandidatas.filter(function() {
+            let $opt = $(this);
+            let match = true;
+
+            // Filtro por servidor
+            if (servidor && !$opt.hasClass('servidor-' + servidor)) {
+                match = false;
+            }
+
+            // Filtro por grupo de corte
+            if (grupoCorte && !$opt.hasClass('grupo-' + grupoCorte)) {
+                match = false;
+            }
+
+            // Filtro por barrio
+            if (barrio) {
+                // Como el barrio puede tener espacios, lo filtramos limpiando con regex en JS,
+                // aseguramos buscar la cadena limpia o verificar match exacto si lo guardamos en un data-barrio.
+                // Aquí usamos class para consistencia: class="barrio-nombre_limpio"
+                let barrioLimpio = barrio.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (!$opt.hasClass('barrio-' + barrioLimpio)) {
+                    match = false;
+                }
+            }
+
+            // Filtro por estado contrato
+            if (estadoContrato && !$opt.hasClass(estadoContrato)) {
+                match = false;
+            }
+
+            // Filtro por facturas abiertas
+            if (factAbierta && !$opt.hasClass('factura-si')) {
+                match = false;
+            }
+
+            // Filtro de saldos (lógica existente mantenida)
+            if (tipoSaldo && !isNaN(valorSaldo)) {
+                let saldo = parseFloat($opt.data('saldo') || 0);
+                saldo = Math.round(saldo);
+                switch (tipoSaldo) {
+                    case 'mayor_a':
+                        if (!(saldo > valorSaldo)) match = false;
+                        break;
+                    case 'mayor_igual':
+                        if (!(saldo >= valorSaldo)) match = false;
+                        break;
+                    case 'igual_a':
+                        if (!(saldo === valorSaldo)) match = false;
+                        break;
+                    case 'menor_a':
+                        if (!(saldo < valorSaldo)) match = false;
+                        break;
+                    case 'menor_igual':
+                        if (!(saldo <= valorSaldo)) match = false;
+                        break;
+                }
+            }
+
+            return match;
+        });
+
+        // Marcar seleccionadas las opciones filtradas
+        $opcionesCandidatas.prop('selected', true);
+
+        // Refrescar el plugin de Bootstrap Select
+        $('#contrato_sms').selectpicker('refresh');
+
+        // Actualizar contador de clientes
+        let count = $("#contrato_sms option:selected").length;
+        $('#client_count').text(count);
     }
+
 
     function alert_swal(){
     	Swal.fire({
@@ -720,97 +674,6 @@
     		showConfirmButton: false,
     	})
     }
-
-	function refreshClient(estadoCliente = null, disabledEstado = null){
-
-		let grupoCorte = $('#corte').val();
-		let servidor = $('#servidor').val();
-		let factAbierta = $('#isAbierta').is(":checked");
-        let tipoSaldo = $('#opciones_saldo').val();
-        let valorSaldo = parseFloat($('#valor_saldo').val());
-
-		if(estadoCliente){
-
-			if(grupoCorte && servidor){
-				options = $(`.servidor-${servidor}.grupo-${grupoCorte}.${estadoCliente}`);
-			}else{
-				if(servidor){
-					options = $(`.servidor-${servidor}.${estadoCliente}`);
-				}
-				if(grupoCorte){
-					options = $(`.grupo-${servidor}.${estadoCliente}`);
-				}
-			}
-
-			if(factAbierta && grupoCorte && servidor){
-			options=$(`.servidor-${servidor}.grupo-${grupoCorte}.${estadoCliente}.factura-si`);
-			}else if(factAbierta && grupoCorte){
-				options=$(`.grupo-${grupoCorte}.${estadoCliente}.factura-si`);
-			}else if(factAbierta && servidor){
-				options=$(`.servidor-${servidor}.${estadoCliente}.factura-si`);
-			}else if(factAbierta){
-				options=`${estadoCliente}.factura-si`;
-			}
-
-		}else{
-
-			if(grupoCorte && servidor){
-				options = $(`.servidor-${servidor}.grupo-${grupoCorte}`);
-			}else{
-				if(servidor){
-					options = $(`#contrato_sms option[class*="servidor-${servidor}"]`);
-				}
-				if(grupoCorte){
-					 options = $(`#contrato_sms option[class*="grupo-${grupoCorte}"]`);
-				}
-			}
-
-			if(factAbierta && grupoCorte && servidor){
-			options=$(`.servidor-${servidor}.grupo-${grupoCorte}.factura-si`);
-			}else if(factAbierta && grupoCorte){
-				options=$(`.grupo-${grupoCorte}.factura-si`);
-			}else if(factAbierta && servidor){
-				options=$(`.servidor-${servidor}.factura-si`);
-			}else if(factAbierta){
-				options=`.factura-si`;
-			}
-		}
-
-        if (tipoSaldo && !isNaN(valorSaldo)) {
-            options = options.filter(function() {
-                let saldo = parseFloat($(this).data('saldo'));
-                saldo = Math.round(saldo);
-                switch (tipoSaldo) {
-                    case 'mayor_a':
-                        return saldo > valorSaldo;
-                    case 'mayor_igual':
-                        return saldo >= valorSaldo;
-                    case 'igual_a':
-                        return saldo === valorSaldo;
-                    case 'menor_a':
-                        return saldo < valorSaldo;
-                    case 'menor_igual':
-                        return saldo <= valorSaldo;
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        if((grupoCorte || servidor) && disabledEstado == null ){
-            $("#options option:selected").prop("selected", false);
-            $("#options").selectpicker('refresh');
-        }
-
-		$("#contrato_sms option:selected").prop("selected", false);
-		$("#contrato_sms option:selected").removeAttr("selected");
-
-		options.attr('selected', true);
-		options.prop('selected', true);
-
-		$('#contrato_sms').selectpicker('refresh');
-
-	}
 
 </script>
 @endsection
