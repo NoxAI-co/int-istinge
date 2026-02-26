@@ -110,6 +110,7 @@
                 @endif
                 <a href="#" data-toggle="modal" data-target="#periodo_factura">Periodo de Facturación</a><br>
                 <a href="#" data-toggle="modal" data-target="#formato_impresion">Formato de Impresión</a><br>
+                <a href="{{ route('saldos_iniciales.importar') }}">Importar saldos iniciales</a><br>
                 <a href="javascript:facturacionAutomatica()">{{ Auth::user()->empresa()->factura_auto == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     Facturación Automática</a><br>
                 <input type="hidden" id="facturaAuto" value="{{ Auth::user()->empresa()->factura_auto }}">

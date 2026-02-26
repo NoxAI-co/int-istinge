@@ -755,6 +755,13 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('facturas-whatsapp-reiniciar', 'FacturasController@facturasWhastappReiniciar')->name('cronjob.whatsapp-facturas-reiniciar');
 	});
 
+    // Saldos iniciales
+    Route::group(['prefix' => 'saldos_iniciales'], function () {
+        Route::get('importar', 'FacturasController@importarSaldos')->name('saldos_iniciales.importar');
+        Route::post('ejemplo', 'FacturasController@ejemploImportarSaldos')->name('saldos_iniciales.ejemplo');
+        Route::post('importar', 'FacturasController@importarCargandoSaldos')->name('saldos_iniciales.importar_cargando');
+    });
+
 	// Listar todas las facturas
 	Route::get('factura-index', 'FacturasController@index')->name('facturas.index');
 

@@ -214,18 +214,22 @@
 	<div class="row card-description">
 		<div class="col-md-12">
     		<div class="container-filtercolumn form-inline">
-    			@if(Auth::user()->empresa()->efecty == 1)
-    			<a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
-    			@endif
-				{{-- @if(isset($_SESSION['permisos']['830']))
-    			<a class="btn btn-outline-success btn-sm disabled mr-1 d-none" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-sitemap"></i> Convertir a facturas electrónicas en Lote</a>
-    			@endif --}}
-    			@if(isset($_SESSION['permisos']['750']))
-    			<a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
-    			@endif
-                @if(isset($_SESSION['permisos']['774']))
-                <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
-                @endif
+    			<div class="dropdown mr-1">
+                    <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownOtrasAcciones" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Otras Acciones
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownOtrasAcciones">
+                        @if(Auth::user()->empresa()->efecty == 1)
+                        <a class="dropdown-item" href="{{route('facturas.downloadefecty')}}"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['750']))
+                        <a class="dropdown-item" href="{{route('campos.organizar', 4)}}"><i class="fas fa-table"></i> Organizar Tabla</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['774']))
+                        <a class="dropdown-item text-danger" href="{{route('promesas-pago.index')}}"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
+                        @endif
+                    </div>
+                </div>
                 <div class="dropdown mr-1">
                     <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Acciones en Lote

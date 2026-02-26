@@ -7240,4 +7240,262 @@ class FacturasController extends Controller{
         ], 200);
     }
 
+    public function importarSaldos()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Importar Saldos Iniciales', 'full' => true]);
+        return view('facturas.importar_saldos');
+    }
+
+    public function ejemploImportarSaldos()
+    {
+        $titulosColumnas = array(
+            'Identificacion', 'Tipo factura', 'Fecha factura', 'Fecha vencimiento', 'Fecha suspension', 'Saldo inicial'
+        );
+
+        $comentarios = array(
+            'A' => 'NIT o Cédula del cliente (Obligatorio)',
+            'B' => 'Seleccione "Estandar" o "Electronica"',
+            'C' => 'Fecha factura (dd-mm-AAAA)',
+            'D' => 'Fecha de vencimiento (dd-mm-AAAA)',
+            'E' => 'Fecha de suspensión (dd-mm-AAAA)',
+            'F' => 'Saldo inicial (valor numérico)'
+        );
+
+        $objPHPExcel = new \PHPExcel();
+        $tituloReporte = "Importación Saldos Iniciales - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => \PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => \PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Validación desplegable para Tipo de Factura (B)
+        for ($row = 4; $row <= 200; $row++) {
+            $validation = $objPHPExcel->getActiveSheet()->getCell('B' . $row)->getDataValidation();
+            $validation->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(false);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('"Estandar,Electronica"');
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Saldos Iniciales');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Importacion_Saldos_Iniciales.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function importarCargandoSaldos(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $usar_fechas_corte = $request->has('usar_fechas_corte') ? true : false;
+
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'saldos_' . time() . '.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = \PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = \PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        $creados = 0;
+        $errores = [];
+
+        // Asegurar que existe el item inventario "saldo_inicial"
+        $inventarioItem = Inventario::where('empresa', Auth::user()->empresa)->where('ref', 'saldo_inicial')->first();
+        if (!$inventarioItem) {
+            $inventarioItem = new Inventario();
+            $inventarioItem->empresa = Auth::user()->empresa;
+            $inventarioItem->producto = 'Saldo Inicial';
+            $inventarioItem->ref = 'saldo_inicial';
+            $inventarioItem->descripcion = 'Item automático creado para gestionar importaciones de saldos iniciales';
+            $inventarioItem->precio = 0;
+            $inventarioItem->id_impuesto = 2; // Por defecto Ninguno o algo de 0
+            $inventarioItem->impuesto = 0;
+            $inventarioItem->tipo_producto = 2;
+            $inventarioItem->unidad = 1;
+            $inventarioItem->nro = 0;
+            $inventarioItem->type = 'SERVICIO';
+            $inventarioItem->save();
+        }
+
+        // Obtener numeraciones preferidas
+        $numeracionEst = NumeracionFactura::where('empresa', Auth::user()->empresa)->where('prefijo', '!=', '0')->where('tipo', 1)->where('estado', 1)->first();
+        $numeracionElec = NumeracionFactura::where('empresa', Auth::user()->empresa)->where('preferida', 1)->where('tipo', 2)->where('estado', 1)->first();
+
+        if (!$numeracionEst) {
+            $errores[] = "No hay numeración estándar activa definida.";
+            return back()->withErrors($errores)->with('danger', 'Complete la configuración de numeración estándar');
+        }
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $identificacion = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($identificacion)) {
+                break;
+            }
+
+            $tipo_factura = strtoupper(trim($sheet->getCell("B" . $row)->getValue()));
+            $fecha_factura = $sheet->getCell("C" . $row)->getFormattedValue();
+            $fecha_vcto = $sheet->getCell("D" . $row)->getFormattedValue();
+            $fecha_suspension = $sheet->getCell("E" . $row)->getFormattedValue();
+            $saldo_inicial = trim($sheet->getCell("F" . $row)->getValue());
+
+            if (empty($tipo_factura) || empty($saldo_inicial) || $saldo_inicial == 0) {
+                $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial) o el saldo inicial es 0";
+                continue;
+            }
+
+            $contacto = Contacto::where('empresa', Auth::user()->empresa)->where('nit', $identificacion)->first();
+            if (!$contacto) {
+                $errores[] = "Fila $row: No se encontró contacto asociado a la cédula/NIT: $identificacion";
+                continue;
+            }
+
+            $tipo = 1;
+            $numeracionToUse = $numeracionEst;
+            if ($tipo_factura == 'ELECTRONICA') {
+                $tipo = 2;
+                $numeracionToUse = $numeracionElec;
+                if (!$numeracionElec) {
+                    $errores[] = "Fila $row: Se ha seleccionado electrónica pero no hay numeración electrónica activa.";
+                    continue;
+                }
+            }
+
+            // Manejo de Fechas
+            $fecha = null; $vencimiento = null; $suspensionDate = null;
+
+            if ($usar_fechas_corte) {
+                // Obtener grupo de corte desde el contrato
+                $contrato = Contrato::where('client_id', $contacto->id)->where('status', 1)->first();
+                if ($contrato && $contrato->grupo_corte) {
+                    $grupo = $contrato->grupo_corte();
+                    if ($grupo) {
+                        $currentMonth = date('m');
+                        $currentYear = date('Y');
+                        
+                        // Parsear las fechas considerando si el día es del mismo mes o siguiente
+                        $fecha = Carbon::createFromFormat('Y-m-d', $currentYear . '-' . $currentMonth . '-' . min($grupo->fecha_factura, Carbon::now()->daysInMonth))->format('Y-m-d');
+                        
+                        // Vencimiento mes o siguiente (dependiendo del tipo)
+                        $mesVencimiento = ($grupo->fecha_factura > $grupo->fecha_suspension) ? date('m', strtotime('+1 month')) : $currentMonth;
+                        $yearVencimiento = ($grupo->fecha_factura > $grupo->fecha_suspension && $currentMonth == '12') ? $currentYear + 1 : $currentYear;
+                        $cantDiasMesVenc = Carbon::create($yearVencimiento, $mesVencimiento, 1)->daysInMonth;
+                        $vencimiento = Carbon::createFromFormat('Y-m-d', $yearVencimiento . '-' . $mesVencimiento . '-' . min($grupo->fecha_suspension, $cantDiasMesVenc))->format('Y-m-d');
+                        $suspensionDate = $vencimiento;
+                    }
+                }
+            }
+
+            if (!$fecha) {
+                // Usar Fechas Excel  si no se calculó arriba o form value = off
+                try {
+                    $fecha = Carbon::parse(str_replace('/', '-', $fecha_factura))->format('Y-m-d');
+                    $vencimiento = Carbon::parse(str_replace('/', '-', $fecha_vcto))->format('Y-m-d');
+                    $suspensionDate = Carbon::parse(str_replace('/', '-', $fecha_suspension))->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $errores[] = "Fila $row: Error en el formato de fechas ($fecha_factura) - Use MM-DD-YYYY o DD-MM-YYYY válido";
+                    continue;
+                }
+            }
+
+            $inicio = $numeracionToUse->inicio;
+            $numeracionToUse->inicio += 1;
+            $numeracionToUse->save();
+
+            $codigo = $numeracionToUse->prefijo . $inicio;
+
+            $factura = new Factura();
+            $factura->nro = $inicio; // Aquí asumo que nro es similar a inicio o autoincremental simple
+            $factura->codigo = $codigo;
+            $factura->numeracion = $numeracionToUse->id;
+            $factura->empresa = Auth::user()->empresa;
+            $factura->cliente = $contacto->id;
+            $factura->fecha = $fecha;
+            $factura->vencimiento = $vencimiento;
+            $factura->suspension = $suspensionDate;
+            $factura->tipo = $tipo;
+            $factura->factura_mes_manual = 0;
+            $factura->estatus = 1;
+            // $factura->contrato_id // dejamos null porque no pertenece a un mes de contrato regular
+            $factura->save();
+
+            $item = new ItemsFactura();
+            $item->factura = $factura->id;
+            $item->producto = $inventarioItem->id;
+            $item->precio = $saldo_inicial;
+            $item->cant = 1;
+            $item->desc = 0;
+            $item->impuesto = 0;
+            $item->save();
+
+            $creados++;
+        }
+
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales existosamente. Hubieron algunos errores.");
+        }
+
+        return redirect('empresa/facturas')->with('success', "Se han importado $creados saldos iniciales existosamente!");
+    }
 }
