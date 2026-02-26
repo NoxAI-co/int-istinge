@@ -297,7 +297,7 @@
                                 <div class="input-group">
                                     <input type="hidden" class="form-control" id="input_direccion">
                                     <input type="text" class="form-control" name="address_street" id="address_street"
-                                        value="{{ old('address_street') }}" required="">
+                                        value="{{ old('address_street') }}">
                                     <span class="help-block error">
                                         <strong>{{ $errors->first('address_street') }}</strong>
                                     </span>
