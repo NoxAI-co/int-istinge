@@ -1208,6 +1208,7 @@ class ContratosController extends Controller
             $contrato->tipo_moden              = $request->tipo_moden;
             $contrato->descuento_pesos         = $request->descuento_pesos;
             $contrato->fact_primer_mes         = $request->fact_primer_mes;
+            $contrato->estrato                 = $request->estrato;
             $contrato->fecha_hasta_desc        = isset($request->fecha_hasta_desc) ? $request->fecha_hasta_desc : null;
 
             if ($request->rd_item_vencimiento) {
