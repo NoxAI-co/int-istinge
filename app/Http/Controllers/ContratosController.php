@@ -1259,7 +1259,7 @@ class ContratosController extends Controller
                 if (isset($response->status) && $response->status == false) {
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                 } else {
-                    if ($response->status == true && $request->state_olt_catv == 0) {
+                    if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
                     } else {
                         $contrato->state_olt_catv = 1;
@@ -1439,7 +1439,7 @@ class ContratosController extends Controller
                 if (isset($response->status) && $response->status == false) {
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                 } else {
-                    if ($response->status == true && $request->state_olt_catv == 0) {
+                    if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
                     } else {
                         $contrato->state_olt_catv = 1;
@@ -2408,7 +2408,7 @@ class ContratosController extends Controller
                     if (isset($response->status) && $response->status == false) {
                         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                     } else {
-                        if ($response->status == true && $request->state_olt_catv == 0) {
+                        if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                             $contrato->state_olt_catv = 0;
                         } else {
                             $contrato->state_olt_catv = 1;
