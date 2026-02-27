@@ -6733,46 +6733,51 @@ class ContratosController extends Controller
         }
     }
 
-    //Metodo para obtener los items de los contratos que tienen la opcion de facturar agruapada
     public function rowItem(Request $request)
     {
-        //No se que significa item pendiente de asignacion en el cron controller, este es otor motivo de creacion de item.
-
         try {
-            if (isset($request->contrato_id) && isset($request->cliente_id)) {
-
-                $contrato = Contrato::find($request->contrato_id);
-
-                /* Preguntamos primero si el contrato seleccionado tiene facturacion agrupada,
-                 si es asi entonces tenemos que investigar los demas contratos asociados para saber si son agrupados tambien.
-                */
-                if ($contrato->factura_individual == 0) {
-                    $contratos = Contrato::where('client_id', $request->cliente_id)->where('factura_individual', 0)->get();
-                } else {
-                    $contratos = Contrato::where('id', $request->contrato_id)->get();
-                }
-
+            if (isset($request->cliente_id)) {
+                
                 $items = [];
-                foreach ($contratos as $co) {
-
-                    //Buscamos los items del contrato y los vamos almecenando en items.
-                    if ($co->plan_id) {
-                        $plan = PlanesVelocidad::find($co->plan_id);
-                        $item = Inventario::find($plan->item);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
+                if (!empty($request->contrato_id)) {
+                    if (is_array($request->contrato_id)) {
+                        $contratos = Contrato::whereIn('id', $request->contrato_id)->get();
+                    } else {
+                        $contrato = Contrato::find($request->contrato_id);
+                        if ($contrato && $contrato->factura_individual == 0) {
+                            $contratos = Contrato::where('client_id', $request->cliente_id)->where('factura_individual', 0)->get();
+                        } else {
+                            $contratos = Contrato::where('id', $request->contrato_id)->get();
+                        }
                     }
 
-                    if ($co->servicio_tv) {
-                        $item = Inventario::find($co->servicio_tv);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
-                    }
+                    foreach ($contratos as $co) {
+                        if ($co->plan_id) {
+                            $plan = PlanesVelocidad::find($co->plan_id);
+                            if ($plan && $plan->item) {
+                                $item = Inventario::find($plan->item);
+                                if ($item) {
+                                    $item->contrato_nro = $co->nro;
+                                    $items[] = $item;
+                                }
+                            }
+                        }
 
-                    if ($co->servicio_otro) {
-                        $item = Inventario::find($co->servicio_otro);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
+                        if ($co->servicio_tv) {
+                            $item = Inventario::find($co->servicio_tv);
+                            if ($item) {
+                                $item->contrato_nro = $co->nro;
+                                $items[] = $item;
+                            }
+                        }
+
+                        if ($co->servicio_otro) {
+                            $item = Inventario::find($co->servicio_otro);
+                            if ($item) {
+                                $item->contrato_nro = $co->nro;
+                                $items[] = $item;
+                            }
+                        }
                     }
                 }
 
@@ -6784,7 +6789,7 @@ class ContratosController extends Controller
                 ]);
             }
         } catch (\Throwable $th) {
-            $errorData = json_decode($th->getMessage(), true);
+            $errorData = json_decode($th->getMessage(), true) ?? $th->getMessage();
             return response()->json(['code' => 422, 'message' => $errorData]);
         }
     }

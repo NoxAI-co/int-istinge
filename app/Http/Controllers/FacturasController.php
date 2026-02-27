@@ -2208,6 +2208,7 @@ class FacturasController extends Controller{
                 // ->where('state','enabled')
                 ->get();
                 $contratosFacturas = DB::table('facturas_contratos')->where('factura_id',$factura->id)->first();
+                $contratosFacturasArray = DB::table('facturas_contratos')->where('factura_id',$factura->id)->pluck('contrato_nro')->toArray();
 
                 // Obtener el prefijo de la numeración para el modal de edición
                 $numeracionPrefijo = null;
@@ -2219,7 +2220,7 @@ class FacturasController extends Controller{
                 }
 
                 return view('facturas.edit')->with(compact('clientes', 'inventario', 'vendedores', 'terminos', 'impuestos', 'factura', 'items', 'listas', 'bodegas', 'retencionesFacturas', 'retenciones', 'tipo_documento', 'categorias', 'medidas', 'unidades', 'prefijos', 'tipos_empresa', 'identificaciones', 'extras','relaciones','formasPago',
-                'contratos','contratosFacturas', 'numeracionPrefijo'
+                'contratos','contratosFacturas', 'contratosFacturasArray', 'numeracionPrefijo'
             ));
             }
             return redirect('empresa/factura-index')->with('success', 'La factura de venta '.$factura->codigo.' ya esta cerrada');
@@ -2322,11 +2323,18 @@ class FacturasController extends Controller{
                 // Array para almacenar todos los contratos que deben estar asociados
                 $contratosFinales = [];
 
-                // Si se seleccionó un contrato principal, agregarlo a la lista
+                // Si se seleccionó un contrato principal o múltiples, agregarlos a la lista
                 if(isset($request->contratos_json) && !empty($request->contratos_json)){
-                    $contrato = Contrato::find($request->contratos_json);
-                    if($contrato){
-                        $contratosFinales[] = $contrato->nro;
+                    if(is_array($request->contratos_json)){
+                        $contratosObj = Contrato::whereIn('id', $request->contratos_json)->get();
+                        foreach($contratosObj as $co) {
+                            $contratosFinales[] = $co->nro;
+                        }
+                    } else {
+                        $contrato = Contrato::find($request->contratos_json);
+                        if($contrato){
+                            $contratosFinales[] = $contrato->nro;
+                        }
                     }
                 }
 

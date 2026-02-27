@@ -86,13 +86,12 @@
                 <label class="col-sm-4 col-form-label">Contrato <span class="text-danger">*</span></label>
                 <div class="col-sm-8">
                 <div class="input-group">
-                    <select class="form-control selectpicker" name="contratos_json" id="contratos_json"
-                    title="Seleccione un contrato" data-live-search="true" data-size="5"
-                    onchange="rowItemsContrato(this.value), opcionFacturaMes(this.value), toggleBotonEliminarContrato(this.value)"
+                    <select class="form-control selectpicker" name="contratos_json[]" id="contratos_json"
+                    title="Seleccione un contrato" data-live-search="true" data-size="5" multiple
+                    onchange="rowItemsContrato($(this).val()); opcionFacturaMes($(this).val()); toggleBotonEliminarContrato($(this).val());"
                     >
-                        <option value="">-- Sin contrato --</option>
                         @foreach($contratos as $co)
-                            <option value="{{$co->id}}" {{isset($contratosFacturas) && $contratosFacturas->contrato_nro==$co->nro?'selected':''}}
+                            <option value="{{$co->id}}" {{(isset($contratosFacturasArray) && in_array($co->nro, $contratosFacturasArray)) ? 'selected' : ''}}
                                 >{{$co->nro}}</option>
                         @endforeach
                     </select>
@@ -648,7 +647,7 @@
     }
 
     function toggleBotonEliminarContrato(value){
-        if(value && value !== ''){
+        if(value && value !== '' && value.length > 0){
             $('#btn-eliminar-contrato').show();
         } else {
             $('#btn-eliminar-contrato').hide();
@@ -657,7 +656,7 @@
 
     function eliminarContrato(){
         if(confirm('¿Está seguro que desea eliminar la relación del contrato con esta factura?')){
-            $('#contratos_json').val('').selectpicker('refresh');
+            $('#contratos_json').val([]).selectpicker('refresh');
             // También limpiar el campo hidden de contratos asociados si existe
             $('#contratos_asociados').val('');
             // Ocultar el botón de eliminar
