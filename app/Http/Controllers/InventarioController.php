@@ -441,6 +441,22 @@ class InventarioController extends Controller{
         $inventario->link = $request->link;
         $inventario->type_autoretencion = $request->tipo_autoretencion;
         $inventario->codigo_siigo = isset($request->codigo_siigo) ? $request->codigo_siigo : '';
+
+        // Campos de facturación a otra empresa
+        if(isset($request->facturar_otra_empresa) && $request->facturar_otra_empresa == 1){
+            $inventario->nombre_empresa = isset($request->nombre_empresa) ? $request->nombre_empresa : null;
+            $inventario->nit_empresa = isset($request->nit_empresa) ? $request->nit_empresa : null;
+            $inventario->dv_empresa = isset($request->dv_empresa) ? $request->dv_empresa : null;
+            $inventario->direccion_empresa = isset($request->direccion_empresa) ? $request->direccion_empresa : null;
+            $inventario->email_empresa = isset($request->email_empresa) ? $request->email_empresa : null;
+        }else{
+            $inventario->nombre_empresa = null;
+            $inventario->nit_empresa = null;
+            $inventario->dv_empresa = null;
+            $inventario->direccion_empresa = null;
+            $inventario->email_empresa = null;
+        }
+
         $inventario->save();
 
         if ($request->tipo_producto==1) {
@@ -919,6 +935,22 @@ class InventarioController extends Controller{
             $inventario->type = $request->type;
             $inventario->type_autoretencion = $request->tipo_autoretencion;
             $inventario->codigo_siigo = isset($request->codigo_siigo) ? $request->codigo_siigo : '';
+
+            // Campos de facturación a otra empresa
+            if(isset($request->facturar_otra_empresa) && $request->facturar_otra_empresa == 1){
+                $inventario->nombre_empresa = isset($request->nombre_empresa) ? $request->nombre_empresa : null;
+                $inventario->nit_empresa = isset($request->nit_empresa) ? $request->nit_empresa : null;
+                $inventario->dv_empresa = isset($request->dv_empresa) ? $request->dv_empresa : null;
+                $inventario->direccion_empresa = isset($request->direccion_empresa) ? $request->direccion_empresa : null;
+                $inventario->email_empresa = isset($request->email_empresa) ? $request->email_empresa : null;
+            }else{
+                $inventario->nombre_empresa = null;
+                $inventario->nit_empresa = null;
+                $inventario->dv_empresa = null;
+                $inventario->direccion_empresa = null;
+                $inventario->email_empresa = null;
+            }
+
             $inventario->save();
 
             if ($request->tipo_producto==1) {

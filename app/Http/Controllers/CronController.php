@@ -534,6 +534,12 @@ class CronController extends Controller
                                                 $item_reg->producto    = $item->id;
                                                 $item_reg->ref         = $item->ref;
                                                 $item_reg->precio      = $item->precio;
+
+                                                // Precio personalizado internet
+                                                if(isset($cm->precio_personalizado_internet) && $cm->precio_personalizado_internet > 0){
+                                                    $item_reg->precio = $cm->precio_personalizado_internet;
+                                                }
+
                                                 $item_reg->descripcion = $plan->name;
                                                 $item_reg->id_impuesto = $item->id_impuesto;
                                                 $item_reg->impuesto    = $item->impuesto;
@@ -570,6 +576,12 @@ class CronController extends Controller
                                                 $item_reg->producto    = $item->id;
                                                 $item_reg->ref         = $item->ref;
                                                 $item_reg->precio      = $item->precio;
+
+                                                // Precio personalizado TV
+                                                if(isset($cm->precio_personalizado_tv) && $cm->precio_personalizado_tv > 0){
+                                                    $item_reg->precio = $cm->precio_personalizado_tv;
+                                                }
+
                                                 $item_reg->descripcion = $item->producto;
                                                 $item_reg->id_impuesto = $item->id_impuesto;
                                                 $item_reg->impuesto    = $item->impuesto;

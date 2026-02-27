@@ -1294,6 +1294,14 @@ class ContratosController extends Controller
                 $contrato->servicio_tv = $request->servicio_tv;
             }
 
+            // Precios personalizados
+            if(isset($request->precio_personalizado_internet) && $request->precio_personalizado_internet != ''){
+                $contrato->precio_personalizado_internet = $request->precio_personalizado_internet;
+            }
+            if(isset($request->precio_personalizado_tv) && $request->precio_personalizado_tv != ''){
+                $contrato->precio_personalizado_tv = $request->precio_personalizado_tv;
+            }
+
             if ($request->oficina) {
                 $contrato->oficina = $request->oficina;
             }
@@ -2237,6 +2245,14 @@ class ContratosController extends Controller
 
                     if (isset($request->factura_individual)) {
                         $contrato->factura_individual = $request->factura_individual;
+                    }
+
+                    // Precios personalizados
+                    if(isset($request->precio_personalizado_internet)){
+                        $contrato->precio_personalizado_internet = $request->precio_personalizado_internet != '' ? $request->precio_personalizado_internet : null;
+                    }
+                    if(isset($request->precio_personalizado_tv)){
+                        $contrato->precio_personalizado_tv = $request->precio_personalizado_tv != '' ? $request->precio_personalizado_tv : null;
                     }
 
                     // Handle tipo_suspension_no toggle
