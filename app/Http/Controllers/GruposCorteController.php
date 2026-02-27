@@ -832,6 +832,38 @@ class GruposCorteController extends Controller
     }
 
     /**
+     * Actualizar contratos para que generen factura en su primer ciclo
+     */
+    public function actualizarContratosPrimerMes(Request $request)
+    {
+        $idGrupo = $request->idGrupo;
+        $periodo = $request->periodo;
+        
+        if (!$idGrupo || !$periodo) {
+            return response()->json(['success' => false, 'message' => 'Faltan parámetros requeridos.'], 400);
+        }
+
+        try {
+            $analyzer = new \App\Services\BillingCycleAnalyzer();
+            $marcados = $analyzer->actualizarContratosPrimerMes($idGrupo, $periodo);
+            
+            // Invalidar caché
+            $analyzer->clearCycleCache($idGrupo, $periodo);
+            
+            return response()->json([
+                'success' => true, 
+                'message' => "Se han actualizado {$marcados} contratos para que generen factura en el primer mes del ciclo."
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Error actualizando contratos primer mes: " . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Ocurrió un error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Eliminar facturas duplicadas de manera segura
      */
     public function eliminarFacturaDuplicada(Request $request)

@@ -1843,6 +1843,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('/api/eliminar-ciclo-facturacion', 'GruposCorteController@eliminarFacturasCiclo')->name('grupos-corte.eliminar-ciclo');
 		Route::get('/api/generated-invoices-datatable', 'GruposCorteController@datatableGeneratedInvoices')->name('grupos-corte.dt-generated-invoices');
 		Route::post('/api/habilitar-contratos-deshabilitados', 'GruposCorteController@habilitarContratosDeshabilitados')->name('grupos-corte.habilitar-contratos-deshabilitados');
+		Route::post('/api/actualizar-contratos-primer-mes', 'GruposCorteController@actualizarContratosPrimerMes')->name('grupos-corte.actualizar-contratos-primer-mes');
 	});
 
 	Route::resource('grupos-corte', 'GruposCorteController');

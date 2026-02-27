@@ -648,6 +648,7 @@
                 </button>
             </div>
             <div class="modal-body p-0">
+                <div id="reasonModalActionContainer" class="px-3 pt-3 pb-0 bg-light"></div>
                 <div class="px-3 py-2 bg-light border-bottom">
                     <div class="input-group input-group-sm">
                         <div class="input-group-prepend">
@@ -761,6 +762,18 @@ function showReasonDetails(reasonCode) {
     const details = cycleStats.missing_details.filter(d => d.razon_code === reasonCode);
     
     document.getElementById('reasonModalTitle').textContent = reason.title + ` (${reason.count} contratos)`;
+    
+    // Manage custom actions based on reasonCode
+    const actionContainer = document.getElementById('reasonModalActionContainer');
+    if (actionContainer) {
+        if (reasonCode === 'first_invoice_skip') {
+            actionContainer.innerHTML = `<button class="btn btn-warning btn-sm mb-3 w-100 font-weight-bold" onclick="actualizarContratosPrimerMes()">
+                <i class="fas fa-edit"></i> Actualizar contratos para que generen factura el primer mes del ciclo
+            </button>`;
+        } else {
+            actionContainer.innerHTML = '';
+        }
+    }
     
     const tbody = document.getElementById('reasonDetailsBody');
     tbody.innerHTML = '';
@@ -1152,6 +1165,41 @@ function vincularFacturasManuales() {
         preConfirm: () => {
             return $.ajax({
                 url: "{{ route('grupos-corte.marcar-facturas-mes-lote') }}",
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    idGrupo: grupoId,
+                    periodo: '{{ $periodo }}'
+                }
+            });
+        },
+        allowOutsideClick: () => !swal.isLoading()
+    }).then((result) => {
+        if (result.value) {
+            if (result.value.success) {
+                swal("¡Éxito!", result.value.message, "success").then(() => {
+                    location.reload();
+                });
+            } else {
+                swal("Error", result.value.message || "Ocurrió un error inesperado.", "error");
+            }
+        }
+    });
+}
+
+function actualizarContratosPrimerMes() {
+    swal({
+        title: "¿Actualizar contratos para generar factura el primer mes?",
+        text: "Esta acción actualizará los contratos de este grupo que tienen la opción 'Primera factura no corresponde' permitiendo que el sistema intente generar su factura en el primer ciclo del contrato.",
+        type: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, actualizar contratos",
+        cancelButtonText: "Cancelar",
+        confirmButtonClass: "btn-warning",
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            return $.ajax({
+                url: "{{ route('grupos-corte.actualizar-contratos-primer-mes') }}",
                 method: 'POST',
                 data: {
                     _token: '{{ csrf_token() }}',

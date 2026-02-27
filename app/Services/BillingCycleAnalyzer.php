@@ -823,9 +823,34 @@ class BillingCycleAnalyzer
             return 0;
         }
 
-        return Factura::whereIn('id', $idsToFix)->update(['factura_mes_manual' => 1]);
+        return \App\Models\Factura::whereIn('id', $idsToFix)->update(['factura_mes_manual' => 1]);
     }
 
+    /**
+     * Actualiza el contrato a fact_primer_mes = 1 cuando se saltó la primera factura
+     */
+    public function actualizarContratosPrimerMes($grupoCorteId, $periodo)
+    {
+        $missingAnalysis = $this->getMissingInvoicesAnalysis($grupoCorteId, $periodo);
+        $idsToFix = [];
+
+        foreach ($missingAnalysis['details'] as $detail) {
+            if ($detail['razon_code'] === 'first_invoice_skip' && !empty($detail['contrato_id'])) {
+                $idsToFix[] = $detail['contrato_id'];
+            }
+        }
+
+        if (empty($idsToFix)) {
+            return 0;
+        }
+
+        // Actualizar fact_primer_mes usando DB query directo por eficiencia
+        \Illuminate\Support\Facades\DB::table('contracts')
+            ->whereIn('id', $idsToFix)
+            ->update(['fact_primer_mes' => 1]);
+
+        return count($idsToFix);
+    }
 
     /**
      * Analiza si existen contratos con múltiples facturas en el mismo ciclo
