@@ -1423,6 +1423,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		//INTEGRACION PASARELAS DE PAGO
 		Route::group(['prefix' => 'integracion-pasarelas'], function () {
 			Route::post('/{id}/act_desc', 'IntegracionPasarelaController@act_desc')->name('integracion-pasarelas.act_desc');
+			Route::get('/{id}/onepay-invoices', 'IntegracionPasarelaController@onePayInvoices')->name('integracion-pasarelas.onepay-invoices');
 		});
 		Route::resource('integracion-pasarelas', 'IntegracionPasarelaController');
 

@@ -14,6 +14,7 @@ use Session;
 
 use App\User;
 use App\Integracion;
+use App\Services\OnePayService;
 
 class IntegracionPasarelaController extends Controller
 {
@@ -105,5 +106,48 @@ class IntegracionPasarelaController extends Controller
         }else{
             return redirect('empresa/configuracion/integracion-pasarelas')->with('danger', 'SERVICIO NO ENCONTRADO, INTENTE NUEVAMENTE');
         }
+    }
+
+    public function onePayInvoices(Request $request, $id)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $servicio = Integracion::where('empresa', Auth::user()->empresa)
+            ->where('tipo', 'PASARELA')
+            ->where('lectura', 1)
+            ->where('id', $id)
+            ->first();
+
+        if (!$servicio || $servicio->nombre !== 'ONEPAY') {
+            return redirect(route('integracion-pasarelas.index'))
+                ->with('danger', 'SERVICIO NO ENCONTRADO O NO ES ONEPAY');
+        }
+
+        view()->share(['title' => 'Facturas OnePay', 'precice' => true]);
+
+        $filters = [
+            'page'              => $request->get('page', 1),
+            'filter_id'         => $request->get('filter_id'),
+            'filter_status'     => $request->get('filter_status'),
+            'filter_reference'  => $request->get('filter_reference'),
+            'filter_provider_id'=> $request->get('filter_provider_id'),
+            'sort'              => $request->get('sort', '-created_at'),
+        ];
+
+        $invoices   = [];
+        $meta       = [];
+        $error      = null;
+
+        try {
+            $onePayService = new OnePayService();
+            $response      = $onePayService->getInvoices($filters);
+            $invoices      = $response['data']  ?? [];
+            $meta          = $response['meta']  ?? [];
+        } catch (\Exception $e) {
+            $error = $e->getMessage();
+        }
+
+        return view('configuracion.integracion_pasarela.onepay_invoices')
+            ->with(compact('servicio', 'invoices', 'meta', 'filters', 'error'));
     }
 }
