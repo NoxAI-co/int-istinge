@@ -240,21 +240,20 @@ class MikrotikService
                                 'estatus' => $ultimaFactura->estatus
                             ];
 
-                            // Lógica de discrepancia:
-                            // "si esa factura tiene un estatus = 0 significa que el contrato tiene la ultima factura pagada"
-                            // En base de datos Factura: estatus 1 = Abierta (No pagada), 0 = Pagada/Cerrada, 2 = Anulada
-                            // Si estatus es 0, hay una discrepancia (está en Mikrotik pero pagó).
-                            // Si estatus es 2, no es discrepancia (está anulada).
-                            
-                            if ($ultimaFactura->estatus == 0) { // Pagada
+                            $estadoString = $ultimaFactura->estatus();
+
+                            // Dependemos del método estatus() de Factura que retorna el estado real como string.
+                            // Posibles retornos: 'Abierta', 'Cerrada', 'Anulada', 'Abonada', 'Cerrada con nota crédito', etc.
+                            if ($estadoString === 'Cerrada' || $estadoString === 'Cerrada con nota crédito') { // Pagada
                                 $tieneDiscrepancia = true;
                                 $estadoSistema = 'Pagada';
                                 $mensajeDiscrepancia = "El cliente aparece en morosos (Mikrotik) pero su última factura en el sistema figura como PAGADA/CERRADA.";
-                            } else if ($ultimaFactura->estatus == 2) { // Anulada
+                            } else if ($estadoString === 'Anulada') { // Anulada
                                 $estadoSistema = 'Anulada';
                                 $tieneDiscrepancia = false;
                             } else {
-                                $estadoSistema = 'En Mora'; // Estatus 1
+                                // 'Abierta', 'Abonada', 'Abierta con nota crédito' son considerados con deuda
+                                $estadoSistema = 'En Mora'; 
                             }
                         } else {
                             $estadoSistema = 'Sin Facturas';
