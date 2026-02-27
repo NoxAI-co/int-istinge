@@ -1754,6 +1754,16 @@ class ContratosController extends Controller
             } else {
                 $contrato->servicio_otro = null;
             }
+
+            
+            // Precios personalizados
+            if(isset($request->precio_personalizado_internet)){
+                $contrato->precio_personalizado_internet = $request->precio_personalizado_internet != '' ? $request->precio_personalizado_internet : null;
+            }
+            if(isset($request->precio_personalizado_tv)){
+                $contrato->precio_personalizado_tv = $request->precio_personalizado_tv != '' ? $request->precio_personalizado_tv : null;
+            }
+            
             $contrato->save();
 
             $plan = PlanesVelocidad::where('id', $request->plan_id)->first();
@@ -2245,14 +2255,6 @@ class ContratosController extends Controller
 
                     if (isset($request->factura_individual)) {
                         $contrato->factura_individual = $request->factura_individual;
-                    }
-
-                    // Precios personalizados
-                    if(isset($request->precio_personalizado_internet)){
-                        $contrato->precio_personalizado_internet = $request->precio_personalizado_internet != '' ? $request->precio_personalizado_internet : null;
-                    }
-                    if(isset($request->precio_personalizado_tv)){
-                        $contrato->precio_personalizado_tv = $request->precio_personalizado_tv != '' ? $request->precio_personalizado_tv : null;
                     }
 
                     // Handle tipo_suspension_no toggle
