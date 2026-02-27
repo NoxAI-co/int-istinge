@@ -673,6 +673,20 @@ class CronController extends Controller
                                             ]);
                                         }
 
+                                    // Integración con OnePay si está habilitado
+                                    if(\App\Services\OnePayService::isEnabled($empresa->id)){
+                                        try {
+                                            $onePayService = new \App\Services\OnePayService($empresa->id);
+                                            $onePayService->createInvoice($factura, $empresa->id);
+                                        } catch (\Exception $e) {
+                                            // Log del error pero no interrumpir el flujo
+                                            \Illuminate\Support\Facades\Log::error('Error al crear factura en OnePay: ' . $e->getMessage(), [
+                                                'factura_id' => $factura->id,
+                                                'empresa_id' => $empresa->id
+                                            ]);
+                                        }
+                                    }
+
                                         $nro->save();
                                         $i++;
 

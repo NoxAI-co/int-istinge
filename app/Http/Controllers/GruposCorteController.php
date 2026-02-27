@@ -1239,6 +1239,19 @@ class GruposCorteController extends Controller
                 ItemsFactura::where('factura', $factura->id)->delete();
                 DB::table('crm')->where('factura', $factura->id)->delete();
                 
+                // Eliminar factura en OnePay si existe
+                if ($factura->onepay_invoice_id) {
+                    try {
+                        $onePayService = new \App\Services\OnePayService($empresa);
+                        $onePayService->deleteInvoice($factura);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
+                            'factura_id' => $factura->id,
+                            'empresa_id' => $empresa
+                        ]);
+                    }
+                }
+                
                 // Borrado de la factura
                 $factura->delete();
                 $count++;

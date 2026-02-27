@@ -699,6 +699,20 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
+
+                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
+                            if ($factura->onepay_invoice_id) {
+                                try {
+                                    $onePayService = new \App\Services\OnePayService($empresa->id);
+                                    $onePayService->deleteInvoice($factura);
+                                } catch (\Exception $e) {
+                                    \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
+                                        'factura_id' => $factura->id,
+                                        'empresa_id' => $empresa->id
+                                    ]);
+                                }
+                            }
+
                             if(isset($request->tipo_electronica) && $request->tipo_electronica != 6 || !isset($request->tipo_electronica)){
                             if(!$contrato){
                                 $db_contrato = DB::table('facturas_contratos')->where('factura_id',$factura->id)->first();
