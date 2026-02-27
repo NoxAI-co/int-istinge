@@ -96,14 +96,14 @@
                     <td>
                         @php
                             $status = $invoice['status'] ?? '';
-                            $badgeClass = match($status) {
+                            $statuses = [
                                 'PAID'      => 'badge-success',
                                 'CREATED'   => 'badge-primary',
                                 'NOTIFIED'  => 'badge-info',
                                 'CANCELLED' => 'badge-danger',
                                 'EXPIRED'   => 'badge-secondary',
-                                default     => 'badge-light',
-                            };
+                            ];
+                            $badgeClass = $statuses[$status] ?? 'badge-light';
                         @endphp
                         <span class="badge {{ $badgeClass }}">{{ $status ?: '-' }}</span>
                     </td>
