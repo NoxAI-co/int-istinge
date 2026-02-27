@@ -636,7 +636,24 @@ class IngresosController extends Controller
                                 //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
                                 if($ultimaFactura){
                                     if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
-                                        $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                                        // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
+                                        $contratoId = $contrato->id;
+                                        $empresaId = $empresa->id;
+                                        $ingresoId = $ingreso->id;
+                                        app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
+                                            try {
+                                                DB::reconnect();
+                                                $contratoBG = \App\Contrato::find($contratoId);
+                                                $empresaBG = \App\Empresa::find($empresaId);
+                                                $ingresoBG = \App\Ingreso::find($ingresoId);
+                                                if($contratoBG && $empresaBG && $ingresoBG){
+                                                    $controller = new \App\Http\Controllers\IngresosController();
+                                                    $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
+                                                }
+                                            } catch (\Throwable $e) {
+                                                Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage());
+                                            }
+                                        });
                                     }
                                 }
                             } catch (\Throwable $thMK) {
@@ -1157,7 +1174,7 @@ class IngresosController extends Controller
                     ]);
                 }
 
-                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO. ' . $morosos;
+                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.';
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
