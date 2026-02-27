@@ -127,6 +127,8 @@
                             return '<span class="badge badge-danger">En Mora</span>';
                         } else if (data == 'Sin Facturas') {
                             return '<span class="badge badge-secondary">Sin Facturas</span>';
+                        } else if (data == 'Anulada') {
+                            return '<span class="badge badge-warning">Anulada</span>';
                         } else {
                             return '<span class="badge badge-light">' + data + '</span>';
                         }
