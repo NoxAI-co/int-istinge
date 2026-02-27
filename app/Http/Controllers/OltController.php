@@ -974,7 +974,7 @@ class OltController extends Controller
         if ($sn) {
             $details = $this->getOnuDetailsBySn($sn);
             if ($details['status'] != true || !isset($details['onus'][0])) {
-                return redirect('Olt/unconfigured-onus')->with('error', 'Error al mirar la informacion de la onu, porfavor revisa el SN ingresado, puede estar mal escrito');
+                return redirect('Olt/unconfigured-onus')->with('error', 'Error al mirar la informacion de la onu, porfavor revisa el SN ingresado, puede estar mal digitado.');
             }
         } else {
             return redirect('Olt/unconfigured-onus')->with('error', 'No hay una sn seleccionada');
