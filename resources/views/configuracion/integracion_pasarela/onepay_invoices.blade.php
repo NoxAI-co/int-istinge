@@ -120,54 +120,60 @@
             </tbody>
         </table>
 
-        {{-- PAGINACIÓN --}}
-        @if(!empty($meta))
+        {{-- PAGINACIÓN INDEPENDIENTE DE METADATOS --}}
+        @php
+            $currentPage = (int)($meta['current_page'] ?? $filters['page'] ?? 1);
+            $hasMoreItems = count($invoices) > 0;
+            // Si la API devuelve un total de páginas exacto lo usamos, sino habilitamos "Siguiente" condicionalmente
+            $lastPage = (int)($meta['last_page'] ?? 999999);
+        @endphp
+        
         <div class="d-flex justify-content-between align-items-center mt-2">
             <div class="text-muted small">
-                @if(isset($meta['total']))
+                @if(isset($meta['total']) && isset($meta['last_page']))
                     Mostrando <strong>{{ count($invoices) }}</strong> de <strong>{{ $meta['total'] }}</strong> facturas
-                    &mdash; Página <strong>{{ $meta['current_page'] ?? $filters['page'] }}</strong>
-                    de <strong>{{ $meta['last_page'] ?? '?' }}</strong>
+                    &mdash; Página <strong>{{ $currentPage }}</strong>
+                    de <strong>{{ $meta['last_page'] }}</strong>
                 @else
-                    Página <strong>{{ $filters['page'] }}</strong>
+                    Página <strong>{{ $currentPage }}</strong> 
+                    (Mostrando <strong>{{ count($invoices) }}</strong> facturas en esta vista)
                 @endif
             </div>
+            
             <nav>
                 <ul class="pagination pagination-sm mb-0">
-                    {{-- Anterior --}}
-                    @php $currentPage = (int)($meta['current_page'] ?? $filters['page'] ?? 1); @endphp
+                    {{-- Botón Anterior --}}
                     @if($currentPage > 1)
                     <li class="page-item">
                         <a class="page-link" href="{{ request()->fullUrlWithQuery(['page' => $currentPage - 1]) }}">
-                            <i class="fas fa-chevron-left"></i>
+                            <i class="fas fa-chevron-left"></i> Anterior
                         </a>
+                    </li>
+                    @else
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-left"></i> Anterior</span>
                     </li>
                     @endif
 
-                    {{-- Páginas numéricas --}}
-                    @php
-                        $lastPage = (int)($meta['last_page'] ?? 1);
-                        $start    = max(1, $currentPage - 2);
-                        $end      = min($lastPage, $currentPage + 2);
-                    @endphp
-                    @for($p = $start; $p <= $end; $p++)
-                    <li class="page-item {{ $p == $currentPage ? 'active' : '' }}">
-                        <a class="page-link" href="{{ request()->fullUrlWithQuery(['page' => $p]) }}">{{ $p }}</a>
+                    <li class="page-item active">
+                        <span class="page-link">{{ $currentPage }}</span>
                     </li>
-                    @endfor
 
-                    {{-- Siguiente --}}
-                    @if($currentPage < $lastPage)
+                    {{-- Botón Siguiente --}}
+                    @if($currentPage < $lastPage && $hasMoreItems)
                     <li class="page-item">
                         <a class="page-link" href="{{ request()->fullUrlWithQuery(['page' => $currentPage + 1]) }}">
-                            <i class="fas fa-chevron-right"></i>
+                            Siguiente <i class="fas fa-chevron-right"></i>
                         </a>
+                    </li>
+                    @else
+                    <li class="page-item disabled">
+                        <span class="page-link">Siguiente <i class="fas fa-chevron-right"></i></span>
                     </li>
                     @endif
                 </ul>
             </nav>
         </div>
-        @endif
 
     </div>
 </div>
