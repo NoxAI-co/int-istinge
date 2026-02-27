@@ -1613,7 +1613,9 @@ class ContratosController extends Controller
             'contracts.cajanap_id',
             'contracts.cajanap_puerto',
             'contracts.prorrateo',
-            'contracts.estrato'
+            'contracts.estrato',
+            'contracts.precio_personalizado_internet',
+            'contracts.precio_personalizado_tv',
         )
             ->where('contracts.id', $id)->where('contracts.empresa', Auth::user()->empresa)->first();
 
@@ -1763,7 +1765,7 @@ class ContratosController extends Controller
             if(isset($request->precio_personalizado_tv)){
                 $contrato->precio_personalizado_tv = $request->precio_personalizado_tv != '' ? $request->precio_personalizado_tv : null;
             }
-            
+
             $contrato->save();
 
             $plan = PlanesVelocidad::where('id', $request->plan_id)->first();
