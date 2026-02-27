@@ -544,6 +544,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('morosos/sacar', 'MorososController@sacarMoroso')->name('morosos.sacar');
 	Route::post('morosos/sacar-masivo', 'MorososController@sacarMorososMasivo')->name('morosos.sacar.masivo');
 
+
     // Rutas para discrepancias de contratos Disabled
     Route::get('morosos/check-disabled', 'MorososController@checkDisabledButNotListed')->name('morosos.check.disabled');
     Route::get('morosos/discrepancias-disabled', 'MorososController@indexDisabledDiscrepancy')->name('morosos.discrepancias.disabled');
