@@ -1165,151 +1165,155 @@ class IngresosController extends Controller
     }
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
-
         $mensaje = "";
 
-        /* * * API MK * * */
-        if($contrato->server_configuration_id){
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
-            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+        try {
+            /* * * API MK * * */
+            if($contrato->server_configuration_id){
+                $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+                $API = new RouterosAPI();
+                $API->port = $mikrotik->puerto_api;
+                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
 
-                $API->write('/ip/firewall/address-list/print', TRUE);
-                $ARRAYS = $API->read();
+                    $API->write('/ip/firewall/address-list/print', TRUE);
+                    $ARRAYS = $API->read();
 
-                if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
+                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
 
-                    #HABILITACION DEL SECRET#
-                    if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                        // Buscar el ID interno del secret
-                        $API->write('/ppp/secret/print', false);
-                        $API->write('?name=' . $contrato->usuario, true);
-                        $ARRAYS = $API->read();
+                        #HABILITACION DEL SECRET#
+                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                            // Buscar el ID interno del secret
+                            $API->write('/ppp/secret/print', false);
+                            $API->write('?name=' . $contrato->usuario, true);
+                            $ARRAYS = $API->read();
 
-                        if (count($ARRAYS) > 0) {
-                            $id = $ARRAYS[0]['.id'];
-                            // Habilitar el secret
-                            $API->write('/ppp/secret/enable', false);
-                            $API->write('=numbers=' . $id, true);
-                            $response = $API->read();
-                            // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                            if (count($ARRAYS) > 0) {
+                                $id = $ARRAYS[0]['.id'];
+                                // Habilitar el secret
+                                $API->write('/ppp/secret/enable', false);
+                                $API->write('=numbers=' . $id, true);
+                                $response = $API->read();
+                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                            }
                         }
-                    }
-                    #HABILITACION DEL SECRET#
+                        #HABILITACION DEL SECRET#
 
-                    #AGREGAMOS A IP_AUTORIZADAS#
-                    $API->comm("/ip/firewall/address-list/add", array(
-                        "address" => $contrato->ip,
-                        "list" => 'ips_autorizadas'
-                        )
-                    );
-                    #AGREGAMOS A IP_AUTORIZADAS#
+                        #AGREGAMOS A IP_AUTORIZADAS#
+                        $API->comm("/ip/firewall/address-list/add", array(
+                            "address" => $contrato->ip,
+                            "list" => 'ips_autorizadas'
+                            )
+                        );
+                        #AGREGAMOS A IP_AUTORIZADAS#
 
-                    $mensaje = "- Se ha habilitado el secret.";
+                        $mensaje = "- Se ha habilitado el secret.";
+                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                        DB::reconnect();
+
+                        $ingreso->revalidacion_enable_internet = 1;
+                        $ingreso->save();
+
+                        $contrato->state = 'enabled';
+                        $contrato->save();
+
+
+                    }else{
+
                     // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                     DB::reconnect();
 
-                    $ingreso->revalidacion_enable_internet = 1;
+                        $API->write('/ip/firewall/address-list/print', false);
+                        $API->write('?address=' . $contrato->ip, false);
+                        $API->write('?list=morosos', true);
+                        $result = $API->read();
+
+                        if (!empty($result)) {
+                            #ELIMINAMOS DE MOROSOS#
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address='.$contrato->ip, false);
+                            $API->write("?list=morosos",false);
+                            $API->write('=.proplist=.id');
+                            $ARRAYS = $API->read();
+
+                            if(count($ARRAYS)>0){
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id='.$ARRAYS[0]['.id']);
+                                $READ = $API->read();
+
+
+                                #AGREGAMOS A IP_AUTORIZADAS#
+                                $API->comm("/ip/firewall/address-list/add", array(
+                                    "address" => $contrato->ip,
+                                    "list" => 'ips_autorizadas'
+                                    )
+                                );
+                                #AGREGAMOS A IP_AUTORIZADAS#
+
+
+                                $mensaje = "- Se ha sacado la ip de morosos.";
+                                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                                DB::reconnect();
+
+                                $ingreso->revalidacion_enable_internet = 1;
+                                $ingreso->save();
+
+                                $contrato->state = 'enabled';
+                                $contrato->save();
+
+                            }else{
+                                Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
+                            }
+                            #ELIMINAMOS DE MOROSOS#
+                        }else{
+                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
+                        }
+                    }
+                    $API->disconnect();
+                }
+            }else{
+                $ingreso->revalidacion_enable_internet = 1;
+                $ingreso->save();
+            }
+            /* * * API MK * * */
+
+             /* * * API CATV * * */
+            if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
+
+                $curl = curl_init();
+                curl_setopt_array($curl, array(
+                    CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_HTTPHEADER => array(
+                        'X-token: '.$empresa->smartOLT
+                    ),
+                    ));
+
+                $response = curl_exec($curl);
+                $response = json_decode($response);
+
+                if(isset($response->status) && $response->status == true){
+
+                    $ingreso->revalidacion_enable_tv = 1;
                     $ingreso->save();
 
-                    $contrato->state = 'enabled';
+                    $contrato->state_olt_catv = 1;
                     $contrato->save();
-
-
-                }else{
-
-                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                DB::reconnect();
-
-                    $API->write('/ip/firewall/address-list/print', false);
-                    $API->write('?address=' . $contrato->ip, false);
-                    $API->write('?list=morosos', true);
-                    $result = $API->read();
-
-                    if (!empty($result)) {
-                        #ELIMINAMOS DE MOROSOS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address='.$contrato->ip, false);
-                        $API->write("?list=morosos",false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-
-                        if(count($ARRAYS)>0){
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id='.$ARRAYS[0]['.id']);
-                            $READ = $API->read();
-
-
-                            #AGREGAMOS A IP_AUTORIZADAS#
-                            $API->comm("/ip/firewall/address-list/add", array(
-                                "address" => $contrato->ip,
-                                "list" => 'ips_autorizadas'
-                                )
-                            );
-                            #AGREGAMOS A IP_AUTORIZADAS#
-
-
-                            $mensaje = "- Se ha sacado la ip de morosos.";
-                            // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                            DB::reconnect();
-
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
-
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                        }else{
-                            Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
-                        }
-                        #ELIMINAMOS DE MOROSOS#
-                    }else{
-                        Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
-                    }
                 }
-                $API->disconnect();
-            }
-        }else{
-            $ingreso->revalidacion_enable_internet = 1;
-            $ingreso->save();
-        }
-        /* * * API MK * * */
-
-         /* * * API CATV * * */
-        if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
-
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 0,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_HTTPHEADER => array(
-                    'X-token: '.$empresa->smartOLT
-                ),
-                ));
-
-            $response = curl_exec($curl);
-            $response = json_decode($response);
-
-            if(isset($response->status) && $response->status == true){
-
+            }else{
                 $ingreso->revalidacion_enable_tv = 1;
                 $ingreso->save();
-
-                $contrato->state_olt_catv = 1;
-                $contrato->save();
             }
-        }else{
-            $ingreso->revalidacion_enable_tv = 1;
-            $ingreso->save();
+            /* * * API CATV * * */
+
+        } catch (\Throwable $th) {
+            Log::error('Error en funcionesPagoMK: ' . $th->getMessage() . ' en la linea ' . $th->getLine() . ' del archivo ' . $th->getFile());
         }
-        /* * * API CATV * * */
 
         return $mensaje;
     }
