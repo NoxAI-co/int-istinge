@@ -631,12 +631,16 @@ class IngresosController extends Controller
 
 
                         if($contrato){
-                            $ultimaFactura =$contrato->facturas->last();
-                            //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
-                            if($ultimaFactura){
-                                if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
-                                    $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                            try {
+                                $ultimaFactura = $contrato->facturas->last();
+                                //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
+                                if($ultimaFactura){
+                                    if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
+                                        $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                                    }
                                 }
+                            } catch (\Throwable $thMK) {
+                                Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
                         }
 
@@ -1171,8 +1175,17 @@ class IngresosController extends Controller
             /* * * API MK * * */
             if($contrato->server_configuration_id){
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+                if(!$mikrotik){
+                    Log::warning('No se encontró configuración Mikrotik con id: ' . $contrato->server_configuration_id);
+                    $ingreso->revalidacion_enable_internet = 1;
+                    $ingreso->save();
+                    return $mensaje;
+                }
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
+                $API->timeout = 5;
+                $API->attempts = 2;
+                $API->delay = 1;
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
 
                     $API->write('/ip/firewall/address-list/print', TRUE);
@@ -1285,7 +1298,8 @@ class IngresosController extends Controller
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_ENCODING => '',
                     CURLOPT_MAXREDIRS => 10,
-                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                    CURLOPT_TIMEOUT => 30,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
                     CURLOPT_CUSTOMREQUEST => 'POST',
