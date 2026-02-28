@@ -346,7 +346,7 @@ class BillingCycleAnalyzer
             ->whereIn('factura.contrato_id', $contratoIds)
             ->select('factura.contrato_id', 'factura.id', 'factura.fecha', 'factura.nro', 'factura.codigo', 
                      'factura.factura_mes_manual', 'factura.facturacion_automatica', 'factura.tipo', 
-                     'factura.created_at', 'factura.estatus', 'factura.vencimiento')
+                     'factura.prorrateo_aplicado', 'factura.created_at', 'factura.estatus', 'factura.vencimiento')
             ->get()
             ->keyBy('contrato_id');
 
@@ -360,7 +360,7 @@ class BillingCycleAnalyzer
             ->whereIn('fc.contrato_nro', $contratoNros)
             ->select('fc.contrato_nro', 'factura.id', 'factura.fecha', 'factura.nro', 'factura.codigo', 
                      'factura.factura_mes_manual', 'factura.facturacion_automatica', 'factura.tipo', 
-                     'factura.created_at', 'factura.estatus', 'factura.vencimiento')
+                     'factura.prorrateo_aplicado', 'factura.created_at', 'factura.estatus', 'factura.vencimiento')
             ->get()
             ->keyBy('contrato_nro');
 
@@ -470,12 +470,25 @@ class BillingCycleAnalyzer
                         'description' => 'Ya tiene una factura generada para este mes con "Factura del Mes" = SI',
                         'color' => 'warning'
                     ];
-                } else if ($ultimaFactura->facturacion_automatica == 0) {
+                } else {
                     $fechaFormateada = Carbon::parse($ultimaFactura->fecha)->translatedFormat('j \d\e F - Y');
+                    $tipoFactura = $ultimaFactura->facturacion_automatica == 1 ? 'automática' : 'manual';
+                    
+                    if (isset($ultimaFactura->prorrateo_aplicado) && $ultimaFactura->prorrateo_aplicado == 1) {
+                        return [
+                            'code' => 'prorated_unflagged_invoice',
+                            'title' => 'Factura del mes sin marcar con prorrateo',
+                            'description' => "Se detectó una factura prorrateada creada en la fecha {$fechaFormateada} con 'Factura del Mes' = NO.",
+                            'color' => 'warning',
+                            'factura_id' => $ultimaFactura->id,
+                            'factura_nro' => $ultimaFactura->nro
+                        ];
+                    }
+                    
                     return [
-                        'code' => 'manual_invoice_unflagged',
-                        'title' => 'Factura manual sin marcar',
-                        'description' => "Se detectó una factura manual creada en la fecha {$fechaFormateada} (fecha de la factura) pero no tiene marcado el atributo 'Factura del Mes'. Por esto el sistema no la vincula al ciclo.",
+                        'code' => 'unflagged_invoice',
+                        'title' => 'Factura en el mes sin marcar',
+                        'description' => "Se detectó una factura {$tipoFactura} creada en la fecha {$fechaFormateada} pero tiene 'Factura del Mes' = NO. El sistema no la vincula al ciclo.",
                         'color' => 'danger',
                         'factura_id' => $ultimaFactura->id,
                         'factura_nro' => $ultimaFactura->nro
@@ -821,7 +834,7 @@ class BillingCycleAnalyzer
         $idsToFix = [];
 
         foreach ($missingAnalysis['details'] as $detail) {
-            if ($detail['razon_code'] === 'manual_invoice_unflagged' && !empty($detail['factura_id'])) {
+            if ($detail['razon_code'] === 'unflagged_invoice' && !empty($detail['factura_id'])) {
                 $idsToFix[] = $detail['factura_id'];
             }
         }

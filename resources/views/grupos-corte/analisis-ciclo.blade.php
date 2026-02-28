@@ -280,10 +280,10 @@
                             <i class="fas fa-sync-alt"></i> Refrescar Análisis
                         </button>
 
-                        <!-- Botón: Vincular Facturas Manuales (Dinámico via JS) -->
+                        <!-- Botón: Vincular Facturas no marcadas (Dinámico via JS) -->
                         <div id="actionFixUnflaggedInvoices" style="display: none;">
                             <button class="btn btn-outline-success btn-sm mr-2 mb-2" onclick="vincularFacturasManuales()">
-                                <i class="fas fa-link"></i> Vincular facturas manuales
+                                <i class="fas fa-link"></i> Vincular facturas no marcadas
                             </button>
                         </div>
                     </div>
@@ -768,7 +768,7 @@
         if (typeof cycleStats !== 'undefined' && cycleStats.missing_reasons) {
             const hasOffBillingIssue = cycleStats.missing_reasons.some(r => r.code === 'contract_disabled_off');
             const hasNumberingIssue = cycleStats.missing_reasons.some(r => r.code === 'no_valid_numbering');
-            const hasUnflaggedIssue = cycleStats.missing_reasons.some(r => r.code === 'manual_invoice_unflagged');
+            const hasUnflaggedIssue = cycleStats.missing_reasons.some(r => r.code === 'unflagged_invoice');
 
             if (hasOffBillingIssue) $('#actionFixOffBilling').show();
             if (hasNumberingIssue) $('#actionFixNumbering').show();
@@ -1180,8 +1180,8 @@ function prorrateoExtra() {
 
 function vincularFacturasManuales() {
     swal({
-        title: "¿Vincular facturas manuales?",
-        text: "Se marcarán como 'Factura del Mes' todas las facturas manuales detectadas para que el sistema las reconozca en este ciclo.",
+        title: "¿Vincular facturas no marcadas?",
+        text: "Se marcarán como 'Factura del Mes' todas las facturas del mes detectadas que no tienen este atributo, para que el sistema las reconozca en este ciclo.",
         type: "question",
         showCancelButton: true,
         confirmButtonText: "Sí, vincular ahora",

@@ -397,12 +397,18 @@ class CronController extends Controller
                         }else{
                             $mesUltimaFactura = date('Y-m',strtotime($ultimaFactura->fecha));
                         }
-                        //Validacion nueva: mirar si la ultima factura generada tiene la opcion de factura del mes actual.
+                        // Validacion nueva: mirar si la ultima factura generada tiene la opcion de factura del mes actual.
                         if($mesActualFactura == $mesUltimaFactura){
                             if($ultimaFactura->factura_mes_manual == 1){
                                 continue; //salte esta iteracion entonces por que es la factura del mes manual.
                             }
 
+                            // Si es una factura del mes actual, PERO es un prorrateo NO marcado como 'factura del mes',
+                            // necesitamos PERMITIR que se genere la factura completa del mes (saltamos esta validación evasiva).
+                            // Solo aplica si NO es factura del mes y SÍ es de prorrateo.
+                            if($ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->prorrateo_aplicado == 1){
+                                // No hacemos 'continue', permitimos que el flujo siga y genere la factura del mes
+                            }
                             //Esto lo hacemos por que si estoy ejecutando un periodo de 2 de enero y la factura manual es del 4 pues lo mas logico es
                             //que esa factura seal periodo ya que esto nos esta trayendo demasiadas fallas.
                             elseif(date('d',strtotime($fecha)) <= date('d',strtotime($ultimaFactura->fecha))){
@@ -420,10 +426,11 @@ class CronController extends Controller
                     }
 
                     /* ** Validacion: si la actual es dif a la ultima fac pasa o sino
-                    si son iguales y no tiene fact manual == 1(la ultima) y es manual y no automatica pasa */
+                    si son iguales y no tiene fact manual == 1(la ultima) y es manual y no automatica pasa.
+                    También pasa si la factura actual es del mismo mes pero es un prorrateo. */
                     if($mesActualFactura != $mesUltimaFactura ||
-                       $mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0
-                       && $ultimaFactura->facturacion_automatica == 0)
+                       ($mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->facturacion_automatica == 0) ||
+                       ($mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->prorrateo_aplicado == 1))
                     {
                         ## Verificamos que el cliente no posea la ultima factura automática abierta, de tenerla no se le genera la nueva factura
                         if(isset($ultimaFactura->fecha)){
