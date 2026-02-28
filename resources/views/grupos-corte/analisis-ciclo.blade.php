@@ -331,49 +331,75 @@
 <div class="row mb-4">
     <div class="col-md-6 mb-3">
         <div class="card stat-card success h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="text-muted mb-1">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            En Fecha Esperada (Día {{ $cycleStats['dia_esperado'] }})
-                        @else
-                            Facturas en el Mes (Día No Aplica)
-                        @endif
-                    </h6>
-                    <h2 class="mb-0 text-success font-weight-bold">{{ $cycleStats['facturas_en_fecha'] ?? 0 }}</h2>
-                    <small class="text-muted">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            Facturas creadas en el día programado
-                        @else
-                            Total de facturas detectadas para este período
-                        @endif
-                    </small>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                En Fecha Esperada (Día {{ $cycleStats['dia_esperado'] }})
+                            @else
+                                Facturas en el Mes (Día No Aplica)
+                            @endif
+                        </h6>
+                        <h2 class="mb-0 text-success font-weight-bold">{{ $cycleStats['facturas_en_fecha'] ?? 0 }}</h2>
+                        <small class="text-muted">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                Facturas creadas en el día programado
+                            @else
+                                Total de facturas detectadas para este período
+                            @endif
+                        </small>
+                    </div>
+                    <i class="fas fa-calendar-check fa-3x text-success opacity-25"></i>
                 </div>
-                <i class="fas fa-calendar-check fa-3x text-success opacity-25"></i>
+                <div class="mt-2 text-left small border-top pt-2 text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 0"><i class="fas fa-robot"></i> Automáticas:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_auto'] ?? 0 }}</b>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 1"><i class="fas fa-user-edit"></i> Manuales:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_manual'] ?? 0 }}</b>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-6 mb-3">
         <div class="card stat-card warning h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="text-muted mb-1">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            En Otras Fechas
-                        @else
-                            Reporte no disponible
-                        @endif
-                    </h6>
-                    <h2 class="mb-0 text-warning font-weight-bold">{{ $cycleStats['facturas_fuera_fecha'] ?? 0 }}</h2>
-                    <small class="text-muted">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            Facturas creadas antes o después del día programado
-                        @else
-                            El grupo no tiene un día de factura fijo
-                        @endif
-                    </small>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                En Otras Fechas
+                            @else
+                                Reporte no disponible
+                            @endif
+                        </h6>
+                        <h2 class="mb-0 text-warning font-weight-bold">{{ $cycleStats['facturas_fuera_fecha'] ?? 0 }}</h2>
+                        <small class="text-muted">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                Facturas creadas antes o después del día programado
+                            @else
+                                El grupo no tiene un día de factura fijo
+                            @endif
+                        </small>
+                    </div>
+                    <i class="fas fa-calendar-minus fa-3x text-warning opacity-25"></i>
                 </div>
-                <i class="fas fa-calendar-minus fa-3x text-warning opacity-25"></i>
+                @if(($cycleStats['dia_esperado'] ?? 0) > 0 || (isset($cycleStats['facturas_fuera_fecha']) && $cycleStats['facturas_fuera_fecha'] > 0))
+                <div class="mt-2 text-left small border-top pt-2 text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 0"><i class="fas fa-robot"></i> Automáticas:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_auto'] ?? 0 }}</b>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 1"><i class="fas fa-user-edit"></i> Manuales:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_manual'] ?? 0 }}</b>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>

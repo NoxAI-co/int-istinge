@@ -55,7 +55,12 @@ class BillingCycleAnalyzer
             
             // Reporte de Cronología
             $onDateCount = 0;
+            $onDateManualCount = 0;
+            $onDateAutoCount = 0;
+            
             $outDateCount = 0;
+            $outDateManualCount = 0;
+            $outDateAutoCount = 0;
             $diaEsperado = $this->calcularDiaEsperado($grupoCorte, $periodo);
             
             $whatsappStats = [
@@ -67,8 +72,18 @@ class BillingCycleAnalyzer
                 // Si el día esperado es 0 (No aplica), las contamos todas en el primer contador (Detectadas)
                 if ($diaEsperado == 0 || Carbon::parse($factura->fecha)->day == $diaEsperado) {
                     $onDateCount++;
+                    if ($factura->factura_mes_manual == 1) {
+                        $onDateManualCount++;
+                    } else {
+                        $onDateAutoCount++;
+                    }
                 } else {
                     $outDateCount++;
+                    if ($factura->factura_mes_manual == 1) {
+                        $outDateManualCount++;
+                    } else {
+                        $outDateAutoCount++;
+                    }
                 }
 
                 if ($factura->whatsapp == 1) {
@@ -87,7 +102,11 @@ class BillingCycleAnalyzer
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
                 'facturas_en_fecha' => $onDateCount,
+                'facturas_en_fecha_manual' => $onDateManualCount,
+                'facturas_en_fecha_auto' => $onDateAutoCount,
                 'facturas_fuera_fecha' => $outDateCount,
+                'facturas_fuera_fecha_manual' => $outDateManualCount,
+                'facturas_fuera_fecha_auto' => $outDateAutoCount,
                 'whatsapp_stats' => $whatsappStats,
                 'dia_esperado' => $diaEsperado,
                 'tasa_exito' => $contratosEsperados->count() > 0 
