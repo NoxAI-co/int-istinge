@@ -310,4 +310,17 @@ class SaldosInicialesController extends Controller
         $movimientos = $movimientos->OrderBy($orderby, $order)->paginate(25)->appends($appends);
         return $movimientos;
     }
+
+    public function destroy($nro){
+        $this->getAllPermissions(Auth::user()->id);
+        $movimientos = PucMovimiento::where('nro',$nro)->get();
+        if(count($movimientos) > 0){
+            foreach($movimientos as $mov){
+                $mov->delete();
+            }
+            return redirect('empresa/comprobantes/index')->with('success', 'Se ha eliminado correctamente el movimiento contable');
+        }
+        return back()->with('error', 'No se pudo encontrar el documento: ' . $nro . ".");
+    }
 }
+

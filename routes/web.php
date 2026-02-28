@@ -1031,6 +1031,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/edit/{nro}', 'SaldosInicialesController@edit')->name('saldoinicial.edit');
 		Route::post('/update', 'SaldosInicialesController@update')->name('saldoinicial.update');
 		Route::get('/index', 'SaldosInicialesController@index')->name('saldoinicial.index');
+		Route::delete('/destroy/{nro}', 'SaldosInicialesController@destroy')->name('saldoinicial.destroy');
+
 	});
 
 
