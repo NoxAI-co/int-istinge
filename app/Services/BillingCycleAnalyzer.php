@@ -98,19 +98,19 @@ class BillingCycleAnalyzer
                 'periodo' => $periodo,
                 'fecha_ciclo' => $fechaCiclo,
                 'total_contratos' => $contratosEsperados->count(),
-                'facturas_generadas' => $facturasGeneradas->count(),
+                'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
-                'facturas_en_fecha' => $onDateCount,
+                'facturas_en_fecha' => $onDateManualCount,
                 'facturas_en_fecha_manual' => $onDateManualCount,
                 'facturas_en_fecha_auto' => $onDateAutoCount,
-                'facturas_fuera_fecha' => $outDateCount,
+                'facturas_fuera_fecha' => $outDateManualCount,
                 'facturas_fuera_fecha_manual' => $outDateManualCount,
                 'facturas_fuera_fecha_auto' => $outDateAutoCount,
                 'whatsapp_stats' => $whatsappStats,
                 'dia_esperado' => $diaEsperado,
                 'tasa_exito' => $contratosEsperados->count() > 0 
-                    ? round(($facturasGeneradas->count() / $contratosEsperados->count()) * 100, 2) 
+                    ? round((($onDateManualCount + $outDateManualCount) / $contratosEsperados->count()) * 100, 2) 
                     : 0,
                 'facturas' => $facturasGeneradas,
                 'missing_reasons' => $missingAnalysis['reasons'],
@@ -620,13 +620,7 @@ class BillingCycleAnalyzer
             ->where('factura.estatus', '!=', 2)
             ->where('factura.fecha', '>=', $globalStart)
             ->where('factura.fecha', '<', $globalEnd)
-            ->where(function($query) {
-                $query->where('factura.facturacion_automatica', 1)
-                      ->orWhere(function($q) {
-                          $q->where('factura.facturacion_automatica', 0)
-                            ->where('factura.factura_mes_manual', 1);
-                      });
-            })
+            ->where('factura.factura_mes_manual', 1)
             ->select('factura.id', 'factura.fecha')
             ->get();
 
@@ -637,13 +631,7 @@ class BillingCycleAnalyzer
             ->where('factura.estatus', '!=', 2)
             ->where('factura.fecha', '>=', $globalStart)
             ->where('factura.fecha', '<', $globalEnd)
-            ->where(function($query) {
-                $query->where('factura.facturacion_automatica', 1)
-                      ->orWhere(function($q) {
-                          $q->where('factura.facturacion_automatica', 0)
-                            ->where('factura.factura_mes_manual', 1);
-                      });
-            })
+            ->where('factura.factura_mes_manual', 1)
             ->select('factura.id', 'factura.fecha')
             ->get();
 
@@ -955,13 +943,9 @@ class BillingCycleAnalyzer
         $startOfMonth = Carbon::parse($fechaCiclo)->startOfMonth()->format('Y-m-d');
         $startOfNextMonth = Carbon::parse($fechaCiclo)->startOfMonth()->addMonth()->format('Y-m-d');
 
-        // Closure reutilizable para filtro de tipo
+        // Closure reutilizable para filtro de tipo (ESTRICTO: Solo Factura del Mes)
         $tipoFilter = function($query) {
-            $query->where('factura.facturacion_automatica', 1)
-                  ->orWhere(function($q) {
-                      $q->where('factura.facturacion_automatica', 0)
-                        ->where('factura.factura_mes_manual', 1);
-                  });
+            $query->where('factura.factura_mes_manual', 1);
         };
 
         // Closure para búsqueda
