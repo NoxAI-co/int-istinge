@@ -216,7 +216,6 @@ class MikrotikController extends Controller
             $mikrotik->usuario = $request->usuario;
             $mikrotik->clave = $request->clave;
             $mikrotik->updated_by = Auth::user()->id;
-            $mikrotik->status = 0;
             $mikrotik->amarre_mac = $request->amarre_mac;
             $mikrotik->tipodoc_siigo_id = $request->tipodoc_siigo_id;
             $mikrotik->save();
