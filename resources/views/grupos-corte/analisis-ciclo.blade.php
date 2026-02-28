@@ -354,12 +354,12 @@
                 </div>
                 <div class="mt-2 text-left small border-top pt-2 text-muted">
                     <div class="d-flex justify-content-between">
-                        <span title="factura_mes_manual = 0"><i class="fas fa-robot"></i> Automáticas:</span>
-                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_auto'] ?? 0 }}</b>
+                        <span title="factura_mes_manual = 1"><i class="fas fa-check-circle text-success"></i> Factura del mes SI:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_manual'] ?? 0 }}</b>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <span title="factura_mes_manual = 1"><i class="fas fa-user-edit"></i> Manuales:</span>
-                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_manual'] ?? 0 }}</b>
+                        <span title="factura_mes_manual = 0"><i class="fas fa-times-circle text-danger"></i> Factura del mes NO:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_auto'] ?? 0 }}</b>
                     </div>
                 </div>
             </div>
@@ -391,12 +391,12 @@
                 @if(($cycleStats['dia_esperado'] ?? 0) > 0 || (isset($cycleStats['facturas_fuera_fecha']) && $cycleStats['facturas_fuera_fecha'] > 0))
                 <div class="mt-2 text-left small border-top pt-2 text-muted">
                     <div class="d-flex justify-content-between">
-                        <span title="factura_mes_manual = 0"><i class="fas fa-robot"></i> Automáticas:</span>
-                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_auto'] ?? 0 }}</b>
+                        <span title="factura_mes_manual = 1"><i class="fas fa-check-circle text-success"></i> Factura del mes SI:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_manual'] ?? 0 }}</b>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <span title="factura_mes_manual = 1"><i class="fas fa-user-edit"></i> Manuales:</span>
-                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_manual'] ?? 0 }}</b>
+                        <span title="factura_mes_manual = 0"><i class="fas fa-times-circle text-danger"></i> Factura del mes NO:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_auto'] ?? 0 }}</b>
                     </div>
                 </div>
                 @endif
