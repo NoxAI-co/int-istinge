@@ -601,6 +601,13 @@
                                     @if(isset($f['estatus_texto']))
                                         <span class="badge badge-{{ $f['estatus_clase'] }} badge-pill ml-1" style="font-size: 0.7em;">{{ $f['estatus_texto'] }}</span>
                                     @endif
+                                    
+                                    @if(isset($f['factura_mes_manual']))
+                                        <span class="badge badge-{{ $f['factura_mes_manual'] == 1 ? 'info' : 'warning' }} badge-pill ml-1" style="font-size: 0.7em;">
+                                            <i class="fas fa-calendar-check"></i> Factura del Mes: {{ $f['factura_mes_manual'] == 1 ? 'SI' : 'NO' }}
+                                        </span>
+                                    @endif
+
                                     @if($index > 0)
                                     <a href="javascript:void(0)" onclick="eliminarFacturaDuplicada({{ $f['id'] }}, {{ $dup['contrato_id'] }})" class="text-danger ml-2" title="Eliminar esta factura">
                                         <i class="fas fa-trash-alt"></i>
