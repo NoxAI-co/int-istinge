@@ -4856,7 +4856,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion', 'Precio Personalizado Internet', 'Precio Personalizado TV'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -4894,12 +4894,14 @@ class ContratosController extends Controller
             'AE' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AF' => 'Línea. Opcional en todos los tipos de conexión.',
             'AG' => 'Estrato del contrato. Opcional.',
-            'AH' => 'Dirección de instalación del contrato. Opcional.'
+            'AH' => 'Dirección de instalación del contrato. Opcional.',
+            'AI' => 'Precio personalizado de Internet. Opcional.',
+            'AJ' => 'Precio personalizado de TV. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de actualizacion de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema")
@@ -5083,7 +5085,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion', 'Precio Personalizado Internet', 'Precio Personalizado TV'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -5120,12 +5122,14 @@ class ContratosController extends Controller
             'AD' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AE' => 'Línea. Opcional en todos los tipos de conexión.',
             'AF' => 'Estrato del contrato. Opcional.',
-            'AG' => 'Dirección de instalación del contrato. Opcional.'
+            'AG' => 'Dirección de instalación del contrato. Opcional.',
+            'AH' => 'Precio personalizado de Internet. Opcional.',
+            'AI' => 'Precio personalizado de TV. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de Importación de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
@@ -5429,6 +5433,8 @@ class ContratosController extends Controller
             $colLinea = $esNroContrato ? 'AF' : 'AE';
             $colEstrato = $esNroContrato ? 'AG' : 'AF';
             $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
+            $colPrecioInternet = $esNroContrato ? 'AI' : 'AH';
+            $colPrecioTV = $esNroContrato ? 'AJ' : 'AI';
 
             // Leer todos los campos de la estructura unificada
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
@@ -5456,6 +5462,8 @@ class ContratosController extends Controller
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
             $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
             $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
+            $request->precio_personalizado_internet = $sheet->getCell($colPrecioInternet . $row)->getValue();
+            $request->precio_personalizado_tv = $sheet->getCell($colPrecioTV . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto antes de validar
             if (!empty($request->grupo_corte)) {
@@ -5854,6 +5862,8 @@ class ContratosController extends Controller
             $colLinea = $esNroContrato ? 'AF' : 'AE';
             $colEstrato = $esNroContrato ? 'AG' : 'AF';
             $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
+            $colPrecioInternet = $esNroContrato ? 'AI' : 'AH';
+            $colPrecioTV = $esNroContrato ? 'AJ' : 'AI';
 
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
             $request->mac = $sheet->getCell($colMAC . $row)->getValue();
@@ -5880,6 +5890,8 @@ class ContratosController extends Controller
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
             $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
             $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
+            $request->precio_personalizado_internet = $sheet->getCell($colPrecioInternet . $row)->getValue();
+            $request->precio_personalizado_tv = $sheet->getCell($colPrecioTV . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto
             if (!empty($request->grupo_corte)) {
@@ -6122,6 +6134,8 @@ class ContratosController extends Controller
             $contrato->linea                   = $request->linea ?? null;
             $contrato->estrato                 = $request->estrato ?? null;
             $contrato->address_street          = $request->address_street ?? null;
+            $contrato->precio_personalizado_internet = $request->precio_personalizado_internet ?? null;
+            $contrato->precio_personalizado_tv       = $request->precio_personalizado_tv ?? null;
 
             // Manejar caja NAP y puerto
             if ($cajaNap != null) {

@@ -253,6 +253,12 @@
 							<th>Precio Plan</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->plan()->price) }}</td>
 						</tr>
+						@if($contrato->precio_personalizado_internet)
+						<tr>
+							<th>Precio Personalizado Internet</th>
+							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_internet) }}</td>
+						</tr>
+						@endif
 						@if($servicio_otro)
 						<tr>
 							<th>Otro servicio</th>
@@ -392,6 +398,12 @@
 							<th>Precio del Plan Contratado</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($inventario->precio) }}</td>
 						</tr>
+						@if($contrato->precio_personalizado_tv)
+						<tr>
+							<th>Precio Personalizado TV</th>
+							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_tv) }}</td>
+						</tr>
+						@endif
 						@if($contrato->costo_reconexion>0)
 						<tr>
 							<th>Costo de Reconexión</th>

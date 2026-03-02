@@ -404,12 +404,6 @@
                             </div>
 
                             <div class="col-md-4 form-group">
-                                <label class="control-label">Precio Personalizado Internet
-                                    <a><i data-tippy-content="Si deseas cobrar un precio diferente al del plan para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del plan." class="icono far fa-question-circle"></i></a>
-                                </label>
-                                <input type="number" class="form-control" name="precio_personalizado_internet" id="precio_personalizado_internet" value="{{ old('precio_personalizado_internet') }}" placeholder="Dejar vacío para usar precio del plan" min="0" step="any">
-                            </div>
-                            <div class="col-md-4 form-group">
                                 <label class="control-label">Tipo Conexión <span class="text-danger">*</span></label>
                                 <select class="form-control selectpicker" id="conexion" name="conexion" required=""
                                     title="Seleccione" data-live-search="true" data-size="4"
@@ -802,6 +796,13 @@
                                 </span>
                             </div>
 
+                            <div class="col-md-4 form-group">
+                                <label class="control-label">Precio Personalizado Internet
+                                    <a><i data-tippy-content="Si deseas cobrar un precio diferente al del plan para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del plan." class="icono far fa-question-circle"></i></a>
+                                </label>
+                                <input type="number" class="form-control" name="precio_personalizado_internet" id="precio_personalizado_internet" value="{{ old('precio_personalizado_internet') }}" placeholder="Dejar vacío para usar precio del plan" min="0" step="any">
+                            </div>
+
 
                         </div>
                     </div>
@@ -822,13 +823,6 @@
                                     <span style="color: red;">
                                         <strong>{{ $errors->first('servicio_tv') }}</strong>
                                     </span>
-                                </div>
-
-                                <div class="col-md-4 form-group">
-                                    <label class="control-label">Precio Personalizado TV
-                                        <a><i data-tippy-content="Si deseas cobrar un precio diferente al del servicio de TV para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del servicio." class="icono far fa-question-circle"></i></a>
-                                    </label>
-                                    <input type="number" class="form-control" name="precio_personalizado_tv" id="precio_personalizado_tv" value="{{ old('precio_personalizado_tv') }}" placeholder="Dejar vacío para usar precio del servicio" min="0" step="any">
                                 </div>
 
                                 <div class="col-md-4 form-group">
@@ -853,7 +847,14 @@
                                     </select>
                                     <span class="help-block error">
                                         <strong>{{ $errors->first('state_olt_catv') }}</strong>
-                                    </span>
+                                    </span> 
+                                </div>
+
+                                <div class="col-md-4 form-group">
+                                    <label class="control-label">Precio Personalizado TV
+                                        <a><i data-tippy-content="Si deseas cobrar un precio diferente al del servicio de TV para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del servicio." class="icono far fa-question-circle"></i></a>
+                                    </label>
+                                    <input type="number" class="form-control" name="precio_personalizado_tv" id="precio_personalizado_tv" value="{{ old('precio_personalizado_tv') }}" placeholder="Dejar vacío para usar precio del servicio" min="0" step="any">
                                 </div>
 
                             </div>
