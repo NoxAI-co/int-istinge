@@ -276,6 +276,7 @@ Route::get('qrcode', function () {
 Route::post('configuracion_separacion_numero_contrato', 'ConfiguracionController@contratoNumeracion')->name('configuracion.contrato_numeracion');
 Route::post('configuracion_facturas_contratos_off', 'ConfiguracionController@facturaContratoOff');
 Route::post('configuracion_facturas_prorrateo', 'ConfiguracionController@facturaProrrateo');
+Route::post('configuracion_generar_prorrateo', 'ConfiguracionController@generarProrrateoMasivo')->name('configuracion.generar_prorrateo');
 Route::post('configuracion_consultas_mikrotik', 'ConfiguracionController@consultasMikrotik')->name('configuracion.consultas_mikrotik');
 Route::post('configuracion_chat_ia', 'ConfiguracionController@chatIA');
 Route::post('configuracion_facturacionAutomatica', 'ConfiguracionController@facturacionAutomatica');

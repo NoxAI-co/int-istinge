@@ -120,6 +120,7 @@
                 <a href="javascript:prorrateo()">{{ Auth::user()->empresa()->prorrateo == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     Prorrateo</a><br>
                 <input type="hidden" id="prorrateoid" value="{{ Auth::user()->empresa()->prorrateo }}">
+                <a href="#" data-toggle="modal" data-target="#generar_prorrateo_modal">Generar Facturas prorrateadas</a><br>
                 <a href="javascript:actDescEfecty()">{{ Auth::user()->empresa()->efecty == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     Efecty</a><br>
                 <input type="hidden" id="efectyid" value="{{ Auth::user()->empresa()->efecty }}">
@@ -725,6 +726,38 @@
         </div>
     </div>
     {{-- /CONFIGURACION PLANTILLA TIRILLA WHATSAPP --}}
+
+    {{-- GENERAR PRORRATEO MASIVO --}}
+    <div class="modal fade" id="generar_prorrateo_modal" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Generar Facturas Prorrateadas</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST" action="{{ route('configuracion.generar_prorrateo') }}" role="form" class="forms-sample">
+                    {{ csrf_field() }}
+                    <div class="modal-body">
+                        <p>Seleccionar: ¿Desde cuando desea generar el prorrateo?</p>
+                        <div class="row">
+                            <div class="col-md-12 form-group">
+                                <label class="control-label">Fecha Inicial <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="fecha" required="" value="{{ date('Y-m-d') }}">
+                                <span class="help-block error">
+                                    <strong>{{ $errors->first('fecha') }}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-success">Generar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {{-- /GENERAR PRORRATEO MASIVO --}}
 
     {{-- CANT REGISTRO --}}
     <div class="modal fade show" id="nro_registro" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">

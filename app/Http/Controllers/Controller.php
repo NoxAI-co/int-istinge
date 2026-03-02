@@ -2499,7 +2499,7 @@ class Controller extends BaseController
         );
     }
 
-    public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false){
+    public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false, $desdeConfig = false){
 
         if ($contrato->prorrateo == 0 && !$desdeOnu) {
             return false;
@@ -2507,16 +2507,36 @@ class Controller extends BaseController
 
         // Obtener empresa del contrato
         $empresaId = $contrato->empresa ?? 1;
-        $fecha = Carbon::now()->format('Y-m-d');
+        
+        if ($desdeConfig && $contrato->created_at) {
+            $fecha = Carbon::parse($contrato->created_at)->format('Y-m-d');
+        } else {
+            $fecha = Carbon::now()->format('Y-m-d');
+        }
 
         // VALIDACIÓN: Verificar si ya existe una factura para este contrato hoy
         $facturaExistente = DB::table('facturas_contratos')
-            ->whereDate('created_at', $fecha)
+            ->whereDate('created_at', Carbon::now()->format('Y-m-d'))
             ->where('contrato_nro', $contrato->nro)
             ->first();
 
         if($facturaExistente){
             return false; // Ya existe una factura para este contrato hoy
+        }
+
+        // Validación adicional para $desdeConfig: no permitir dos facturas prorrateadas en el mismo mes.
+        if ($desdeConfig) {
+            $facturaProrrateadaExistente = DB::table('factura')
+                ->join('facturas_contratos', 'facturas_contratos.factura_id', '=', 'factura.id')
+                ->where('facturas_contratos.contrato_nro', $contrato->nro)
+                ->whereMonth('factura.fecha', Carbon::parse($fecha)->month)
+                ->whereYear('factura.fecha', Carbon::parse($fecha)->year)
+                ->where('factura.prorrateo_aplicado', '!=', 0)
+                ->first();
+
+            if ($facturaProrrateadaExistente) {
+                return false;
+            }
         }
 
         $grupo_corte = GrupoCorte::find($contrato->grupo_corte);

@@ -18,6 +18,7 @@ use App\SuscripcionPago;
 use App\Servicio;
 use App\Mikrotik;
 use App\PlanesVelocidad;
+use App\Contrato;
 
 use App\Http\Controllers\Nomina\NominaController;
 use App\Http\Controllers\Nomina\NominaDianController;
@@ -3407,4 +3408,32 @@ class ConfiguracionController extends Controller
         }
     }
 
+    public function generarProrrateoMasivo(Request $request){
+        $request->validate([
+            'fecha' => 'required|date'
+        ]);
+
+        $empresaId = Auth::user()->empresa;
+        $fechaInicial = Carbon::parse($request->fecha)->startOfDay()->format('Y-m-d H:i:s');
+        
+        $contratos = Contrato::where('empresa', $empresaId)
+            ->where('state', 'enabled')
+            ->where('created_at', '>=', $fechaInicial)
+            ->get();
+
+        $generadas = 0;
+        
+        foreach($contratos as $contrato){
+            //Opcion de crear factrua con prorrateo
+            if($contrato->prorrateo == 1){
+                $res = \App\Http\Controllers\Controller::createFacturaProrrateo($contrato, null, false, true);
+                if($res){
+                    $generadas++;
+                }
+            }
+        }
+
+        $mensaje = "Se han generado " . $generadas . " facturas prorrateadas exitosamente.";
+        return redirect()->back()->with('success', $mensaje);
+    }
 }
