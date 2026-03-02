@@ -249,10 +249,12 @@
 							<th>Plan Contratado</th>
 							<td><a href="{{route('planes-velocidad.show',$contrato->plan_id)}}" target="_blank"><strong>{{ $contrato->plan()->name }}</strong></a></td>
 						</tr>
+						@if(!$contrato->precio_personalizado_internet)
 						<tr>
 							<th>Precio Plan</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->plan()->price) }}</td>
 						</tr>
+						@endif
 						@if($contrato->precio_personalizado_internet)
 						<tr>
 							<th>Precio Personalizado Internet</th>
