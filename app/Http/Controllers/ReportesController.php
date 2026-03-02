@@ -2044,9 +2044,11 @@ class ReportesController extends Controller
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
                     $join->on('i.id', '=', 'movimientos.id_modulo')
-                         ->where('movimientos.modulo', '=', 1);
+                         ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
+                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
@@ -2055,7 +2057,7 @@ class ReportesController extends Controller
             $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
                     $join->on('i.id', '=', 'movimientos.id_modulo')
-                         ->where('movimientos.modulo', '=', 1);
+                         ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
                 ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
@@ -2067,10 +2069,10 @@ class ReportesController extends Controller
         else{
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
-            ->leftjoin('factura as f','f.id','if.factura')
+            ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+            ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
             ->leftjoin('contracts as co','co.id','f.contrato_id')
-            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
             ->where('movimientos.fecha', '>=', $dates['inicio'])
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
@@ -2080,8 +2082,8 @@ class ReportesController extends Controller
 
              $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
-            ->leftjoin('factura as f','f.id','if.factura')
+            ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+            ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
             ->leftjoin('contracts as co','co.id','f.contrato_id')
             ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
             ->where('movimientos.fecha', '>=', $dates['inicio'])
