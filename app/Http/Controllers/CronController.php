@@ -397,12 +397,18 @@ class CronController extends Controller
                         }else{
                             $mesUltimaFactura = date('Y-m',strtotime($ultimaFactura->fecha));
                         }
-                        //Validacion nueva: mirar si la ultima factura generada tiene la opcion de factura del mes actual.
+                        // Validacion nueva: mirar si la ultima factura generada tiene la opcion de factura del mes actual.
                         if($mesActualFactura == $mesUltimaFactura){
                             if($ultimaFactura->factura_mes_manual == 1){
                                 continue; //salte esta iteracion entonces por que es la factura del mes manual.
                             }
 
+                            // Si es una factura del mes actual, PERO es un prorrateo NO marcado como 'factura del mes',
+                            // necesitamos PERMITIR que se genere la factura completa del mes (saltamos esta validación evasiva).
+                            // Solo aplica si NO es factura del mes y SÍ es de prorrateo.
+                            if($ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->prorrateo_aplicado == 1){
+                                // No hacemos 'continue', permitimos que el flujo siga y genere la factura del mes
+                            }
                             //Esto lo hacemos por que si estoy ejecutando un periodo de 2 de enero y la factura manual es del 4 pues lo mas logico es
                             //que esa factura seal periodo ya que esto nos esta trayendo demasiadas fallas.
                             elseif(date('d',strtotime($fecha)) <= date('d',strtotime($ultimaFactura->fecha))){
@@ -420,10 +426,11 @@ class CronController extends Controller
                     }
 
                     /* ** Validacion: si la actual es dif a la ultima fac pasa o sino
-                    si son iguales y no tiene fact manual == 1(la ultima) y es manual y no automatica pasa */
+                    si son iguales y no tiene fact manual == 1(la ultima) y es manual y no automatica pasa.
+                    También pasa si la factura actual es del mismo mes pero es un prorrateo. */
                     if($mesActualFactura != $mesUltimaFactura ||
-                       $mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0
-                       && $ultimaFactura->facturacion_automatica == 0)
+                       ($mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->facturacion_automatica == 0) ||
+                       ($mesActualFactura == $mesUltimaFactura && $ultimaFactura->factura_mes_manual == 0 && $ultimaFactura->prorrateo_aplicado == 1))
                     {
                         ## Verificamos que el cliente no posea la ultima factura automática abierta, de tenerla no se le genera la nueva factura
                         if(isset($ultimaFactura->fecha)){
@@ -2608,21 +2615,46 @@ class CronController extends Controller
     public function eventosOnePay(Request $request){
         $requestData = $request->all();
 
-        // Verificar que el evento sea payment.approved
-        if(isset($requestData['event']['type']) && $requestData['event']['type'] == 'payment.approved'){
-            $payment = $requestData['payment'];
-
-            // Buscar factura por provider_id (código de factura) o por onepay_invoice_id
+        // Verificar que el evento sea payment.approved o invoice.paid
+        if(isset($requestData['event']['type']) && in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
+            
             $factura = null;
+            $paymentId = null;
+            $montoPagado = 0;
 
-            // Intentar buscar por provider_id primero
-            if(isset($payment['provider_id'])){
-                $factura = Factura::where('codigo', $payment['provider_id'])->first();
-            }
+            if ($requestData['event']['type'] == 'invoice.paid') {
+                $invoice = $requestData['invoice'] ?? [];
+                $payment = $invoice['payment'] ?? [];
+                
+                if(isset($invoice['provider_id'])){
+                    $factura = Factura::where('codigo', $invoice['provider_id'])->first();
+                }
+                
+                if(!$factura && isset($invoice['metadata']['factura_id'])){
+                    $factura = Factura::find($invoice['metadata']['factura_id']);
+                }
 
-            // Si no se encuentra, buscar por onepay_invoice_id usando el payment.id
-            if(!$factura && isset($payment['id'])){
-                $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
+                if(!$factura && isset($invoice['payment_id'])){
+                    $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
+                }
+                
+                $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
+                // En invoice.paid el monto viene en valor normal
+                $montoPagado = $payment['amount'] ?? 0;
+            } else {
+                $payment = $requestData['payment'] ?? [];
+
+                if(isset($payment['provider_id'])){
+                    $factura = Factura::where('codigo', $payment['provider_id'])->first();
+                }
+                
+                if(!$factura && isset($payment['id'])){
+                    $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
+                }
+
+                $paymentId = $payment['id'] ?? null;
+                // En payment.approved (o implementacion previa) se dividía por 100
+                $montoPagado = isset($payment['amount']) ? ($payment['amount'] / 100) : 0;
             }
 
             if($factura && $factura->estatus == 1){
@@ -2655,12 +2687,12 @@ class CronController extends Controller
                 $ingreso->metodo_pago   = 9;
                 $ingreso->tipo          = 1;
                 $ingreso->fecha         = date('Y-m-d');
-                $ingreso->observaciones = 'Pago OnePay ID: '.$payment['id'];
+                $ingreso->observaciones = 'Pago OnePay ID: '.$paymentId;
                 $ingreso->save();
 
                 # REGISTRAMOS EL INGRESO_FACTURA
-                // Precio que pagó el cliente (amount viene en centavos)
-                $precioPagado = $this->precisionAPI($payment['amount']/100, $empresa->id);
+                // Precio que pagó el cliente
+                $precioPagado = $this->precisionAPI($montoPagado, $empresa->id);
 
                 // Precio real de la factura (sin cobro_extra)
                 $precioReal = $this->precisionAPI($factura->porpagarAPI($empresa->id), $empresa->id);
@@ -2698,7 +2730,7 @@ class CronController extends Controller
                 $movimiento = new MovimientoLOG();
                 $movimiento->contrato = $factura->id;
                 $movimiento->modulo = 8; // Módulo de facturas
-                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Pago recibido</b> mediante OnePay por valor de '.Funcion::ParsearAPI($precioPagado, $empresa->id).' - ID: '.$payment['id'];
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Pago recibido</b> mediante OnePay por valor de '.Funcion::ParsearAPI($precioPagado, $empresa->id).' - ID: '.$paymentId;
                 $movimiento->created_by = null; // Sistema
                 $movimiento->empresa = $empresa->id;
                 $movimiento->save();

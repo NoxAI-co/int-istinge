@@ -1261,7 +1261,7 @@ class GruposCorteController extends Controller
 
             $analyzer = new BillingCycleAnalyzer();
             // Obtenemos las facturas usando el query builder del analyzer
-            $facturas = $analyzer->getGeneratedInvoicesQuery($idGrupo, $periodo)->get();
+            $facturas = $analyzer->getGeneratedInvoicesQuery($idGrupo, $periodo)->get()->where('factura_mes_manual', 1);
 
             if ($facturas->count() == 0) {
                 return response()->json(['success' => false, 'message' => 'No se encontraron facturas para eliminar en este ciclo.'], 400);

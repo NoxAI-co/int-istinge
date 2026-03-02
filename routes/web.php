@@ -544,6 +544,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('morosos/sacar', 'MorososController@sacarMoroso')->name('morosos.sacar');
 	Route::post('morosos/sacar-masivo', 'MorososController@sacarMorososMasivo')->name('morosos.sacar.masivo');
 
+
     // Rutas para discrepancias de contratos Disabled
     Route::get('morosos/check-disabled', 'MorososController@checkDisabledButNotListed')->name('morosos.check.disabled');
     Route::get('morosos/discrepancias-disabled', 'MorososController@indexDisabledDiscrepancy')->name('morosos.discrepancias.disabled');
@@ -1030,6 +1031,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/edit/{nro}', 'SaldosInicialesController@edit')->name('saldoinicial.edit');
 		Route::post('/update', 'SaldosInicialesController@update')->name('saldoinicial.update');
 		Route::get('/index', 'SaldosInicialesController@index')->name('saldoinicial.index');
+		Route::delete('/destroy/{nro}', 'SaldosInicialesController@destroy')->name('saldoinicial.destroy');
+
 	});
 
 

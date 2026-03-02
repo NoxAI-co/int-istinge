@@ -231,8 +231,14 @@ class MikrotikService
                         // El usuario especificó: "pasar por la tabla facturas_contratos"
                         // El modelo Contrato tiene la relación facturas() mapeada a facturas_contratos
                         
-                        $ultimaFactura = $contrato->facturas()->orderBy('created_at', 'desc')->first();
-
+                        // Buscar la última factura (ya sea por la relación o por contrato_id directo)
+                        // Utilizamos factura.id para asegurar orden cronológico real, evadiendo fallos de created_at en tabla pivote.
+                        $ultimaFactura = $contrato->facturas()->orderBy('factura.id', 'desc')->first();
+                        
+                        if (!$ultimaFactura) {
+                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)->orderBy('id', 'desc')->first();
+                        }
+                        
                         if ($ultimaFactura) {
                             $ultimaFacturaData = [
                                 'id' => $ultimaFactura->id,
@@ -240,17 +246,20 @@ class MikrotikService
                                 'estatus' => $ultimaFactura->estatus
                             ];
 
-                            // Lógica de discrepancia:
-                            // "si esa factura tiene un estatus = 0 significa que el contrato tiene la ultima factura pagada"
-                            // En base de datos Factura: estatus 1 = Abierta (No pagada), Estatus 0 o 2 = Cerrada/Anulada/Pagada
-                            // Entonces si estatus != 1, está pagada.
-                            
-                            if ($ultimaFactura->estatus != 1) { // Asumiendo != 1 es Pagada/Cerrada
+                            $estadoString = $ultimaFactura->estatus();
+
+                            // Dependemos del método estatus() de Factura que retorna el estado real como string.
+                            // Posibles retornos: 'Abierta', 'Cerrada', 'Anulada', 'Abonada', 'Cerrada con nota crédito', etc.
+                            if ($estadoString === 'Cerrada' || $estadoString === 'Cerrada con nota crédito') { // Pagada
                                 $tieneDiscrepancia = true;
                                 $estadoSistema = 'Pagada';
                                 $mensajeDiscrepancia = "El cliente aparece en morosos (Mikrotik) pero su última factura en el sistema figura como PAGADA/CERRADA.";
+                            } else if ($estadoString === 'Anulada') { // Anulada
+                                $estadoSistema = 'Anulada';
+                                $tieneDiscrepancia = false;
                             } else {
-                                $estadoSistema = 'En Mora'; // Estatus 1
+                                // 'Abierta', 'Abonada', 'Abierta con nota crédito' son considerados con deuda
+                                $estadoSistema = 'En Mora'; 
                             }
                         } else {
                             $estadoSistema = 'Sin Facturas';

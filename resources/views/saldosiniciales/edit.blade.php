@@ -95,7 +95,7 @@
             <td>
                 <select name="contacto[]" id="contacto{{$contt}}" class="form-control form-control-sm selectpicker p-0" data-live-search="true" data-size="5" required>
                     @foreach($contactos as $contacto)
-                        <option value="{{$contacto->id}}" {{$contacto->id == $mov->cliente_id ? 'selected' : ''}}>{{$contacto->nombre}}</option>
+                        <option value="{{$contacto->id}}" {{$contacto->id == $mov->cliente_id ? 'selected' : ''}}>{{$contacto->nombre}} {{$contacto->apellidos()}}</option>
                     @endforeach
                 </select>
             </td>

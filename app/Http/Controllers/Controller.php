@@ -2610,7 +2610,7 @@ class Controller extends BaseController
             $factura->vendedor      = 1;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 1;
-            $factura->factura_mes_manual = $desdeOnu ? 0 : 1;
+            $factura->factura_mes_manual = 0;
             $factura->contrato_id = $contrato->id;
             $factura->save();
 

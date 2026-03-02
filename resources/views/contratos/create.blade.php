@@ -1126,7 +1126,7 @@
                                 <div class="d-flex align-items-center">
                                     <label class="switch mb-0">
                                         <input type="hidden" name="fact_primer_mes" value="0">
-                                        <input type="checkbox" name="fact_primer_mes" id="fact_primer_mes" value="1">
+                                        <input type="checkbox" name="fact_primer_mes" id="fact_primer_mes" value="1" checked>
                                         <span class="slider round"></span>
                                     </label>
                                     <span class="ml-2" id="fact_primer_mes_label">Si</span>

@@ -645,7 +645,7 @@ class IngresosController extends Controller
                                                 DB::reconnect();
                                                 $contratoBG = \App\Contrato::find($contratoId);
                                                 $empresaBG = \App\Empresa::find($empresaId);
-                                                $ingresoBG = \App\Ingreso::find($ingresoId);
+                                                $ingresoBG = Ingreso::find($ingresoId);
                                                 if($contratoBG && $empresaBG && $ingresoBG){
                                                     $controller = new \App\Http\Controllers\IngresosController();
                                                     $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
