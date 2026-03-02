@@ -3749,13 +3749,16 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        if(!isset($request->servidor) ||  $request->servidor == 0){
+        if(!$request->servidor){
         $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', function($join) {
                 $join->on('i.id', '=', 'movimientos.id_modulo')
                      ->where('movimientos.modulo', '=', 1);
             })
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
+            ->leftjoin('ingresos_factura as if', function($join) {
+                $join->on('if.ingreso', '=', 'movimientos.id_modulo')
+                     ->where('movimientos.modulo', '=', 1);
+            })
             ->leftjoin('factura as f','f.id','if.factura')
             ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'),'f.id as facturaId')
             ->where('movimientos.fecha', '>=', $dates['inicio'])
@@ -3775,8 +3778,8 @@ class ExportarReportesController extends Controller
             ->where('movimientos.modulo',1)
             ->where('movimientos.estatus','<>',2)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',Auth::user()->empresa);
-
+            ->where('movimientos.empresa',Auth::user()->empresa)
+            ->groupBy('movimientos.id');
         }
 
         if($request->caja){

@@ -2040,8 +2040,7 @@ class ReportesController extends Controller
 
         $orderby=$campos[$request->orderby];
 
-        if(!isset($request->servidor) ||  $request->servidor == 0){
-
+        if(!$request->servidor){
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
                     $join->on('i.id', '=', 'movimientos.id_modulo')
@@ -2065,8 +2064,7 @@ class ReportesController extends Controller
                 ->where('movimientos.empresa',$empresa);
 
         }
-        elseif($request->servidor){
-
+        else{
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
             ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
@@ -2077,7 +2075,8 @@ class ReportesController extends Controller
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
              $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
@@ -2089,7 +2088,8 @@ class ReportesController extends Controller
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
         }
 
