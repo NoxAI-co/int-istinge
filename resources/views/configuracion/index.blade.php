@@ -28,6 +28,16 @@
 
     </style>
     <div class="row card-description">
+        @if(Session::has('success'))
+            <div class="col-md-12">
+                <div class="alert alert-success" style="margin-top:10px;">
+                    <i class="fas fa-check-circle"></i> {{ Session::get('success') }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+        @endif
         <div class="col-sm-4" style="text-align: center;">
             <img class="img-responsive"
                 src="{{ asset('images/Empresas/Empresa' . Auth::user()->empresa()->id . '/' . Auth::user()->empresa()->logo) }}"
@@ -740,11 +750,18 @@
                     <div class="modal-body">
                         <p>Seleccionar: ¿Desde cuando desea generar el prorrateo?</p>
                         <div class="row">
-                            <div class="col-md-12 form-group">
+                            <div class="col-md-6 form-group">
                                 <label class="control-label">Fecha Inicial <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" name="fecha" required="" value="{{ date('Y-m-d') }}">
                                 <span class="help-block error">
                                     <strong>{{ $errors->first('fecha') }}</strong>
+                                </span>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="control-label">Fecha Final <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="fecha_final" required="" value="{{ date('Y-m-d') }}">
+                                <span class="help-block error">
+                                    <strong>{{ $errors->first('fecha_final') }}</strong>
                                 </span>
                             </div>
                         </div>

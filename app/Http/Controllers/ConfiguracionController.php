@@ -3410,15 +3410,17 @@ class ConfiguracionController extends Controller
 
     public function generarProrrateoMasivo(Request $request){
         $request->validate([
-            'fecha' => 'required|date'
+            'fecha' => 'required|date',
+            'fecha_final' => 'required|date'
         ]);
 
         $empresaId = Auth::user()->empresa;
         $fechaInicial = Carbon::parse($request->fecha)->startOfDay()->format('Y-m-d H:i:s');
+        $fechaFinal = Carbon::parse($request->fecha_final)->endOfDay()->format('Y-m-d H:i:s');
         
         $contratos = Contrato::where('empresa', $empresaId)
             ->where('state', 'enabled')
-            ->where('created_at', '>=', $fechaInicial)
+            ->whereBetween('created_at', [$fechaInicial, $fechaFinal])
             ->get();
 
         $generadas = 0;
@@ -3433,7 +3435,12 @@ class ConfiguracionController extends Controller
             }
         }
 
-        $mensaje = "Se han generado " . $generadas . " facturas prorrateadas exitosamente.";
-        return redirect()->back()->with('success', $mensaje);
+        if ($generadas > 0) {
+            $mensaje = "Se han generado " . $generadas . " facturas prorrateadas exitosamente.";
+            return redirect()->back()->with('success', $mensaje);
+        } else {
+            $mensaje = "El proceso finalizó. Se generaron 0 facturas. Verifica que los contratos en ese rango tengan el prorrateo activo o que no se haya facturado ya el prorrateo en el mismo mes.";
+            return redirect()->back()->with('success', $mensaje);
+        }
     }
 }

@@ -3755,7 +3755,9 @@ class ExportarReportesController extends Controller
                     $join->on('i.id', '=', 'movimientos.id_modulo')
                          ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
+                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
@@ -3764,16 +3766,15 @@ class ExportarReportesController extends Controller
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
                 ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
-                ->leftjoin('factura as f','f.id','if.factura')
+                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
                 ->leftjoin('contracts as co','co.id','f.contrato_id')
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.modulo',1)
                 ->where('movimientos.estatus','<>',2)
                 ->where('co.server_configuration_id',$request->servidor)
-                ->where('movimientos.empresa',Auth::user()->empresa)
-                ->groupBy('movimientos.id'); // Here we must keep group by because server filter uses invoice contracts. Keep group by on ID safely.
+                ->where('movimientos.empresa',Auth::user()->empresa);
         }
 
         if($request->caja){
