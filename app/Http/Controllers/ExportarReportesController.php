@@ -3777,10 +3777,13 @@ class ExportarReportesController extends Controller
         }
 
         if($request->caja){
-            $movimientos->where('banco',$banco->id);
+            $movimientos->where('banco',$request->caja);
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
+        }
+        if($request->metodo_pago){
+            $movimientos->where('i.metodo_pago', $request->metodo_pago);
         }
         if($request->forma_pago){
             $movimientos->where('i.forma_pago', $request->forma_pago);
