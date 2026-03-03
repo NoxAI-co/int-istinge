@@ -545,9 +545,25 @@ class SiigoController extends Controller
                 ]);
             }
     
+            $errorMessage = 'Error desconocido en Siigo';
+            
+            if (isset($response['Errors']) && is_array($response['Errors']) && count($response['Errors']) > 0) {
+                $messages = [];
+                foreach ($response['Errors'] as $err) {
+                    if (isset($err['Message'])) {
+                        $messages[] = $err['Message'];
+                    }
+                }
+                if (count($messages) > 0) {
+                    $errorMessage = implode(' | ', $messages);
+                }
+            } elseif (isset($response['Message'])) {
+                $errorMessage = $response['Message'];
+            }
+    
             return response()->json([
                 'status' => 400,
-                'error'  => $response['Message'] ?? 'Error desconocido en Siigo'
+                'error'  => $errorMessage
             ]);
     
         } catch (\Throwable $th) {
