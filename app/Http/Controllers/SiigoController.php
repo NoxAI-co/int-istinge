@@ -340,7 +340,7 @@ class SiigoController extends Controller
         return $instance->executeSiigoRequest($curlOptions, true);
     }
     
-        public function sendInvoice(Request $request, $factura = null)
+        public function sendInvoice(Request $request, $factura = null, $isRetry = false)
     {
         try {
     
@@ -546,12 +546,16 @@ class SiigoController extends Controller
             }
     
             $errorMessage = 'Error desconocido en Siigo';
+            $hasInvalidDate = false;
             
             if (isset($response['Errors']) && is_array($response['Errors']) && count($response['Errors']) > 0) {
                 $messages = [];
                 foreach ($response['Errors'] as $err) {
                     if (isset($err['Message'])) {
                         $messages[] = $err['Message'];
+                        if (strpos($err['Message'], 'Invalid date') !== false) {
+                            $hasInvalidDate = true;
+                        }
                     }
                 }
                 if (count($messages) > 0) {
@@ -559,6 +563,15 @@ class SiigoController extends Controller
                 }
             } elseif (isset($response['Message'])) {
                 $errorMessage = $response['Message'];
+                if (strpos($errorMessage, 'Invalid date') !== false) {
+                    $hasInvalidDate = true;
+                }
+            }
+            
+            if ($hasInvalidDate && !$isRetry) {
+                $factura->fecha = \Carbon\Carbon::now()->format('Y-m-d');
+                $factura->save();
+                return $this->sendInvoice($request, $factura, true);
             }
     
             return response()->json([
@@ -848,11 +861,6 @@ class SiigoController extends Controller
     
                 if (!$factura || !empty($factura->siigo_id)) {
                     continue;
-                }
-
-                if($factura->tipo == 2){
-                    $factura->fecha = Carbon::now()->format('Y-m-d');
-                    $factura->save();
                 }
     
                 // ==============================
