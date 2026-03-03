@@ -3713,7 +3713,7 @@ class ExportarReportesController extends Controller
         }else{
             $tituloReporte = "Reporte de caja ".$request->fecha." hasta ".$request->hasta;
             $caja = 'DE_CAJAS';
-        } 
+        }
 
         $titulosColumnas = array('Fecha', 'Comprobante','Barrio','Contacto','Identificacion','Nro contrato','Realizado por','Cuenta', 'Metodo de pago', 'Forma de Pago', 'Concepto', 'Estado', 'Observaciones','notas','total factura','Salida', 'Entrada');
         $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
