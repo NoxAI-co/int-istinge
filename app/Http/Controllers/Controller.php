@@ -2858,11 +2858,17 @@ class Controller extends BaseController
 
         if(isset($responseEmail->status) && $responseEmail->status == 'success'){
             $mensaje= "Documento enviado al correo del cliente correctamente.";
+            $documento->correo =1;
+            $documento->save();
         }else{
             if(isset($responseEmail['statusCode']) && $responseEmail['statusCode'] == 406 && isset($responseEmail['th'])){
                 $mensaje = "No se encontró la información del AttachedDocument del documento, intentelo más tarde";
+                $documento->correo = 400;
+                $documento->save();
             }else{
                 $mensaje= "Documento no pudo ser enviado al correo.";
+                $documento->correo = 400;
+                $documento->save();
             }
         }
 
