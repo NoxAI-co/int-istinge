@@ -3699,7 +3699,7 @@ class ExportarReportesController extends Controller
         );
     }
 
-     public function cajas(Request $request) {
+       public function cajas(Request $request) {
         // Aumentar tiempo de ejecución y memoria para reportes grandes
         ini_set('max_execution_time', 300); // 5 minutos
         ini_set('memory_limit', '512M');
@@ -3954,6 +3954,7 @@ class ExportarReportesController extends Controller
         $objWriter->save('php://output');
         exit;
     }
+    
     
     public function facturasImpagas(Request $request){
         //Acá se obtiene la información a impimir
