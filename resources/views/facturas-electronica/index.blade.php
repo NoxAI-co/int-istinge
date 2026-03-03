@@ -205,10 +205,11 @@
 								<a><i data-tippy-content="Si el cliente tiene más de una factura (a partir de 2 facturas) saldrán en la tabla, usa las fechas desde - hasta para obtener mayor precisión y saber si un cliente se le generó varias veces la facturación en un mes." class="icono far fa-question-circle"></i></a>
 							</span>
 						</div>
-						<div class="col-md-2 pl-1 pt-1 d-none">
-							<select title="Enviada a Correo" class="form-control rounded selectpicker" id="correo">
+						<div class="col-md-2 pl-1 pt-1">
+							<select title="¿Enviado al correo?" class="form-control rounded selectpicker" id="correo" multiple data-live-search="false">
 								<option value="1">Si</option>
-								<option value="A">No</option>
+								<option value="0">No</option>
+								<option value="400">Error envío</option>
 							</select>
 						</div>
 					</div>
@@ -246,6 +247,7 @@
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_convertir_estandar"><i class="fas fa-exchange-alt"></i> Convertir a facturas estándar en Lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_siigo"><i class="fas fa-server"></i> Enviar a Siigo en lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_enviar_correo"><i class="fas fa-envelope"></i> Enviar al correo</a>
                         @if(isset($_SESSION['permisos']['855']))
                         <a class="dropdown-item text-danger" href="javascript:void(0)" id="btn_eliminar"><i class="fas fa-trash"></i> Eliminar facturas en lote</a>
                         @endif
@@ -382,6 +384,7 @@
 			data.grupos_corte = $('#grupos_corte').val();
 			data.fact_siigo = $('#fact_siigo').val();
 			data.emision = $('#emision').val();
+			data.correo = $('#correo').val();
 			data.otras_opciones = $('#otras_opciones').val();
 			data.filtro = true;
 		});
@@ -405,7 +408,7 @@
             }
         });
 
-		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #fact_siigo').on('change',function() {
+		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
             getDataTable();
             return false;
         });
@@ -895,6 +898,104 @@
             });
         });
 
+        // Enviar al correo en lote
+        $('#btn_enviar_correo').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if (nro <= 0) {
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura electrónica',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (var i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas al correo?',
+                text: 'Esto puede demorar unos minutos. Las facturas que ya fueron enviadas serán omitidas.',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    cargando(true);
+
+                    var url = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/enviomasivocorreo/` + facturas.join(',') :
+                        `/empresa/facturas/enviomasivocorreo/` + facturas.join(',');
+
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                        success: function(data) {
+                            cargando(false);
+
+                            if (data.success == false) {
+                                swal({
+                                    title: 'ERROR',
+                                    html: data.message || 'Ocurrió un error al enviar los correos',
+                                    type: 'error',
+                                    confirmButtonColor: '#d33',
+                                    confirmButtonText: 'ACEPTAR',
+                                });
+                                return false;
+                            }
+
+                            // Construir HTML de estadísticas
+                            var html = '<div style="text-align: left;">';
+                            html += '<p><strong>Total de facturas procesadas:</strong> ' + data.total + '</p>';
+                            html += '<p style="color: green;"><strong>Enviadas exitosamente:</strong> ' + data.enviados + '</p>';
+                            html += '<p style="color: #f0ad4e;"><strong>Omitidas (ya enviadas):</strong> ' + data.omitidos + '</p>';
+                            html += '<p style="color: red;"><strong>Errores:</strong> ' + data.errores + '</p>';
+
+                            if (data.detalle && data.detalle.length > 0) {
+                                html += '<hr><strong>Detalle:</strong><ul style="max-height: 200px; overflow-y: auto;">';
+                                data.detalle.forEach(function(item) {
+                                    var color = item.estado == 'enviado' ? 'green' : (item.estado == 'omitido' ? '#f0ad4e' : 'red');
+                                    html += '<li style="color: ' + color + ';">' + item.codigo + ': ' + item.mensaje + '</li>';
+                                });
+                                html += '</ul>';
+                            }
+                            html += '</div>';
+
+                            swal({
+                                title: 'ESTADÍSTICAS DE ENVÍO',
+                                html: html,
+                                type: data.errores > 0 ? 'warning' : 'success',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#1A59A1',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+
+                            getDataTable();
+                        },
+                        error: function(xhr) {
+                            cargando(false);
+                            swal({
+                                title: 'ERROR',
+                                html: 'Ocurrió un error al procesar el envío masivo de correos.',
+                                type: 'error',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
 	});
 
 	function getDataTable() {
@@ -927,6 +1028,7 @@
 		$('#estado').val('').selectpicker('refresh');
 		$('#grupos_corte').val('').selectpicker('refresh');
 		$('#fact_siigo').val('').selectpicker('refresh');
+		$('#correo').val('').selectpicker('refresh');
 		$('#otras_opciones').val('').selectpicker('refresh');
 		$('#servidor').val('').selectpicker('refresh');
 		$('#emision').val('').selectpicker('refresh');

@@ -777,10 +777,14 @@ class FacturasController extends Controller{
                     $query->orWhere('factura.estatus', $request->estado);
                 });
             }
-            if($request->correo){
-                $correo = ($request->correo == 'A') ? 0 : $request->correo;
-                $facturas->where(function ($query) use ($request, $correo) {
-                    $query->orWhere('factura.correo', $correo);
+            if($request->correo && is_array($request->correo) && count($request->correo) > 0){
+                $correoValues = $request->correo;
+                $facturas->where(function ($query) use ($correoValues) {
+                    $query->whereIn('factura.correo', $correoValues);
+                    // Si se selecciona "No" (valor 0), también incluir NULLs
+                    if(in_array('0', $correoValues)){
+                        $query->orWhereNull('factura.correo');
+                    }
                 });
             }
             if($request->municipio){
@@ -7509,5 +7513,110 @@ class FacturasController extends Controller{
         }
 
         return redirect('empresa/factura-index')->with('success', "Se han importado $creados saldos iniciales existosamente!");
+    }
+
+    /**
+     * Envío masivo de facturas al correo electrónico.
+     * Omite facturas que ya fueron enviadas (correo == 1).
+     * Requiere que la factura esté emitida (emitida == 1).
+     */
+    public function envioMasivoCorreo($facturas)
+    {
+        $facturasIds = explode(',', $facturas);
+        $empresa = Auth::user()->empresaObj;
+        $btw = new \App\Services\BTWService();
+
+        $total = count($facturasIds);
+        $enviados = 0;
+        $omitidos = 0;
+        $errores = 0;
+        $detalle = [];
+
+        foreach ($facturasIds as $facturaId) {
+            $factura = Factura::where('empresa', $empresa->id)->where('id', $facturaId)->first();
+
+            if (!$factura) {
+                $errores++;
+                $detalle[] = [
+                    'codigo' => "ID: $facturaId",
+                    'estado' => 'error',
+                    'mensaje' => 'Factura no encontrada'
+                ];
+                continue;
+            }
+
+            // Omitir si ya fue enviada exitosamente
+            if ($factura->correo == 1) {
+                $omitidos++;
+                $detalle[] = [
+                    'codigo' => $factura->codigo,
+                    'estado' => 'omitido',
+                    'mensaje' => 'Ya fue enviada al correo anteriormente'
+                ];
+                continue;
+            }
+
+            // Validar que la factura esté emitida
+            if ($factura->emitida != 1) {
+                $errores++;
+                $detalle[] = [
+                    'codigo' => $factura->codigo,
+                    'estado' => 'error',
+                    'mensaje' => 'La factura no ha sido emitida'
+                ];
+                continue;
+            }
+
+            $cliente = Contacto::find($factura->cliente);
+
+            if (!$cliente || !$cliente->email) {
+                $errores++;
+                $detalle[] = [
+                    'codigo' => $factura->codigo,
+                    'estado' => 'error',
+                    'mensaje' => 'El cliente no tiene correo registrado'
+                ];
+                continue;
+            }
+
+            try {
+                DB::reconnect();
+                $mensajeCorreo = $this->sendPdfEmailBTW($btw, $factura, $cliente, $empresa, 1);
+
+                // Verificar si se envió exitosamente
+                $factura->refresh();
+                if ($factura->correo == 1) {
+                    $enviados++;
+                    $detalle[] = [
+                        'codigo' => $factura->codigo,
+                        'estado' => 'enviado',
+                        'mensaje' => $mensajeCorreo
+                    ];
+                } else {
+                    $errores++;
+                    $detalle[] = [
+                        'codigo' => $factura->codigo,
+                        'estado' => 'error',
+                        'mensaje' => $mensajeCorreo
+                    ];
+                }
+            } catch (\Exception $e) {
+                $errores++;
+                $detalle[] = [
+                    'codigo' => $factura->codigo,
+                    'estado' => 'error',
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'total' => $total,
+            'enviados' => $enviados,
+            'omitidos' => $omitidos,
+            'errores' => $errores,
+            'detalle' => $detalle
+        ]);
     }
 }
