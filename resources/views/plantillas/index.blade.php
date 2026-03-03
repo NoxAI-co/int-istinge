@@ -11,6 +11,9 @@
     @if(isset($_SESSION['permisos']['701']))
         <a href="{{route('plantillas.create')}}" class="btn btn-primary btn-sm" ><i class="fas fa-plus"></i> Nueva Plantilla</a>
     @endif
+    @if(isset($_SESSION['permisos']['703']))
+        <button class="btn btn-danger btn-sm" id="btn_eliminar_masivo" style="display: none;" onclick="eliminarMasivo()"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
+    @endif
     @endif
 @endsection
 
@@ -46,6 +49,7 @@
 			<table class="table table-striped table-hover" id="table-facturas">
     			<thead class="thead-dark">
     				<tr>
+                        <th class="text-center" width="2%"><input type="checkbox" id="checkall"></th>
     	                <th class="text-center">Nro</th>
     	                <th class="text-center">Título</th>
     	                <th class="text-center">Tipo</th>
@@ -57,6 +61,7 @@
     			<tbody>
     			    @foreach($plantillas as $plantilla)
     				<tr @if($plantilla->id==Session::get('plantilla_id')) class="active_table" @endif>
+                        <td class="text-center"><input type="checkbox" class="chk-plantilla" value="{{ $plantilla->id }}"></td>
     	                <td class="text-center">{{ $plantilla->nro }}</td>
     	                <td class="text-center">{{ $plantilla->title }}</td>
     	                <td class="text-center">{{ $plantilla->tipo() }}</td>
@@ -101,4 +106,80 @@
     		</table>
 		</div>
 	</div>
+@endsection
+
+@section('scripts')
+<script>
+    $('#checkall').change(function() {
+        $('.chk-plantilla').prop('checked', $(this).prop('checked'));
+        toggleBtnEliminar();
+    });
+
+    $('.chk-plantilla').change(function() {
+        toggleBtnEliminar();
+        if ($('.chk-plantilla:checked').length == $('.chk-plantilla').length) {
+            $('#checkall').prop('checked', true);
+        } else {
+            $('#checkall').prop('checked', false);
+        }
+    });
+
+    function toggleBtnEliminar() {
+        if ($('.chk-plantilla:checked').length > 0) {
+            $('#btn_eliminar_masivo').show();
+        } else {
+            $('#btn_eliminar_masivo').hide();
+        }
+    }
+
+    function eliminarMasivo() {
+        let ids = [];
+        $('.chk-plantilla:checked').each(function() {
+            ids.push($(this).val());
+        });
+
+        if (ids.length === 0) return;
+
+        swal({
+            title: '¿Desea eliminar ' + ids.length + ' plantillas?',
+            text: 'Esta acción no se puede deshacer',
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.value) {
+                cargando(true);
+                $.ajax({
+                    url: '{{ route("plantillas.eliminar_masivo") }}',
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        ids: ids
+                    },
+                    success: function(response) {
+                        cargando(false);
+                        if (response.success) {
+                            swal({
+                                title: 'Eliminadas',
+                                text: 'Las plantillas han sido eliminadas exitosamente',
+                                type: 'success'
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            swal('Error', response.message || 'No se pudieron eliminar las plantillas', 'error');
+                        }
+                    },
+                    error: function() {
+                        cargando(false);
+                        swal('Error', 'Ocurrió un error en el servidor', 'error');
+                    }
+                });
+            }
+        });
+    }
+</script>
 @endsection

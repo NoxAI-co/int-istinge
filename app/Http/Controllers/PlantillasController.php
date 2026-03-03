@@ -241,6 +241,37 @@ class PlantillasController extends Controller
     }
 
     /**
+     * Remove multiple resources from storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function eliminarMasivo(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $ids = $request->ids;
+
+        if (!is_array($ids) || count($ids) == 0) {
+            return response()->json(['success' => false, 'message' => 'No se seleccionaron plantillas']);
+        }
+
+        try {
+            foreach ($ids as $id) {
+                $plantilla = Plantilla::find($id);
+                if ($plantilla) {
+                    if ($plantilla->tipo == 1) {
+                        Storage::disk('emails')->delete($plantilla->archivo . '.blade.php');
+                    }
+                    $plantilla->delete();
+                }
+            }
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @param  int  $id

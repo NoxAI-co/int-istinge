@@ -1769,6 +1769,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 	// PLANTILLAS
 	Route::group(['prefix' => 'plantillas'], function () {
+		Route::post('/eliminar-masivo', 'PlantillasController@eliminarMasivo')->name('plantillas.eliminar_masivo');
 		Route::post('/{id}/act_desc', 'PlantillasController@act_desc')->name('plantillas.act_desc');
 		Route::get('/envio', 'PlantillasController@envio')->name('plantillas.envio');
 		Route::post('/envio_aviso', 'PlantillasController@envio_aviso')->name('plantillas.envio_aviso');
