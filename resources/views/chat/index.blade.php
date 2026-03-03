@@ -492,6 +492,47 @@
     /* Scrollbar */
     .custom-scroll::-webkit-scrollbar { width: 6px; }
     .custom-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
+
+    /* Error Alert Banner */
+    .whatsapp-error-alert {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        color: #856404;
+        padding: 10px 16px;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        animation: fadeIn 0.3s ease-out;
+        border-bottom: 1px solid #f0d78e;
+    }
+
+    .whatsapp-error-alert.error-critical {
+        background-color: #f8d7da;
+        border-left-color: #dc3545;
+        color: #721c24;
+        border-bottom-color: #f1aeb5;
+    }
+
+    .whatsapp-error-alert .error-icon {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .whatsapp-error-alert .error-body {
+        flex: 1;
+    }
+
+    .whatsapp-error-alert .error-title {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .whatsapp-error-alert .error-detail {
+        font-size: 0.82rem;
+        opacity: 0.85;
+    }
 </style>
 
 <div id="whatsapp-chat-app">
@@ -618,6 +659,15 @@
                     </div>
                 </div>
 
+                <!-- Error Alert Banner -->
+                <div v-if="lastMessageError" class="whatsapp-error-alert" :class="{ 'error-critical': lastMessageError.critical }">
+                    <span class="error-icon">@{{ lastMessageError.critical ? '🚫' : '⚠️' }}</span>
+                    <div class="error-body">
+                        <div class="error-title">@{{ lastMessageError.title }}</div>
+                        <div class="error-detail">@{{ lastMessageError.detail }}</div>
+                    </div>
+                </div>
+
                 <!-- Messages -->
                 <div ref="messagesContainer" class="messages-container custom-scroll">
                     <div v-if="loadingMessages" style="text-align: center; color: #667781; padding: 10px;">
@@ -673,7 +723,8 @@
                                 <div class="message-meta">
                                     <span>@{{ formatTime(msg.created_at) }}</span>
                                     <span v-if="msg.direction === 'outbound'">
-                                        <span v-if="msg.status === 'read'" class="msg-status read">✓✓</span>
+                                        <span v-if="msg.status === 'failed'" class="msg-status" style="color: #dc3545;" :title="msg.error_message || 'Error al enviar'">✗</span>
+                                        <span v-else-if="msg.status === 'read'" class="msg-status read">✓✓</span>
                                         <span v-else-if="msg.status === 'delivered'" class="msg-status sent">✓✓</span>
                                         <span v-else class="msg-status sent">✓</span>
                                     </span>
@@ -829,6 +880,19 @@ new Vue({
 
         hasMoreConversations() {
             return this.currentPage < this.lastPage;
+        },
+
+        lastMessageError() {
+            const messages = this.messages || [];
+            if (messages.length === 0) return null;
+
+            // Get the last message by created_at
+            const sorted = [...messages].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const lastMsg = sorted[0];
+
+            if (!lastMsg || !lastMsg.error_message) return null;
+
+            return this.translateErrorMessage(lastMsg.error_message);
         },
 
         groupedMessages() {
@@ -1267,6 +1331,57 @@ new Vue({
             }
         },
         
+        // ========== ERROR TRANSLATION ==========
+
+        translateErrorMessage(rawError) {
+            const errorMap = {
+                'Business eligibility payment issue': {
+                    title: 'Problema de pago en la cuenta de WhatsApp Business',
+                    detail: 'La cuenta de WhatsApp Business tiene un problema con el método de pago. Los mensajes no se pueden enviar hasta que se resuelva el pago en la plataforma de Meta.',
+                    critical: true
+                },
+                'Message failed to send because more than 24 hours have passed since the customer last replied to this number': {
+                    title: 'Ventana de conversación expirada',
+                    detail: 'Han pasado más de 24 horas desde la última respuesta del cliente. Solo se pueden enviar plantillas de mensaje aprobadas.',
+                    critical: false
+                },
+                'Rate limit hit': {
+                    title: 'Límite de envío alcanzado',
+                    detail: 'Se ha superado el límite de mensajes permitidos. Espere unos minutos antes de intentar enviar nuevamente.',
+                    critical: false
+                },
+                'Recipient phone number not in allowed list': {
+                    title: 'Número no permitido',
+                    detail: 'El número del destinatario no está en la lista de números permitidos. Verifique la configuración de la cuenta.',
+                    critical: false
+                },
+                'Media download error': {
+                    title: 'Error al descargar multimedia',
+                    detail: 'No se pudo descargar el archivo multimedia adjunto. Intente enviar el mensaje nuevamente.',
+                    critical: false
+                }
+            };
+
+            // Exact match
+            if (errorMap[rawError]) {
+                return errorMap[rawError];
+            }
+
+            // Partial match (some errors may have extra details appended)
+            for (const key in errorMap) {
+                if (rawError.toLowerCase().includes(key.toLowerCase())) {
+                    return errorMap[key];
+                }
+            }
+
+            // Fallback: show raw error in a user-friendly way
+            return {
+                title: 'Error en el envío del mensaje',
+                detail: rawError,
+                critical: false
+            };
+        },
+
         // ========== UTILIDADES ==========
         
         scrollToBottom() {
