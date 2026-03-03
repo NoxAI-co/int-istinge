@@ -2256,7 +2256,7 @@ class ReportesController extends Controller
             $order=$request->order==1?'DESC':'ASC';
 
             $facturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
-                ->join('contracts', 'factura.contrato_id', '=', 'contracts.id')
+                ->leftjoin('contracts', 'factura.contrato_id', '=', 'contracts.id')
                 ->leftjoin('mikrotik', 'mikrotik.id', '=', 'contracts.server_configuration_id')
                 ->select('factura.id', 'factura.codigo', 'factura.nro','factura.cot_nro', DB::raw('c.nombre as nombrecliente'),
                     'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa','c.status')
