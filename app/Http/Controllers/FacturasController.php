@@ -3333,7 +3333,7 @@ class FacturasController extends Controller{
 
                     if($con){
                         $textDireccion .="|";
-                        $textDireccion .=$con->address_street?:$con->cliente()->direccion;
+                        $textDireccion .= $con->address_street ? $con->address_street : ($con->cliente() ? $con->cliente()->direccion : '');
                         $textDireccion .="|";
                     }
                 }
@@ -3344,7 +3344,7 @@ class FacturasController extends Controller{
                     $textContratos.=  "|" .$con->nro . "|";
 
                     $textDireccion .="|";
-                    $textDireccion .=$con->address_street?:$con->cliente()->direccion;
+                    $textDireccion .= $con->address_street ? $con->address_street : ($con->cliente() ? $con->cliente()->direccion : '');
                     $textDireccion .="|";
                 }
             }
