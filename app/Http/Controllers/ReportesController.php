@@ -2244,7 +2244,9 @@ class ReportesController extends Controller
             return $this->remisiones($request);
         }else{
 
-            $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)->get();
+            $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)
+            ->whereIn('tipo', [1,2])
+            ->get();
             view()->share(['seccion' => 'reportes', 'title' => 'Reporte de Facturas Impagas', 'icon' =>'fas fa-chart-line']);
             $campos=array( '','nombrecliente', 'factura.fecha', 'factura.vencimiento', 'nro', 'nro', 'nro', 'nro');
             if (!$request->orderby) {
