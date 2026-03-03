@@ -3699,7 +3699,7 @@ class ExportarReportesController extends Controller
         );
     }
 
-    public function cajas(Request $request) {
+     public function cajas(Request $request) {
         // Aumentar tiempo de ejecución y memoria para reportes grandes
         ini_set('max_execution_time', 300); // 5 minutos
         ini_set('memory_limit', '512M');
@@ -3749,42 +3749,41 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        if(!$request->servidor){
-            $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
-                ->leftjoin('ingresos as i', function($join) {
-                    $join->on('i.id', '=', 'movimientos.id_modulo')
-                         ->on('movimientos.modulo', '=', DB::raw('1'));
-                })
-                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
-                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
-                ->where('movimientos.fecha', '>=', $dates['inicio'])
-                ->where('movimientos.fecha', '<=', $dates['fin'])
-                ->where('movimientos.estatus','<>',2)
-                ->where('movimientos.empresa',Auth::user()->empresa);
+        if(!isset($request->servidor) ||  $request->servidor == 0){
+        $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
+            ->leftjoin('ingresos as i', function($join) {
+                $join->on('i.id', '=', 'movimientos.id_modulo')
+                     ->where('movimientos.modulo', '=', 1);
+            })
+            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
+            ->leftjoin('factura as f','f.id','if.factura')
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'),'f.id as facturaId')
+            ->where('movimientos.fecha', '>=', $dates['inicio'])
+            ->where('movimientos.fecha', '<=', $dates['fin'])
+            ->where('movimientos.estatus','<>',2)
+            ->where('movimientos.empresa',Auth::user()->empresa)
+            ->groupBy('movimientos.id');
         }else{
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
-                ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
-                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
-                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
-                ->leftjoin('contracts as co','co.id','f.contrato_id')
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
-                ->where('movimientos.fecha', '>=', $dates['inicio'])
-                ->where('movimientos.fecha', '<=', $dates['fin'])
-                ->where('movimientos.modulo',1)
-                ->where('movimientos.estatus','<>',2)
-                ->where('co.server_configuration_id',$request->servidor)
-                ->where('movimientos.empresa',Auth::user()->empresa);
+            ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
+            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
+            ->leftjoin('factura as f','f.id','if.factura')
+            ->leftjoin('contracts as co','co.id','f.contrato_id')
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
+            ->where('movimientos.fecha', '>=', $dates['inicio'])
+            ->where('movimientos.fecha', '<=', $dates['fin'])
+            ->where('movimientos.modulo',1)
+            ->where('movimientos.estatus','<>',2)
+            ->where('co.server_configuration_id',$request->servidor)
+            ->where('movimientos.empresa',Auth::user()->empresa);
+
         }
 
         if($request->caja){
-            $movimientos->where('banco',$request->caja);
+            $movimientos->where('banco',$banco->id);
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
-        }
-        if($request->metodo_pago){
-            $movimientos->where('i.metodo_pago', $request->metodo_pago);
         }
         if($request->forma_pago){
             $movimientos->where('i.forma_pago', $request->forma_pago);
@@ -3859,23 +3858,15 @@ class ExportarReportesController extends Controller
 
                 $totalFactura = 0;
                 $nroContrato = "";
-                
-                $factura = null;
-                if(isset($movimiento->facturaId) && $movimiento->facturaId != null){
+                if($movimiento->facturaId != null){
                     $factura = Factura::Find($movimiento->facturaId);
-                } elseif ($movimiento->modulo == 1) {
-                    $ingresoFactura = \App\Model\Ingresos\IngresosFactura::where('ingreso', $movimiento->id_modulo)->first();
-                    if ($ingresoFactura) {
-                        $factura = Factura::find($ingresoFactura->factura);
-                    }
-                }
-                
-                if($factura){
-                    $totalFactura = $factura->total()->total;
-                    $sumaTotalFactura+=$totalFactura;
-                    $contratos = $factura->contratos();
-                    if($contratos && $contratos->count() > 0){
-                        $nroContrato = $contratos->first()->contrato_nro;
+                    if($factura){
+                        $totalFactura = $factura->total()->total;
+                        $sumaTotalFactura+=$totalFactura;
+                        $contratos = $factura->contratos();
+                        if($contratos && $contratos->count() > 0){
+                            $nroContrato = $contratos->first()->contrato_nro;
+                        }
                     }
                 }
 
