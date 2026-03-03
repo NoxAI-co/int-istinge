@@ -18,7 +18,7 @@ class MetaWhatsAppService
 
     public function __construct()
     {
-        $this->apiVersion = config('services.meta.api_version', 'v21.0');
+        $this->apiVersion = config('services.meta.api_version', 'v25.0');
         $this->baseUri = "https://graph.facebook.com/{$this->apiVersion}";
         $this->accessToken = config('services.meta.access_token');
     }
