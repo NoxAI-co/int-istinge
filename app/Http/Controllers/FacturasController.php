@@ -2251,6 +2251,8 @@ class FacturasController extends Controller{
         $user = Auth::user();
         if ($factura) {
             if ($factura->estatus==1 || (isset($factura->total()->total) && $factura->total()->total == 0)) {
+                $factura->estatus = 1;
+                $factura->save();
                 //se devolveran todos los items al inventario
                 // Asi evitar que no exista la posibilidad de error en el momento de restar los items abajo
                 $bodega = Bodega::where('empresa',$user->empresa)->where('id', $factura->bodega)->first();
@@ -7211,6 +7213,14 @@ class FacturasController extends Controller{
                     'success' => false,
                     'message' => 'La factura no existe'
                 ], 404);
+            }
+
+            // No permitir modificar el código de facturas ya emitidas a la DIAN
+            if ($factura->emitida == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede modificar el código de una factura emitida'
+                ], 403);
             }
 
             $factura->codigo = $codigo;

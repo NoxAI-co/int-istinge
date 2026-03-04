@@ -59,6 +59,12 @@
         </a>
         @endif
     @endif
+    @if($factura->emitida == 0 && isset($_SESSION['permisos']['43']))
+        <a href="#" class="btn btn-outline-warning btn-icons" title="Editar Número de Factura"
+            onclick="abrirModalEditarCodigoLista({{$factura->id}}, '{{$factura->codigo}}', {{$factura->numeracion}}); return false;">
+            <i class="fas fa-hashtag"></i>
+        </a>
+    @endif
     @if(!isset($_SESSION['permisos']['857']))
 	    <a href="{{route('facturas.showmovimiento',$factura->id)}}" class="btn btn-outline-info btn-icons" title="Ver movimientos"><i class="far fa-sticky-note"></i></a>
 	@endif

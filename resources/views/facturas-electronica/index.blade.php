@@ -303,6 +303,42 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal Editar Código Factura desde listado --}}
+    <div class="modal fade" id="modalEditarCodigoLista" role="dialog" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Editar Número de Factura</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-editar-codigo-lista">
+                        <div class="form-group">
+                            <label>Prefijo (no editable)</label>
+                            <input type="text" class="form-control" id="prefijo-codigo-lista" readonly>
+                            <input type="hidden" id="numeracion-id-codigo-lista">
+                            <input type="hidden" id="factura-id-codigo-lista">
+                        </div>
+                        <div class="form-group">
+                            <label>Número <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="numero-codigo-lista" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Código completo</label>
+                            <input type="text" class="form-control" id="codigo-completo-lista" readonly>
+                        </div>
+                        <div id="error-codigo-lista" class="alert alert-danger" style="display:none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="guardarCodigoFacturaLista()">Guardar</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{--/Modal Editar Código Factura desde listado --}}
 @endsection
 
 @section('style')
@@ -1061,6 +1097,108 @@
 
 	function exportar() {
         window.location.href = window.location.pathname+'/exportar?codigo='+$('#codigo').val()+'&cliente='+$('#cliente').val()+'&municipio='+$('#municipio').val()+'&barrio='+$('#barrio').val()+'&desde='+$('#desde').val()+'&hasta='+$('#hasta').val()+'&grupos_corte='+$('#grupos_corte').val()+'&fact_siigo='+$('#fact_siigo').val()+'&otras_opciones='+$('#otras_opciones').val()+'&estado='+$('#estado').val()+'&prorrateo='+$('#prorrateo').val()+'&tipo=2';
+	}
+
+	// ===== Editar Código de Factura desde el listado =====
+	function abrirModalEditarCodigoLista(facturaId, codigoActual, numeracionId) {
+		$('#factura-id-codigo-lista').val(facturaId);
+		$('#numeracion-id-codigo-lista').val(numeracionId);
+		$('#error-codigo-lista').hide().text('');
+
+		// Obtener prefijo via AJAX
+		var url = '{{ route("facturas.numeracion-prefijo", ":id") }}';
+		url = url.replace(':id', numeracionId);
+
+		$.ajax({
+			url: url,
+			method: 'GET',
+			success: function(data) {
+				if (data.success) {
+					var prefijo = data.prefijo;
+					var numero = codigoActual.replace(prefijo, '');
+					$('#prefijo-codigo-lista').val(prefijo);
+					$('#numero-codigo-lista').val(numero);
+					$('#codigo-completo-lista').val(prefijo + numero);
+					$('#modalEditarCodigoLista').modal('show');
+				} else {
+					Swal.fire({ type: 'error', title: 'Error al obtener el prefijo de la numeración', showConfirmButton: true });
+				}
+			},
+			error: function() {
+				Swal.fire({ type: 'error', title: 'Error al obtener el prefijo de la numeración', showConfirmButton: true });
+			}
+		});
+	}
+
+	// Actualizar código completo al cambiar número
+	$(document).on('input', '#numero-codigo-lista', function() {
+		var prefijo = $('#prefijo-codigo-lista').val();
+		$('#codigo-completo-lista').val(prefijo + $(this).val());
+	});
+
+	function guardarCodigoFacturaLista() {
+		var numeracionId = $('#numeracion-id-codigo-lista').val();
+		var facturaId = $('#factura-id-codigo-lista').val();
+		var prefijo = $('#prefijo-codigo-lista').val();
+		var numero = $('#numero-codigo-lista').val();
+		var codigo = prefijo + numero;
+
+		if (!numero || numero.trim() === '') {
+			$('#error-codigo-lista').text('El número es obligatorio').show();
+			return;
+		}
+		$('#error-codigo-lista').hide();
+
+		$.ajax({
+			url: '{{ route("facturas.validar-codigo") }}',
+			method: 'POST',
+			data: {
+				_token: '{{ csrf_token() }}',
+				numeracion_id: numeracionId,
+				codigo: codigo,
+				factura_id: facturaId
+			},
+			success: function(data) {
+				if (data.success) {
+					actualizarCodigoFacturaLista(codigo, numeracionId, facturaId);
+				} else {
+					$('#error-codigo-lista').text(data.message).show();
+				}
+			},
+			error: function(xhr) {
+				var msg = 'Error al validar el código';
+				if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+				$('#error-codigo-lista').text(msg).show();
+			}
+		});
+	}
+
+	function actualizarCodigoFacturaLista(codigo, numeracionId, facturaId) {
+		$.ajax({
+			url: '{{ route("facturas.actualizar-codigo") }}',
+			method: 'POST',
+			data: {
+				_token: '{{ csrf_token() }}',
+				codigo: codigo,
+				numeracion_id: numeracionId,
+				factura_id: facturaId
+			},
+			success: function(data) {
+				if (data.success) {
+					$('#modalEditarCodigoLista').modal('hide');
+					Swal.fire({ type: 'success', title: 'Código actualizado a: ' + data.codigo, showConfirmButton: false, timer: 2000 });
+					// Recargar DataTable
+					$('#tabla-facturas').DataTable().ajax.reload(null, false);
+				} else {
+					$('#error-codigo-lista').text(data.message).show();
+				}
+			},
+			error: function(xhr) {
+				var msg = 'Error al actualizar el código';
+				if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+				$('#error-codigo-lista').text(msg).show();
+			}
+		});
 	}
 </script>
 @endsection
