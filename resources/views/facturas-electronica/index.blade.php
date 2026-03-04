@@ -225,7 +225,7 @@
 								<a><i data-tippy-content="Si el cliente tiene más de una factura (a partir de 2 facturas) saldrán en la tabla, usa las fechas desde - hasta para obtener mayor precisión y saber si un cliente se le generó varias veces la facturación en un mes." class="icono far fa-question-circle"></i></a>
 							</span>
 						</div>
-						<div class="col-md-2 pl-1 pt-1">
+						<div class="col-md-3 pl-1 pt-1">
 							<select title="¿Enviado al correo?" class="form-control rounded selectpicker" id="correo" multiple data-live-search="false">
 								<option value="1">Si</option>
 								<option value="0">No</option>
