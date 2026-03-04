@@ -80,35 +80,49 @@
     @if(isset($dianFecthSync) && $dianFecthSync)
 
          <div class="alert alert-warning alert-dismissible fade show" role="alert">
-             <strong>⚠️ Volver a emitir facturas: {{ $dianFecthSync }} para revalidar el estado de emisión</strong><br>
-             <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+             <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
                     <span aria-hidden="true">&times;</span>
             </button>
+            <button type="button" class="btn btn-warning btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+                Cerrar
+            </button>
+             <strong>⚠️ Volver a emitir facturas: {{ $dianFecthSync }} para revalidar el estado de emisión</strong><br>
         </div>
 
     @endif
 
     @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        <button type="button" class="btn btn-warning btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+            Cerrar
+        </button>
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
         Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b><br>
         Rango: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
         Último usado: <b>{{ $reporteFaltantes['ultimo_usado'] }}</b><br>
         Faltantes:
         <span class="text-danger">
-            {{ implode(', ', $reporteFaltantes['faltantes']) }}
+            @if(count($reporteFaltantes['faltantes']) > 100)
+                {{ implode(', ', array_slice($reporteFaltantes['faltantes'], 0, 100)) }}
+                y {{ count($reporteFaltantes['faltantes']) - 100 }} más.
+            @else
+                {{ implode(', ', $reporteFaltantes['faltantes']) }}
+            @endif
         </span><br>
         <span>Por favor crea manualmente facturas con estos consecutivos.</span>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-        </button>
     </div>
     @else
     <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <span>✅ No tienes consecutivos salteados.</span>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+        <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
         </button>
+        <button type="button" class="btn btn-info btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+            Cerrar
+        </button>
+        <span>✅ No tienes consecutivos salteados.</span>
     </div>
     @endif
 
@@ -229,15 +243,22 @@
 	<div class="row card-description">
 		<div class="col-md-12">
     		<div class="container-filtercolumn form-inline">
-    			@if(isset($_SESSION['permisos']['750']))
-    			<a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
-    			@endif
-    			@if(Auth::user()->empresa()->efecty == 1)
-    			<a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm mr-1" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
-    			@endif
-    			@if(isset($_SESSION['permisos']['774']))
-                <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
-                @endif
+    			<div class="dropdown mr-1">
+                    <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownOtrasAcciones" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Otras Acciones
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownOtrasAcciones">
+                        @if(isset($_SESSION['permisos']['750']))
+                        <a class="dropdown-item" href="{{route('campos.organizar', 4)}}"><i class="fas fa-table"></i> Organizar Tabla</a>
+                        @endif
+                        @if(Auth::user()->empresa()->efecty == 1)
+                        <a class="dropdown-item" href="{{route('facturas.downloadefecty')}}"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['774']))
+                        <a class="dropdown-item" href="{{route('promesas-pago.index')}}"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
+                        @endif
+                    </div>
+                </div>
 				<div class="dropdown mr-1">
                     <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Acciones en Lote

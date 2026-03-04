@@ -67,7 +67,7 @@ class CamposController extends Controller{
         }
         $mensaje='SE HA REGISTRADO SATISFACTORIAMENTE LA CONFIGURACIÓN DE LA TABLA';
         $visibles = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', $request->id)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
-        return redirect('empresa/'.$visibles[0]->modulo('true'))->with('success', $mensaje);
+        return redirect()->back()->with('success', $mensaje);
     }
 
     public function create(){
