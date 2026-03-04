@@ -899,7 +899,7 @@ function contacto(selected, modificar = false, type = 1) {
 
 
             //Validación de cuando es una factura estandar normal pero no tiene ningun contrato sale alerta.
-            if (window.location.pathname.split("/")[3] != "ordenes") {
+            if (window.location.pathname.split("/")[3] != "ordenes" && $("#editfactura").length == 0) {
                 if (data.plan == null && type == 1 && data.servicio_tv == null && modulo == 0 && data.servicio_otro == 0 && data.factura_est_elec != 1) {
                     if ($("#dian").val() == null) {
                         Swal.fire({
@@ -2002,10 +2002,10 @@ function max_value_valor_recibido(id, ides = null, pref = null) {
         }
 
     });
-    
+
     var total = total_por_pagar - total_retenciones;
     total = number_format(total, false);
-    
+
     if ($('#editmonto' + id).val() == 1) {
         if (pref) {
             $('#precio' + id).val(number_format(total, false));
@@ -2019,10 +2019,10 @@ function max_value_valor_recibido(id, ides = null, pref = null) {
             gross = current_val + total_retenciones;
             $('#precio' + id).data('gross', gross);
         }
-        
+
         var new_net = gross - total_retenciones;
         if (new_net < 0) new_net = 0;
-        
+
         if (pref) {
             $('#precio' + id).val(number_format(new_net, false));
             $('#precio' + id).trigger("change");
@@ -2274,7 +2274,7 @@ function editmonto(id) {
 
     if ($('#precio' + id).val() !== '') {
         $('#editmonto' + id).val(0);
-        
+
         var current_retenciones = 0;
         $('#retenciones_factura_' + id + ' div').each(function () {
             var id_reten = $(this).attr('id');
@@ -2286,10 +2286,10 @@ function editmonto(id) {
                 }
             }
         });
-        
+
         var current_val = parseFloat($('#precio' + id).val().toString().replace(/,/g, ''));
         if (isNaN(current_val)) current_val = 0;
-        
+
         var gross = current_val + current_retenciones;
         $('#precio' + id).data('gross', gross);
     } else {
