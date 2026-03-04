@@ -45,6 +45,40 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Selector de mes/año (visible solo cuando usar_fechas_corte está activo) --}}
+                <div class="form-group row mt-3" id="mes_factura_container" style="display: none;">
+                    <div class="col-sm-12 text-center">
+                        <label style="font-weight: bold;" class="mb-2">
+                            <i class="fas fa-calendar-alt text-primary mr-1"></i>
+                            Seleccione el mes en que se creará la factura según el grupo de corte:
+                        </label>
+                        <div class="d-flex align-items-center justify-content-center mt-2 gap-2" style="gap: 10px;">
+                            <select name="mes_factura" id="mes_factura" class="form-control" style="max-width: 180px;">
+                                <option value="1"  {{ date('n') == 1  ? 'selected' : '' }}>Enero</option>
+                                <option value="2"  {{ date('n') == 2  ? 'selected' : '' }}>Febrero</option>
+                                <option value="3"  {{ date('n') == 3  ? 'selected' : '' }}>Marzo</option>
+                                <option value="4"  {{ date('n') == 4  ? 'selected' : '' }}>Abril</option>
+                                <option value="5"  {{ date('n') == 5  ? 'selected' : '' }}>Mayo</option>
+                                <option value="6"  {{ date('n') == 6  ? 'selected' : '' }}>Junio</option>
+                                <option value="7"  {{ date('n') == 7  ? 'selected' : '' }}>Julio</option>
+                                <option value="8"  {{ date('n') == 8  ? 'selected' : '' }}>Agosto</option>
+                                <option value="9"  {{ date('n') == 9  ? 'selected' : '' }}>Septiembre</option>
+                                <option value="10" {{ date('n') == 10 ? 'selected' : '' }}>Octubre</option>
+                                <option value="11" {{ date('n') == 11 ? 'selected' : '' }}>Noviembre</option>
+                                <option value="12" {{ date('n') == 12 ? 'selected' : '' }}>Diciembre</option>
+                            </select>
+                            <select name="anio_factura" id="anio_factura" class="form-control" style="max-width: 110px;">
+                                @for ($y = date('Y') - 1; $y <= date('Y') + 1; $y++)
+                                    <option value="{{ $y }}" {{ date('Y') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <small class="text-muted mt-1 d-block">
+                            Las fechas de factura, vencimiento y suspensión se calcularán usando los días del grupo de corte en el mes seleccionado.
+                        </small>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-12 text-center mt-3">
@@ -83,8 +117,10 @@
     $('#usar_fechas_corte').change(function() {
         if ($(this).is(':checked')) {
             $('#usar_fechas_corte_label').text('Si');
+            $('#mes_factura_container').slideDown(300);
         } else {
             $('#usar_fechas_corte_label').text('No');
+            $('#mes_factura_container').slideUp(300);
         }
     });
 </script>

@@ -7355,7 +7355,11 @@ class FacturasController extends Controller{
             'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
         ]);
 
-        $usar_fechas_corte = $request->has('usar_fechas_corte') ? true : false;
+        $usar_fechas_corte = $request->has('usar_fechas_corte') && $request->usar_fechas_corte == '1' ? true : false;
+
+        // Mes y año elegidos por el usuario para basar el cálculo de fechas del grupo de corte
+        $mesSeleccionado  = $usar_fechas_corte && $request->mes_factura  ? (int) $request->mes_factura  : (int) date('m');
+        $anioSeleccionado = $usar_fechas_corte && $request->anio_factura ? (int) $request->anio_factura : (int) date('Y');
 
         $imagen = $request->file('archivo');
         $nombre_imagen = 'saldos_' . time() . '.' . $imagen->getClientOriginalExtension();
@@ -7443,17 +7447,17 @@ class FacturasController extends Controller{
                 if ($contrato && $contrato->grupo_corte) {
                     $grupo = $contrato->grupo_corte();
                     if ($grupo) {
-                        $currentMonth = date('m');
-                        $currentYear = date('Y');
-                        
+                        $currentMonth = $mesSeleccionado;
+                        $currentYear  = $anioSeleccionado;
+
                         // Parsear las fechas considerando si el día es del mismo mes o siguiente
-                        $fecha = Carbon::createFromFormat('Y-m-d', $currentYear . '-' . $currentMonth . '-' . min($grupo->fecha_factura, Carbon::now()->daysInMonth))->format('Y-m-d');
-                        
-                        // Vencimiento mes o siguiente (dependiendo del tipo)
-                        $mesVencimiento = ($grupo->fecha_factura > $grupo->fecha_suspension) ? date('m', strtotime('+1 month')) : $currentMonth;
-                        $yearVencimiento = ($grupo->fecha_factura > $grupo->fecha_suspension && $currentMonth == '12') ? $currentYear + 1 : $currentYear;
+                        $fecha = Carbon::createFromFormat('Y-m-d', $currentYear . '-' . str_pad($currentMonth, 2, '0', STR_PAD_LEFT) . '-' . min($grupo->fecha_factura, Carbon::create($currentYear, $currentMonth, 1)->daysInMonth))->format('Y-m-d');
+
+                        // Vencimiento: si el día de factura > día de suspensión se asume que cae en el mes siguiente
+                        $mesVencimiento  = ($grupo->fecha_factura > $grupo->fecha_suspension) ? (($currentMonth == 12) ? 1 : $currentMonth + 1) : $currentMonth;
+                        $yearVencimiento = ($grupo->fecha_factura > $grupo->fecha_suspension && $currentMonth == 12) ? $currentYear + 1 : $currentYear;
                         $cantDiasMesVenc = Carbon::create($yearVencimiento, $mesVencimiento, 1)->daysInMonth;
-                        $vencimiento = Carbon::createFromFormat('Y-m-d', $yearVencimiento . '-' . $mesVencimiento . '-' . min($grupo->fecha_suspension, $cantDiasMesVenc))->format('Y-m-d');
+                        $vencimiento = Carbon::createFromFormat('Y-m-d', $yearVencimiento . '-' . str_pad($mesVencimiento, 2, '0', STR_PAD_LEFT) . '-' . min($grupo->fecha_suspension, $cantDiasMesVenc))->format('Y-m-d');
                         $suspensionDate = $vencimiento;
                     }
                 }
