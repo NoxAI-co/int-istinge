@@ -2152,7 +2152,7 @@ class FacturasController extends Controller{
         $formasPago = PucMovimiento::where('documento_id',$factura->id)->where('tipo_comprobante',3)->where('enlace_a',4)->get();
 
         if ($factura) {
-            if ($factura->estatus==1) {
+            if ($factura->estatus==1 || (isset($factura->total()->total) && $factura->total()->total == 0)) {
                 //Obtengo el objeto bodega
                 $bodega = Bodega::where('empresa',Auth::user()->empresa)->where('id', $factura->bodega)->first();
                 if (!$bodega) {
@@ -2250,7 +2250,7 @@ class FacturasController extends Controller{
 
         $user = Auth::user();
         if ($factura) {
-            if ($factura->estatus==1) {
+            if ($factura->estatus==1 || (isset($factura->total()->total) && $factura->total()->total == 0)) {
                 //se devolveran todos los items al inventario
                 // Asi evitar que no exista la posibilidad de error en el momento de restar los items abajo
                 $bodega = Bodega::where('empresa',$user->empresa)->where('id', $factura->bodega)->first();
