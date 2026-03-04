@@ -791,6 +791,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('facturas/validar-codigo', 'FacturasController@validarCodigoFactura')->name('facturas.validar-codigo');
 	Route::post('facturas/actualizar-codigo', 'FacturasController@actualizarCodigoFactura')->name('facturas.actualizar-codigo');
 	Route::get('facturas/numeracion-prefijo/{id}', 'FacturasController@getNumeracionPrefijo')->name('facturas.numeracion-prefijo');
+	Route::post('facturas/renumerar-consecutivos', 'FacturasController@renumerarConsecutivos')->name('facturas.renumerar-consecutivos');
 
 
 	Route::group(['prefix' => 'recepcion'], function () {

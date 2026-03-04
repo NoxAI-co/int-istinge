@@ -7266,6 +7266,182 @@ class FacturasController extends Controller{
         ], 200);
     }
 
+    /**
+     * Renumerar consecutivos de facturas no emitidas
+     * Asigna códigos secuenciales comenzando desde un número dado,
+     * saltando los que ya estén en uso por facturas emitidas
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function renumerarConsecutivos(Request $request)
+    {
+        // Verificar permiso 43
+        $this->getAllPermissions(Auth::user()->id);
+        if (!isset($_SESSION['permisos']['43'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tiene permisos para realizar esta acción'
+            ], 403);
+        }
+
+        $desde = (int) $request->desde;
+        if ($desde < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El número de inicio debe ser mayor a 0'
+            ], 400);
+        }
+
+        $user = Auth::user();
+        $empresaId = $user->empresa;
+
+        // 1. Obtener la numeración activa electrónica
+        $numeracion = NumeracionFactura::where('empresa', $empresaId)
+            ->where('preferida', 1)
+            ->where('estado', 1)
+            ->where('tipo', 2)
+            ->first();
+
+        if (!$numeracion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una numeración de factura electrónica activa'
+            ], 400);
+        }
+
+        $prefijo = $numeracion->prefijo;
+
+        // 2. Consultar facturas NO emitidas con esta numeración, aplicando filtros de la tabla
+        $facturas = Factura::where('factura.empresa', $empresaId)
+            ->where('factura.tipo', 2)
+            ->where('factura.emitida', 0)
+            ->where('factura.numeracion', $numeracion->id);
+
+        // Aplicar los mismos filtros que usa facturas_electronica()
+        if ($request->codigo) {
+            $facturas->where('factura.codigo', 'like', "%{$request->codigo}%");
+        }
+        if ($request->cliente) {
+            $facturas->where('factura.cliente', $request->cliente);
+        }
+        if ($request->estado) {
+            $facturas->where('factura.estatus', $request->estado);
+        }
+        if ($request->desde_fecha) {
+            $facturas->where('factura.fecha', '>=', $request->desde_fecha);
+        }
+        if ($request->hasta_fecha) {
+            $facturas->where('factura.fecha', '<=', $request->hasta_fecha);
+        }
+        if ($request->prorrateo) {
+            if ($request->prorrateo == '1') {
+                $facturas->where('factura.prorrateo_aplicado', 1);
+            } else {
+                $facturas->where(function ($query) {
+                    $query->where('factura.prorrateo_aplicado', 0)->orWhereNull('factura.prorrateo_aplicado');
+                });
+            }
+        }
+
+        // Filtros que requieren joins
+        if ($request->corte || $request->servidor || $request->grupos_corte) {
+            $facturas->leftJoin('facturas_contratos as fc_r', 'factura.id', '=', 'fc_r.factura_id')
+                     ->leftJoin('contracts as cs_r', 'cs_r.nro', '=', 'fc_r.contrato_nro');
+
+            if ($request->corte) {
+                $facturas->where('cs_r.fecha_corte', $request->corte);
+            }
+            if ($request->servidor) {
+                $facturas->where('cs_r.server_configuration_id', $request->servidor);
+            }
+            if ($request->grupos_corte) {
+                $facturas->whereIn('cs_r.grupo_corte', is_array($request->grupos_corte) ? $request->grupos_corte : [$request->grupos_corte]);
+            }
+        }
+
+        if ($request->municipio) {
+            $facturas->join('contactos as c_r', 'factura.cliente', '=', 'c_r.id')
+                     ->where('c_r.fk_idmunicipio', $request->municipio);
+        }
+
+        if ($request->correo && is_array($request->correo) && count($request->correo) > 0) {
+            $correoValues = $request->correo;
+            $facturas->where(function ($query) use ($correoValues) {
+                $query->whereIn('factura.correo', $correoValues);
+                if (in_array('0', $correoValues)) {
+                    $query->orWhereNull('factura.correo');
+                }
+            });
+        }
+
+        if ($request->fact_siigo) {
+            $siigoValues = is_array($request->fact_siigo) ? $request->fact_siigo : [$request->fact_siigo];
+            if (in_array('1', $siigoValues) && !in_array('0', $siigoValues)) {
+                $facturas->whereNotNull('factura.siigo_id');
+            } elseif (in_array('0', $siigoValues) && !in_array('1', $siigoValues)) {
+                $facturas->whereNull('factura.siigo_id');
+            }
+        }
+
+        // Ordenar por ID ASC (las más antiguas primero)
+        $facturasIds = $facturas->orderBy('factura.id', 'ASC')
+            ->pluck('factura.id')
+            ->toArray();
+
+        if (empty($facturasIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontraron facturas no emitidas con los filtros seleccionados'
+            ], 200);
+        }
+
+        // 3. Obtener los códigos ya usados por cualquier factura con esta numeración (excluyendo las que vamos a renumerar)
+        $codigosUsados = Factura::where('numeracion', $numeracion->id)
+            ->whereNotIn('id', $facturasIds)
+            ->pluck('codigo')
+            ->map(function ($codigo) use ($prefijo) {
+                return (int) str_replace($prefijo, '', $codigo);
+            })
+            ->toArray();
+
+        // 4. Renumerar secuencialmente, saltando números en uso
+        $numeroActual = $desde;
+        $modificadas = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($facturasIds as $facturaId) {
+                // Saltar números que ya están en uso
+                while (in_array($numeroActual, $codigosUsados)) {
+                    $numeroActual++;
+                }
+
+                $nuevoCodigo = $prefijo . $numeroActual;
+                Factura::where('id', $facturaId)->update(['codigo' => $nuevoCodigo]);
+
+                $modificadas++;
+                $numeroActual++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $modificadas . ' facturas renumeradas correctamente',
+                'modificadas' => $modificadas
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al renumerar consecutivos: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al renumerar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function importarSaldos()
     {
         $this->getAllPermissions(Auth::user()->id);
