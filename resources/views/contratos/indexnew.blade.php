@@ -49,27 +49,21 @@
 
 @section('content')
     @if(Session::has('success'))
-        <div class="alert alert-success" style="margin-left: 2%;margin-right: 2%;">
-            {{Session::get('success')}}
+        <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-left: 2%;margin-right: 2%;">
+            {!! Session::get('success') !!}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
-        <script type="text/javascript">
-            setTimeout(function() {
-                $('.alert').hide();
-                $('.active_table').attr('class', ' ');
-            }, 25000);
-        </script>
     @endif
 
     @if(Session::has('danger'))
-        <div class="alert alert-danger" style="margin-left: 2%;margin-right: 2%;">
-            {{Session::get('danger')}}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-left: 2%;margin-right: 2%;">
+            {!! Session::get('danger') !!}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
-        <script type="text/javascript">
-            setTimeout(function() {
-                $('.alert').hide();
-                $('.active_table').attr('class', ' ');
-            }, 25000);
-        </script>
     @endif
 
 <form id="form-dinamic-action" method="GET">

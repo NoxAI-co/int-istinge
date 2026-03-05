@@ -34,7 +34,10 @@
 
   		<div class="row">
   			<label class="col-sm-8 col-form-label" style="text-align: right;">Siguiente número de nota crédito <span class="text-danger">*</span></label>
-  			<div class="col-sm-4">
+  			<div class="col-sm-2">
+  				<input type="text" class="form-control form-control-sm"  id="prefijo_credito" name="prefijo_credito" placeholder="Prefijo" value="{{isset($numeracion->prefijo_credito) ? $numeracion->prefijo_credito : ''}}" maxlength="10" disabled>
+  			</div>
+  			<div class="col-sm-2">
   				<input type="text" class="form-control form-control-sm"  id="credito" name="credito"  required="" value="{{$numeracion->credito}}" maxlength="10" disabled>
   			</div>
   		</div>

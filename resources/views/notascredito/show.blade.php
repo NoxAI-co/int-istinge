@@ -37,7 +37,7 @@
       <table class="table table-striped table-bordered table-sm info">
         <tbody>
           <tr>
-            <th width="20%">Código</th> <td>{{$nota->nro}}</td>
+            <th width="20%">Código</th> <td>{{$nota->prefijo}}{{$nota->nro}}</td>
           </tr>
           <tr>
             <th>Tipo de nota crédito</th> <td>{{$nota->tipo()}}</td>

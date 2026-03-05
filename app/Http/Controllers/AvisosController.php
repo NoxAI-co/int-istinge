@@ -208,9 +208,15 @@ class AvisosController extends Controller
 
             if($facturaContrato){
                 $contrato->factura_id = $facturaContrato->id;
+                $contrato->factura_codigo = $facturaContrato->codigo ?? '';
             }else{
                 $contrato->factura_id = null;
+                $contrato->factura_codigo = '';
             }
+
+            // Grupo de corte nombre para DataTable
+            $grupoCorteObj = $contrato->grupo_corte();
+            $contrato->grupo_corte_nombre = $grupoCorteObj ? $grupoCorteObj->nombre : 'Sin grupo';
         }
 
         $isFiberNet = false;
@@ -222,8 +228,10 @@ class AvisosController extends Controller
 
         $servidores = Mikrotik::where('empresa', auth()->user()->empresa)->get();
         $gruposCorte = GrupoCorte::where('empresa', Auth::user()->empresa)->get();
+        // Extraer todos los barrios únicos de los contratos
+        $barrios = $contratos->pluck('c_barrio')->filter()->unique()->values();
 
-        return view('avisos.envio')->with(compact('plantillas','contratos','opcion','id', 'servidores', 'gruposCorte', 'isFiberNet'));
+        return view('avisos.envio')->with(compact('plantillas','contratos','opcion','id', 'servidores', 'gruposCorte', 'isFiberNet', 'barrios'));
     }
 
     /**
@@ -474,8 +482,10 @@ class AvisosController extends Controller
                         $responseData = json_decode(json_encode($response), true);
                         $status = 'error';
 
-                        if (isset($responseData['messaging_product']) && $responseData['messaging_product'] === 'whatsapp') {
-                            if (isset($responseData['messages']) && count($responseData['messages']) > 0) {
+                        $data = isset($responseData['data']) ? $responseData['data'] : $responseData;
+
+                        if (isset($data['messaging_product']) && $data['messaging_product'] === 'whatsapp') {
+                            if (isset($data['messages']) && count($data['messages']) > 0) {
                                 $status = 'success';
                             }
                         }
@@ -770,6 +780,249 @@ class AvisosController extends Controller
                 return redirect('empresa/avisos')->with('danger', 'DISCULPE, NO POSEE NINGUN SERVICIO DE SMS HABILITADO. POR FAVOR HABILÍTELO PARA DISFRUTAR DEL SERVICIO');
             }
         }
+    }
+
+    /**
+     * Envío de WhatsApp por lotes via AJAX.
+     * Recibe un batch pequeño de contratos y retorna resultados individuales.
+     */
+    public function envio_aviso_batch(Request $request)
+    {
+        $empresa = Empresa::find(1);
+        $results = [];
+
+        // Validaciones básicas
+        if (!$request->contratos || !is_array($request->contratos) || count($request->contratos) == 0) {
+            return response()->json(['error' => 'No se recibieron contratos en este lote'], 422);
+        }
+
+        $plantilla = Plantilla::find($request->plantilla_id);
+        if (!$plantilla || $plantilla->tipo != 3) {
+            return response()->json(['error' => 'Plantilla no válida o no es de tipo Meta'], 422);
+        }
+
+        // Guardar body_dinamic en primer lote si viene
+        if ($request->has('body_dinamic') && $request->is_first_batch) {
+            $bodyDynamic = $request->input('body_dinamic');
+            if ($bodyDynamic) {
+                $decoded = json_decode($bodyDynamic, true);
+                if ($decoded !== null) {
+                    $plantilla->body_dinamic = $bodyDynamic;
+                    $plantilla->save();
+                }
+            }
+        }
+
+        // Buscar instancia Meta
+        $instance = Instance::where('company_id', $empresa->id)
+            ->where('activo', 1)
+            ->where('meta', 0)
+            ->first();
+
+        if (!$instance || empty($instance->phone_number_id) || $instance->type != 1) {
+            return response()->json(['error' => 'Instancia Meta Direct no encontrada, inactiva o sin ID de teléfono.'], 422);
+        }
+
+        $bodyDinamicParams = $request->input('body_dinamic_params', []);
+
+        foreach ($request->contratos as $contratoId) {
+            $contrato = Contrato::find($contratoId);
+
+            if (!$contrato) {
+                $results[] = [
+                    'contrato_id' => $contratoId,
+                    'contrato_nro' => 'N/A',
+                    'cliente' => 'Contrato no encontrado',
+                    'telefono' => '',
+                    'status' => 'error',
+                    'message_id' => null,
+                    'error' => 'Contrato no encontrado en la base de datos'
+                ];
+                continue;
+            }
+
+            $contacto = $contrato->cliente();
+            $clienteNombre = ($contacto->nombre ?? '') . ' ' . ($contacto->apellido1 ?? '') . ' ' . ($contacto->apellido2 ?? '');
+            $clienteNombre = trim($clienteNombre);
+
+            // Validar celular
+            if (!$contacto->celular || empty($contacto->celular)) {
+                $results[] = [
+                    'contrato_id' => $contrato->id,
+                    'contrato_nro' => $contrato->nro,
+                    'cliente' => $clienteNombre,
+                    'telefono' => '',
+                    'status' => 'error',
+                    'message_id' => null,
+                    'error' => 'Sin número de celular'
+                ];
+                continue;
+            }
+
+            // Prefijo telefónico
+            $prefijo = '57';
+            if (!empty($contacto->fk_idpais)) {
+                $prefijoData = \DB::table('prefijos_telefonicos')
+                    ->where('iso2', strtoupper($contacto->fk_idpais))
+                    ->first();
+                if ($prefijoData && !empty($prefijoData->phone_code)) {
+                    $prefijo = $prefijoData->phone_code;
+                }
+            }
+            $telefonoCompleto = $prefijo . ltrim($contacto->celular, '0');
+
+            try {
+                $metaService = new \App\Services\MetaWhatsAppService();
+
+                // Factura para campos dinámicos
+                $factura = Factura::where('contrato_id', $contrato->id)->latest()->first();
+
+                // Body Params
+                $bodyTextParams = [];
+                if (is_array($bodyDinamicParams) && count($bodyDinamicParams) > 0) {
+                    foreach ($bodyDinamicParams as $paramTemplate) {
+                        $paramValue = is_string($paramTemplate) ? $paramTemplate : '';
+                        $paramValue = \App\Helpers\CamposDinamicosHelper::procesarCamposDinamicos($paramValue, $contacto, $factura, $empresa);
+                        $bodyTextParams[] = $paramValue;
+                    }
+                }
+
+                // Construir components
+                $components = [];
+
+                // Header Document
+                if ($plantilla->body_header === 'DOCUMENT' && $factura) {
+                    $fileName = "Factura_{$factura->codigo}.pdf";
+                    $storagePath = storage_path("app/public/temp/{$fileName}");
+
+                    if (!file_exists($storagePath)) {
+                        $cronController = new \App\Http\Controllers\CronController();
+                        $cronController->getFacturaTemp($factura->id, config('app.key'));
+                        $attempts = 0;
+                        while (!file_exists($storagePath) && $attempts < 5) {
+                            usleep(300000);
+                            $attempts++;
+                        }
+                    }
+
+                    if (file_exists($storagePath)) {
+                        $urlFactura = url("storage/temp/{$fileName}");
+                        $components[] = [
+                            "type" => "header",
+                            "parameters" => [
+                                [
+                                    "type" => "document",
+                                    "document" => [
+                                        "link" => $urlFactura,
+                                        "filename" => $fileName
+                                    ]
+                                ]
+                            ]
+                        ];
+                    }
+                }
+
+                // Body Params
+                $parameters = [];
+                foreach ($bodyTextParams as $paramValue) {
+                    $parameters[] = ["type" => "text", "text" => strval($paramValue)];
+                }
+                $components[] = [
+                    "type" => "body",
+                    "parameters" => $parameters
+                ];
+
+                // Enviar
+                $response = (object) $metaService->sendTemplate(
+                    $instance->phone_number_id,
+                    $telefonoCompleto,
+                    $plantilla->title,
+                    $plantilla->language,
+                    $components
+                );
+
+                // Validar Respuesta
+                $responseData = json_decode(json_encode($response), true);
+                $status = 'error';
+                $errorMsg = null;
+                $messageId = null;
+
+                $data = isset($responseData['data']) ? $responseData['data'] : $responseData;
+
+                if (isset($data['messaging_product']) && $data['messaging_product'] === 'whatsapp') {
+                    if (isset($data['messages']) && count($data['messages']) > 0) {
+                        $status = 'success';
+                        $messageId = $data['messages'][0]['id'] ?? null;
+                    }
+                }
+
+                // Si hubo error, extraer el mensaje
+                if ($status === 'error') {
+                    if (isset($responseData['error']['error']['message'])) {
+                        $errorMsg = $responseData['error']['error']['message'];
+                    } elseif (isset($responseData['error']['message'])) {
+                        $errorMsg = $responseData['error']['message'];
+                    } else {
+                        $errorMsg = 'Error desconocido en la respuesta de Meta';
+                    }
+                }
+
+                // Log
+                $mensajeEnviado = $plantilla->contenido ?? '';
+                foreach ($bodyTextParams as $index => $paramValue) {
+                    $mensajeEnviado = str_replace('{{' . ($index + 1) . '}}', $paramValue, $mensajeEnviado);
+                }
+                if ($plantilla->body_header === 'DOCUMENT' && $factura) {
+                    $mensajeEnviado = "[Documento adjunto: Factura_{$factura->codigo}.pdf]\n\n" . $mensajeEnviado;
+                }
+
+                WhatsappMetaLog::create([
+                    'status' => $status,
+                    'response' => json_encode($response),
+                    'factura_id' => $factura ? $factura->id : null,
+                    'contacto_id' => $contacto->id,
+                    'empresa' => Auth::user()->empresa,
+                    'mensaje_enviado' => $mensajeEnviado,
+                    'plantilla_id' => $plantilla->id,
+                    'enviado_por' => Auth::user()->id
+                ]);
+
+                // Sync con Chat System (Centralizado) si success
+                if ($status === 'success' && $messageId) {
+                    $this->registerCentralizedBatch(
+                        $instance->phone_number_id,
+                        $telefonoCompleto,
+                        $messageId,
+                        $mensajeEnviado,
+                        $contacto->nombre . ' ' . $contacto->apellido1
+                    );
+                }
+
+                $results[] = [
+                    'contrato_id' => $contrato->id,
+                    'contrato_nro' => $contrato->nro,
+                    'cliente' => $clienteNombre,
+                    'telefono' => $telefonoCompleto,
+                    'status' => $status,
+                    'message_id' => $messageId,
+                    'error' => $errorMsg
+                ];
+
+            } catch (\Exception $e) {
+                \Log::error('Excepción WhatsApp Meta batch contrato ' . $contrato->id . ': ' . $e->getMessage());
+                $results[] = [
+                    'contrato_id' => $contrato->id,
+                    'contrato_nro' => $contrato->nro,
+                    'cliente' => $clienteNombre,
+                    'telefono' => $telefonoCompleto ?? '',
+                    'status' => 'error',
+                    'message_id' => null,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json(['results' => $results]);
     }
 
     public function envio_personalizado(Request $request){

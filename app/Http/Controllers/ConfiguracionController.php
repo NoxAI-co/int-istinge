@@ -18,6 +18,7 @@ use App\SuscripcionPago;
 use App\Servicio;
 use App\Mikrotik;
 use App\PlanesVelocidad;
+use App\Contrato;
 
 use App\Http\Controllers\Nomina\NominaController;
 use App\Http\Controllers\Nomina\NominaDianController;
@@ -378,6 +379,9 @@ class ConfiguracionController extends Controller
       $numeracion->cajar=$request->cajar;
       $numeracion->pago=$request->pago;
       $numeracion->credito=$request->credito;
+      if (isset($request->prefijo_credito) || \Schema::hasColumn('numeraciones', 'prefijo_credito')) {
+          $numeracion->prefijo_credito = $request->prefijo_credito;
+      }
       $numeracion->remision=$request->remision;
       $numeracion->cotizacion=$request->cotizacion;
       $numeracion->orden=$request->orden;
@@ -3089,7 +3093,12 @@ class ConfiguracionController extends Controller
             $plantillaId = $request->plantilla_id;
             $bodyDinamicParams = $request->input('body_dinamic_params', []);
 
-            // Verificar que la plantilla sea de tipo Meta y pertenezca a la empresa
+            // Desmarcar todas las plantillas como preferidas para esta empresa
+            \App\Plantilla::where('empresa', Auth::user()->empresa)
+                ->where('tipo', 3)
+                ->update(['preferida_cron_factura' => 0]);
+
+            // Marcar la plantilla seleccionada como preferida
             $plantilla = \App\Plantilla::where('id', $plantillaId)
                 ->where('tipo', 3)
                 ->where('empresa', Auth::user()->empresa)
@@ -3102,12 +3111,6 @@ class ConfiguracionController extends Controller
                 ], 400);
             }
 
-            // Desmarcar todas las plantillas como preferidas para esta empresa
-            \App\Plantilla::where('empresa', Auth::user()->empresa)
-                ->where('tipo', 3)
-                ->update(['preferida_cron_factura' => 0]);
-
-            // Marcar la plantilla seleccionada como preferida
             $plantilla->preferida_cron_factura = 1;
 
             // Guardar body_dinamic si se proporciona
@@ -3204,7 +3207,12 @@ class ConfiguracionController extends Controller
             $plantillaId = $request->plantilla_id;
             $bodyDinamicParams = $request->input('body_dinamic_params', []);
 
-            // Verificar que la plantilla sea de tipo Meta y pertenezca a la empresa
+            // Desmarcar todas las plantillas como preferidas para esta empresa
+            \App\Plantilla::where('empresa', Auth::user()->empresa)
+                ->where('tipo', 3)
+                ->update(['preferida_tirilla' => 0]);
+
+            // Marcar la plantilla seleccionada como preferida
             $plantilla = \App\Plantilla::where('id', $plantillaId)
                 ->where('tipo', 3)
                 ->where('empresa', Auth::user()->empresa)
@@ -3217,12 +3225,6 @@ class ConfiguracionController extends Controller
                 ], 400);
             }
 
-            // Desmarcar todas las plantillas como preferidas para esta empresa
-            \App\Plantilla::where('empresa', Auth::user()->empresa)
-                ->where('tipo', 3)
-                ->update(['preferida_tirilla' => 0]);
-
-            // Marcar la plantilla seleccionada como preferida
             $plantilla->preferida_tirilla = 1;
 
             // Guardar body_dinamic si se proporciona
@@ -3406,4 +3408,39 @@ class ConfiguracionController extends Controller
         }
     }
 
+    public function generarProrrateoMasivo(Request $request){
+        $request->validate([
+            'fecha' => 'required|date',
+            'fecha_final' => 'required|date'
+        ]);
+
+        $empresaId = Auth::user()->empresa;
+        $fechaInicial = Carbon::parse($request->fecha)->startOfDay()->format('Y-m-d H:i:s');
+        $fechaFinal = Carbon::parse($request->fecha_final)->endOfDay()->format('Y-m-d H:i:s');
+        
+        $contratos = Contrato::where('empresa', $empresaId)
+            ->where('state', 'enabled')
+            ->whereBetween('created_at', [$fechaInicial, $fechaFinal])
+            ->get();
+
+        $generadas = 0;
+        
+        foreach($contratos as $contrato){
+            //Opcion de crear factrua con prorrateo
+            if($contrato->prorrateo == 1){
+                $res = \App\Http\Controllers\Controller::createFacturaProrrateo($contrato, null, false, true);
+                if($res){
+                    $generadas++;
+                }
+            }
+        }
+
+        if ($generadas > 0) {
+            $mensaje = "Se han generado " . $generadas . " facturas prorrateadas exitosamente.";
+            return redirect()->back()->with('success', $mensaje);
+        } else {
+            $mensaje = "El proceso finalizó. Se generaron 0 facturas. Verifica que los contratos en ese rango tengan el prorrateo activo o que no se haya facturado ya el prorrateo en el mismo mes.";
+            return redirect()->back()->with('success', $mensaje);
+        }
+    }
 }

@@ -36,6 +36,10 @@ class ChatController extends Controller
             ->where('meta', 0)
             ->where('activo', true)
             ->get();
+
+        if($instances->count() > 0 && $instances->first()->waba_id == "875445451477896"){
+            return redirect()->route('home')->with('error', 'La instancia no tiene un portafolio personalizado');
+        }
             
         \Log::info('ChatController::index instances', ['count' => $instances->count(), 'sample' => $instances->first()]);
 

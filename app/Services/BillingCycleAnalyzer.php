@@ -48,14 +48,19 @@ class BillingCycleAnalyzer
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
             
             // Obtener facturas generadas en el ciclo
-            $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $fechaCiclo);
+            $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
             
             // Análisis de facturas faltantes (pasamos colecciones ya obtenidas para evitar re-queries)
             $missingAnalysis = $this->getMissingInvoicesAnalysis($grupoCorteId, $periodo, $contratosEsperados, $facturasGeneradas);
             
             // Reporte de Cronología
             $onDateCount = 0;
+            $onDateManualCount = 0;
+            $onDateAutoCount = 0;
+            
             $outDateCount = 0;
+            $outDateManualCount = 0;
+            $outDateAutoCount = 0;
             $diaEsperado = $this->calcularDiaEsperado($grupoCorte, $periodo);
             
             $whatsappStats = [
@@ -67,8 +72,18 @@ class BillingCycleAnalyzer
                 // Si el día esperado es 0 (No aplica), las contamos todas en el primer contador (Detectadas)
                 if ($diaEsperado == 0 || Carbon::parse($factura->fecha)->day == $diaEsperado) {
                     $onDateCount++;
+                    if ($factura->factura_mes_manual == 1) {
+                        $onDateManualCount++;
+                    } else {
+                        $onDateAutoCount++;
+                    }
                 } else {
                     $outDateCount++;
+                    if ($factura->factura_mes_manual == 1) {
+                        $outDateManualCount++;
+                    } else {
+                        $outDateAutoCount++;
+                    }
                 }
 
                 if ($factura->whatsapp == 1) {
@@ -83,15 +98,19 @@ class BillingCycleAnalyzer
                 'periodo' => $periodo,
                 'fecha_ciclo' => $fechaCiclo,
                 'total_contratos' => $contratosEsperados->count(),
-                'facturas_generadas' => $facturasGeneradas->count(),
+                'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
-                'facturas_en_fecha' => $onDateCount,
-                'facturas_fuera_fecha' => $outDateCount,
+                'facturas_en_fecha' => $onDateManualCount,
+                'facturas_en_fecha_manual' => $onDateManualCount,
+                'facturas_en_fecha_auto' => $onDateAutoCount,
+                'facturas_fuera_fecha' => $outDateManualCount,
+                'facturas_fuera_fecha_manual' => $outDateManualCount,
+                'facturas_fuera_fecha_auto' => $outDateAutoCount,
                 'whatsapp_stats' => $whatsappStats,
                 'dia_esperado' => $diaEsperado,
                 'tasa_exito' => $contratosEsperados->count() > 0 
-                    ? round(($facturasGeneradas->count() / $contratosEsperados->count()) * 100, 2) 
+                    ? round((($onDateManualCount + $outDateManualCount) / $contratosEsperados->count()) * 100, 2) 
                     : 0,
                 'facturas' => $facturasGeneradas,
                 'missing_reasons' => $missingAnalysis['reasons'],
@@ -166,7 +185,8 @@ class BillingCycleAnalyzer
         $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
 
         // Obtener contratos del grupo (incluyendo deshabilitados para poder diagnosticar)
-        $contratos = Contrato::leftJoin('contactos as c', 'c.id', '=', 'contracts.client_id')
+        // Usamos un INNER JOIN explícito con contactos para garantizar que el cliente exista
+        $contratos = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
             // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
@@ -180,58 +200,15 @@ class BillingCycleAnalyzer
     /**
      * Obtiene las facturas generadas en el ciclo
      */
-    private function getGeneratedInvoices($grupoCorteId, $fechaCiclo)
+    private function getGeneratedInvoices($grupoCorteId, $periodo)
     {
-        // Rangos de fecha index-friendly (en vez de DATE_FORMAT que impide uso de índices)
-        $startOfMonth = Carbon::parse($fechaCiclo)->startOfMonth()->format('Y-m-d');
-        $startOfNextMonth = Carbon::parse($fechaCiclo)->startOfMonth()->addMonth()->format('Y-m-d');
-        $startOfMonthAfterNext = Carbon::parse($fechaCiclo)->startOfMonth()->addMonths(2)->format('Y-m-d');
+        $query = $this->getGeneratedInvoicesQuery($grupoCorteId, $periodo);
+        
+        if (!$query) {
+            return collect();
+        }
 
-        // Closure reutilizable para el filtro de fecha
-        $dateFilter = function ($query) use ($startOfMonth, $startOfNextMonth, $startOfMonthAfterNext) {
-            $query->where(function ($q) use ($startOfMonth, $startOfNextMonth) {
-                // Facturas del mes actual
-                $q->where('factura.fecha', '>=', $startOfMonth)
-                  ->where('factura.fecha', '<', $startOfNextMonth);
-            })->orWhere(function ($q) use ($startOfNextMonth, $startOfMonthAfterNext) {
-                // Facturas del mes siguiente marcadas como factura_mes_manual
-                $q->where('factura.fecha', '>=', $startOfNextMonth)
-                  ->where('factura.fecha', '<', $startOfMonthAfterNext)
-                  ->where('factura.factura_mes_manual', 1);
-            });
-        };
-
-        // Closure reutilizable para el filtro de tipo de facturación
-        $tipoFilter = function($query) {
-            $query->where('factura.facturacion_automatica', 1)
-                  ->orWhere(function($q) {
-                      $q->where('factura.facturacion_automatica', 0)
-                        ->where('factura.factura_mes_manual', 1);
-                  });
-        };
-
-        // 1. Facturas vinculadas directamente por contrato_id
-        $directas = Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
-            ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
-            ->select('factura.id', 'factura.fecha', 'factura.facturacion_automatica', 'factura.factura_mes_manual', 'factura.whatsapp', 'factura.cliente', 'factura.codigo', 'factura.nro', 'factura.tipo_operacion', 'factura.estatus', 'c.id as contrato_id', 'c.nro as contrato_nro', DB::raw("CONCAT_WS(' ', cli.nombre, cli.apellido1, cli.apellido2) as nombre_cliente"))
-            ->where('c.grupo_corte', $grupoCorteId)
-            ->where('factura.estatus', '!=', 2)
-            ->where($dateFilter)
-            ->where($tipoFilter)
-            ->get();
-            
-        // 2. Facturas vinculadas mediante tabla pivot facturas_contratos
-        $viaPivot = Factura::join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
-            ->join('contracts as c', 'fc.contrato_nro', '=', 'c.nro')
-            ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
-            ->select('factura.id', 'factura.fecha', 'factura.facturacion_automatica', 'factura.factura_mes_manual', 'factura.whatsapp', 'factura.cliente', 'factura.codigo', 'factura.nro', 'factura.tipo_operacion', 'factura.estatus', 'c.id as contrato_id', 'c.nro as contrato_nro', DB::raw("CONCAT_WS(' ', cli.nombre, cli.apellido1, cli.apellido2) as nombre_cliente"))
-            ->where('c.grupo_corte', $grupoCorteId)
-            ->where('factura.estatus', '!=', 2)
-            ->where($dateFilter)
-            ->where($tipoFilter)
-            ->get();
-            
-        return $directas->merge($viaPivot)->unique(function($item) {
+        return $query->get()->unique(function($item) {
             return $item->id . '-' . $item->contrato_id;
         });
     }
@@ -250,7 +227,7 @@ class BillingCycleAnalyzer
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
         }
         if ($facturasGeneradas === null) {
-            $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $fechaCiclo);
+            $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
         }
         
         // Obtener IDs de contratos que ya facturaron
@@ -369,7 +346,7 @@ class BillingCycleAnalyzer
             ->whereIn('factura.contrato_id', $contratoIds)
             ->select('factura.contrato_id', 'factura.id', 'factura.fecha', 'factura.nro', 'factura.codigo', 
                      'factura.factura_mes_manual', 'factura.facturacion_automatica', 'factura.tipo', 
-                     'factura.created_at', 'factura.estatus', 'factura.vencimiento')
+                     'factura.prorrateo_aplicado', 'factura.created_at', 'factura.estatus', 'factura.vencimiento')
             ->get()
             ->keyBy('contrato_id');
 
@@ -383,7 +360,7 @@ class BillingCycleAnalyzer
             ->whereIn('fc.contrato_nro', $contratoNros)
             ->select('fc.contrato_nro', 'factura.id', 'factura.fecha', 'factura.nro', 'factura.codigo', 
                      'factura.factura_mes_manual', 'factura.facturacion_automatica', 'factura.tipo', 
-                     'factura.created_at', 'factura.estatus', 'factura.vencimiento')
+                     'factura.prorrateo_aplicado', 'factura.created_at', 'factura.estatus', 'factura.vencimiento')
             ->get()
             ->keyBy('contrato_nro');
 
@@ -493,12 +470,25 @@ class BillingCycleAnalyzer
                         'description' => 'Ya tiene una factura generada para este mes con "Factura del Mes" = SI',
                         'color' => 'warning'
                     ];
-                } else if ($ultimaFactura->facturacion_automatica == 0) {
+                } else {
                     $fechaFormateada = Carbon::parse($ultimaFactura->fecha)->translatedFormat('j \d\e F - Y');
+                    $tipoFactura = $ultimaFactura->facturacion_automatica == 1 ? 'automática' : 'manual';
+                    
+                    if (isset($ultimaFactura->prorrateo_aplicado) && $ultimaFactura->prorrateo_aplicado == 1) {
+                        return [
+                            'code' => 'prorated_unflagged_invoice',
+                            'title' => 'Factura del mes sin marcar con prorrateo',
+                            'description' => "Se detectó una factura prorrateada creada en la fecha {$fechaFormateada} con 'Factura del Mes' = NO.",
+                            'color' => 'warning',
+                            'factura_id' => $ultimaFactura->id,
+                            'factura_nro' => $ultimaFactura->nro
+                        ];
+                    }
+                    
                     return [
-                        'code' => 'manual_invoice_unflagged',
-                        'title' => 'Factura manual sin marcar',
-                        'description' => "Se detectó una factura manual creada en la fecha {$fechaFormateada} (fecha de la factura) pero no tiene marcado el atributo 'Factura del Mes'. Por esto el sistema no la vincula al ciclo.",
+                        'code' => 'unflagged_invoice',
+                        'title' => 'Factura en el mes sin marcar',
+                        'description' => "Se detectó una factura {$tipoFactura} creada en la fecha {$fechaFormateada} pero tiene 'Factura del Mes' = NO. El sistema no la vincula al ciclo.",
                         'color' => 'danger',
                         'factura_id' => $ultimaFactura->id,
                         'factura_nro' => $ultimaFactura->nro
@@ -516,6 +506,16 @@ class BillingCycleAnalyzer
                         'title' => 'Factura abierta vigente',
                         'description' => 'Tiene una factura abierta con vencimiento mayor a la fecha del ciclo',
                         'color' => 'primary'
+                    ];
+                }
+
+                // 4. Validación: Facturas abiertas bloquean nueva facturación (cron_fact_abiertas = 0)
+                if ($ultimaFactura->estatus == 1 && $empresa->cron_fact_abiertas == 0) {
+                    return [
+                        'code' => 'open_invoices_blocked',
+                        'title' => 'Facturación bloqueada por facturas abiertas',
+                        'description' => 'El contrato tiene una factura abierta antigua y la empresa (cron_fact_abiertas = 0) no permite generar nuevas facturas.',
+                        'color' => 'warning'
                     ];
                 }
             }
@@ -615,12 +615,13 @@ class BillingCycleAnalyzer
         }
 
         // Query 1: Contratos por mes (1 query agregada con CASE WHEN)
-        // Para cada periodo, contar contratos creados antes del fin de mes con status=1
+        // Para cada periodo, contar contratos creados antes del fin de mes con status=1 y que tengan cliente existente
         $contratosCountByPeriodo = [];
         foreach ($periodos as $p) {
-            $contratosCountByPeriodo[$p['periodo']] = Contrato::where('grupo_corte', $grupoCorteId)
-                ->where('created_at', '<=', $p['fechaFinMes'])
-                ->where('status', 1)
+            $contratosCountByPeriodo[$p['periodo']] = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                ->where('contracts.grupo_corte', $grupoCorteId)
+                ->where('contracts.created_at', '<=', $p['fechaFinMes'])
+                ->where('contracts.status', 1)
                 ->count();
         }
 
@@ -632,13 +633,7 @@ class BillingCycleAnalyzer
             ->where('factura.estatus', '!=', 2)
             ->where('factura.fecha', '>=', $globalStart)
             ->where('factura.fecha', '<', $globalEnd)
-            ->where(function($query) {
-                $query->where('factura.facturacion_automatica', 1)
-                      ->orWhere(function($q) {
-                          $q->where('factura.facturacion_automatica', 0)
-                            ->where('factura.factura_mes_manual', 1);
-                      });
-            })
+            ->where('factura.factura_mes_manual', 1)
             ->select('factura.id', 'factura.fecha')
             ->get();
 
@@ -649,13 +644,7 @@ class BillingCycleAnalyzer
             ->where('factura.estatus', '!=', 2)
             ->where('factura.fecha', '>=', $globalStart)
             ->where('factura.fecha', '<', $globalEnd)
-            ->where(function($query) {
-                $query->where('factura.facturacion_automatica', 1)
-                      ->orWhere(function($q) {
-                          $q->where('factura.facturacion_automatica', 0)
-                            ->where('factura.factura_mes_manual', 1);
-                      });
-            })
+            ->where('factura.factura_mes_manual', 1)
             ->select('factura.id', 'factura.fecha')
             ->get();
 
@@ -845,7 +834,7 @@ class BillingCycleAnalyzer
         $idsToFix = [];
 
         foreach ($missingAnalysis['details'] as $detail) {
-            if ($detail['razon_code'] === 'manual_invoice_unflagged' && !empty($detail['factura_id'])) {
+            if ($detail['razon_code'] === 'unflagged_invoice' && !empty($detail['factura_id'])) {
                 $idsToFix[] = $detail['factura_id'];
             }
         }
@@ -854,9 +843,34 @@ class BillingCycleAnalyzer
             return 0;
         }
 
-        return Factura::whereIn('id', $idsToFix)->update(['factura_mes_manual' => 1]);
+        return \App\Models\Factura::whereIn('id', $idsToFix)->update(['factura_mes_manual' => 1]);
     }
 
+    /**
+     * Actualiza el contrato a fact_primer_mes = 1 cuando se saltó la primera factura
+     */
+    public function actualizarContratosPrimerMes($grupoCorteId, $periodo)
+    {
+        $missingAnalysis = $this->getMissingInvoicesAnalysis($grupoCorteId, $periodo);
+        $idsToFix = [];
+
+        foreach ($missingAnalysis['details'] as $detail) {
+            if ($detail['razon_code'] === 'first_invoice_skip' && !empty($detail['contrato_id'])) {
+                $idsToFix[] = $detail['contrato_id'];
+            }
+        }
+
+        if (empty($idsToFix)) {
+            return 0;
+        }
+
+        // Actualizar fact_primer_mes usando DB query directo por eficiencia
+        \Illuminate\Support\Facades\DB::table('contracts')
+            ->whereIn('id', $idsToFix)
+            ->update(['fact_primer_mes' => 1]);
+
+        return count($idsToFix);
+    }
 
     /**
      * Analiza si existen contratos con múltiples facturas en el mismo ciclo
@@ -914,7 +928,8 @@ class BillingCycleAnalyzer
                             'estatus_texto' => $estatusTexto,
                             'estatus_clase' => $estatusClase,
                             'total' => $total,
-                            'tipo_operacion' => $f->tipo_operacion == 1 ? 'Estandar' : 'Electronica'
+                            'tipo_operacion' => $f->tipo_operacion == 1 ? 'Estandar' : 'Electronica',
+                            'factura_mes_manual' => $f->factura_mes_manual
                         ];
                     })->toArray()
                 ];
@@ -942,13 +957,9 @@ class BillingCycleAnalyzer
         $startOfMonth = Carbon::parse($fechaCiclo)->startOfMonth()->format('Y-m-d');
         $startOfNextMonth = Carbon::parse($fechaCiclo)->startOfMonth()->addMonth()->format('Y-m-d');
 
-        // Closure reutilizable para filtro de tipo
+        // Closure reutilizable para filtro de tipo (ESTRICTO: Solo Factura del Mes)
         $tipoFilter = function($query) {
-            $query->where('factura.facturacion_automatica', 1)
-                  ->orWhere(function($q) {
-                      $q->where('factura.facturacion_automatica', 0)
-                        ->where('factura.factura_mes_manual', 1);
-                  });
+            $query->where('factura.factura_mes_manual', 1);
         };
 
         // Closure para búsqueda
@@ -977,8 +988,11 @@ class BillingCycleAnalyzer
                 'factura.whatsapp', 
                 'factura.cliente',
                 'factura.factura_mes_manual',
+                'factura.facturacion_automatica',
+                'factura.tipo_operacion',
                 DB::raw("CONCAT_WS(' ', cli.nombre, cli.apellido1, cli.apellido2) as nombre_cliente"),
                 'cli.nit as nit_cliente',
+                'c.id as contrato_id',
                 'c.nro as contrato_nro'
             )
             ->where('c.grupo_corte', $grupoCorteId)
@@ -1002,8 +1016,11 @@ class BillingCycleAnalyzer
                 'factura.whatsapp', 
                 'factura.cliente',
                 'factura.factura_mes_manual',
+                'factura.facturacion_automatica',
+                'factura.tipo_operacion',
                 DB::raw("CONCAT_WS(' ', cli.nombre, cli.apellido1, cli.apellido2) as nombre_cliente"),
                 'cli.nit as nit_cliente',
+                'c.id as contrato_id',
                 'c.nro as contrato_nro'
             )
             ->where('c.grupo_corte', $grupoCorteId)

@@ -111,6 +111,96 @@ class Controller extends BaseController
             return $cadena;
     }
 
+    /**
+     * Repara codificación dañada por caracteres en Excel (Mojibake UTF-8)
+     * @param string $text
+     * @return string
+     */
+    public function repairEncoding($text)
+    {
+        if (empty($text)) return $text;
+
+        $map = [
+            'Ã±' => 'ñ', 'Ã‘' => 'Ñ', 'Ã¡' => 'á', 'Ã©' => 'é',
+            'Ã­' => 'í', 'Ã³' => 'ó', 'Ãº' => 'ú', 'Ã' => 'Á',
+            'Ã‰' => 'É', 'Ã' => 'Í', 'Ã“' => 'Ó', 'Ãš' => 'Ú',
+            'Ã±' => 'ñ', 'Ã±' => 'ñ', 'Ã‘' => 'Ñ', 'Ã' => 'í',
+            'ÃA' => 'Ñ', 'ÃO' => 'Ñ', 'Ã¹' => 'ù', 'Ã¼' => 'ü',
+            'Ã¡' => 'á', 'Ã©' => 'é', 'Ã­' => 'í', 'Ã³' => 'ó',
+            'Ãº' => 'ú', 'Ã n' => 'ñ', 'Ã N' => 'Ñ'
+        ];
+
+        return str_replace(array_keys($map), array_values($map), $text);
+    }
+
+    /**
+     * Limpia la identificación de caracteres no deseados y detecta si es NIT
+     * @param string $nit
+     * @param int|null $tipo_identificacion
+     * @return string
+     */
+    public function cleanIdentification($nit, &$tipo_identificacion = null)
+    {
+        if (empty($nit)) return $nit;
+
+        $nit = (string)$nit;
+        $nit = trim($nit);
+
+        // Detectar si termina en -[0-9]
+        if (preg_match('/-(\d)$/', $nit, $matches)) {
+            $nit = preg_replace('/-(\d)$/', '', $nit);
+            if ($tipo_identificacion !== null) {
+                $tipo_identificacion = 6; // NIT
+            }
+        }
+
+        // Eliminar puntos, comas, comillas, espacios
+        $nit = str_replace(['.', ',', "'", '"', ' '], '', $nit);
+
+        return $nit;
+    }
+
+    /**
+     * Limpia el número de celular del prefijo +57 si lo tiene
+     * @param string $celular
+     * @return string
+     */
+    public function cleanCelular($celular)
+    {
+        if (empty($celular)) return $celular;
+
+        $celular = (string)$celular;
+        $celular = trim($celular);
+
+        if (strpos($celular, '+57') === 0) {
+            $celular = substr($celular, 3);
+        }
+
+        return $celular;
+    }
+
+    /**
+     * Valida si una fecha es válida y la retorna, de lo contrario retorna la fecha actual
+     * @param mixed $date
+     * @return \Carbon\Carbon
+     */
+    public function validateDateOrNow($date)
+    {
+        if (empty($date)) {
+            return \Carbon\Carbon::now();
+        }
+
+        try {
+            // Si es numérico, podría ser un formato de fecha de Excel
+            if (is_numeric($date)) {
+                return \Carbon\Carbon::instance(\PHPExcel_Shared_Date::ExcelToPHPObject($date));
+            }
+            return \Carbon\Carbon::parse($date);
+        } catch (\Exception $e) {
+            return \Carbon\Carbon::now();
+        }
+    }
+
     /*
     $modulo = Pagos recibidos, PG Remisiones.. etc
     $id = id de pagos recibidos, pgremisiones... etc
@@ -2323,6 +2413,7 @@ class Controller extends BaseController
         $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
         $resolucion = NumeracionFactura::where('id',$factura->numeracion)->first();
         $tipo = $factura->tipo;
+        $title = 'Factura ' . $factura->codigo;
 
         if($factura->emitida == 1){
             $impTotal = 0;
@@ -2360,9 +2451,9 @@ class Controller extends BaseController
             /*..............................
             Construcción del código qr a la factura
             ................................*/
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
         }else{
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
         }
     }
 
@@ -2408,7 +2499,7 @@ class Controller extends BaseController
         );
     }
 
-    public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false){
+    public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false, $desdeConfig = false){
 
         if ($contrato->prorrateo == 0 && !$desdeOnu) {
             return false;
@@ -2416,16 +2507,36 @@ class Controller extends BaseController
 
         // Obtener empresa del contrato
         $empresaId = $contrato->empresa ?? 1;
-        $fecha = Carbon::now()->format('Y-m-d');
+        
+        if ($desdeConfig && $contrato->created_at) {
+            $fecha = Carbon::parse($contrato->created_at)->format('Y-m-d');
+        } else {
+            $fecha = Carbon::now()->format('Y-m-d');
+        }
 
         // VALIDACIÓN: Verificar si ya existe una factura para este contrato hoy
         $facturaExistente = DB::table('facturas_contratos')
-            ->whereDate('created_at', $fecha)
+            ->whereDate('created_at', Carbon::now()->format('Y-m-d'))
             ->where('contrato_nro', $contrato->nro)
             ->first();
 
         if($facturaExistente){
             return false; // Ya existe una factura para este contrato hoy
+        }
+
+        // Validación adicional para $desdeConfig: no permitir dos facturas prorrateadas en el mismo mes.
+        if ($desdeConfig) {
+            $facturaProrrateadaExistente = DB::table('factura')
+                ->join('facturas_contratos', 'facturas_contratos.factura_id', '=', 'factura.id')
+                ->where('facturas_contratos.contrato_nro', $contrato->nro)
+                ->whereMonth('factura.fecha', Carbon::parse($fecha)->month)
+                ->whereYear('factura.fecha', Carbon::parse($fecha)->year)
+                ->where('factura.prorrateo_aplicado', '!=', 0)
+                ->first();
+
+            if ($facturaProrrateadaExistente) {
+                return false;
+            }
         }
 
         $grupo_corte = GrupoCorte::find($contrato->grupo_corte);
@@ -2443,44 +2554,37 @@ class Controller extends BaseController
         }
 
         //Calculo fecha pago oportuno.
-        $y = Carbon::now()->format('Y');
-        $m = Carbon::now()->format('m');
-        $d = substr(str_repeat(0, 2).$grupo_corte->fecha_pago, - 2);
-        if($d == 0){
-            $d = 30;
+        $dia_pago = $grupo_corte->fecha_pago == 0 ? 30 : $grupo_corte->fecha_pago;
+        $mes_pago = Carbon::now()->month;
+        $anyo_pago = Carbon::now()->year;
+        
+        if ($grupo_corte->fecha_factura > $grupo_corte->fecha_pago) {
+            $mes_pago++;
         }
-
-        if($grupo_corte->fecha_factura > $grupo_corte->fecha_pago && $m!=12){
-            $m=$m+1;
+        
+        $date_pagooportuno_carbon = Carbon::create($anyo_pago, $mes_pago, 1);
+        $date_pagooportuno_carbon->day = min($dia_pago, $date_pagooportuno_carbon->daysInMonth);
+        
+        if ($date_pagooportuno_carbon->copy()->startOfDay()->lt(Carbon::now()->startOfDay())) {
+            $date_pagooportuno_carbon->addMonthNoOverflow();
+            $date_pagooportuno_carbon->day = min($dia_pago, $date_pagooportuno_carbon->daysInMonth);
         }
-
-        if($m == 12 && $grupo_corte->fecha_factura > $grupo_corte->fecha_pago){
-            $y = $y+1;
-            $m = 01;
-        }
-        $date_pagooportuno = $y . "-" . $m . "-" . $d;
+        $date_pagooportuno = $date_pagooportuno_carbon->format('Y-m-d');
         //Fin calculo fecha de pago oportuno
 
         //calculo fecha suspension
-        $y = Carbon::now()->format('Y');
-        $m = Carbon::now()->format('m');
-        $ds = substr(str_repeat(0, 2).$grupo_corte->fecha_suspension, - 2);
-        $da = Carbon::now()->format('d')*1;
-         if($da > $grupo_corte->fecha_suspension && $m!=12){
-            $m=$m+1;
-        }
-
-        if($m == 12){
-            if($da > $grupo_corte->fecha_suspension){
-
-                if(Carbon::now()->format('m') != 11){
-                    $m = 01;
-                    $y = $y+1;
-                }
-            }
-        }
+        $dia_suspension = $grupo_corte->fecha_suspension == 0 ? 30 : $grupo_corte->fecha_suspension;
+        $mes_susp = Carbon::now()->month;
+        $anyo_susp = Carbon::now()->year;
         
-        $date_suspension = $y . "-" . $m . "-" . $ds;
+        $date_suspension_carbon = Carbon::create($anyo_susp, $mes_susp, 1);
+        $date_suspension_carbon->day = min($dia_suspension, $date_suspension_carbon->daysInMonth);
+        
+        if ($date_suspension_carbon->copy()->startOfDay()->lte(Carbon::now()->startOfDay())) {
+            $date_suspension_carbon->addMonthNoOverflow();
+            $date_suspension_carbon->day = min($dia_suspension, $date_suspension_carbon->daysInMonth);
+        }
+        $date_suspension = $date_suspension_carbon->format('Y-m-d');
         //Fin calculo fecha suspension
 
         //Obtenemos el número depende del contrato que tenga asignado (con fact electrpinica o estandar).
@@ -2526,7 +2630,7 @@ class Controller extends BaseController
             $factura->vendedor      = 1;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 1;
-            $factura->factura_mes_manual = 1;
+            $factura->factura_mes_manual = 0;
             $factura->contrato_id = $contrato->id;
             $factura->save();
 
@@ -2754,11 +2858,17 @@ class Controller extends BaseController
 
         if(isset($responseEmail->status) && $responseEmail->status == 'success'){
             $mensaje= "Documento enviado al correo del cliente correctamente.";
+            $documento->correo =1;
+            $documento->save();
         }else{
             if(isset($responseEmail['statusCode']) && $responseEmail['statusCode'] == 406 && isset($responseEmail['th'])){
                 $mensaje = "No se encontró la información del AttachedDocument del documento, intentelo más tarde";
+                $documento->correo = 400;
+                $documento->save();
             }else{
                 $mensaje= "Documento no pudo ser enviado al correo.";
+                $documento->correo = 400;
+                $documento->save();
             }
         }
 

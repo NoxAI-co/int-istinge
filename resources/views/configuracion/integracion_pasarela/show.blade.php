@@ -13,6 +13,9 @@
     </form>
     <a href="{{route('integracion-pasarelas.index')}}" class="btn btn-outline-danger btn-sm"><i class="fas fa-backward"></i> Regresar</a>
     <a href="{{route('integracion-pasarelas.edit',$servicio->id)}}" class="btn btn-outline-primary btn-sm" title="Editar"><i class="fas fa-edit"></i> Editar</a>
+    @if($servicio->nombre == 'ONEPAY')
+    <a href="{{route('integracion-pasarelas.onepay-invoices',$servicio->id)}}" class="btn btn-outline-warning btn-sm"><i class="fas fa-list-alt"></i> Listado Facturas OnePay</a>
+    @endif
     @if($servicio->status==1)
         <button class="btn btn-outline-danger btn-sm" type="submit" title="Deshablitar" onclick="confirmar('act_desc{{$servicio->id}}', '¿Está seguro que desea desactivar este servicio?', '');"><i class="fas fa-power-off"></i> Deshablitar</button>
     @else

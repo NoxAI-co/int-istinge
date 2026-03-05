@@ -104,7 +104,7 @@
 									<a href="{{ route('asignaciones.enviar',$contrato->id )}}" onclick="cargando('true');" class="btn btn-outline-success btn-icons" title="Enviar Contrato Digital"><i class="fas fa-envelope"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['844']))
-									<a href="javascript:void(0);" onclick="generar_link({{ $contrato->cliente_id }});" class="btn btn-outline-warning btn-icons" title="Generar Link de Actualización de Firma"><i class="fas fa-fw fa-link"></i></a>
+									<a href="javascript:void(0);" onclick="generar_link({{ $contrato->contrato_id ?? 0 }}, {{ $contrato->cliente_id }});" class="btn btn-outline-warning btn-icons" title="Generar Link de Actualización de Firma"><i class="fas fa-fw fa-link"></i></a>
 									@endif
 									@if(isset($_SESSION['permisos']['846']))
 									<a href="{{ route('asignaciones.edit',$contrato->id )}}" class="btn btn-outline-primary btn-icons" title="Cargar Documentos"><i class="fas fa-fw fa-upload"></i></a>
@@ -272,13 +272,13 @@
             $('#modal_conf').modal("show");
         }
 
-    	function generar_link(id) {
+    	function generar_link(id, cliente = 0) {
     		var clipboard = new Clipboard('.btn');
     		cargando(true);
     		if (window.location.pathname.split("/")[1] === "software") {
-    			var url = `/software/empresa/asignaciones/`+id+`/generar_link`;
+    			var url = `/software/empresa/asignaciones/`+id+`/generar_link?cliente=`+cliente;
     		}else{
-    			var url = `/empresa/asignaciones/`+id+`/generar_link`;
+    			var url = `/empresa/asignaciones/`+id+`/generar_link?cliente=`+cliente;
     		}
 
     		$.ajax({

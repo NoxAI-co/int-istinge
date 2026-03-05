@@ -15,7 +15,6 @@
                 <small class="text-muted ml-2">El archivo incluye todos los campos unificados para cualquier tipo de conexión</small>
             </li>
 
-            {{-- <li class="ml-3">Verifique que el orden de las columnas en su documento sea correcto. <small>Si no lo conoce haga clic <a href="{{ route('contratos.ejemplo') }}"><b>aqui</b></a> para descargar archivo Excel de ejemplo.</small></li> --}}
             <li class="ml-3">Verifique que el comienzo de la data sea a partir de la fila 4.</li>
             <li class="ml-3">Los campos obligatorios son <b>Identificacion, Servicio, Mikrotik, Plan, Estado, IP, Conexion, Interfaz, Segmento, Grupo de Corte, Facturacion, Tecnologia</b>.</li>
 
@@ -173,6 +172,116 @@
         </div>
     </div>
 
+    <!-- Overlay de Configuración de Auto-Relleno (Vanilla CSS/JS, sin dependencia de jQuery/Bootstrap modal) -->
+    @if(session('validaciones_importacion'))
+    <div id="autofillOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 550px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Header -->
+            <div style="background-color: {{Auth::user()->empresa()->color}}; color: #fff; padding: 15px 20px;">
+                <h5 style="margin: 0; font-size: 1.1rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Configuración de Importación
+                </h5>
+            </div>
+            <!-- Body -->
+            <div style="padding: 20px; overflow-y: auto; flex-grow: 1;">
+                <p style="margin-bottom: 15px;">Se encontraron registros con campos vacíos que pueden ser auto-rellenados. Configure las opciones:</p>
+
+                <!-- Switch: IP vacía -->
+                @if(isset(session('validaciones_importacion')['ip_vacias']))
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+                    <div style="flex: 1;">
+                        <strong><i class="fas fa-network-wired"></i> IP vacía</strong>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85rem;">
+                            Se encontraron <strong>{{ session('validaciones_importacion')['ip_vacias'] }}</strong> registro(s) sin IP.
+                            <br>Si activa esta opción, se asignará la IP <code>000.000.0.00</code> por defecto.
+                        </p>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillIp" data-field="autofill_ip" checked style="opacity: 0; width: 0; height: 0;">
+                            <span class="autofill-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Switch: Estado vacío -->
+                @if(isset(session('validaciones_importacion')['estados_vacios']))
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+                    <div style="flex: 1;">
+                        <strong><i class="fas fa-toggle-on"></i> Estado obligatorio</strong>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85rem;">
+                            Se encontraron <strong>{{ session('validaciones_importacion')['estados_vacios'] }}</strong> registro(s) sin Estado.
+                            <br>Si activa esta opción, puede elegir el estado por defecto.
+                        </p>
+                        <div id="stateValueContainer" style="margin-top: 10px;">
+                            <select id="selectAutofillStateValue" class="form-control form-control-sm" style="width: 150px;">
+                                <option value="habilitado">Habilitado</option>
+                                <option value="deshabilitado">Deshabilitado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillState" data-field="autofill_state" checked style="opacity: 0; width: 0; height: 0;" onchange="document.getElementById('stateValueContainer').style.display = this.checked ? 'block' : 'none'">
+                            <span class="autofill-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
+                {{-- EXTENSIBLE: Agregar más switches aquí para futuras validaciones solucionables --}}
+
+                <!-- Switch: Facturación vacía -->
+                @if(isset(session('validaciones_importacion')['facturacion_vacias']))
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+                    <div style="flex: 1;">
+                        <strong><i class="fas fa-file-invoice-dollar"></i> Facturación obligatoria</strong>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85rem;">
+                            Se encontraron <strong>{{ session('validaciones_importacion')['facturacion_vacias'] }}</strong> registro(s) sin Facturación.
+                            <br>Si activa esta opción, puede elegir el tipo por defecto.
+                        </p>
+                        <div id="facturacionValueContainer" style="margin-top: 10px;">
+                            <select id="selectAutofillFacturacionValue" class="form-control form-control-sm" style="width: 150px;">
+                                <option value="estandar">Estandar</option>
+                                <option value="electronica">Electronica</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <label class="autofill-toggle" style="position: relative; display: inline-block; width: 50px; height: 26px; margin: 0;">
+                            <input type="checkbox" class="autofill-switch" id="switchAutofillFacturacion" data-field="autofill_facturacion" checked style="opacity: 0; width: 0; height: 0;" onchange="document.getElementById('facturacionValueContainer').style.display = this.checked ? 'block' : 'none'">
+                            <span class="autofill-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
+                @if(count($errors) > 0)
+                <div style="margin-top: 15px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; font-size: 0.85rem;">
+                    <strong><i class="fas fa-info-circle"></i> Nota:</strong> También se encontraron errores que requieren corrección manual en el archivo Excel. Estos se mostrarán después de continuar.
+                </div>
+                @endif
+            </div>
+            <!-- Footer -->
+            <div style="padding: 15px 20px; border-top: 1px solid #dee2e6; text-align: right; background: #f8f9fa;">
+                <button type="button" onclick="document.getElementById('autofillOverlay').style.display='none'" class="btn btn-outline-secondary" style="margin-right: 8px;">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" onclick="submitAutofillForm()" class="btn btn-success">
+                    <i class="fas fa-check"></i> Continuar Importación
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Form oculto para re-enviar con opciones de auto-relleno -->
+    <form id="autofillForm" method="POST" action="{{ route('contratos.importar_cargando') }}" style="display: none;">
+        @csrf
+        <input type="hidden" name="archivo_guardado" value="{{ session('archivo_guardado', '') }}">
+    </form>
+
     <!-- Preloader con progreso -->
     <div id="preloader" style="display: none;">
         <div class="preloader-overlay">
@@ -194,26 +303,29 @@
     <style>
         .preloader-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
         }
         .preloader-content {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #fff; padding: 30px; border-radius: 10px;
+            text-align: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .progress-bar {
-            font-weight: bold;
-            color: #fff;
+        .progress-bar { font-weight: bold; color: #fff; }
+
+        /* Toggle switch personalizado */
+        .autofill-toggle input:checked + .autofill-slider { background-color: #28a745; }
+        .autofill-toggle input:checked + .autofill-slider:before { transform: translateX(24px); }
+        .autofill-slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: 0.3s; border-radius: 26px;
+        }
+        .autofill-slider:before {
+            position: absolute; content: "";
+            height: 20px; width: 20px; left: 3px; bottom: 3px;
+            background-color: white; transition: 0.3s; border-radius: 50%;
         }
     </style>
 
@@ -225,40 +337,73 @@
             nextSibling.innerText = fileName;
         });
 
-        // Manejar envío del formulario
+        // Manejar envío del formulario principal
         document.getElementById('importForm').addEventListener('submit', function(e) {
-            var form = this;
             var preloader = document.getElementById('preloader');
             var progressBar = document.getElementById('progressBar');
             var progressText = document.getElementById('progressText');
             var progressMessage = document.getElementById('progressMessage');
             var submitBtn = document.getElementById('submitBtn');
 
-            // Mostrar preloader
             preloader.style.display = 'block';
             submitBtn.disabled = true;
 
-            // Simular progreso (ya que el procesamiento es síncrono)
             var progress = 0;
-            var interval = setInterval(function() {
+            setInterval(function() {
                 progress += Math.random() * 15;
-                if (progress > 90) {
-                    progress = 90; // Dejar espacio para la finalización
-                }
+                if (progress > 90) progress = 90;
                 progressBar.style.width = progress + '%';
                 progressText.textContent = Math.round(progress) + '%';
-                
-                if (progress < 30) {
-                    progressMessage.textContent = 'Leyendo archivo...';
-                } else if (progress < 60) {
-                    progressMessage.textContent = 'Validando datos...';
-                } else if (progress < 90) {
-                    progressMessage.textContent = 'Procesando registros...';
-                }
+                if (progress < 30) progressMessage.textContent = 'Leyendo archivo...';
+                else if (progress < 60) progressMessage.textContent = 'Validando datos...';
+                else if (progress < 90) progressMessage.textContent = 'Procesando registros...';
             }, 300);
-
-            // El formulario se enviará normalmente
-            // Si hay un error, el preloader se ocultará al recargar la página
         });
+
+        // Función para re-enviar con opciones de auto-relleno
+        function submitAutofillForm() {
+            var form = document.getElementById('autofillForm');
+
+            // Recoger estado de cada switch
+            var switches = document.querySelectorAll('.autofill-switch');
+            switches.forEach(function(sw) {
+                var fieldName = sw.getAttribute('data-field');
+                var value = sw.checked ? 1 : 0;
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = fieldName;
+                input.value = value;
+                form.appendChild(input);
+            });
+
+            // Si el switch de estado está marcado, recoger el valor seleccionado
+            var switchState = document.getElementById('switchAutofillState');
+            if (switchState && switchState.checked) {
+                var stateVal = document.getElementById('selectAutofillStateValue').value;
+                var inputVal = document.createElement('input');
+                inputVal.type = 'hidden';
+                inputVal.name = 'autofill_state_value';
+                inputVal.value = stateVal;
+                form.appendChild(inputVal);
+            }
+
+            // Si el switch de facturacion está marcado, recoger el valor seleccionado
+            var switchFact = document.getElementById('switchAutofillFacturacion');
+            if (switchFact && switchFact.checked) {
+                var factVal = document.getElementById('selectAutofillFacturacionValue').value;
+                var inputValF = document.createElement('input');
+                inputValF.type = 'hidden';
+                inputValF.name = 'autofill_facturacion_value';
+                inputValF.value = factVal;
+                form.appendChild(inputValF);
+            }
+
+            // Ocultar overlay y mostrar preloader
+            var overlay = document.getElementById('autofillOverlay');
+            if (overlay) overlay.style.display = 'none';
+            document.getElementById('preloader').style.display = 'block';
+
+            form.submit();
+        }
     </script>
 @endsection

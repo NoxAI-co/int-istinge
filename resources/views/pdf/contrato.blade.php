@@ -64,7 +64,7 @@
             font-size: 10px;line-height: 10px;margin: 0;
         }
         .titulo-bg {
-            background-color: {{Auth::user()->empresa()->color}};
+            background-color: {{$company->color}};
             color: white;
             padding: 5px;
             font-size: 12px;
@@ -126,12 +126,12 @@
                 <tr>
                     <td>
                         <div style="margin-top: 10px; text-align:center;">
-                            <img src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="" style="width: 130px !important;">
+                            <img src="{{asset('images/Empresas/Empresa'.$company->id.'/'.$company->logo)}}" alt="" style="width: 130px !important;">
                         </div>
 
-                        <div style="width: 100%; background-color: {{Auth::user()->empresa()->color}}; clear:both;  margin-top: 10px;">
+                        <div style="width: 100%; background-color: {{$company->color}}; clear:both;  margin-top: 10px;">
                             <p style="color: white; margin: 2px; text-align: justify; padding: 5px;" class="">
-                                Este contrato explica las condiciones para la prestación de los servicios entre usted y <b>{{Auth::user()->empresa()->nombre}}</b>, por el que pagará mínimo mensualmente <b>$ _______</b>. Este contrato tendrá vigencia de ____ meses, contados a partir del <b>__/__/____</b>. El plazo máximo de instalación es de 15 días hábiles. Acepto que mi contrato se renueve sucesiva y automáticamente por un plazo igual al inicial <input checked="checked" type="checkbox"> *
+                                Este contrato explica las condiciones para la prestación de los servicios entre usted y <b>{{$company->nombre}}</b>, por el que pagará mínimo mensualmente <b>$ _______</b>. Este contrato tendrá vigencia de ____ meses, contados a partir del <b>__/__/____</b>. El plazo máximo de instalación es de 15 días hábiles. Acepto que mi contrato se renueve sucesiva y automáticamente por un plazo igual al inicial <input checked="checked" type="checkbox"> *
                             </p>
                         </div>
 
@@ -139,7 +139,7 @@
                             <table width="100%">
                                 <thead>
                                     <tr>
-                                        <th style="padding: 3px 6px;background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: left;border: 1px solid #000;">EL SERVICIO</th>
+                                        <th style="padding: 3px 6px;background-color: {{$company->color}}; color: white; text-align: left;border: 1px solid #000;">EL SERVICIO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -158,7 +158,7 @@
 
                         <div style="width: 100%;  margin-top: 10px; border: 1px  solid #000;">
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INFORMACIÓN DEL SUSCRIPTOR</p><br>
-                            <p style="text-align: justify;" class="small pl-2">Contrato No.: <b>{{ $contractDetails ? $contractDetails->nro : '' }}</b> </p>
+                            <p style="text-align: justify;" class="small pl-2">Contrato No.: <b>{{ isset($contract->nro) ? $contract->nro : '' }}</b> </p>
                             <p style="text-align: justify;" class="small pl-2">Nombre / Razón Social: <b>{{ $contact->nombre }} {{ $contact->apellidos() }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Identificación: <b>{{ $contact->tip_iden('corta') }} {{ $contact->nit }}@if($contact->dv != null || $contact->dv === 0)-{{$contact->dv}} @endif</b></p>
                             <p style="text-align: justify;" class="small pl-2">Correo electrónico: <b>{{ $contact->email }}</b></p>
@@ -176,7 +176,7 @@
                             @endif
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INTERNET</p>
                             <table style="width: 100%; text-align:center; padding:5px;">
-                                <tr style="background-color: {{Auth::user()->empresa()->color}}; color: #fff;">
+                                <tr style="background-color: {{$company->color}}; color: #fff;">
                                     <td colspan="2">Incluidos en el plan</td>
                                     <td colspan="2">Adicionales</td>
                                 </tr>
@@ -194,15 +194,15 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    <td style="font-size: 9px;"><b>{{Auth::user()->empresa()->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</b></td>
+                                    <td style="font-size: 9px;"><b>{{$company->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</b></td>
                                     <td style="font-size: 9px;">Total</td>
-                                    <td style="font-size: 9px;">{{Auth::user()->empresa()->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</td>
+                                    <td style="font-size: 9px;">{{$company->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</td>
                                 </tr>
                             </table>
 
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">TELEVISIÓN</p>
                             <table style="width: 100%; text-align:center; padding:5px;">
-                                <tr style="background-color: {{Auth::user()->empresa()->color}}; color: #fff;">
+                                <tr style="background-color: {{$company->color}}; color: #fff;">
                                     <td colspan="2">Incluidos en el plan</td>
                                     <td colspan="2">Adicionales</td>
                                 </tr>
@@ -220,9 +220,9 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    <td style="font-size: 9px;">{{Auth::user()->empresa()->moneda}}{{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td>
+                                    <td style="font-size: 9px;">{{$company->moneda}}{{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td>
                                     <td style="font-size: 9px;">Total</td>
-                                    <td style="font-size: 9px;">{{Auth::user()->empresa()->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td>
+                                    <td style="font-size: 9px;">{{$company->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td>
                                     @php
                                     $total_tv = 0; $total_internet = 0;
                                     if (isset($contract->servicio_tv)){
@@ -237,7 +237,7 @@
                         </div>
 
                         <div style="border: 1px  solid #000; margin-top: 5px; padding:2px; text-align: right;">
-                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{Auth::user()->empresa()->moneda}} {{ App\Funcion::Parsear($total_tv + $total_internet) }}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
+                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$company->moneda}} {{ App\Funcion::Parsear($total_tv + $total_internet) }}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
                         </div>
 
                         <br><p style="text-align: justify; color: blue;" class="small">* Espacio diligenciado por el usuario</p>
@@ -247,7 +247,7 @@
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">PRINCIPALES OBLIGACIONES DEL USUARIO</p><br>
                         <p style="text-align: justify;" class="small">1) Pagar oportunamente los servicios prestados, incluyendo los intereses de mora cuando haya incumplimiento 2) suministrar información verdadera 3) hacer uso adecuado de los equipos y los servicios 4) No divulgar ni acceder a pornografía infantil (consultar anexo) 5) avisar a las autoridades cualquier evento de robo o hurto de elementos de la red, como el cable 6) No cometer o ser partícipe de fraude 7) hacer uso adecuado de su derecho a presentar PQR. 8) actuar de buena fe. El operador podrá terminar el contrato ante incumplimiento de estas obligaciones.</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CALIDAD Y COMPENSACIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Cuando se presente indisponibilidad del servicio o este se suspenda a pesar de su pago oportuno, lo compensaremos en su próxima factura. Debemos cumplir con las condiciones de calidad definidas por la CRC.<br>Consúltelas en la página: {{ Auth::user()->empresa()->web }}</p><br>
+                        <p style="text-align: justify;" class="small">Cuando se presente indisponibilidad del servicio o este se suspenda a pesar de su pago oportuno, lo compensaremos en su próxima factura. Debemos cumplir con las condiciones de calidad definidas por la CRC.<br>Consúltelas en la página: {{ $company->web }}</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CESIÓN</p><br>
                         <p style="text-align: justify;" class="small">Si quiere ceder este contrato a otra persona, debe presentar una solicitud por escrito a través de nuestros Medios de Atención, acompañada de la aceptación por escrito de la persona a la que se hará la cesión. Dentro de los 15 días hábiles siguientes, analizaremos su solicitud y le daremos una respuesta. Si se acepta la cesión queda liberado de cualquier responsabilidad con nosotros.</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">MODIFICACIÓN</p><br>
@@ -274,7 +274,7 @@
                         <table width="100%" style="margin: 0">
                             <tbody>
                                 <tr>
-                                    <th style="background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: center;" width="5%">1</th>
+                                    <th style="background-color: {{$company->color}}; color: white; text-align: center;" width="5%">1</th>
                                     <td style="border: 1px solid #000;font-size:11px " width="95%">
                                         <p style="font-size: 9px; padding:0 5px; text-align: justify;">Nuestros medios de atención son: oficinas físicas, página web, redes sociales y líneas telefónicas gratuitas.</p>
                                     </td>
@@ -285,7 +285,7 @@
                         <table width="100%" style="margin: 0">
                             <tbody>
                                 <tr>
-                                    <th style="background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: center;" width="5%">2</th>
+                                    <th style="background-color: {{$company->color}}; color: white; text-align: center;" width="5%">2</th>
                                     <td style="border: 1px solid #000;font-size:11px" width="95%">
                                     <p style="font-size: 9px; padding:0 5px; text-align: justify;">Presente cualquier queja, petición/reclamo o recurso a través de estos medios y le responderemos en máximo 15 días hábiles.</p>
                                     </td>
@@ -296,7 +296,7 @@
                         <table width="100%" style="margin: 0">
                             <tbody>
                                 <tr>
-                                    <th style="background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: center;" width="5%">3</th>
+                                    <th style="background-color: {{$company->color}}; color: white; text-align: center;" width="5%">3</th>
                                     <td style="border: 1px solid #000;font-size:11px" width="95%">
                                     <p style="font-size: 9px; padding:0 5px; text-align: justify;">Si no respondemos es porque aceptamos su petición o reclamo. Esto se llama silencio administrativo positivo y aplica para internet y telefonía.</p>
                                     </td>
@@ -309,7 +309,7 @@
                         <table width="100%" style="margin: 0">
                             <tbody>
                                 <tr>
-                                    <th style="background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: center;" width="5%">4</th>
+                                    <th style="background-color: {{$company->color}}; color: white; text-align: center;" width="5%">4</th>
                                     <td style="border: 1px solid #000;font-size:11px " width="95%">
                                     <p style="font-size: 9px; padding:0 5px; text-align: justify;">Cuando su queja o petición sea por los servicios de telefonía y/o internet, y esté relacionada con actos de negativa del contrato, suspensión del servicio, terminación del contrato, corte y facturación; usted puede insistir en su solicitud ante nosotros, dentro de los 10 días hábiles siguientes a la respuesta, y pedir que si no llegamos a una solución satisfactoria para usted, enviemos su reclamo directamente a la SIC (Superintendencia de Industria y Comercio) quien resolverá de manera definitiva su solicitud. Esto se llama recurso de reposición y en subsidio apelación. Cuando su queja o petición sea por el servicio de televisión, puede enviar la misma a la Autoridad Nacional de Televisión, para que esta Entidad resuelva su solicitud.</p>
                                     </td>
@@ -324,8 +324,8 @@
                         <table width="100%" style="font-size: 10px">
                             <tbody>
                                 <tr>
-                                    <th style="padding: 0px!important; background-color:{{Auth::user()->empresa()->color}}; color: white; text-align: left; font-size: 10px;" width="65% pl-2">Valor total del cargo por conexión</th>
-                                    <td style="padding: 0px!important; border: 1px solid {{Auth::user()->empresa()->color}}; font-size: 10px" width="35%">
+                                    <th style="padding: 0px!important; background-color:{{$company->color}}; color: white; text-align: left; font-size: 10px;" width="65% pl-2">Valor total del cargo por conexión</th>
+                                    <td style="padding: 0px!important; border: 1px solid {{$company->color}}; font-size: 10px" width="35%">
                                         <p style="padding: 0;margin:0;">$_______</p>
                                     </td>
                                 </tr>
@@ -335,8 +335,8 @@
                         <table width="100%" style="font-size: 10px">
                             <tbody>
                                 <tr>
-                                    <th style="background-color:{{Auth::user()->empresa()->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Suma que le fue descontada o diferida del valor total del cargo por conexión</th>
-                                    <td style="border: 1px solid {{Auth::user()->empresa()->color}}; font-size: 10px" width="35%">
+                                    <th style="background-color:{{$company->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Suma que le fue descontada o diferida del valor total del cargo por conexión</th>
+                                    <td style="border: 1px solid {{$company->color}}; font-size: 10px" width="35%">
                                         <p style="padding: 0;margin:0;">$_______</p>
                                     </td>
                                 </tr>
@@ -346,8 +346,8 @@
                         <table width="100%" style="font-size: 10px">
                             <tbody>
                                 <tr>
-                                    <th style="background-color:{{Auth::user()->empresa()->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Fecha de inicio de la permanencia mínima</th>
-                                    <td style="border: 1px solid {{Auth::user()->empresa()->color}}; font-size: 10px" width="35%">
+                                    <th style="background-color:{{$company->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Fecha de inicio de la permanencia mínima</th>
+                                    <td style="border: 1px solid {{$company->color}}; font-size: 10px" width="35%">
                                         <p style="padding: 0;margin:0;">{{ isset($contractDetails->created_at) ? Carbon\Carbon::parse($contractDetails->created_at)->format('d-m-Y') : '________' }}</p>
                                     </td>
                                 </tr>
@@ -357,8 +357,8 @@
                         <table width="100%" style="font-size: 10px">
                             <tbody>
                                 <tr>
-                                    <th style="background-color:{{Auth::user()->empresa()->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Fecha de finalización de la permanencia mínima</th>
-                                    <td style="border: 1px solid {{Auth::user()->empresa()->color}}; font-size: 10px" width="35%">
+                                    <th style="background-color:{{$company->color}}; color: white; text-align: left; font-size: 10px;" width="65%">Fecha de finalización de la permanencia mínima</th>
+                                    <td style="border: 1px solid {{$company->color}}; font-size: 10px" width="35%">
                                         <p style="padding: 0;margin:0;">{{ isset($contractDetails->created_at) ? Carbon\Carbon::parse($contractDetails->created_at)->addYear()->format('d-m-Y') : '________' }}</p>
                                     </td>
                                 </tr>
@@ -368,42 +368,42 @@
                         <table width="100%" style="font-size: 10px;">
                             <thead>
                                 <tr>
-                                    <th style="background-color: {{Auth::user()->empresa()->color}}; color: white; text-align: center; font-size: 10px; padding: 0;margin:0;">Valor a pagar si termina el contrato anticipadamente según el mes</th>
+                                    <th style="background-color: {{$company->color}}; color: white; text-align: center; font-size: 10px; padding: 0;margin:0;">Valor a pagar si termina el contrato anticipadamente según el mes</th>
                                 </tr>
                             </thead>
                         </table>
 
                         <table width="100%">
                             <tbody>
-                                <tr style="background-color: {{Auth::user()->empresa()->color}}; border: solid 1px {{Auth::user()->empresa()->color}}; color: #fff; text-align: center;">
+                                <tr style="background-color: {{$company->color}}; border: solid 1px {{$company->color}}; color: #fff; text-align: center;">
                                     @for ($i = 1; $i <= 6; $i++)
                                         <td style="font-size: 8px;">MES {{ $i }}</td>
                                     @endfor
                                 </tr>
                                 <tr class="tr-precios">
                                     @for ($i = 0; $i < 6; $i++)
-                                    <td style="font-size: 7px; border: solid 1px {{Auth::user()->empresa()->color}}; text-align: center;">
+                                    <td style="font-size: 7px; border: solid 1px {{$company->color}}; text-align: center;">
                                         @if($contract)
-                                        {{Auth::user()->empresa()->moneda}} {{ App\Funcion::Parsear((Auth::user()->empresa()->clausula_permanencia / $contract->contrato_permanencia_meses) * (12-$i)) }}
+                                        {{$company->moneda}} {{ App\Funcion::Parsear(($company->clausula_permanencia / $contract->contrato_permanencia_meses) * (12-$i)) }}
                                         @else
-                                        {{Auth::user()->empresa()->moneda}} {{ App\Funcion::Parsear((Auth::user()->empresa()->clausula_permanencia)) }}
+                                        {{$company->moneda}} {{ App\Funcion::Parsear(($company->clausula_permanencia)) }}
                                         @endif
                                     </td>
                                     @endfor
                                 </tr>
 
-                                <tr style="background-color: {{Auth::user()->empresa()->color}}; border: solid 1px {{Auth::user()->empresa()->color}}; color: #fff; text-align: center;">
+                                <tr style="background-color: {{$company->color}}; border: solid 1px {{$company->color}}; color: #fff; text-align: center;">
                                     @for ($i = 7; $i <= 12; $i++)
                                         <td style="font-size: 8px;">MES {{ $i }}</td>
                                     @endfor
                                 </tr>
                                 <tr class="tr-precios">
                                     @for ($i = 0; $i < 6; $i++)
-                                    <td style="font-size: 7px; border: solid 1px {{Auth::user()->empresa()->color}}; text-align: center;">
+                                    <td style="font-size: 7px; border: solid 1px {{$company->color}}; text-align: center;">
                                     @if($contract)
-                                        {{Auth::user()->empresa()->moneda}} {{ App\Funcion::Parsear((Auth::user()->empresa()->clausula_permanencia / $contract->contrato_permanencia_meses) * (6-$i)) }}
+                                        {{$company->moneda}} {{ App\Funcion::Parsear(($company->clausula_permanencia / $contract->contrato_permanencia_meses) * (6-$i)) }}
                                         @else
-                                        {{Auth::user()->empresa()->moneda}} {{ App\Funcion::Parsear((Auth::user()->empresa()->clausula_permanencia)) }}
+                                        {{$company->moneda}} {{ App\Funcion::Parsear(($company->clausula_permanencia)) }}
                                     @endif
                                     </td>
                                     @endfor
@@ -417,19 +417,19 @@
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">LARGA DISTANCIA (TELEFONÍA)</p><br>
                         <p style="text-align: justify;" class="small">Nos comprometemos a usar el operador de larga distancia que usted nos indique, para lo cual debe marcar el código de larga distancia del operador que elija.</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">COBRO POR RECONEXIÓN DEL SERVICIO</p><br>
-                        <p style="text-align: justify;" class="small">En caso de suspensión del servicio por mora en el pago, podremos cobrarle un valor por reconexión que corresponderá estrictamente a los costos asociados a la operación de reconexión. En caso de servicios empaquetados procede máximo un cobro de reconexión por cada tipo de conexión empleado en la prestación de los servicios. @if($contract) <b>{{ $contract->costo_reconexion > 0 ? 'Costo reconexión: '.Auth::user()->empresa()->moneda.' '.App\Funcion::Parsear($contract->costo_reconexion) : '' }}</b> @endif </p><br>
-                        <p style="padding: 5px; color: white; background-color: {{Auth::user()->empresa()->color}};text-align: justify;" class="small">El usuario es el ÚNICO responsable por el contenido y la información que se curse a través de la red y del uso que se haga de los equipos o de los servicios.</p>
-                        <p style="margin-top: 5px; padding: 5px; color: white; background-color: {{Auth::user()->empresa()->color}};text-align: justify;" class="small">Los equipos de comunicaciones que ya no use son desechos que no deben ser botados a la caneca, consulte nuestra política de recolección de aparatos en desuso.</p>
-                        @if(Auth::user()->empresa()->contrato_digital && $contract)
+                        <p style="text-align: justify;" class="small">En caso de suspensión del servicio por mora en el pago, podremos cobrarle un valor por reconexión que corresponderá estrictamente a los costos asociados a la operación de reconexión. En caso de servicios empaquetados procede máximo un cobro de reconexión por cada tipo de conexión empleado en la prestación de los servicios. @if($contract) <b>{{ $contract->costo_reconexion > 0 ? 'Costo reconexión: '.$company->moneda.' '.App\Funcion::Parsear($contract->costo_reconexion) : '' }}</b> @endif </p><br>
+                        <p style="padding: 5px; color: white; background-color: {{$company->color}};text-align: justify;" class="small">El usuario es el ÚNICO responsable por el contenido y la información que se curse a través de la red y del uso que se haga de los equipos o de los servicios.</p>
+                        <p style="margin-top: 5px; padding: 5px; color: white; background-color: {{$company->color}};text-align: justify;" class="small">Los equipos de comunicaciones que ya no use son desechos que no deben ser botados a la caneca, consulte nuestra política de recolección de aparatos en desuso.</p>
+                        @if($company->contrato_digital && $contract)
                         <div style="border: 1px  solid #000; margin-top: 5px;">
                             <p style="font-size: 9px;text-align: justify; padding:5px;" class="small">
-                                {{ Auth::user()->empresa()->contrato_digital }}
+                                {{ $company->contrato_digital }}
                             </p>
                         </div>
                         @endif
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -440,7 +440,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -493,7 +493,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -504,7 +504,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -527,20 +527,20 @@
                             <br>
                             <b>AL CONTRATO DE PRESTACIÓN DE SERVICIOS DE TELECOMUNICACIONES RESPECTO AL USO DE DATOS PERSONALES</b></p><br>
                         <p style="text-align: justify;" class="small">
-                            <u> {{ $contact->nombre }} {{ $contact->apellidos() }} </u>, identificado como aparece el pie de mi firma, por medio del presente escrito, manifiesto que he sido informado y autorizo <b>{{Auth::user()->empresa()->nombre}}</b> para que:<br><br>
-                            Actúe como responsable del Tratamiento de datos personales de los cuales soy titular y que, conjunta o separadamente podrán recolectar, usar y tratar mis datos personales conforme la Política de Tratamiento de Datos Personales de la Compañía disponible en <b>{{Auth::user()->empresa()->web}}</b><br><br>
+                            <u> {{ $contact->nombre }} {{ $contact->apellidos() }} </u>, identificado como aparece el pie de mi firma, por medio del presente escrito, manifiesto que he sido informado y autorizo <b>{{$company->nombre}}</b> para que:<br><br>
+                            Actúe como responsable del Tratamiento de datos personales de los cuales soy titular y que, conjunta o separadamente podrán recolectar, usar y tratar mis datos personales conforme la Política de Tratamiento de Datos Personales de la Compañía disponible en <b>{{$company->web}}</b><br><br>
                             Es de carácter facultativo responder preguntas que versen sobre Datos Sensibles o sobre menores de edad.<br><br>
                             Mis derechos como titular de los datos son los previstos en la Constitución y la ley 1581 de 2012, especialmente el derecho a conocer, actualizar, rectificar y suprimir mi información personal, así como el derecho a revocar el consentimiento otorgado para el tratamiento de datos personales.<br><br>
                             Los derechos pueden ser ejercidos a través de los canales gratuitos dispuestos por la empresa y observando la Política de Tratamiento de Datos Personales de la misma.<br><br>
-                            Para cualquier inquietud o información adicional relacionada con el tratamiento de datos personales, puedo contactarme al correo electrónico {{Auth::user()->empresa()->email }}<br><br>
+                            Para cualquier inquietud o información adicional relacionada con el tratamiento de datos personales, puedo contactarme al correo electrónico {{$company->email}}<br><br>
                             La empresa garantiza la confidencialidad, libertad, seguridad, veracidad, transparencia, acceso y circulación restringida de mis datos y se reservan el derecho de modificar su Política de Tratamiento de Datos Personales en cualquier momento. Cualquier cambio será informado y publicado oportunamente en la página web.<br><br>
-                            Teniendo en cuenta lo anterior, autorizo de manera voluntaria, previa, explícita, informada e inequívoca a <b>{{Auth::user()->empresa()->nombre}}</b> para tratar mis datos personales de acuerdo con la Política de Tratamiento de Datos Personales de la y para los fines relacionados con su objeto social y en especial para fines legales, contractuales, comerciales descritos en la Política de Tratamiento de Datos Personales de Empresa. La información obtenida para el Tratamiento de mis datos personales la he suministrado de forma voluntaria y es verídica.
+                            Teniendo en cuenta lo anterior, autorizo de manera voluntaria, previa, explícita, informada e inequívoca a <b>{{$company->nombre}}</b> para tratar mis datos personales de acuerdo con la Política de Tratamiento de Datos Personales de la y para los fines relacionados con su objeto social y en especial para fines legales, contractuales, comerciales descritos en la Política de Tratamiento de Datos Personales de Empresa. La información obtenida para el Tratamiento de mis datos personales la he suministrado de forma voluntaria y es verídica.
                         </p>
 
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -551,7 +551,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -565,13 +565,13 @@
                             <br>
                             <b>FORMATO AUTORIZACIÓN CONSULTA CENTRALES DE RIESGO</b></p><br>
                         <p style="text-align: justify;" class="small">
-                            Yo, <u> {{ $contact->nombre }} {{ $contact->apellidos() }} </u> identificado como aparece al pie de mi firma, obrando en mi propio nombre y/o en representación de: ____________________ AUTORIZO EXPRESA E IRREVOCABLEMENTE a <b>{{Auth::user()->empresa()->nombre}}</b>, libre y voluntariamente, para que reporte, consulte y divulgue a cualquier operador y/o fuente de información legalmente establecido, toda la información referente a mi comportamiento como cliente que se relacione con el nacimiento, ejecución, modificación, liquidación y/o extinción de las obligaciones que se deriven del presente contrato, en cualquier tiempo, y que podrá reflejarse en las bases de datos de DATACREDIDO, CIFIN, COVINOC o de cualquier otro operador y/o fuente de información legalmente establecido. La permanencia de la información estará sujeta a los principios, términos y condiciones consagrados en la ley 1266 de 2008 y demás normas que lo modifiquen, aclaren o reglamenten. Así mismo, autorizo, expresa e irrevocablemente a <b>{{Auth::user()->empresa()->nombre}}</b> para que consulte toda la información financiera, crediticia, comercial, de servicios y la proveniente de otros países, atinente a mis relaciones comerciales que tenga con el Sistema Financiero, comercial y de servicios, o de cualquier sector, tanto en Colombia como en el Exterior, en cualquier tiempo. PARÁGRAFO: La presente autorización se extiende para que <b>{{Auth::user()->empresa()->nombre}}</b> pueda compartir información con terceros públicos o privados, bien sea que éstos ostenten la condición de fuentes de información, operadores de información o usuarios, con quienes EL CLIENTE tenga vínculos jurídicos de cualquier naturaleza, todo conforme a lo establecido en las normas legales vigentes dentro del marco del Sistema de Administración de Riesgos de Lavado de Activos y Financiación al Terrorismo SARLAFT de <b>{{Auth::user()->empresa()->nombre}}</b>
+                            Yo, <u> {{ $contact->nombre }} {{ $contact->apellidos() }} </u> identificado como aparece al pie de mi firma, obrando en mi propio nombre y/o en representación de: ____________________ AUTORIZO EXPRESA E IRREVOCABLEMENTE a <b>{{$company->nombre}}</b>, libre y voluntariamente, para que reporte, consulte y divulgue a cualquier operador y/o fuente de información legalmente establecido, toda la información referente a mi comportamiento como cliente que se relacione con el nacimiento, ejecución, modificación, liquidación y/o extinción de las obligaciones que se deriven del presente contrato, en cualquier tiempo, y que podrá reflejarse en las bases de datos de DATACREDIDO, CIFIN, COVINOC o de cualquier otro operador y/o fuente de información legalmente establecido. La permanencia de la información estará sujeta a los principios, términos y condiciones consagrados en la ley 1266 de 2008 y demás normas que lo modifiquen, aclaren o reglamenten. Así mismo, autorizo, expresa e irrevocablemente a <b>{{$company->nombre}}</b> para que consulte toda la información financiera, crediticia, comercial, de servicios y la proveniente de otros países, atinente a mis relaciones comerciales que tenga con el Sistema Financiero, comercial y de servicios, o de cualquier sector, tanto en Colombia como en el Exterior, en cualquier tiempo. PARÁGRAFO: La presente autorización se extiende para que <b>{{$company->nombre}}</b> pueda compartir información con terceros públicos o privados, bien sea que éstos ostenten la condición de fuentes de información, operadores de información o usuarios, con quienes EL CLIENTE tenga vínculos jurídicos de cualquier naturaleza, todo conforme a lo establecido en las normas legales vigentes dentro del marco del Sistema de Administración de Riesgos de Lavado de Activos y Financiación al Terrorismo SARLAFT de <b>{{$company->nombre}}</b>
                         </p>
 
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -582,7 +582,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -610,16 +610,16 @@
                             Usted manifiesta que, de acuerdo con lo establecido en el artículo 622 del Código de Comercio, autoriza expresa e irrevocablemente a nosotros para llenar los espacios en blanco del pagaré suscrito simultáneamente con la firma del presente contrato, otorgado en su favor, los cuales corresponden a la fecha de vencimiento y cuantía del capital.<br><br>
                             El pagare podrá ser llenado sin previo aviso, de acuerdo con las siguientes instrucciones:
                             <br><br>
-                            - La cuantía será igual al monto de todas las sumas que, por cualquier concepto le esté debiendo a <b>{{Auth::user()->empresa()->nombre}}</b> el día que sea llenado incluyendo en dicha cuantía el valor de aquellas obligaciones que se declaren se plazo vencido como anteriormente se autorizó.<br>
+                            - La cuantía será igual al monto de todas las sumas que, por cualquier concepto le esté debiendo a <b>{{$company->nombre}}</b> el día que sea llenado incluyendo en dicha cuantía el valor de aquellas obligaciones que se declaren se plazo vencido como anteriormente se autorizó.<br>
                             - La fecha de vencimiento será el día que el titulo sea llenado o la del día siguiente.<br>
                             - En materia de intereses se observarán para su cálculo y liquidación las siguientes pautas:<br><br>
                             1. Los intereses de mora serán los máximos legalmente autorizados por la ley.<br>
                             2. Si al momento de ser llenado este pagare se han causado intereses sobre la obligación, estos se incluirán dentro de la cuantía total.<br>
                             3. En el caso de mi incumplimiento optare por declarar vencido el plazo pactado y hacer exigible la cancelación de todas las obligaciones a mi cargo. declarar vencido el plazo pactado y hacer exigible la cancelación de todas las obligaciones a mi cargo.<br><br>
-                            Adicionalmente, con la suscripción del presente documento autorizamos a <b>{{Auth::user()->empresa()->nombre}}</b>, en forma libre, expresa e irrevocable, para que obtenga, reporte y actualice ene cualquier banco de datos, la información y referencias sobre nosotros como personas naturales y/o jurídicas: nombre apellido y documento de identidad; nuestro comportamiento crédito comercial, hábitos de pago manejo de cuentas bancarias y en general el cumplimiento de nuestras obligaciones pecuniarias. El pagare, si llenado, será exigible inmediatamente, y prestará merito ejecutivo sin formalidad adicional alguna.<br><br>
+                            Adicionalmente, con la suscripción del presente documento autorizamos a <b>{{$company->nombre}}</b>, en forma libre, expresa e irrevocable, para que obtenga, reporte y actualice ene cualquier banco de datos, la información y referencias sobre nosotros como personas naturales y/o jurídicas: nombre apellido y documento de identidad; nuestro comportamiento crédito comercial, hábitos de pago manejo de cuentas bancarias y en general el cumplimiento de nuestras obligaciones pecuniarias. El pagare, si llenado, será exigible inmediatamente, y prestará merito ejecutivo sin formalidad adicional alguna.<br><br>
                             PAGARE.<br>
                             Yo, <u> {{ $contact->nombre }} {{ $contact->apellidos() }} </u>, identificado con {{ $contact->tip_iden('corta') }} numero {{ $contact->nit }}  @if($contact->dv != null || $contact->dv === 0)-{{$contact->dv}} @endif, actuando en nombre propio, por medio del presente escrito manifiesto, lo siguiente:<br><br>
-                            PRIMERO: Que debo y pagaré, incondicional y solidariamente a la orden de la empresa <b>{{Auth::user()->empresa()->nombre}}</b> o quien represente sus derechos la cantidad de ____________________ ($____________________) pesos moneda legal Colombiana.<br><br>
+                            PRIMERO: Que debo y pagaré, incondicional y solidariamente a la orden de la empresa <b>{{$company->nombre}}</b> o quien represente sus derechos la cantidad de ____________________ ($____________________) pesos moneda legal Colombiana.<br><br>
                             SEGUNDO: Que el pago total de la mencionada obligación se efectuará en un sólo contado, el día _____ del mes de __________ del año _____________.<br><br>
                             TERCERO: Que en caso de mora pagaré, intereses de mora a la más alta tasa permitida por la Ley, desde el día siguiente a la fecha de exigibilidad del presente pagaré, y hasta cuando su pago total se efectúe.<br><br>
                             CUARTO: Expresamente declaro excusado el protesto del presente pagaré y los requerimientos judiciales o extrajudiciales para la constitución en mora.<br><br>
@@ -628,7 +628,7 @@
                     </td>
                     <td style="vertical-align:top;" width="50%">
                         <div style="border: 1px  solid #000; margin-top: 0px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -639,7 +639,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -652,14 +652,15 @@
 
     @php
         $imagenes = [];
-        if($contact->imgA ?? $contract->imgA ?? null) $imagenes[] = ['letra' => 'A', 'ruta' => ($contact->imgA ?? $contract->imgA)];
-        if($contact->imgB ?? $contract->imgB ?? null) $imagenes[] = ['letra' => 'B', 'ruta' => ($contact->imgB ?? $contract->imgB)];
-        if($contact->imgC ?? $contract->imgC ?? null) $imagenes[] = ['letra' => 'C', 'ruta' => ($contact->imgC ?? $contract->imgC)];
-        if($contact->imgD ?? $contract->imgD ?? null) $imagenes[] = ['letra' => 'D', 'ruta' => ($contact->imgD ?? $contract->imgD)];
-        if($contact->imgE ?? $contract->imgE ?? null) $imagenes[] = ['letra' => 'E', 'ruta' => ($contact->imgE ?? $contract->imgE)];
-        if($contact->imgF ?? $contract->imgF ?? null) $imagenes[] = ['letra' => 'F', 'ruta' => ($contact->imgF ?? $contract->imgF)];
-        if($contact->imgG ?? $contract->imgG ?? null) $imagenes[] = ['letra' => 'G', 'ruta' => ($contact->imgG ?? $contract->imgG)];
-        if($contact->imgH ?? $contract->imgH ?? null) $imagenes[] = ['letra' => 'H', 'ruta' => ($contact->imgH ?? $contract->imgH)];
+        if($digital->documento ?? $digital->documento ?? null) $imagenes[] = ['letra' => 'Documento', 'ruta' => ($digital->documento ?? $digital->documento)];
+        if($digital->imgA ?? $digital->imgA ?? null) $imagenes[] = ['letra' => 'A', 'ruta' => ($digital->imgA ?? $digital->imgA)];
+        if($digital->imgB ?? $digital->imgB ?? null) $imagenes[] = ['letra' => 'B', 'ruta' => ($digital->imgB ?? $digital->imgB)];
+        if($digital->imgC ?? $digital->imgC ?? null) $imagenes[] = ['letra' => 'C', 'ruta' => ($digital->imgC ?? $digital->imgC)];
+        if($digital->imgD ?? $digital->imgD ?? null) $imagenes[] = ['letra' => 'D', 'ruta' => ($digital->imgD ?? $digital->imgD)];
+        if($digital->imgE ?? $digital->imgE ?? null) $imagenes[] = ['letra' => 'E', 'ruta' => ($digital->imgE ?? $digital->imgE)];
+        if($digital->imgF ?? $digital->imgF ?? null) $imagenes[] = ['letra' => 'F', 'ruta' => ($digital->imgF ?? $digital->imgF)];
+        if($digital->imgG ?? $digital->imgG ?? null) $imagenes[] = ['letra' => 'G', 'ruta' => ($digital->imgG ?? $digital->imgG)];
+        if($digital->imgH ?? $digital->imgH ?? null) $imagenes[] = ['letra' => 'H', 'ruta' => ($digital->imgH ?? $digital->imgH)];
     @endphp
 
     @if(count($imagenes) > 0)

@@ -168,8 +168,8 @@ class InvoiceJsonBuilder
                 'company' => $empresa->nit,
                 'custNum' => $empresa->nit,
                 'invoiceType' => 'CreditNoteType',
-                'invoiceNum' => (string) $nota->nro,
-                'legalNumber' => (string) $nota->nro,
+                'invoiceNum' => (string) ($nota->prefijo . $nota->nro),
+                'legalNumber' => (string) ($nota->prefijo . $nota->nro),
                 'operationType_c' => $operacionCodigo,
                 'invoiceDate' => $nota->fecha,
                 "invoiceRef" => $factura->codigo,
@@ -184,7 +184,7 @@ class InvoiceJsonBuilder
                 'currencyCode' => 'COP',
                 'salesRepCode1' => null,
                 'docWHTaxAmt' => round($totalRetenciones,2),
-                'salesRepName1' => $factura->vendedorObj->nombre,
+                'salesRepName1' => isset($factura->vendedorObj->nombre) ? $factura->vendedorObj->nombre : "Vendedor General",
                 'invoiceComment' => $nota->observaciones,
                 'resolution1' => $resolucion_msj,
                 'resolution2' => '',
@@ -242,7 +242,7 @@ class InvoiceJsonBuilder
 
                 return [
                     'company' => $nit,
-                    'invoiceNum' => isset($factura->codigo) ? $factura->codigo : $factura->nro,
+                    'invoiceNum' => isset($factura->codigo) ? $factura->codigo : (isset($factura->prefijo) ? $factura->prefijo . $factura->nro : $factura->nro),
                     'invoiceLine' => $index + 1,
                     'partNum' => $item->ref,
                     'lineDesc' => $item->producto() ?? $item->descripcion,
@@ -280,7 +280,7 @@ class InvoiceJsonBuilder
 
         $additionalTags[] = (object)[
             'company'          => $empresa->nit,
-            'invoiceNum'       => isset($factura->codigo) ? $factura->codigo : $factura->nro,
+            'invoiceNum'       => isset($factura->codigo) ? $factura->codigo : (isset($factura->prefijo) ? $factura->prefijo . $factura->nro : $factura->nro),
             'name'             => 'Note',
             'value'            => $factura->tipo_operacion == 3
                                     ? $factura->notaDetalleXml()
@@ -435,7 +435,7 @@ class InvoiceJsonBuilder
 
                     $taxes[] = (object) [
                         'company' => $nit,
-                        'invoiceNum' => isset($factura->codigo) ? $factura->codigo : $factura->nro,
+                        'invoiceNum' => isset($factura->codigo) ? $factura->codigo : (isset($factura->prefijo) ? $factura->prefijo . $factura->nro : $factura->nro),
                         'invoiceLine' => $k,
                         'currencyCode' => 'COP',
                         'rateCode' => $rateCode,
@@ -483,7 +483,7 @@ class InvoiceJsonBuilder
 
                     $taxes[] = (object) [
                         'company' => $nit,
-                        'invoiceNum' => isset($factura->codigo) ? $factura->codigo : $factura->nro,
+                        'invoiceNum' => isset($factura->codigo) ? $factura->codigo : (isset($factura->prefijo) ? $factura->prefijo . $factura->nro : $factura->nro),
                         'invoiceLine' => 0,
                         'currencyCode' => 'COP',
                         'rateCode' => $rateCode,

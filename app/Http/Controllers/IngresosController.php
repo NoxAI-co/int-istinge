@@ -631,12 +631,33 @@ class IngresosController extends Controller
 
 
                         if($contrato){
-                            $ultimaFactura =$contrato->facturas->last();
-                            //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
-                            if($ultimaFactura){
-                                if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
-                                    $morosos = $this->funcionesPagoMK($contrato,$empresa,$ingreso);
+                            try {
+                                $ultimaFactura = $contrato->facturas->last();
+                                //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
+                                if($ultimaFactura){
+                                    if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
+                                        // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
+                                        $contratoId = $contrato->id;
+                                        $empresaId = $empresa->id;
+                                        $ingresoId = $ingreso->id;
+                                        app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
+                                            try {
+                                                DB::reconnect();
+                                                $contratoBG = \App\Contrato::find($contratoId);
+                                                $empresaBG = \App\Empresa::find($empresaId);
+                                                $ingresoBG = Ingreso::find($ingresoId);
+                                                if($contratoBG && $empresaBG && $ingresoBG){
+                                                    $controller = new \App\Http\Controllers\IngresosController();
+                                                    $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
+                                                }
+                                            } catch (\Throwable $e) {
+                                                Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage());
+                                            }
+                                        });
+                                    }
                                 }
+                            } catch (\Throwable $thMK) {
+                                Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
                         }
 
@@ -699,6 +720,20 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
+
+                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
+                            if ($factura->onepay_invoice_id) {
+                                try {
+                                    $onePayService = new \App\Services\OnePayService($empresa->id);
+                                    $onePayService->deleteInvoice($factura);
+                                } catch (\Exception $e) {
+                                    \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
+                                        'factura_id' => $factura->id,
+                                        'empresa_id' => $empresa->id
+                                    ]);
+                                }
+                            }
+
                             if(isset($request->tipo_electronica) && $request->tipo_electronica != 6 || !isset($request->tipo_electronica)){
                             if(!$contrato){
                                 $db_contrato = DB::table('facturas_contratos')->where('factura_id',$factura->id)->first();
@@ -1139,7 +1174,7 @@ class IngresosController extends Controller
                     ]);
                 }
 
-                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO. ' . $morosos;
+                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.';
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
@@ -1151,151 +1186,165 @@ class IngresosController extends Controller
     }
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
-
         $mensaje = "";
 
-        /* * * API MK * * */
-        if($contrato->server_configuration_id){
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
-            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+        try {
+            /* * * API MK * * */
+            if($contrato->server_configuration_id){
+                $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+                if(!$mikrotik){
+                    Log::warning('No se encontró configuración Mikrotik con id: ' . $contrato->server_configuration_id);
+                    $ingreso->revalidacion_enable_internet = 1;
+                    $ingreso->save();
+                    return $mensaje;
+                }
+                $API = new RouterosAPI();
+                $API->port = $mikrotik->puerto_api;
+                $API->timeout = 5;
+                $API->attempts = 2;
+                $API->delay = 1;
+                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
 
-                $API->write('/ip/firewall/address-list/print', TRUE);
-                $ARRAYS = $API->read();
+                    $API->write('/ip/firewall/address-list/print', TRUE);
+                    $ARRAYS = $API->read();
 
-                if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
+                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
 
-                    #HABILITACION DEL SECRET#
-                    if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                        // Buscar el ID interno del secret
-                        $API->write('/ppp/secret/print', false);
-                        $API->write('?name=' . $contrato->usuario, true);
-                        $ARRAYS = $API->read();
+                        #HABILITACION DEL SECRET#
+                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                            // Buscar el ID interno del secret
+                            $API->write('/ppp/secret/print', false);
+                            $API->write('?name=' . $contrato->usuario, true);
+                            $ARRAYS = $API->read();
 
-                        if (count($ARRAYS) > 0) {
-                            $id = $ARRAYS[0]['.id'];
-                            // Habilitar el secret
-                            $API->write('/ppp/secret/enable', false);
-                            $API->write('=numbers=' . $id, true);
-                            $response = $API->read();
-                            // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                            if (count($ARRAYS) > 0) {
+                                $id = $ARRAYS[0]['.id'];
+                                // Habilitar el secret
+                                $API->write('/ppp/secret/enable', false);
+                                $API->write('=numbers=' . $id, true);
+                                $response = $API->read();
+                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                            }
                         }
-                    }
-                    #HABILITACION DEL SECRET#
+                        #HABILITACION DEL SECRET#
 
-                    #AGREGAMOS A IP_AUTORIZADAS#
-                    $API->comm("/ip/firewall/address-list/add", array(
-                        "address" => $contrato->ip,
-                        "list" => 'ips_autorizadas'
-                        )
-                    );
-                    #AGREGAMOS A IP_AUTORIZADAS#
+                        #AGREGAMOS A IP_AUTORIZADAS#
+                        $API->comm("/ip/firewall/address-list/add", array(
+                            "address" => $contrato->ip,
+                            "list" => 'ips_autorizadas'
+                            )
+                        );
+                        #AGREGAMOS A IP_AUTORIZADAS#
 
-                    $mensaje = "- Se ha habilitado el secret.";
+                        $mensaje = "- Se ha habilitado el secret.";
+                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                        DB::reconnect();
+
+                        $ingreso->revalidacion_enable_internet = 1;
+                        $ingreso->save();
+
+                        $contrato->state = 'enabled';
+                        $contrato->save();
+
+
+                    }else{
+
                     // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                     DB::reconnect();
 
-                    $ingreso->revalidacion_enable_internet = 1;
+                        $API->write('/ip/firewall/address-list/print', false);
+                        $API->write('?address=' . $contrato->ip, false);
+                        $API->write('?list=morosos', true);
+                        $result = $API->read();
+
+                        if (!empty($result)) {
+                            #ELIMINAMOS DE MOROSOS#
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address='.$contrato->ip, false);
+                            $API->write("?list=morosos",false);
+                            $API->write('=.proplist=.id');
+                            $ARRAYS = $API->read();
+
+                            if(count($ARRAYS)>0){
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id='.$ARRAYS[0]['.id']);
+                                $READ = $API->read();
+
+
+                                #AGREGAMOS A IP_AUTORIZADAS#
+                                $API->comm("/ip/firewall/address-list/add", array(
+                                    "address" => $contrato->ip,
+                                    "list" => 'ips_autorizadas'
+                                    )
+                                );
+                                #AGREGAMOS A IP_AUTORIZADAS#
+
+
+                                $mensaje = "- Se ha sacado la ip de morosos.";
+                                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                                DB::reconnect();
+
+                                $ingreso->revalidacion_enable_internet = 1;
+                                $ingreso->save();
+
+                                $contrato->state = 'enabled';
+                                $contrato->save();
+
+                            }else{
+                                Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
+                            }
+                            #ELIMINAMOS DE MOROSOS#
+                        }else{
+                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
+                        }
+                    }
+                    $API->disconnect();
+                }
+            }else{
+                $ingreso->revalidacion_enable_internet = 1;
+                $ingreso->save();
+            }
+            /* * * API MK * * */
+
+             /* * * API CATV * * */
+            if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
+
+                $curl = curl_init();
+                curl_setopt_array($curl, array(
+                    CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_HTTPHEADER => array(
+                        'X-token: '.$empresa->smartOLT
+                    ),
+                    ));
+
+                $response = curl_exec($curl);
+                $response = json_decode($response);
+
+                if(isset($response->status) && $response->status == true){
+
+                    $ingreso->revalidacion_enable_tv = 1;
                     $ingreso->save();
 
-                    $contrato->state = 'enabled';
+                    $contrato->state_olt_catv = 1;
                     $contrato->save();
-
-
-                }else{
-
-                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                DB::reconnect();
-
-                    $API->write('/ip/firewall/address-list/print', false);
-                    $API->write('?address=' . $contrato->ip, false);
-                    $API->write('?list=morosos', true);
-                    $result = $API->read();
-
-                    if (!empty($result)) {
-                        #ELIMINAMOS DE MOROSOS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address='.$contrato->ip, false);
-                        $API->write("?list=morosos",false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-
-                        if(count($ARRAYS)>0){
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id='.$ARRAYS[0]['.id']);
-                            $READ = $API->read();
-
-
-                            #AGREGAMOS A IP_AUTORIZADAS#
-                            $API->comm("/ip/firewall/address-list/add", array(
-                                "address" => $contrato->ip,
-                                "list" => 'ips_autorizadas'
-                                )
-                            );
-                            #AGREGAMOS A IP_AUTORIZADAS#
-
-
-                            $mensaje = "- Se ha sacado la ip de morosos.";
-                            // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                            DB::reconnect();
-
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
-
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                        }else{
-                            Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
-                        }
-                        #ELIMINAMOS DE MOROSOS#
-                    }else{
-                        Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
-                    }
                 }
-                $API->disconnect();
-            }
-        }else{
-            $ingreso->revalidacion_enable_internet = 1;
-            $ingreso->save();
-        }
-        /* * * API MK * * */
-
-         /* * * API CATV * * */
-        if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
-
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 0,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_HTTPHEADER => array(
-                    'X-token: '.$empresa->smartOLT
-                ),
-                ));
-
-            $response = curl_exec($curl);
-            $response = json_decode($response);
-
-            if(isset($response->status) && $response->status == true){
-
+            }else{
                 $ingreso->revalidacion_enable_tv = 1;
                 $ingreso->save();
-
-                $contrato->state_olt_catv = 1;
-                $contrato->save();
             }
-        }else{
-            $ingreso->revalidacion_enable_tv = 1;
-            $ingreso->save();
+            /* * * API CATV * * */
+
+        } catch (\Throwable $th) {
+            Log::error('Error en funcionesPagoMK: ' . $th->getMessage() . ' en la linea ' . $th->getLine() . ' del archivo ' . $th->getFile());
         }
-        /* * * API CATV * * */
 
         return $mensaje;
     }
@@ -2763,6 +2812,403 @@ class IngresosController extends Controller
             $style   = 'danger';
         }
         return back()->with($style, $mensaje);
+    }
+
+    // ==================== IMPORTAR PAGOS / INGRESOS ====================
+
+    public function importar()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Importar Pagos a Facturas', 'full' => true]);
+        
+        $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->where('lectura', 0)->get();
+        $metodos = DB::table('metodos_pago')->where('id', '!=', 8)->where('id', '!=', 7)->get();
+        $formas = FormaPago::where('relacion',1)->orWhere('relacion',3)->get();
+        
+        return view('ingresos.importar')->with(compact('bancos', 'metodos', 'formas'));
+    }
+
+    public function ejemploImportar()
+    {
+        $titulosColumnas = array(
+            'Identificacion', 'codigo factura', 'monto a pagar', 'cuenta', 'metodo de pago', 'fecha', 'observaciones', 'forma de pago'
+        );
+
+        $comentarios = array(
+            'A' => 'Nit o Identificación del cliente asociado a la factura. Obligatorio.',
+            'B' => 'Código de la factura a pagar. Obligatorio.',
+            'C' => 'Monto a pagar sin puntos ni comas. Obligatorio.',
+            'D' => 'Nombre de la cuenta destino tal como aparece en el sistema. Obligatorio.',
+            'E' => 'Nombre del método de pago tal cual está en el sistema (ej: Efectivo, Consignacion). Obligatorio.',
+            'F' => 'Fecha del pago en formato YYYY-MM-DD. Obligatorio.',
+            'G' => 'Observaciones del pago. Opcional.',
+            'H' => 'Código PUC de la forma de pago, debe ser uno de los mostrados en la vista. Obligatorio.',
+        );
+
+        $objPHPExcel = new \PHPExcel();
+        $tituloReporte = "Archivo de Importación de Pagos - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Importación Pagos")
+            ->setSubject("Importación Pagos")
+            ->setDescription("Importación Pagos")
+            ->setKeywords("Importación Pagos")
+            ->setCategory("Importación");
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => \PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => \PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Obtener datos para validaciones
+        $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->where('lectura', 0)->get()->pluck('nombre')->toArray();
+        $metodos = DB::table('metodos_pago')->where('id', '!=', 8)->where('id', '!=', 7)->get()->pluck('metodo')->toArray();
+        $formas = FormaPago::where('relacion',1)->orWhere('relacion',3)->get()->pluck('codigo')->toArray();
+
+        $bancos_str = '"' . implode(',', $bancos) . '"';
+        $metodos_str = '"' . implode(',', $metodos) . '"';
+        $formas_str = '"' . implode(',', $formas) . '"';
+
+        // Agregar validaciones de lista desplegable
+        for ($row = 4; $row <= 100; $row++) {
+            // Cuenta (D)
+            if (strlen($bancos_str) < 255) {
+                $validationD = $objPHPExcel->getActiveSheet()->getCell('D' . $row)->getDataValidation();
+                $validationD->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+                $validationD->setAllowBlank(false);
+                $validationD->setShowDropDown(true);
+                $validationD->setFormula1($bancos_str);
+            }
+
+            // Metodo de pago (E)
+            if (strlen($metodos_str) < 255) {
+                $validationE = $objPHPExcel->getActiveSheet()->getCell('E' . $row)->getDataValidation();
+                $validationE->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+                $validationE->setAllowBlank(false);
+                $validationE->setShowDropDown(true);
+                $validationE->setFormula1($metodos_str);
+            }
+
+            // Forma de pago (H)
+            if (strlen($formas_str) < 255) {
+                $validationH = $objPHPExcel->getActiveSheet()->getCell('H' . $row)->getDataValidation();
+                $validationH->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+                $validationH->setAllowBlank(false);
+                $validationH->setShowDropDown(true);
+                $validationH->setFormula1($formas_str);
+            }
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Pagos');
+        $objPHPExcel->setActiveSheetIndex(0);
+        
+        // Obtener facturas abiertas para pre-llenar la plantilla
+        $facturasAbiertas = Factura::where('factura.empresa', Auth::user()->empresa)
+            ->where('factura.estatus', 1)
+            ->join('contactos', 'contactos.id', '=', 'factura.cliente')
+            ->select('factura.codigo', 'contactos.nit', 'factura.id')
+            ->get();
+            
+        $filaIni = 4;
+        foreach ($facturasAbiertas as $facturaItem) {
+            // Obtenemos el objeto factura real para usar sus métodos ya definidos
+            $facturaReal = Factura::where('id', $facturaItem->id)->first();
+            $porPagar = $facturaReal ? $facturaReal->porpagar() : 0;
+
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue("A" . $filaIni, $facturaItem->nit)
+                ->setCellValue("B" . $filaIni, $facturaItem->codigo)
+                ->setCellValue("C" . $filaIni, $porPagar);
+            $filaIni++;
+        }
+        
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Importacion_Pagos.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function importarCargando(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $create = 0;
+        $errores = [];
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'archivo_pagos.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        Ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = \PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = \PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $identificacion   = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($identificacion)) {
+                break;
+            }
+
+            $codigo_factura   = trim($sheet->getCell("B" . $row)->getValue());
+            $monto            = trim($sheet->getCell("C" . $row)->getValue());
+            $cuenta_nombre    = trim($sheet->getCell("D" . $row)->getValue());
+            $metodo_nombre    = trim($sheet->getCell("E" . $row)->getValue());
+            
+            $fecha_excel      = $sheet->getCell("F" . $row)->getValue();
+            if(\PHPExcel_Shared_Date::isDateTime($sheet->getCell("F" . $row))) {
+                $fecha = date('Y-m-d', \PHPExcel_Shared_Date::ExcelToPHP($fecha_excel));
+            } else {
+                $fecha = trim($fecha_excel);
+            }
+
+            $observaciones    = trim($sheet->getCell("G" . $row)->getValue());
+            $forma_pago_cod   = trim($sheet->getCell("H" . $row)->getValue());
+
+            // Validaciones básicas de campos vacíos
+            if (empty($identificacion) || empty($codigo_factura) || empty($monto) || empty($cuenta_nombre) ||
+                empty($metodo_nombre) || empty($fecha)) {
+                $errores[] = "Fila $row: Faltan campos obligatorios. Verifique identificacion, código factura, monto, cuenta, método, fecha y forma de pago.";
+                continue;
+            }
+
+            // Validar existencia de cliente
+            $cliente = Contacto::where('empresa', Auth::user()->empresa)
+                ->where('nit', $identificacion)
+                ->first();
+                
+            if (!$cliente) {
+                $errores[] = "Fila $row: Cliente con Identificación '<b>$identificacion</b>' no encontrado en el sistema.";
+                continue;
+            }
+
+            // Validar existencia de factura asociada a ese cliente
+            $factura = Factura::where('empresa', Auth::user()->empresa)
+                ->where('cliente', $cliente->id)
+                ->where('codigo', $codigo_factura)
+                ->first();
+                
+            if (!$factura) {
+                $errores[] = "Fila $row: Factura '<b>$codigo_factura</b>' no encontrada o no pertenece al cliente con identificación '<b>$identificacion</b>'.";
+                continue;
+            }
+            
+            if ($factura->estatus == 0) {
+                $errores[] = "Fila $row: Factura '<b>$codigo_factura</b>' ya se encuentra PAGADA en su totalidad.";
+                continue;
+            }
+
+            // Validar Cuenta (banco)
+            $cuenta = Banco::where('empresa', Auth::user()->empresa)
+                ->where('estatus', 1)
+                ->where('lectura', 0)
+                ->where('nombre', $cuenta_nombre)
+                ->first();
+            if (!$cuenta) {
+                $errores[] = "Fila $row: Cuenta '<b>$cuenta_nombre</b>' no encontrada o inactiva.";
+                continue;
+            }
+
+            // Validar Metodo de Pago
+            $metodo = DB::table('metodos_pago')
+                ->where('metodo', $metodo_nombre)
+                ->where('id', '!=', 8)
+                ->where('id', '!=', 7)
+                ->first();
+            if (!$metodo) {
+                $errores[] = "Fila $row: Método de pago '<b>$metodo_nombre</b>' no encontrado.";
+                continue;
+            }
+
+            // Validar Forma de Pago (Puc)
+            $forma_pago = FormaPago::where('codigo', $forma_pago_cod)
+                 ->where(function($q) {
+                     $q->where('relacion',1)->orWhere('relacion',3);
+                 })->first();
+            if (!$forma_pago) {
+                $forma_pago = false;
+                // $errores[] = "Fila $row: Forma de pago con código PUC '<b>$forma_pago_cod</b>' no encontrada o no válida para ingresos.";
+                // continue;
+            }
+
+            // Validaciones adicionales para evitar pago duplicado
+            $monto_precision = floatval(str_replace(',','',$monto));
+            $sumaPagos = round(IngresosFactura::join('ingresos as i','i.id','ingresos_factura.ingreso')
+                ->where('factura',$factura->id)
+                ->where('i.estatus',1)
+                ->sum('pago')
+            );
+            $totalFact = $factura->total()->total;
+            if ($sumaPagos >= $totalFact) {
+                // actualizar si era necesario
+                $factura->estatus = 0;
+                $factura->save();
+                
+                $errores[] = "Fila $row: La factura '<b>$codigo_factura</b>' ya tiene el total pagado.";
+                continue;
+            }
+
+            // ---------- INICIO DE CREACIÓN DE PAGO ----------
+            // Obtener número consecutivo para ingreso
+            $nro = Numeracion::where('empresa', Auth::user()->empresa)->first();
+            $caja = $nro->caja;
+            while (true) {
+                $numero_ingreso = Ingreso::where('empresa', Auth::user()->empresa)->where('nro', $caja)->count();
+                if ($numero_ingreso == 0) {
+                    break;
+                }
+                $caja++;
+            }
+
+            $ingreso              = new Ingreso;
+            $ingreso->nro         = $caja;
+            $ingreso->empresa     = Auth::user()->empresa;
+            $ingreso->cliente     = $cliente->id;
+            $ingreso->cuenta      = $cuenta->id;
+            $ingreso->metodo_pago = $metodo->id;
+            $ingreso->tipo        = 1;
+            $ingreso->fecha       = Carbon::parse($fecha)->format('Y-m-d');
+            $ingreso->observaciones = $observaciones;
+            $ingreso->created_by  = Auth::user()->id;
+            $ingreso->forma_pago  = $forma_pago ? $forma_pago->id : null; 
+            $ingreso->puc_banco   = $forma_pago ? $forma_pago->id : null; // En memoria para PucMovimiento
+            $ingreso->save();
+
+            // Sumar a numeracion
+            $nro->caja = $caja + 1;
+            $nro->save();
+
+            // Registro MovimientoLOG
+            $movimiento = new MovimientoLOG();
+            $movimiento->contrato    = $factura->id;
+            $movimiento->modulo      = 8;
+            $movimiento->descripcion = 'Se creo un ingreso de factura con el recibo de caja nro ' . $ingreso->nro . ' por un total de $' . number_format($monto_precision, 0, ',', '.') . ' (Importación)';
+            $movimiento->created_by  = Auth::user()->id;
+            $movimiento->empresa     = $factura->empresa;
+            $movimiento->save();
+
+            // Guardar factura a ingreso
+            $items          = new IngresosFactura;
+            $items->ingreso = $ingreso->id;
+            $items->factura = $factura->id;
+            $items->pagado  = $monto_precision; // El precio de la bd que se envia por request en web
+            $items->puc_factura = $factura->cuenta_id;
+            $items->puc_banco   = $forma_pago ? $forma_pago->id : null;
+
+            // Validacion si el pago excede el total
+            if($totalFact <= ($monto_precision + $sumaPagos)) {
+                $items->pago = $totalFact - $sumaPagos;
+                $factura->estatus = 0;
+                $factura->save();
+            } else {
+                $items->pago = $monto_precision;
+            }
+
+            if ($this->precision($monto_precision) == $this->precision($factura->porpagar())) {
+                $factura->estatus = 0;
+                $factura->save();
+
+                CRM::where('cliente', $factura->cliente)->whereIn('estado', [0,2,3,6])->delete();
+            }
+
+            $items->save();
+
+            // Registrar movimiento contable
+            // Simulamos $requestObj para el movimiento
+            $requestObj = new \Illuminate\Http\Request();
+            // Requerido si se ejecuta PucMovimiento::ingreso
+            PucMovimiento::ingreso($ingreso, 1, 2, $requestObj);
+
+            // Modificar el estado del contrato
+            $contrato = Contrato::join('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
+                ->where('fc.factura_id', $factura->id)
+                ->select('contracts.*')
+                ->first();
+
+            if (!$contrato) {
+                $contrato = Contrato::where('id', $factura->contrato_id)->first();
+            }
+
+            if ($contrato) {
+                $contrato->state = "enabled";
+                $contrato->save();
+            }
+            if (!$contrato) {
+                $contrato = Contrato::where('client_id', $cliente->id)->first();
+                if ($contrato) {
+                    $contrato->state = "enabled";
+                    $contrato->save();
+                }
+            }
+
+            $create++;
+        }
+
+        // Limpiar archivo temporal
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('ingresos.importar')
+                ->withErrors($errores)
+                ->with('success', "Se importaron $create pagos correctamente.");
+        }
+
+        return redirect('empresa/ingresos')
+            ->with('success', "Se importaron $create pagos a facturas correctamente.");
     }
 
     /**

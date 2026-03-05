@@ -133,7 +133,7 @@
 
                         <div style="width: 100%;  margin-top: 10px; border: 1px  solid #000;">
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INFORMACIÓN DEL SUSCRIPTOR</p><br>
-                            <p style="text-align: justify;" class="small pl-2">Contrato No.: <b></b> </p>
+                            <p style="text-align: justify;" class="small pl-2">Contrato No.: <b>{{ isset($contract->nro) ? $contract->nro : '' }}</b> </p>
                             <p style="text-align: justify;" class="small pl-2">Nombre / Razón Social: <b>{{ $contact->nombre }} {{ $contact->apellidos() }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Identificación: <b>{{ $contact->tip_iden('corta') }} {{ $contact->nit }}@if($contact->dv != null || $contact->dv === 0)-{{$contact->dv}} @endif</b></p>
                             <p style="text-align: justify;" class="small pl-2">Correo electrónico: <b>{{ $contact->email }}</b></p>
@@ -398,7 +398,7 @@
                         @endif
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -409,7 +409,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -462,7 +462,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -473,7 +473,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -509,7 +509,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -520,7 +520,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -540,7 +540,7 @@
                         <br>
 
                         <div style="border: 1px  solid #000; margin-top: 5px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -551,7 +551,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -597,7 +597,7 @@
                     </td>
                     <td style="vertical-align:top;" width="50%">
                         <div style="border: 1px  solid #000; margin-top: 0px;text-align: center;">
-                            <img src="data:image/png;base64,{{substr($contact->firma_isp,1)}}" style="width: 20%; margin-top: 12.5px;">
+                            <img src="data:image/png;base64,{{substr($digital->firma,1)}}" style="width: 20%; margin-top: 12.5px;">
                             <p style="color: #9e9b9b;text-align: center;" class="small">Aceptación contrato mediante firma o cualquier otro medio válido</p>
                         </div>
 
@@ -608,7 +608,7 @@
                                         <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">CC/CE <b>{{ $contact->nit }}</b></p>
                                     </td>
                                     <td style="margin: 0px; padding: 0px;">
-                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($contact->fecha_isp)) }}</b></p>
+                                        <p style="font-size:11px;margin: 2px 5px; padding: 0px; border: 0;">FECHA <b>{{ date('d/m/Y', strtotime($digital->fecha_firma)) }}</b></p>
                                     </td>
                                 </tr>
                             </tbody>

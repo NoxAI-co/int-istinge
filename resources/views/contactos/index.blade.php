@@ -4,15 +4,12 @@
 @endsection
 @section('content')
 	@if(Session::has('success'))
-		<div class="alert alert-success" style="margin-left: 2%;margin-right: 2%;">
+		<div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-left: 2%;margin-right: 2%;">
 			{{Session::get('success')}}
+			<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+				<span aria-hidden="true">&times;</span>
+			</button>
 		</div>
-		<script type="text/javascript">
-			setTimeout(function(){
-			    $('.alert').hide();
-			    $('.active_table').attr('class', ' ');
-			}, 5000);
-		</script>
 	@endif
 
 	<div class="row card-description">

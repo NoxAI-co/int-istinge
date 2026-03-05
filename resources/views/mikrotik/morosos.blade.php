@@ -33,13 +33,20 @@
 
     <div class="row card-description">
         <div class="col-md-12">
-            <div class="form-group">
-                <label for="mikrotik_id">Seleccione Mikrotik</label>
-                <select class="form-control selectpicker" id="mikrotik_id" name="mikrotik_id" data-live-search="true" title="Seleccione una opción">
-                    @foreach($mikrotiks as $mikrotik)
-                        <option value="{{ $mikrotik->id }}" {{ $loop->first ? 'selected' : '' }}>{{ $mikrotik->nombre }} - {{ $mikrotik->ip }}</option>
-                    @endforeach
-                </select>
+            <div class="form-group d-flex align-items-end">
+                <div class="col-md-6">
+                    <label for="mikrotik_id">Seleccione Mikrotik</label>
+                    <select class="form-control selectpicker" id="mikrotik_id" name="mikrotik_id" data-live-search="true" title="Seleccione una opción">
+                        @foreach($mikrotiks as $mikrotik)
+                            <option value="{{ $mikrotik->id }}" {{ $loop->first ? 'selected' : '' }}>{{ $mikrotik->nombre }} - {{ $mikrotik->ip }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-primary btn-batch-sacar" title="Solucionar Discrepancias en Lote">
+                        <i class="fas fa-magic"></i> Solucionar Discrepancias en Lote
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -54,6 +61,7 @@
 						<th>Comentario Mikrotik</th>
 						<th>Estado Sistema</th>
 						<th>Fecha Creación</th>
+						<th>Acciones</th>
 					</tr>
 				</thead>
 			</table>
@@ -78,7 +86,7 @@
 				'url': '{{asset("vendors/DataTables/es.json")}}'
 			},
 			order: [
-				[0, "desc"]
+				[4, "desc"]
 			],
 			ajax: {
                 url: '{{ route("morosos.listar") }}',
@@ -119,18 +127,178 @@
                             return '<span class="badge badge-danger">En Mora</span>';
                         } else if (data == 'Sin Facturas') {
                             return '<span class="badge badge-secondary">Sin Facturas</span>';
+                        } else if (data == 'Anulada') {
+                            return '<span class="badge badge-warning">Anulada</span>';
                         } else {
                             return '<span class="badge badge-light">' + data + '</span>';
                         }
                     }
                 },
-				{data: 'fecha_creacion'}
+				{data: 'fecha_creacion'},
+				{
+					data: null,
+					render: function(data, type, row) {
+						if (row.tiene_discrepancia && row.contrato) {
+							return '<button class="btn btn-outline-primary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="'+row.contrato.id+'" title="Sacar de Morosos"><i class="fas fa-check"></i> Sacar de Morosos</button>';
+						}
+						return '';
+					}
+				}
 			]
 		});
 
         $('#mikrotik_id').on('change', function() {
             tabla.ajax.reload();
         });
+
+		$(document).on('click', '.btn-sacar', function() {
+			var ip = $(this).data('ip');
+			var contratoId = $(this).data('contrato');
+			var mikrotikId = $('#mikrotik_id').val();
+
+			swal({
+				title: "¿Estás seguro?",
+				text: "Se eliminará la IP " + ip + " de la lista de morosos en Mikrotik y se activará el contrato.",
+				type: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#DD6B55",
+				confirmButtonText: "Sí, sacar de morosos",
+				cancelButtonText: "Cancelar"
+			}).then((result) => {
+				if (result.value) {
+					swal({
+						title: 'Procesando...',
+						text: 'Espere un momento por favor',
+						onOpen: () => {
+							swal.showLoading()
+						},
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					});
+
+					$.ajax({
+						url: '{{ route("morosos.sacar") }}',
+						type: 'POST',
+						data: {
+							_token: '{{ csrf_token() }}',
+							ip: ip,
+							contrato_id: contratoId,
+							mikrotik_id: mikrotikId
+						},
+						success: function(response) {
+							if (response.success) {
+								swal("¡Éxito!", response.message, "success");
+								tabla.ajax.reload();
+							} else {
+								swal("Error", response.message, "error");
+							}
+						},
+						error: function() {
+							swal("Error", "Ocurrió un error al procesar la solicitud.", "error");
+						}
+					});
+				}
+			});
+		});
+
+        $(document).on('click', '.btn-batch-sacar', function() {
+            var mikrotikId = $('#mikrotik_id').val();
+            var mikrotikNombre = $('#mikrotik_id option:selected').text();
+
+            if (!mikrotikId) {
+                swal("Error", "Por favor seleccione una Mikrotik", "error");
+                return;
+            }
+
+			swal({
+				title: "¿Estás seguro?",
+				text: "Se buscarán todos los clientes con estado 'PAGADA (Discrepancia)' en " + mikrotikNombre + " y se procesarán automáticamente para sacarlos de morosos y activar sus contratos.",
+				type: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#5cb85c",
+				confirmButtonText: "Sí, procesar en lote",
+				cancelButtonText: "Cancelar"
+			}).then((result) => {
+				if (result.value) {
+					swal({
+						title: 'Procesando...',
+						text: 'Espere un momento por favor',
+						onOpen: () => {
+							swal.showLoading()
+						},
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					});
+
+					$.ajax({
+						url: '{{ route("morosos.sacar.masivo") }}',
+						type: 'POST',
+						data: {
+							_token: '{{ csrf_token() }}',
+							mikrotik_id: mikrotikId
+						},
+						success: function(response) {
+							if (response.success) {
+								swal("¡Éxito!", response.message, "success");
+								tabla.ajax.reload();
+							} else {
+								swal("Info", response.message, "info");
+							}
+						},
+						error: function() {
+							swal("Error", "Ocurrió un error al procesar el lote.", "error");
+						}
+					});
+				}
+			});
+
+		});
+
+        // Check for Disabled Discrepancies
+        function checkDisabledDiscrepancy() {
+            var mikrotikId = $('#mikrotik_id').val();
+            var mikrotikNombre = $('#mikrotik_id option:selected').text();
+            
+            if (!mikrotikId) {
+                $('#div-alert-disabled').remove();
+                return;
+            }
+
+            $.ajax({
+                url: '{{ route("morosos.check.disabled") }}',
+                type: 'GET',
+                data: { mikrotik_id: mikrotikId },
+                success: function(response) {
+                    $('#div-alert-disabled').remove();
+                    
+                    if (response.success && response.count > 0) {
+                        var html = `
+                            <div class="alert alert-warning mt-3" id="div-alert-disabled" role="alert">
+                                <strong><i class="fas fa-exclamation-circle"></i> Atención:</strong> 
+                                Hay <strong>${response.count}</strong> contratos deshabilitados del servidor <strong>${mikrotikNombre}</strong> que NO aparecen en la lista de morosos (IPs no bloqueadas).
+                                <br><br>
+                                <a href="{{ route('morosos.discrepancias.disabled') }}?mikrotik_id=${mikrotikId}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-eye"></i> Ver y Corregir estos ${response.count} contratos
+                                </a>
+                            </div>
+                        `;
+                        // Insert after the existing info alert
+                        $('.alert-info').after(html);
+                    }
+                }
+            });
+        }
+
+        // Call check when Mikrotik changes
+        $('#mikrotik_id').on('change', function() {
+            tabla.ajax.reload();
+            checkDisabledDiscrepancy();
+        });
+
+        // Initial check if one is selected
+        if ($('#mikrotik_id').val()) {
+            checkDisabledDiscrepancy();
+        }
     });
 </script>
 @endsection

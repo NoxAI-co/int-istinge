@@ -619,9 +619,8 @@ class NominaPeriodos extends Model
         $totalidad['salarioSubsidio']['salarioCompleto'] = $pagoEmpleado;
         $totalidad['salarioSubsidio']['valorDia'] = $this->pago_empleado / 30;
 
-        if($this->periodo != 0){
-            $pagoEmpleado = $pagoEmpleado / $this->mini_periodo;
-        }
+        $pagoEmpleado = ($this->pago_empleado / 30) * $diasTrabajados;
+
         $totalidad['salarioSubsidio']['salario'] = $pagoEmpleado;
         $totalidad['salarioSubsidio']['subsidioTransporte'] = floatval($calculosFijosCollect->where('tipo', 'subsidio_transporte')->first()->valor ?? 0);
         $totalidad['salarioSubsidio']['total'] = $totalidad['salarioSubsidio']['salario'] + $totalidad['salarioSubsidio']['subsidioTransporte'];

@@ -2040,14 +2040,15 @@ class ReportesController extends Controller
 
         $orderby=$campos[$request->orderby];
 
-        if(!isset($request->servidor) ||  $request->servidor == 0){
-
+        if(!$request->servidor){
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
                     $join->on('i.id', '=', 'movimientos.id_modulo')
-                         ->where('movimientos.modulo', '=', 1);
+                         ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
+                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
@@ -2056,7 +2057,7 @@ class ReportesController extends Controller
             $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
                     $join->on('i.id', '=', 'movimientos.id_modulo')
-                         ->where('movimientos.modulo', '=', 1);
+                         ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
                 ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
@@ -2065,14 +2066,13 @@ class ReportesController extends Controller
                 ->where('movimientos.empresa',$empresa);
 
         }
-        elseif($request->servidor){
-
+        else{
             $movimientos= Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
-            ->leftjoin('factura as f','f.id','if.factura')
+            ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+            ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
             ->leftjoin('contracts as co','co.id','f.contrato_id')
-            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
             ->where('movimientos.fecha', '>=', $dates['inicio'])
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
@@ -2081,8 +2081,8 @@ class ReportesController extends Controller
 
              $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
-            ->leftjoin('factura as f','f.id','if.factura')
+            ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
+            ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
             ->leftjoin('contracts as co','co.id','f.contrato_id')
             ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
             ->where('movimientos.fecha', '>=', $dates['inicio'])
@@ -2244,7 +2244,9 @@ class ReportesController extends Controller
             return $this->remisiones($request);
         }else{
 
-            $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)->get();
+            $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)
+            ->whereIn('tipo', [1,2])
+            ->get();
             view()->share(['seccion' => 'reportes', 'title' => 'Reporte de Facturas Impagas', 'icon' =>'fas fa-chart-line']);
             $campos=array( '','nombrecliente', 'factura.fecha', 'factura.vencimiento', 'nro', 'nro', 'nro', 'nro');
             if (!$request->orderby) {
@@ -2254,7 +2256,7 @@ class ReportesController extends Controller
             $order=$request->order==1?'DESC':'ASC';
 
             $facturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
-                ->join('contracts', 'factura.contrato_id', '=', 'contracts.id')
+                ->leftjoin('contracts', 'factura.contrato_id', '=', 'contracts.id')
                 ->leftjoin('mikrotik', 'mikrotik.id', '=', 'contracts.server_configuration_id')
                 ->select('factura.id', 'factura.codigo', 'factura.nro','factura.cot_nro', DB::raw('c.nombre as nombrecliente'),
                     'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa','c.status')

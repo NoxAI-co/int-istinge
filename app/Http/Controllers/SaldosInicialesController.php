@@ -41,9 +41,10 @@ class SaldosInicialesController extends Controller
         $contactos = Contacto::where('empresa',Auth::user()->empresa)->get();
         $tipo_usuario = 0;
         $tabla = Campos::where('modulo', 1)->where('estado', 1)->where('empresa', Auth::user()->empresa)->orderBy('orden', 'asc')->get();
+        $tipos = DB::table('tipo_comprobante')->get();
         // return $tabla;
         view()->share(['middel' => true]);
-        return view('saldosiniciales.index')->with(compact('contactos','totalContactos','tipo_usuario','tabla'));
+        return view('saldosiniciales.index')->with(compact('contactos','totalContactos','tipo_usuario','tabla', 'tipos'));
     }
 
     /**
@@ -222,7 +223,21 @@ class SaldosInicialesController extends Controller
         $movimientos = PucMovimiento::query()->select('puc_movimiento.*')->groupBy('puc_movimiento.nro')->orderByDesc('puc_movimiento.id');
 
         if ($request->filtro == true) {
-
+            if ($request->nro) {
+                $movimientos->where('puc_movimiento.nro', $request->nro);
+            }
+            if ($request->tipo_comprobante) {
+                $movimientos->where('puc_movimiento.tipo_comprobante', $request->tipo_comprobante);
+            }
+            if ($request->codigo_cuenta) {
+                $movimientos->where('puc_movimiento.codigo_cuenta', 'like', '%' . $request->codigo_cuenta . '%');
+            }
+            if ($request->cliente) {
+                $movimientos->where('puc_movimiento.cliente_id', $request->cliente);
+            }
+            if ($request->fecha) {
+                $movimientos->where('puc_movimiento.fecha_elaboracion', date('Y-m-d', strtotime($request->fecha)));
+            }
         }
 
         $movimientos->where('puc_movimiento.empresa', auth()->user()->empresa);
@@ -310,4 +325,17 @@ class SaldosInicialesController extends Controller
         $movimientos = $movimientos->OrderBy($orderby, $order)->paginate(25)->appends($appends);
         return $movimientos;
     }
+
+    public function destroy($nro){
+        $this->getAllPermissions(Auth::user()->id);
+        $movimientos = PucMovimiento::where('nro',$nro)->get();
+        if(count($movimientos) > 0){
+            foreach($movimientos as $mov){
+                $mov->delete();
+            }
+            return redirect('empresa/comprobantes/index')->with('success', 'Se ha eliminado correctamente el movimiento contable');
+        }
+        return back()->with('error', 'No se pudo encontrar el documento: ' . $nro . ".");
+    }
 }
+

@@ -590,6 +590,13 @@
                               </span>
                           </div>
 
+                          <div class="col-md-4 form-group">
+                                <label class="control-label">Precio Personalizado Internet
+                                    <a><i data-tippy-content="Si deseas cobrar un precio diferente al del plan para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del plan." class="icono far fa-question-circle"></i></a>
+                                </label>
+                                <input type="number" class="form-control" name="precio_personalizado_internet" id="precio_personalizado_internet" value="{{ isset($contrato->precio_personalizado_internet) ? $contrato->precio_personalizado_internet : '' }}" placeholder="Dejar vacío para usar precio del plan" min="0" step="any">
+                            </div>
+
                           <div class="form-group col-md-4">
                           <button type="button" onclick="refreshDataInternet()" class="btn btn-danger">Resetear información de internet</button>
                           </div>
@@ -631,6 +638,14 @@
                                 <span class="help-block error">
                                     <strong>{{ $errors->first('state_olt_catv') }}</strong>
                                 </span>
+                            </div>
+
+                            
+                            <div class="col-md-4 form-group">
+                                <label class="control-label">Precio Personalizado TV
+                                    <a><i data-tippy-content="Si deseas cobrar un precio diferente al del servicio de TV para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del servicio." class="icono far fa-question-circle"></i></a>
+                                </label>
+                                <input type="number" class="form-control" name="precio_personalizado_tv" id="precio_personalizado_tv" value="{{ isset($contrato->precio_personalizado_tv) ? $contrato->precio_personalizado_tv : '' }}" placeholder="Dejar vacío para usar precio del servicio" min="0" step="any">
                             </div>
 
                         </div>

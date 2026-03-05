@@ -304,22 +304,44 @@
         }
     </style>
 
+    @php
+        $inventarioEmpresa = null;
+        if(isset($items) && count($items) == 1){
+            $invTemp = \App\Model\Inventario\Inventario::find($items[0]->producto);
+            if($invTemp && isset($invTemp->nombre_empresa) && $invTemp->nombre_empresa != null && $invTemp->nombre_empresa != ''){
+                $inventarioEmpresa = $invTemp;
+            }
+        }
+    @endphp
+
 
     <div class="divheader-pr">
         <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-top: 2%; overflow:hidden; text-align:center;">
-            <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+            @if($inventarioEmpresa && $inventarioEmpresa->imagen)
+                <img src="{{asset('images/Empresas/Empresa'.$inventarioEmpresa->empresa.'/inventario/'.$inventarioEmpresa->imagen)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+            @else
+                <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+            @endif
         </div>
         <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: .5%;">
             <br><br>
-            <h4>{{$empresa->nombre}}</h4>
-            <p style="line-height: 12px;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
-                {{$empresa->direccion}} <br>
-                {{$empresa->telefono}}
-                @if($empresa->web)
-                    <br>{{$empresa->web}}
-                @endif
-                <br> <a href="mailto:{{$empresa->email}}" target="_top">{{$empresa->email}}</a>
-            </p>
+            @if($inventarioEmpresa)
+                <h4>{{ $inventarioEmpresa->nombre_empresa }}</h4>
+                <p style="line-height: 12px;">NIT {{ $inventarioEmpresa->nit_empresa }} @if(isset($inventarioEmpresa->dv_empresa) && $inventarioEmpresa->dv_empresa !== null) - {{ $inventarioEmpresa->dv_empresa }} @endif<br>
+                    {{ isset($inventarioEmpresa->direccion_empresa) ? $inventarioEmpresa->direccion_empresa : '' }} <br>
+                    <br> <a href="mailto:{{ isset($inventarioEmpresa->email_empresa) ? $inventarioEmpresa->email_empresa : '' }}" target="_top">{{ isset($inventarioEmpresa->email_empresa) ? $inventarioEmpresa->email_empresa : '' }}</a>
+                </p>
+            @else
+                <h4>{{$empresa->nombre}}</h4>
+                <p style="line-height: 12px;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
+                    {{$empresa->direccion}} <br>
+                    {{$empresa->telefono}}
+                    @if($empresa->web)
+                        <br>{{$empresa->web}}
+                    @endif
+                    <br> <a href="mailto:{{$empresa->email}}" target="_top">{{$empresa->email}}</a>
+                </p>
+            @endif
         </div>
         <div style="width: 21%; display: inline-block; text-align: left; vertical-align: top;margin-top: 2%;">
             <table style="border:none;width:100%;height:auto;">
@@ -422,6 +444,8 @@
                     <div style="background-color:{{$empresa->color}};text-align:center;border-radius:5px;height:16px;padding:5px;text-align:left;color:#fff;">
                         @if($factura->emitida == 1)
                         FACTURA ELECTRONICA DE VENTA
+                        @elseif($factura->tipo == 1)
+                        COBRO
                         @else
                         FACTURA DE VENTA
                         @endif

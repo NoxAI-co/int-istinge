@@ -22,16 +22,17 @@
         .txt-center { text-align: -webkit-center; }
     </style>
 
-    <form method="POST" action="{{ route('asignaciones.store_firma', $contacto->referencia_asignacion) }}" style="padding: 2% 3%;" role="form" class="forms-sample" id="form-asignacion">
-        <input name="referencia_asignacion" type="hidden" value="{{ $contacto->referencia_asignacion }}">
-        <input name="id" type="hidden" value="{{ $contacto->id }}">
+    <form method="POST" action="{{ route('asignaciones.store_firma', $contrato ? $contrato->nro : $contacto->nit) }}" style="padding: 2% 3%;" role="form" class="forms-sample" id="form-asignacion">
+        
+        <input name="contacto_id" type="hidden" value="{{ $contacto->id }}">
+        <input name="contrato_id" type="hidden" value="{{ $contrato ? $contrato->id : '' }}">
         @csrf
 
         {{-- Imprime o debuggea las variables --}}
 
              <div>
-                 <embed src="{{ $empresa->dominio }}/software/empresa/asignaciones/{{ $contacto->id }}/imprimir/firma" type="application/pdf" width="100%" height="800px" style="margin-bottom:50px;"/>
-            </div>
+                  <embed src="{{ $empresa->dominio }}/software/empresa/asignaciones/{{ $digital ? $digital->id : $contacto->id }}/imprimir/firma" type="application/pdf" width="100%" height="800px" style="margin-bottom:50px;"/>
+             </div>
             <center>
             Por favor, actualice su firma digital en el siguiente recuadro.
             <div id="signature-pad" class="jay-signature-pad">

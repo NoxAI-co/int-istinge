@@ -364,6 +364,49 @@
 
         </div>
 
+		<div class="card mb-4">
+			<div class="card-body">
+				<h5 class="mb-3" style="color:{{Auth::user()->empresaObj->color}};">Facturación Empresa</h5>
+				<div class="row">
+					<div class="form-group col-md-12">
+						<label class="control-label">¿Facturar a nombre de otra empresa?
+							<a><i data-tippy-content="Si activas esta opción, la factura se generará con los datos de la empresa que indiques a continuación" class="icono far fa-question-circle"></i></a>
+						</label>
+						<div class="d-flex align-items-center">
+							<label class="switch mb-0">
+								<input type="hidden" name="facturar_otra_empresa" value="0">
+								<input type="checkbox" name="facturar_otra_empresa" id="facturar_otra_empresa" value="1" {{ old('facturar_otra_empresa') == 1 ? 'checked' : '' }}>
+								<span class="slider round"></span>
+							</label>
+							<span class="ml-2" id="facturar_otra_empresa_label">{{ old('facturar_otra_empresa') == 1 ? 'Sí' : 'No' }}</span>
+						</div>
+					</div>
+				</div>
+				<div class="row" id="div_empresa_facturacion" style="{{ old('facturar_otra_empresa') == 1 ? '' : 'display:none;' }}">
+					<div class="form-group col-md-4">
+						<label class="control-label">Nombre / Razón Social</label>
+						<input type="text" class="form-control" name="nombre_empresa" id="nombre_empresa" value="{{ old('nombre_empresa') }}" maxlength="200">
+					</div>
+					<div class="form-group col-md-3">
+						<label class="control-label">NIT</label>
+						<input type="text" class="form-control" name="nit_empresa" id="nit_empresa" value="{{ old('nit_empresa') }}" maxlength="20" onkeyup="calcularDV()">
+					</div>
+					<div class="form-group col-md-2">
+						<label class="control-label">Dígito de Verificación</label>
+						<input type="text" class="form-control" name="dv_empresa" id="dv_empresa" value="{{ old('dv_empresa') }}" readonly style="background-color: #e9ecef;">
+					</div>
+					<div class="form-group col-md-4">
+						<label class="control-label">Dirección</label>
+						<input type="text" class="form-control" name="direccion_empresa" id="direccion_empresa" value="{{ old('direccion_empresa') }}" maxlength="200">
+					</div>
+					<div class="form-group col-md-4">
+						<label class="control-label">Email</label>
+						<input type="email" class="form-control" name="email_empresa" id="email_empresa" value="{{ old('email_empresa') }}" maxlength="200">
+					</div>
+				</div>
+			</div>
+		</div>
+
   		<div class="row">
 
   			@php  $search=array(); @endphp
@@ -477,6 +520,40 @@
 
 		$('#table-extras').append(tr);
 
+	}
+</script>
+<script>
+	$('#facturar_otra_empresa').change(function(){
+		if($(this).is(':checked')){
+			$('#div_empresa_facturacion').show();
+			$('#facturar_otra_empresa_label').text('Sí');
+		}else{
+			$('#div_empresa_facturacion').hide();
+			$('#facturar_otra_empresa_label').text('No');
+			$('#nombre_empresa').val('');
+			$('#nit_empresa').val('');
+			$('#dv_empresa').val('');
+			$('#direccion_empresa').val('');
+			$('#email_empresa').val('');
+		}
+	});
+
+	function calcularDV(){
+		var nit = $('#nit_empresa').val().replace(/[^0-9]/g, '');
+		if(nit.length === 0){
+			$('#dv_empresa').val('');
+			return;
+		}
+		var vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+		var z = nit.length;
+		var x = 0;
+		for(var i = 0; i < z; i++){
+			var y = parseInt(nit.substr(i, 1));
+			x += (y * vpri[z - i - 1]);
+		}
+		var y = x % 11;
+		var dv = (y > 1) ? 11 - y : y;
+		$('#dv_empresa').val(dv);
 	}
 </script>
 @endsection

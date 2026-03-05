@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Barrios;
 use App\Campos;
 use App\Contacto;
 use App\Contrato;
@@ -1066,10 +1067,11 @@ class ContactosController extends Controller
                     break;
                 }
 
-                $req->apellido1         = $sheet->getCell('B'.$row)->getValue();
-                $req->apellido2         = $sheet->getCell('C'.$row)->getValue();
+                $req->nombre            = $this->repairEncoding($nombre);
+                $req->apellido1         = $this->repairEncoding($sheet->getCell('B'.$row)->getValue());
+                $req->apellido2         = $this->repairEncoding($sheet->getCell('C'.$row)->getValue());
                 $req->tip_iden          = $sheet->getCell('D'.$row)->getValue();
-                $req->nit               = $sheet->getCell('E'.$row)->getValue();
+                $req->nit               = $this->cleanIdentification($sheet->getCell('E'.$row)->getValue(), $req->tip_iden);
                 $req->dv                = $sheet->getCell('F'.$row)->getValue();
                 $req->fk_idpais         = $sheet->getCell('G'.$row)->getValue();
                 $req->fk_iddepartamento = $sheet->getCell('H'.$row)->getValue();
@@ -1077,14 +1079,14 @@ class ContactosController extends Controller
                 $req->codigopostal      = $sheet->getCell('J'.$row)->getValue();
                 $req->telefono1         = $sheet->getCell('K'.$row)->getValue(); // Teléfono1
                 $req->telefono2         = $sheet->getCell('L'.$row)->getValue(); // Teléfono2 (NO obligatorio)
-                $req->celular           = $sheet->getCell('M'.$row)->getValue(); // Celular
-                $req->direccion         = $sheet->getCell('N'.$row)->getValue();
-                $req->vereda            = $sheet->getCell('O'.$row)->getValue();
-                $req->barrio            = $sheet->getCell('P'.$row)->getValue();
-                $req->ciudad            = $sheet->getCell('Q'.$row)->getValue();
-                $req->email             = $sheet->getCell('R'.$row)->getValue(); // Correo1
+                $req->celular           = $this->cleanCelular($sheet->getCell('M'.$row)->getValue()); // Celular
+                $req->direccion         = $this->repairEncoding($sheet->getCell('N'.$row)->getValue());
+                $req->vereda            = $this->repairEncoding($sheet->getCell('O'.$row)->getValue());
+                $req->barrio            = $this->repairEncoding($sheet->getCell('P'.$row)->getValue());
+                $req->ciudad            = $this->repairEncoding($sheet->getCell('Q'.$row)->getValue());
+                $req->email             = $this->repairEncoding($sheet->getCell('R'.$row)->getValue()); // Correo1
                 $req->email2            = $sheet->getCell('S'.$row)->getValue(); // Correo2 (NO obligatorio)
-                $req->observaciones     = $sheet->getCell('T'.$row)->getValue();
+                $req->observaciones     = $this->repairEncoding($sheet->getCell('T'.$row)->getValue());
                 $req->tipo_contacto     = $sheet->getCell('U'.$row)->getValue();
                 $req->estrato           = $sheet->getCell('V'.$row)->getValue();
 
@@ -1094,7 +1096,7 @@ class ContactosController extends Controller
                     $error->tip_iden = 'El campo Tipo de identificación es obligatorio';
                 }
                 if (! $req->celular && ! $req->telefono1) {
-                    $error->celular = 'Debe indicar un nro celular o de teléfono';
+                    // $error->celular = 'Debe indicar un nro celular o de teléfono';
                 }
                 if (! $req->tipo_contacto) {
                     $error->tipo_contacto = 'El campo Tipo de Contacto es obligatorio';
@@ -1107,13 +1109,13 @@ class ContactosController extends Controller
                 }
 
                 if ($req->fk_iddepartamento != '') {
-                    if (DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->count() == 0) {
+                    if (DB::table('departamentos')->where('nombre', 'like', '%'.$req->fk_iddepartamento.'%')->count() == 0) {
                         $error->fk_iddepartamento = 'El nombre del departamento ingresado no se encuentra en nuestra base de datos';
                     }
                 }
 
                 if ($req->fk_idmunicipio != '') {
-                    if (DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->count() == 0) {
+                    if (DB::table('municipios')->where('nombre', 'like', '%'.$req->fk_idmunicipio.'%')->count() == 0) {
                         $error->fk_idmunicipio = 'El nombre del municipio ingresado no se encuentra en nuestra base de datos';
                     }
                 }
@@ -1148,11 +1150,11 @@ class ContactosController extends Controller
                 }
 
                 $req                    = (object) [];
-                $req->nombre            = $nombre;
-                $req->apellido1         = $sheet->getCell('B'.$row)->getValue();
-                $req->apellido2         = $sheet->getCell('C'.$row)->getValue();
+                $req->nombre            = $this->repairEncoding($nombre);
+                $req->apellido1         = $this->repairEncoding($sheet->getCell('B'.$row)->getValue());
+                $req->apellido2         = $this->repairEncoding($sheet->getCell('C'.$row)->getValue());
                 $req->tip_iden          = $sheet->getCell('D'.$row)->getValue();
-                $req->nit               = $sheet->getCell('E'.$row)->getValue();
+                $req->nit               = $this->cleanIdentification($sheet->getCell('E'.$row)->getValue(), $req->tip_iden);
                 $req->dv                = $sheet->getCell('F'.$row)->getValue();
                 $req->fk_idpais         = $sheet->getCell('G'.$row)->getValue();
                 $req->fk_iddepartamento = $sheet->getCell('H'.$row)->getValue();
@@ -1160,14 +1162,14 @@ class ContactosController extends Controller
                 $req->codigopostal      = $sheet->getCell('J'.$row)->getValue();
                 $req->telefono1         = $sheet->getCell('K'.$row)->getValue();
                 $req->telefono2         = $sheet->getCell('L'.$row)->getValue();
-                $req->celular           = $sheet->getCell('M'.$row)->getValue();
-                $req->direccion         = $sheet->getCell('N'.$row)->getValue();
-                $req->vereda            = $sheet->getCell('O'.$row)->getValue();
-                $req->barrio            = $sheet->getCell('P'.$row)->getValue();
-                $req->ciudad            = $sheet->getCell('Q'.$row)->getValue();
-                $req->email             = $sheet->getCell('R'.$row)->getValue();
+                $req->celular           = $this->cleanCelular($sheet->getCell('M'.$row)->getValue());
+                $req->direccion         = $this->repairEncoding($sheet->getCell('N'.$row)->getValue());
+                $req->vereda            = $this->repairEncoding($sheet->getCell('O'.$row)->getValue());
+                $req->barrio            = $this->repairEncoding($sheet->getCell('P'.$row)->getValue());
+                $req->ciudad            = $this->repairEncoding($sheet->getCell('Q'.$row)->getValue());
+                $req->email             = $this->repairEncoding($sheet->getCell('R'.$row)->getValue());
                 $req->email2            = $sheet->getCell('S'.$row)->getValue();
-                $req->observaciones     = $sheet->getCell('T'.$row)->getValue();
+                $req->observaciones     = $this->repairEncoding($sheet->getCell('T'.$row)->getValue());
                 $req->tipo_contacto     = $sheet->getCell('U'.$row)->getValue();
                 $req->estrato           = $sheet->getCell('V'.$row)->getValue();
 
@@ -1184,12 +1186,18 @@ class ContactosController extends Controller
                     $req->fk_idpais = DB::table('pais')->where('nombre', $req->fk_idpais)->first()->codigo;
                 }
 
-                if ($req->fk_iddepartamento != '') {
-                    $req->fk_iddepartamento = DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->first()->id;
+                if ($req->fk_idmunicipio != '') {
+                    $municipio = DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->first();
+                    if ($municipio) {
+                        $req->fk_idmunicipio = $municipio->id;
+                        if ($req->fk_iddepartamento == '') {
+                            $req->fk_iddepartamento = $municipio->departamento_id;
+                        }
+                    }
                 }
 
-                if ($req->fk_idmunicipio != '') {
-                    $req->fk_idmunicipio = DB::table('municipios')->where('nombre', $req->fk_idmunicipio)->first()->id;
+                if ($req->fk_iddepartamento != '' && !is_numeric($req->fk_iddepartamento)) {
+                    $req->fk_iddepartamento = DB::table('departamentos')->where('nombre', $req->fk_iddepartamento)->first()->id;
                 }
 
                 // Tipo identificación
@@ -1222,6 +1230,19 @@ class ContactosController extends Controller
                 $contacto->ciudad        = ucwords(mb_strtolower($req->ciudad));
                 $contacto->direccion     = ucwords(mb_strtolower($req->direccion));
                 $contacto->vereda        = ucwords(mb_strtolower($req->vereda));
+                
+                if($req->barrio){
+                    $barrio = Barrios::where('nombre', $req->barrio)->first();
+                    if (!$barrio) {
+                        $barrio = new Barrios;
+                        $barrio->nombre = ucwords(mb_strtolower($req->barrio));
+                        $barrio->status = 1;
+                        $barrio->created_by = Auth::user()->id;
+                        $barrio->save();
+                    }
+                    $contacto->barrio_id = $barrio->id;
+                }
+                
                 $contacto->barrio        = ucwords(mb_strtolower($req->barrio));
                 $contacto->email         = mb_strtolower($req->email);
                 $contacto->email2        = $req->email2 ? mb_strtolower($req->email2) : null;

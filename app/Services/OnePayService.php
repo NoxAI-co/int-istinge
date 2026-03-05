@@ -382,6 +382,92 @@ class OnePayService
     }
 
     /**
+     * Obtener listado de facturas en OnePay con filtros y paginación
+     */
+    public function getInvoices(array $filters = [])
+    {
+        try {
+            if (!$this->token) {
+                throw new \Exception('No hay token configurado para OnePay');
+            }
+
+            // Construir query params
+            $params = [];
+
+            if (!empty($filters['page'])) {
+                $params['page'] = (int) $filters['page'];
+            }
+
+            if (!empty($filters['filter_id'])) {
+                $params['filter[id]'] = $filters['filter_id'];
+            }
+
+            if (!empty($filters['filter_status'])) {
+                $params['filter[status]'] = $filters['filter_status'];
+            }
+
+            if (!empty($filters['filter_reference'])) {
+                $params['filter[reference]'] = $filters['filter_reference'];
+            }
+
+            if (!empty($filters['filter_provider_id'])) {
+                $params['filter[provider_id]'] = $filters['filter_provider_id'];
+            }
+
+            if (!empty($filters['sort'])) {
+                $params['sort'] = $filters['sort'];
+            } else {
+                $params['sort'] = '-created_at';
+            }
+
+            $url = $this->baseUri . '/invoices';
+            if (!empty($params)) {
+                $url .= '?' . http_build_query($params);
+            }
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $this->token,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error    = curl_error($curl);
+            curl_close($curl);
+
+            if ($error) {
+                Log::error('OnePay getInvoices Error: ' . $error);
+                throw new \Exception('Error en la conexión con OnePay: ' . $error);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return $responseData;
+            } else {
+                $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
+                Log::error('OnePay getInvoices API Error: ' . $errorMessage, ['response' => $responseData]);
+                throw new \Exception('Error al obtener facturas de OnePay: ' . $errorMessage);
+            }
+        } catch (\Exception $e) {
+            Log::error('OnePay getInvoices Exception: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
      * Verificar si OnePay está habilitado
      */
     public static function isEnabled($empresaId = null)

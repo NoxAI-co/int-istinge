@@ -60,51 +60,30 @@
 			<div class="card shadow-sm border-0 mb-3" style="background: #ffffff00 !important;">
 				<div class="card-body py-0">
 					<div class="row">
-						@if($tipo_usuario == 0)
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Serial ONU" id="serial_onu" class="form-control rounded">
-						</div>
-						@endif
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Nombres/Apellidos" id="nombre" class="form-control rounded">
+						<div class="col-md-2 pl-1 pt-1">
+							<input type="text" placeholder="Nro" id="nro" class="form-control rounded">
 						</div>
 						<div class="col-md-3 pl-1 pt-1">
-							<input type="number" placeholder="Identificación" id="identificacion" class="form-control rounded">
-						</div>
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="number" placeholder="Teléfono" id="telefono" class="form-control rounded">
-						</div>
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Email" id="email" class="form-control rounded">
-						</div>
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Dirección" id="direccion" class="form-control rounded">
-						</div>
-						@if($tipo_usuario == 0)
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Corregimiento/Vereda" id="vereda" class="form-control rounded">
-						</div>
-						<div class="col-md-3 pl-1 pt-1">
-							<input type="text" placeholder="Barrio" id="barrio" class="form-control rounded">
-						</div>
-						<div class="col-md-3 pl-1 pt-1">
-							<select title="Contratos" class="form-control rounded selectpicker" id="t_contrato" data-size="5" data-live-search="true">
-								<option value="2" >Con contratos</option>
-								<option value="1" >Sin contratos</option>
+							<select title="Tipo de comprobante" class="form-control rounded selectpicker" id="tipo_comprobante" data-size="5" data-live-search="true">
+								@foreach($tipos as $tipo)
+									<option value="{{$tipo->nro}}">{{$tipo->nro}} - {{$tipo->nombre}}</option>
+								@endforeach
 							</select>
 						</div>
+						<div class="col-md-2 pl-1 pt-1">
+							<input type="text" placeholder="Código cuenta" id="codigo_cuenta" class="form-control rounded">
+						</div>
 						<div class="col-md-3 pl-1 pt-1">
-							<select title="Estrato" class="form-control rounded selectpicker" id="estrato" data-size="5" data-live-search="true">
-								<option value="1">1</option>
-								<option value="2">2</option>
-								<option value="3">3</option>
-								<option value="4">4</option>
-								<option value="5">5</option>
-								<option value="6">6</option>
+							<select title="Cliente" class="form-control rounded selectpicker" id="cliente" data-size="5" data-live-search="true">
+								@foreach($contactos as $contacto)
+									<option value="{{$contacto->id}}">{{$contacto->nombre}} {{$contacto->apellidos()}}</option>
+								@endforeach
 							</select>
 						</div>
-						@endif
-						<div class="col-md-1 pl-1 pt-1 text-left">
+						<div class="col-md-2 pl-1 pt-1">
+							<input type="text" placeholder="Fecha" id="fecha" class="form-control rounded datepicker">
+						</div>
+						<div class="col text-left">
 							<a href="javascript:cerrarFiltrador()" class="btn btn-icons ml-1 btn-outline-danger rounded btn-sm p-1 float-right" title="Limpiar parámetros de busqueda"><i class="fas fa-times"></i></a>
 							<a href="javascript:void(0)" id="filtrar" class="btn btn-icons btn-outline-info rounded btn-sm p-1 float-right" title="Iniciar busqueda avanzada"><i class="fas fa-search"></i></a>
 						</div>
@@ -173,17 +152,11 @@
         tabla = $('#tabla-contactos');
 
         tabla.on('preXhr.dt', function(e, settings, data) {
-            //data.serial_onu = $('#serial_onu').val();
-            data.nombre = $('#nombre').val();
-            data.identificacion = $('#identificacion').val();
-            data.telefono1 = $('#telefono').val();
-            data.direccion = $('#direccion').val();
-            data.barrio = $('#barrio').val();
-            data.vereda = $('#vereda').val();
-            data.email = $('#email').val();
-            data.t_contrato = $('#t_contrato').val();
-            data.serial_onu = $('#serial_onu').val();
-            data.estrato = $('#estrato').val();
+            data.nro = $('#nro').val();
+            data.tipo_comprobante = $('#tipo_comprobante').val();
+            data.codigo_cuenta = $('#codigo_cuenta').val();
+            data.cliente = $('#cliente').val();
+            data.fecha = $('#fecha').val();
             data.filtro = true;
         });
 
@@ -215,17 +188,11 @@
 	}
 
 	function cerrarFiltrador() {
-		//$('#serial_onu').val('');
-		$('#nombre').val('');
-		$('#identificacion').val('');
-		$('#telefono').val('');
-		$('#direccion').val('');
-		$('#barrio').val('');
-		$('#vereda').val('');
-		$('#email').val('');
-		$('#t_contrato').val('').selectpicker('refresh');
-		$('#serial_onu').val('');
-		$('#estrato').val('').selectpicker('refresh');
+		$('#nro').val('');
+		$('#tipo_comprobante').val('').selectpicker('refresh');
+		$('#codigo_cuenta').val('');
+		$('#cliente').val('').selectpicker('refresh');
+		$('#fecha').val('');
 		$('#form-filter').addClass('d-none');
 		$('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
 		getDataTable();

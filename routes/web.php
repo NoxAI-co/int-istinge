@@ -139,6 +139,7 @@ Route::get('/updatecontratofactura', 'FacturasController@updateContratoId');
 Route::get('/radicadosbarrio', 'Controller@radicadosBarrio');
 
 Route::get('/digitales', function() {
+	return "";
     $contactos = App\Contacto::whereNotNull('fecha_isp')->where('fecha_isp', '!=', '0000-00-00')->get();
     $count = 0;
     foreach($contactos as $c) {
@@ -275,6 +276,7 @@ Route::get('qrcode', function () {
 Route::post('configuracion_separacion_numero_contrato', 'ConfiguracionController@contratoNumeracion')->name('configuracion.contrato_numeracion');
 Route::post('configuracion_facturas_contratos_off', 'ConfiguracionController@facturaContratoOff');
 Route::post('configuracion_facturas_prorrateo', 'ConfiguracionController@facturaProrrateo');
+Route::post('configuracion_generar_prorrateo', 'ConfiguracionController@generarProrrateoMasivo')->name('configuracion.generar_prorrateo');
 Route::post('configuracion_consultas_mikrotik', 'ConfiguracionController@consultasMikrotik')->name('configuracion.consultas_mikrotik');
 Route::post('configuracion_chat_ia', 'ConfiguracionController@chatIA');
 Route::post('configuracion_facturacionAutomatica', 'ConfiguracionController@facturacionAutomatica');
@@ -540,6 +542,16 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	
 	Route::get('morosos', 'MorososController@index')->name('morosos.index');
 	Route::get('morosos/listar', 'MorososController@listar')->name('morosos.listar');
+	Route::post('morosos/sacar', 'MorososController@sacarMoroso')->name('morosos.sacar');
+	Route::post('morosos/sacar-masivo', 'MorososController@sacarMorososMasivo')->name('morosos.sacar.masivo');
+
+
+    // Rutas para discrepancias de contratos Disabled
+    Route::get('morosos/check-disabled', 'MorososController@checkDisabledButNotListed')->name('morosos.check.disabled');
+    Route::get('morosos/discrepancias-disabled', 'MorososController@indexDisabledDiscrepancy')->name('morosos.discrepancias.disabled');
+    Route::post('morosos/fix-disabled', 'MorososController@fixDisabledDiscrepancy')->name('morosos.fix.disabled');
+    Route::post('morosos/fix-disabled-batch', 'MorososController@fixDisabledDiscrepancyBatch')->name('morosos.fix.disabled.batch');
+
 	Route::get('/', 'HomeController@index')->name('empresa');
 
 	// Ruta para el PDF de asignación de material
@@ -599,6 +611,14 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/material', 'InventarioController@material')->name('inventario.material');
 		Route::get('/television', 'InventarioController@television')->name('inventario.television');
 		Route::get('/television/create', 'InventarioController@television_create')->name('inventario.television_create');
+
+		// Importar / Actualizar Televisión
+		Route::get('/television/importar', 'InventarioController@importarTelevision')->name('inventario.television.importar');
+		Route::post('/television/ejemplo-importar', 'InventarioController@ejemploImportarTelevision')->name('inventario.television.ejemplo-importar');
+		Route::post('/television/importar-cargando', 'InventarioController@importarCargandoTelevision')->name('inventario.television.importar-cargando');
+		Route::get('/television/actualizar', 'InventarioController@actualizarMasivoTelevision')->name('inventario.television.actualizar');
+		Route::post('/television/ejemplo-actualizar', 'InventarioController@ejemploActualizarTelevision')->name('inventario.television.ejemplo-actualizar');
+		Route::post('/television/actualizar-cargando', 'InventarioController@actualizarCargandoTelevision')->name('inventario.television.actualizar-cargando');
 
 		Route::post('/diaiva', 'InventarioController@diaIva');
 
@@ -727,6 +747,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('conversionmasiva-estandar/{facturas}', 'FacturasController@conversionmasivaEstandar');
 		Route::get('enviomasivosiigo/{facturas}', 'SiigoController@envioMasivoSiigo')->name('facturas.enviomasivosiigo');
 		Route::get('impresionmasiva/{facturas}', 'FacturasController@ImprimirMultiple');
+		Route::get('enviomasivocorreo/{facturas}', 'FacturasController@envioMasivoCorreo');
 		Route::delete('eliminarmasiva/{facturas}', 'FacturasController@eliminarMasivaFacturas')->name('facturas.eliminarmasiva');
 		Route::get('exportar', 'FacturasController@exportar')->name('facturas.exportar');
 		Route::get('facturas_electronica/exportar', 'FacturasController@exportar');
@@ -736,6 +757,13 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('facturas-whatsapp-envio', 'FacturasController@facturasWhastappEnvio')->name('cronjob.whatsapp-facturas-envio');
 		Route::get('facturas-whatsapp-reiniciar', 'FacturasController@facturasWhastappReiniciar')->name('cronjob.whatsapp-facturas-reiniciar');
 	});
+
+    // Saldos iniciales
+    Route::group(['prefix' => 'saldos_iniciales'], function () {
+        Route::get('importar', 'FacturasController@importarSaldos')->name('saldos_iniciales.importar');
+        Route::post('ejemplo', 'FacturasController@ejemploImportarSaldos')->name('saldos_iniciales.ejemplo');
+        Route::post('importar', 'FacturasController@importarCargandoSaldos')->name('saldos_iniciales.importar_cargando');
+    });
 
 	// Listar todas las facturas
 	Route::get('factura-index', 'FacturasController@index')->name('facturas.index');
@@ -763,6 +791,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('facturas/validar-codigo', 'FacturasController@validarCodigoFactura')->name('facturas.validar-codigo');
 	Route::post('facturas/actualizar-codigo', 'FacturasController@actualizarCodigoFactura')->name('facturas.actualizar-codigo');
 	Route::get('facturas/numeracion-prefijo/{id}', 'FacturasController@getNumeracionPrefijo')->name('facturas.numeracion-prefijo');
+	Route::post('facturas/renumerar-consecutivos', 'FacturasController@renumerarConsecutivos')->name('facturas.renumerar-consecutivos');
 
 
 	Route::group(['prefix' => 'recepcion'], function () {
@@ -1005,6 +1034,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/edit/{nro}', 'SaldosInicialesController@edit')->name('saldoinicial.edit');
 		Route::post('/update', 'SaldosInicialesController@update')->name('saldoinicial.update');
 		Route::get('/index', 'SaldosInicialesController@index')->name('saldoinicial.index');
+		Route::delete('/destroy/{nro}', 'SaldosInicialesController@destroy')->name('saldoinicial.destroy');
+
 	});
 
 
@@ -1037,6 +1068,11 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('efecty', 'IngresosController@efecty_store')->name('ingresos.efecty_store');
 		Route::get('efecty-xlsx', 'IngresosController@efecty_xlsx')->name('ingresos.efecty_xlsx');
 		Route::post('efecty_store_xlsx', 'IngresosController@efecty_store_xlsx')->name('ingresos.efecty_store_xlsx');
+
+		// Importación de Ingresos
+		Route::get('/importar', 'IngresosController@importar')->name('ingresos.importar');
+		Route::post('/ejemplo-importar', 'IngresosController@ejemploImportar')->name('ingresos.ejemplo-importar');
+		Route::post('/importar-cargando', 'IngresosController@importarCargando')->name('ingresos.importar-cargando');
 
 		Route::get('/movimiento/{id}', 'IngresosController@showMovimiento')->name('ingresos.showmovimiento');
 		Route::get('/tirillawpp/{id}', 'IngresosController@tirillaWpp')->name('ingresos.tirillawpp');
@@ -1393,6 +1429,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		//INTEGRACION PASARELAS DE PAGO
 		Route::group(['prefix' => 'integracion-pasarelas'], function () {
 			Route::post('/{id}/act_desc', 'IntegracionPasarelaController@act_desc')->name('integracion-pasarelas.act_desc');
+			Route::get('/{id}/onepay-invoices', 'IntegracionPasarelaController@onePayInvoices')->name('integracion-pasarelas.onepay-invoices');
 		});
 		Route::resource('integracion-pasarelas', 'IntegracionPasarelaController');
 
@@ -1698,6 +1735,16 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/{planes}/{state}/state_lote', 'PlanesVelocidadController@state_lote')->name('planes-velocidad.state_lote');
 		Route::get('/{planes}/destroy_lote', 'PlanesVelocidadController@destroy_lote')->name('planes-velocidad.destroy_lote');
 		Route::get('/{planes}/crear-mikrotik/{mikrotik_id}', 'PlanesVelocidadController@crear_en_mikrotik')->name('planes-velocidad.crear_mikrotik');
+
+		// Importar planes de velocidad
+		Route::get('importar', 'PlanesVelocidadController@importar')->name('planes-velocidad.importar');
+		Route::post('ejemplo-importar', 'PlanesVelocidadController@ejemploImportar')->name('planes-velocidad.ejemplo-importar');
+		Route::post('importar', 'PlanesVelocidadController@importarCargando')->name('planes-velocidad.importar-cargando');
+
+		// Actualizar planes de velocidad masivo
+		Route::get('actualizar-masivo', 'PlanesVelocidadController@actualizarMasivo')->name('planes-velocidad.actualizar-masivo');
+		Route::post('ejemplo-actualizar', 'PlanesVelocidadController@ejemploActualizar')->name('planes-velocidad.ejemplo-actualizar');
+		Route::post('actualizar-masivo', 'PlanesVelocidadController@actualizarCargando')->name('planes-velocidad.actualizar-cargando');
 	});
 
 	Route::resource('planes-velocidad', 'PlanesVelocidadController');
@@ -1723,6 +1770,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 	// PLANTILLAS
 	Route::group(['prefix' => 'plantillas'], function () {
+		Route::post('/eliminar-masivo', 'PlantillasController@eliminarMasivo')->name('plantillas.eliminar_masivo');
 		Route::post('/{id}/act_desc', 'PlantillasController@act_desc')->name('plantillas.act_desc');
 		Route::get('/envio', 'PlantillasController@envio')->name('plantillas.envio');
 		Route::post('/envio_aviso', 'PlantillasController@envio_aviso')->name('plantillas.envio_aviso');
@@ -1738,6 +1786,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/envio/email', 'AvisosController@email')->name('avisos.envio.email');
 		Route::get('/envio/whatsapp', 'AvisosController@whatsapp')->name('avisos.envio_whatsapp');
 		Route::post('/envio_aviso', 'AvisosController@envio_aviso')->name('avisos.envio_aviso');
+		Route::post('/envio_aviso_batch', 'AvisosController@envio_aviso_batch')->name('avisos.envio_aviso_batch');
 		Route::get('/envio/{id}/email', 'AvisosController@email')->name('avisos.envio.email.cliente');
 		Route::get('/envio/{id}/sms', 'AvisosController@sms')->name('avisos.envio.sms.cliente');
 		Route::post('/envio_personalizado', 'AvisosController@envio_personalizado')->name('avisos.envio_personalizado');
@@ -1801,6 +1850,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('/api/eliminar-ciclo-facturacion', 'GruposCorteController@eliminarFacturasCiclo')->name('grupos-corte.eliminar-ciclo');
 		Route::get('/api/generated-invoices-datatable', 'GruposCorteController@datatableGeneratedInvoices')->name('grupos-corte.dt-generated-invoices');
 		Route::post('/api/habilitar-contratos-deshabilitados', 'GruposCorteController@habilitarContratosDeshabilitados')->name('grupos-corte.habilitar-contratos-deshabilitados');
+		Route::post('/api/actualizar-contratos-primer-mes', 'GruposCorteController@actualizarContratosPrimerMes')->name('grupos-corte.actualizar-contratos-primer-mes');
 	});
 
 	Route::resource('grupos-corte', 'GruposCorteController');

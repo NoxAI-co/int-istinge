@@ -80,35 +80,55 @@
     @if(isset($dianFecthSync) && $dianFecthSync)
 
          <div class="alert alert-warning alert-dismissible fade show" role="alert">
-             <strong>⚠️ Volver a emitir facturas: {{ $dianFecthSync }} para revalidar el estado de emisión</strong><br>
-             <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+             <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
                     <span aria-hidden="true">&times;</span>
             </button>
+            <button type="button" class="btn btn-warning btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+                Cerrar
+            </button>
+             <strong>⚠️ Volver a emitir facturas: {{ $dianFecthSync }} para revalidar el estado de emisión</strong><br>
         </div>
 
     @endif
 
     @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        <button type="button" class="btn btn-warning btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+            Cerrar
+        </button>
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
         Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b><br>
         Rango: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
         Último usado: <b>{{ $reporteFaltantes['ultimo_usado'] }}</b><br>
         Faltantes:
         <span class="text-danger">
-            {{ implode(', ', $reporteFaltantes['faltantes']) }}
+            @if(count($reporteFaltantes['faltantes']) > 100)
+                {{ implode(', ', array_slice($reporteFaltantes['faltantes'], 0, 100)) }}
+                y {{ count($reporteFaltantes['faltantes']) - 100 }} más.
+            @else
+                {{ implode(', ', $reporteFaltantes['faltantes']) }}
+            @endif
         </span><br>
-        <span>Por favor crea manualmente facturas con estos consecutivos.</span>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
+        @if(isset($_SESSION['permisos']['43']))
+        <button type="button" class="btn btn-primary btn-sm mt-2" onclick="$('#modalRenumerar').modal('show');">
+            <i class="fas fa-sort-numeric-down"></i> Renumerar facturas no emitidas
         </button>
+        @else
+        <span>Por favor crea manualmente facturas con estos consecutivos.</span>
+        @endif
     </div>
     @else
     <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <span>✅ No tienes consecutivos salteados.</span>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+        <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
         </button>
+        <button type="button" class="btn btn-info btn-sm w-100 d-block d-md-none mb-2" data-dismiss="alert">
+            Cerrar
+        </button>
+        <span>✅ No tienes consecutivos salteados.</span>
     </div>
     @endif
 
@@ -205,10 +225,11 @@
 								<a><i data-tippy-content="Si el cliente tiene más de una factura (a partir de 2 facturas) saldrán en la tabla, usa las fechas desde - hasta para obtener mayor precisión y saber si un cliente se le generó varias veces la facturación en un mes." class="icono far fa-question-circle"></i></a>
 							</span>
 						</div>
-						<div class="col-md-2 pl-1 pt-1 d-none">
-							<select title="Enviada a Correo" class="form-control rounded selectpicker" id="correo">
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="¿Enviado al correo?" class="form-control rounded selectpicker" id="correo" multiple data-live-search="false">
 								<option value="1">Si</option>
-								<option value="A">No</option>
+								<option value="0">No</option>
+								<option value="400">Error envío</option>
 							</select>
 						</div>
 					</div>
@@ -228,15 +249,22 @@
 	<div class="row card-description">
 		<div class="col-md-12">
     		<div class="container-filtercolumn form-inline">
-    			@if(isset($_SESSION['permisos']['750']))
-    			<a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
-    			@endif
-    			@if(Auth::user()->empresa()->efecty == 1)
-    			<a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm mr-1" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
-    			@endif
-    			@if(isset($_SESSION['permisos']['774']))
-                <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
-                @endif
+    			<div class="dropdown mr-1">
+                    <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownOtrasAcciones" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Otras Acciones
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownOtrasAcciones">
+                        @if(isset($_SESSION['permisos']['750']))
+                        <a class="dropdown-item" href="{{route('campos.organizar', 4)}}"><i class="fas fa-table"></i> Organizar Tabla</a>
+                        @endif
+                        @if(Auth::user()->empresa()->efecty == 1)
+                        <a class="dropdown-item" href="{{route('facturas.downloadefecty')}}"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['774']))
+                        <a class="dropdown-item" href="{{route('promesas-pago.index')}}"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
+                        @endif
+                    </div>
+                </div>
 				<div class="dropdown mr-1">
                     <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Acciones en Lote
@@ -246,6 +274,7 @@
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_convertir_estandar"><i class="fas fa-exchange-alt"></i> Convertir a facturas estándar en Lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_siigo"><i class="fas fa-server"></i> Enviar a Siigo en lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_enviar_correo"><i class="fas fa-envelope"></i> Enviar al correo</a>
                         @if(isset($_SESSION['permisos']['855']))
                         <a class="dropdown-item text-danger" href="javascript:void(0)" id="btn_eliminar"><i class="fas fa-trash"></i> Eliminar facturas en lote</a>
                         @endif
@@ -280,6 +309,45 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal Renumerar Consecutivos --}}
+    @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
+    <div class="modal fade" id="modalRenumerar" role="dialog" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Renumerar facturas no emitidas</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Se renumerarán las facturas <strong>no emitidas</strong> (emitida = 0) que coincidan con los filtros actuales de la tabla.
+                        Las facturas <strong>emitidas</strong> nunca serán modificadas.
+                    </div>
+                    <div class="form-group">
+                        <label>Prefijo</label>
+                        <input type="text" class="form-control" value="{{ $reporteFaltantes['prefijo'] }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Desde número <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="renumerar-desde" value="{{ $reporteFaltantes['faltantes'][0] ?? '' }}" min="1">
+                        <small class="text-muted">Se sugiere el primer consecutivo faltante: <strong>{{ $reporteFaltantes['faltantes'][0] ?? 'N/A' }}</strong></small>
+                    </div>
+                    <div id="error-renumerar" class="alert alert-danger" style="display:none;"></div>
+                    <div id="resultado-renumerar" class="alert alert-success" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="btn-renumerar" onclick="confirmarRenumerar()">
+                        <i class="fas fa-check"></i> Renumerar
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    {{--/Modal Renumerar Consecutivos --}}
 @endsection
 
 @section('style')
@@ -382,6 +450,7 @@
 			data.grupos_corte = $('#grupos_corte').val();
 			data.fact_siigo = $('#fact_siigo').val();
 			data.emision = $('#emision').val();
+			data.correo = $('#correo').val();
 			data.otras_opciones = $('#otras_opciones').val();
 			data.filtro = true;
 		});
@@ -405,7 +474,7 @@
             }
         });
 
-		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #fact_siigo').on('change',function() {
+		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
             getDataTable();
             return false;
         });
@@ -895,6 +964,104 @@
             });
         });
 
+        // Enviar al correo en lote
+        $('#btn_enviar_correo').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if (nro <= 0) {
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura electrónica',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (var i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas al correo?',
+                text: 'Esto puede demorar unos minutos. Las facturas que ya fueron enviadas serán omitidas.',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    cargando(true);
+
+                    var url = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/enviomasivocorreo/` + facturas.join(',') :
+                        `/empresa/facturas/enviomasivocorreo/` + facturas.join(',');
+
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                        success: function(data) {
+                            cargando(false);
+
+                            if (data.success == false) {
+                                swal({
+                                    title: 'ERROR',
+                                    html: data.message || 'Ocurrió un error al enviar los correos',
+                                    type: 'error',
+                                    confirmButtonColor: '#d33',
+                                    confirmButtonText: 'ACEPTAR',
+                                });
+                                return false;
+                            }
+
+                            // Construir HTML de estadísticas
+                            var html = '<div style="text-align: left;">';
+                            html += '<p><strong>Total de facturas procesadas:</strong> ' + data.total + '</p>';
+                            html += '<p style="color: green;"><strong>Enviadas exitosamente:</strong> ' + data.enviados + '</p>';
+                            html += '<p style="color: #f0ad4e;"><strong>Omitidas (ya enviadas):</strong> ' + data.omitidos + '</p>';
+                            html += '<p style="color: red;"><strong>Errores:</strong> ' + data.errores + '</p>';
+
+                            if (data.detalle && data.detalle.length > 0) {
+                                html += '<hr><strong>Detalle:</strong><ul style="max-height: 200px; overflow-y: auto;">';
+                                data.detalle.forEach(function(item) {
+                                    var color = item.estado == 'enviado' ? 'green' : (item.estado == 'omitido' ? '#f0ad4e' : 'red');
+                                    html += '<li style="color: ' + color + ';">' + item.codigo + ': ' + item.mensaje + '</li>';
+                                });
+                                html += '</ul>';
+                            }
+                            html += '</div>';
+
+                            swal({
+                                title: 'ESTADÍSTICAS DE ENVÍO',
+                                html: html,
+                                type: data.errores > 0 ? 'warning' : 'success',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#1A59A1',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+
+                            getDataTable();
+                        },
+                        error: function(xhr) {
+                            cargando(false);
+                            swal({
+                                title: 'ERROR',
+                                html: 'Ocurrió un error al procesar el envío masivo de correos.',
+                                type: 'error',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
 	});
 
 	function getDataTable() {
@@ -927,6 +1094,7 @@
 		$('#estado').val('').selectpicker('refresh');
 		$('#grupos_corte').val('').selectpicker('refresh');
 		$('#fact_siigo').val('').selectpicker('refresh');
+		$('#correo').val('').selectpicker('refresh');
 		$('#otras_opciones').val('').selectpicker('refresh');
 		$('#servidor').val('').selectpicker('refresh');
 		$('#emision').val('').selectpicker('refresh');
@@ -938,6 +1106,90 @@
 
 	function exportar() {
         window.location.href = window.location.pathname+'/exportar?codigo='+$('#codigo').val()+'&cliente='+$('#cliente').val()+'&municipio='+$('#municipio').val()+'&barrio='+$('#barrio').val()+'&desde='+$('#desde').val()+'&hasta='+$('#hasta').val()+'&grupos_corte='+$('#grupos_corte').val()+'&fact_siigo='+$('#fact_siigo').val()+'&otras_opciones='+$('#otras_opciones').val()+'&estado='+$('#estado').val()+'&prorrateo='+$('#prorrateo').val()+'&tipo=2';
+	}
+
+	// ===== Renumerar Consecutivos =====
+	function confirmarRenumerar() {
+		var desde = $('#renumerar-desde').val();
+		if (!desde || desde < 1) {
+			$('#error-renumerar').text('Debe ingresar un número válido').show();
+			return;
+		}
+		$('#error-renumerar').hide();
+
+		Swal.fire({
+			title: '¿Está seguro?',
+			html: 'Se renumerarán las facturas <strong>no emitidas</strong> que coincidan con los filtros actuales, comenzando desde el número <strong>' + desde + '</strong>.<br><br>Esta acción no se puede deshacer.',
+			type: 'warning',
+			showCancelButton: true,
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			confirmButtonText: 'Sí, renumerar',
+			cancelButtonText: 'Cancelar'
+		}).then((result) => {
+			if (result.value) {
+				ejecutarRenumeracion(desde);
+			}
+		});
+	}
+
+	function ejecutarRenumeracion(desde) {
+		$('#btn-renumerar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+		$('#error-renumerar').hide();
+		$('#resultado-renumerar').hide();
+
+		$.ajax({
+			url: '{{ route("facturas.renumerar-consecutivos") }}',
+			method: 'POST',
+			data: {
+				_token: '{{ csrf_token() }}',
+				desde: desde,
+				// Enviar todos los filtros actuales de la tabla
+				codigo: $('#codigo').val(),
+				corte: $('#corte').val(),
+				prorrateo: $('#prorrateo').val(),
+				cliente: $('#cliente').val(),
+				municipio: $('#municipio').val(),
+				vendedor: $('#vendedor').val(),
+				barrio: $('#barrio').val(),
+				desde_fecha: $('#desde').val(),
+				hasta_fecha: $('#hasta').val(),
+				comparador: $('#comparador').val(),
+				total: $('#total').val(),
+				servidor: $('#servidor').val(),
+				estado: $('#estado').val(),
+				grupos_corte: $('#grupos_corte').val(),
+				fact_siigo: $('#fact_siigo').val(),
+				emision: $('#emision').val(),
+				correo: $('#correo').val(),
+				otras_opciones: $('#otras_opciones').val()
+			},
+			success: function(data) {
+				$('#btn-renumerar').prop('disabled', false).html('<i class="fas fa-check"></i> Renumerar');
+				if (data.success) {
+					$('#resultado-renumerar').html('<strong>' + data.modificadas + '</strong> facturas renumeradas correctamente.').show();
+					Swal.fire({
+						type: 'success',
+						title: data.modificadas + ' facturas renumeradas',
+						text: 'Se recargará la página para actualizar los datos.',
+						showConfirmButton: true
+					}).then(() => {
+						window.location.reload();
+					});
+				} else {
+					$('#error-renumerar').text(data.message).show();
+				}
+			},
+			error: function(xhr) {
+				$('#btn-renumerar').prop('disabled', false).html('<i class="fas fa-check"></i> Renumerar');
+				var msg = 'Error al renumerar las facturas';
+				if (xhr.responseJSON) {
+					if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+					else if (xhr.responseJSON.error) msg = xhr.responseJSON.error;
+				}
+				$('#error-renumerar').text(msg).show();
+			}
+		});
 	}
 </script>
 @endsection

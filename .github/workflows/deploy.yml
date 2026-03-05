@@ -97,6 +97,7 @@ jobs:
           INDEX=${{ matrix.server_index }}
           
           NAME=$(jq -r ".servers[$INDEX].name" config/servers.json)
+          SECRET_NAME=$(/usr/bin/jq -r ".servers[$INDEX].secret_name" config/servers.json)
           HOST=$(jq -r ".servers[$INDEX].host" config/servers.json)
           PORT=$(jq -r ".servers[$INDEX].port" config/servers.json)
           USER=$(jq -r ".servers[$INDEX].user" config/servers.json)
@@ -105,6 +106,7 @@ jobs:
           DB_USER=$(jq -r ".servers[$INDEX].db_user" config/servers.json)
           
           echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "secret_name=$SECRET_NAME" >> $GITHUB_OUTPUT
           echo "host=$HOST" >> $GITHUB_OUTPUT
           echo "port=$PORT" >> $GITHUB_OUTPUT
           echo "user=$USER" >> $GITHUB_OUTPUT
@@ -160,7 +162,7 @@ jobs:
           steps.should_deploy.outputs.deploy == 'true' && 
           github.event.inputs.run_migrations == 'true'
         env:
-          DB_PASS: ${{ secrets[format('DB_PASS_SERVER_{0}', matrix.server_index)] }}
+          DB_PASS: ${{ secrets[format('DB_PASS_{0}', steps.server_config.outputs.secret_name)] }}
         run: |
           echo "========================================="
           echo "🗄️ Ejecutando migraciones en: ${{ steps.server_config.outputs.name }}"

@@ -578,23 +578,24 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
 </li>
 @endif
 
-@if(Auth::user()->empresa()->smartOLT && isset($_SESSION['permisos']['760']))
+@if(Auth::user()->empresa()->adminOLT != "" && isset($_SESSION['permisos']['760']))
 <li class="nav-item">
-    <a class="nav-link" href="{{Auth::user()->empresa()->smartOLT}}" target="_blank">
+
+    <a class="nav-link" href="{{Auth::user()->empresa()->adminOLT}}" target="_blank">
         <i class="menu-icon fas fa-server"></i>
         <span class="menu-title">Smart OLT</span>
     </a>
 </li>
 @endif
 
-@if(Auth::user()->empresa()->adminOLT && isset($_SESSION['permisos']['761']))
+<!-- @if(Auth::user()->empresa()->smartOLT != "" && isset($_SESSION['permisos']['761']))
 <li class="nav-item">
-    <a class="nav-link" href="{{Auth::user()->empresa()->adminOLT}}" target="_blank">
+    <a class="nav-link" href="{{Auth::user()->empresa()->smartOLT}}" target="_blank">
         <i class="menu-icon fas fa-server"></i>
         <span class="menu-title">Admin OLT</span>
     </a>
 </li>
-@endif
+@endif -->
 
 @if(Auth::user()->empresa()->oficina)
 @if(isset($_SESSION['permisos']['808']) || isset($_SESSION['permisos']['809']) || isset($_SESSION['permisos']['810']) || isset($_SESSION['permisos']['811']) || isset($_SESSION['permisos']['812']) || isset($_SESSION['permisos']['813']))

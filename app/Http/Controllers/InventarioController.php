@@ -441,6 +441,22 @@ class InventarioController extends Controller{
         $inventario->link = $request->link;
         $inventario->type_autoretencion = $request->tipo_autoretencion;
         $inventario->codigo_siigo = isset($request->codigo_siigo) ? $request->codigo_siigo : '';
+
+        // Campos de facturación a otra empresa
+        if(isset($request->facturar_otra_empresa) && $request->facturar_otra_empresa == 1){
+            $inventario->nombre_empresa = isset($request->nombre_empresa) ? $request->nombre_empresa : null;
+            $inventario->nit_empresa = isset($request->nit_empresa) ? $request->nit_empresa : null;
+            $inventario->dv_empresa = isset($request->dv_empresa) ? $request->dv_empresa : null;
+            $inventario->direccion_empresa = isset($request->direccion_empresa) ? $request->direccion_empresa : null;
+            $inventario->email_empresa = isset($request->email_empresa) ? $request->email_empresa : null;
+        }else{
+            $inventario->nombre_empresa = null;
+            $inventario->nit_empresa = null;
+            $inventario->dv_empresa = null;
+            $inventario->direccion_empresa = null;
+            $inventario->email_empresa = null;
+        }
+
         $inventario->save();
 
         if ($request->tipo_producto==1) {
@@ -919,6 +935,22 @@ class InventarioController extends Controller{
             $inventario->type = $request->type;
             $inventario->type_autoretencion = $request->tipo_autoretencion;
             $inventario->codigo_siigo = isset($request->codigo_siigo) ? $request->codigo_siigo : '';
+
+            // Campos de facturación a otra empresa
+            if(isset($request->facturar_otra_empresa) && $request->facturar_otra_empresa == 1){
+                $inventario->nombre_empresa = isset($request->nombre_empresa) ? $request->nombre_empresa : null;
+                $inventario->nit_empresa = isset($request->nit_empresa) ? $request->nit_empresa : null;
+                $inventario->dv_empresa = isset($request->dv_empresa) ? $request->dv_empresa : null;
+                $inventario->direccion_empresa = isset($request->direccion_empresa) ? $request->direccion_empresa : null;
+                $inventario->email_empresa = isset($request->email_empresa) ? $request->email_empresa : null;
+            }else{
+                $inventario->nombre_empresa = null;
+                $inventario->nit_empresa = null;
+                $inventario->dv_empresa = null;
+                $inventario->direccion_empresa = null;
+                $inventario->email_empresa = null;
+            }
+
             $inventario->save();
 
             if ($request->tipo_producto==1) {
@@ -2213,4 +2245,428 @@ class InventarioController extends Controller{
         })
         ->rawColumns(['acciones','referencia','precio_producto', 'web'])->make(true);
     }
+
+    // ==================== IMPORTAR TELEVISIÓN ====================
+
+    public function importarTelevision()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Importar Planes de Televisión', 'full' => true]);
+        return view('inventario.television.importar');
+    }
+
+    public function ejemploImportarTelevision()
+    {
+        $titulosColumnas = array(
+            'Nombre del Producto', 'Referencia', 'Impuesto (19 o 0)', 'Precio de Venta', 'Tipo'
+        );
+
+        $comentarios = array(
+            'A' => 'Nombre del producto/plan de TV. Obligatorio.',
+            'B' => 'Referencia única del producto. Obligatorio. No puede repetirse.',
+            'C' => 'Impuesto: 19 o 0. Obligatorio.',
+            'D' => 'Precio de venta sin puntos ni separadores. Obligatorio.',
+            'E' => 'Tipo: MATERIAL, MODEMS, HERRAMIENTA, OFICINA, TV o SERVICIO. Obligatorio.',
+        );
+
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = "Archivo de Importación de Inventario Televisión - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Importación Inventario TV")
+            ->setSubject("Importación Inventario TV")
+            ->setDescription("Importación Inventario TV")
+            ->setKeywords("Importación Inventario TV")
+            ->setCategory("Importación");
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Validación desplegable para Impuesto (C)
+        for ($row = 4; $row <= 100; $row++) {
+            $validationC = $objPHPExcel->getActiveSheet()->getCell('C' . $row)->getDataValidation();
+            $validationC->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationC->setAllowBlank(false);
+            $validationC->setShowDropDown(true);
+            $validationC->setFormula1('"19,0"');
+
+            $validationE = $objPHPExcel->getActiveSheet()->getCell('E' . $row)->getDataValidation();
+            $validationE->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationE->setAllowBlank(false);
+            $validationE->setShowDropDown(true);
+            $validationE->setFormula1('"MATERIAL,MODEMS,HERRAMIENTA,OFICINA,TV,SERVICIO"');
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Televisión');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Importacion_Inventario_TV.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function importarCargandoTelevision(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $create = 0;
+        $errores = [];
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'archivo_inventario_tv.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        Ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        // Obtener impuestos válidos de la empresa
+        $impuesto19 = \App\Impuesto::where('empresa', Auth::user()->empresa)->where('porcentaje', 19)->where('estado', 1)->first();
+        $impuesto0  = \App\Impuesto::where('empresa', Auth::user()->empresa)->where('porcentaje', 0)->where('estado', 1)->first();
+        // Fallback a impuestos globales
+        if (!$impuesto19) $impuesto19 = \App\Impuesto::whereNull('empresa')->where('porcentaje', 19)->where('estado', 1)->first();
+        if (!$impuesto0)  $impuesto0  = \App\Impuesto::whereNull('empresa')->where('porcentaje', 0)->where('estado', 1)->first();
+
+        $tiposValidos = ['MATERIAL', 'MODEMS', 'HERRAMIENTA', 'OFICINA', 'TV', 'SERVICIO'];
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $nombre = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($nombre)) {
+                break;
+            }
+
+            $referencia  = trim($sheet->getCell("B" . $row)->getValue());
+            $impuesto_v  = trim($sheet->getCell("C" . $row)->getValue());
+            $precio      = trim($sheet->getCell("D" . $row)->getValue());
+            $tipo        = strtoupper(trim($sheet->getCell("E" . $row)->getValue()));
+
+            // Validaciones
+            if (empty($nombre) || empty($referencia) || $precio === '' || !in_array($impuesto_v, ['19', '0', 19, 0])) {
+                $errores[] = "Fila $row: Nombre, referencia, precio e impuesto son obligatorios (impuesto: 19 o 0).";
+                continue;
+            }
+
+            if (!in_array($tipo, $tiposValidos)) {
+                $errores[] = "Fila $row: Tipo '<b>$tipo</b>' no válido. Use: MATERIAL, MODEMS, HERRAMIENTA, OFICINA, TV o SERVICIO.";
+                continue;
+            }
+
+            // Validar referencia única
+            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
+                ->where('ref', strtoupper($referencia))
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe en el inventario.";
+                continue;
+            }
+
+            $impuesto_obj = ($impuesto_v == '19' || $impuesto_v == 19) ? $impuesto19 : $impuesto0;
+            $id_impuesto  = $impuesto_obj ? $impuesto_obj->id : ($impuesto_v == '19' ? 1 : 2);
+            $porcentaje   = $impuesto_v == '19' ? 19 : 0;
+
+            $inventario               = new Inventario;
+            $inventario->empresa      = Auth::user()->empresa;
+            $inventario->producto     = ucwords($nombre);
+            $inventario->ref          = strtoupper($referencia);
+            $inventario->precio       = $this->precision($precio);
+            $inventario->id_impuesto  = $id_impuesto;
+            $inventario->impuesto     = $porcentaje;
+            $inventario->tipo_producto= 2;
+            $inventario->unidad       = 1;
+            $inventario->nro          = 0;
+            $inventario->lista        = 0;
+            $inventario->type         = $tipo;
+            $inventario->save();
+
+            $create++;
+        }
+
+        // Limpiar archivo temporal
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('inventario.television.importar')
+                ->withErrors($errores)
+                ->with('success', "Se importaron $create productos correctamente.");
+        }
+
+        return redirect('empresa/inventario/television')
+            ->with('success', "Se importaron $create productos de televisión correctamente.");
+    }
+
+    // ==================== ACTUALIZAR TELEVISIÓN (MASIVO) ====================
+
+    public function actualizarMasivoTelevision()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Actualizar Inventario Televisión', 'full' => true]);
+        return view('inventario.television.actualizar');
+    }
+
+    public function ejemploActualizarTelevision()
+    {
+        $titulosColumnas = array(
+            'ID', 'Nombre del Producto', 'Referencia', 'Impuesto (19 o 0)', 'Precio de Venta', 'Tipo'
+        );
+
+        $comentarios = array(
+            'A' => 'ID del inventario para identificarlo y actualizarlo. Obligatorio. No modificar.',
+            'B' => 'Nombre del producto. Obligatorio.',
+            'C' => 'Referencia del producto. Obligatorio.',
+            'D' => 'Impuesto: 19 o 0. Obligatorio.',
+            'E' => 'Precio de venta sin puntos ni separadores. Obligatorio.',
+            'F' => 'Tipo: MATERIAL, MODEMS, HERRAMIENTA, OFICINA, TV o SERVICIO. Obligatorio.',
+        );
+
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = "Archivo de Actualización de Inventario Televisión - " . Auth::user()->empresa()->nombre;
+
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F');
+        $ultimaColumna = $letras[count($titulosColumnas) - 1];
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Actualización Inventario TV")
+            ->setSubject("Actualización Inventario TV")
+            ->setDescription("Actualización Inventario TV")
+            ->setKeywords("Actualización Inventario TV")
+            ->setCategory("Actualización");
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A2:' . $ultimaColumna . '2');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A2', 'Fecha ' . date('d-m-Y'));
+
+        $estilo = array(
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A1:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        $estilo = array(
+            'fill' => array(
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => substr(Auth::user()->empresa()->color, 1))
+            ),
+            'font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        foreach ($comentarios as $columna => $texto) {
+            $objPHPExcel->getActiveSheet()->getComment($columna . '3')->setAuthor('Integra Colombia')->getText()->createTextRun($texto);
+        }
+
+        $estilo = array(
+            'font'  => array('size'  => 12, 'name'  => 'Times New Roman'),
+            'borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN)),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $objPHPExcel->getActiveSheet()->getStyle('A3:' . $ultimaColumna . '3')->applyFromArray($estilo);
+
+        for ($i = 'A'; $i <= $ultimaColumna; $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        }
+
+        // Llenar con datos existentes (type = TV o todos si se desea filtrar)
+        $productos = Inventario::where('empresa', Auth::user()->empresa)->where('type', 'TV')->get();
+        $j = 4;
+        foreach ($productos as $producto) {
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue("A$j", $producto->id)
+                ->setCellValue("B$j", $producto->producto)
+                ->setCellValue("C$j", $producto->ref)
+                ->setCellValue("D$j", $producto->impuesto)
+                ->setCellValue("E$j", $producto->precio)
+                ->setCellValue("F$j", $producto->type);
+            $j++;
+        }
+
+        // Validaciones desplegables
+        for ($row = 4; $row <= max(100, $j + 10); $row++) {
+            $validationD = $objPHPExcel->getActiveSheet()->getCell('D' . $row)->getDataValidation();
+            $validationD->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationD->setAllowBlank(false);
+            $validationD->setShowDropDown(true);
+            $validationD->setFormula1('"19,0"');
+
+            $validationF = $objPHPExcel->getActiveSheet()->getCell('F' . $row)->getDataValidation();
+            $validationF->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
+            $validationF->setAllowBlank(false);
+            $validationF->setShowDropDown(true);
+            $validationF->setFormula1('"MATERIAL,MODEMS,HERRAMIENTA,OFICINA,TV,SERVICIO"');
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Televisión');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Plantilla_Actualizacion_Inventario_TV.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function actualizarCargandoTelevision(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|mimes:xlsx',
+        ], [
+            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+        ]);
+
+        $updated = 0;
+        $errores = [];
+        $imagen = $request->file('archivo');
+        $nombre_imagen = 'archivo_inventario_tv_act.' . $imagen->getClientOriginalExtension();
+        $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+        $imagen->move($path, $nombre_imagen);
+        Ini_set('max_execution_time', 500);
+        $fileWithPath = $path . "/" . $nombre_imagen;
+
+        $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
+        $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+        $objPHPExcel = $objReader->load($fileWithPath);
+        $sheet = $objPHPExcel->getSheet(0);
+        $highestRow = $sheet->getHighestRow();
+
+        $impuesto19 = \App\Impuesto::where('empresa', Auth::user()->empresa)->where('porcentaje', 19)->where('estado', 1)->first();
+        $impuesto0  = \App\Impuesto::where('empresa', Auth::user()->empresa)->where('porcentaje', 0)->where('estado', 1)->first();
+        if (!$impuesto19) $impuesto19 = \App\Impuesto::whereNull('empresa')->where('porcentaje', 19)->where('estado', 1)->first();
+        if (!$impuesto0)  $impuesto0  = \App\Impuesto::whereNull('empresa')->where('porcentaje', 0)->where('estado', 1)->first();
+
+        $tiposValidos = ['MATERIAL', 'MODEMS', 'HERRAMIENTA', 'OFICINA', 'TV', 'SERVICIO'];
+
+        for ($row = 4; $row <= $highestRow; $row++) {
+            $id = trim($sheet->getCell("A" . $row)->getValue());
+            if (empty($id)) {
+                break;
+            }
+
+            $nombre     = trim($sheet->getCell("B" . $row)->getValue());
+            $referencia = trim($sheet->getCell("C" . $row)->getValue());
+            $impuesto_v = trim($sheet->getCell("D" . $row)->getValue());
+            $precio     = trim($sheet->getCell("E" . $row)->getValue());
+            $tipo       = strtoupper(trim($sheet->getCell("F" . $row)->getValue()));
+
+            if (empty($nombre) || empty($referencia) || $precio === '' || !in_array($impuesto_v, ['19', '0', 19, 0])) {
+                $errores[] = "Fila $row: Nombre, referencia, precio e impuesto son obligatorios (impuesto: 19 o 0).";
+                continue;
+            }
+
+            if (!in_array($tipo, $tiposValidos)) {
+                $errores[] = "Fila $row: Tipo '<b>$tipo</b>' no válido.";
+                continue;
+            }
+
+            $inventario = Inventario::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+            if (!$inventario) {
+                $errores[] = "Fila $row: No se encontró un producto con ID '<b>$id</b>'.";
+                continue;
+            }
+
+            // Validar referencia única (excluyendo el actual)
+            $existeRef = Inventario::where('empresa', Auth::user()->empresa)
+                ->where('ref', strtoupper($referencia))
+                ->where('id', '!=', $id)
+                ->first();
+            if ($existeRef) {
+                $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe para otro producto.";
+                continue;
+            }
+
+            $impuesto_obj = ($impuesto_v == '19' || $impuesto_v == 19) ? $impuesto19 : $impuesto0;
+            $id_impuesto  = $impuesto_obj ? $impuesto_obj->id : ($impuesto_v == '19' ? 1 : 2);
+            $porcentaje   = $impuesto_v == '19' ? 19 : 0;
+
+            $inventario->producto    = ucwords($nombre);
+            $inventario->ref         = strtoupper($referencia);
+            $inventario->precio      = $this->precision($precio);
+            $inventario->id_impuesto = $id_impuesto;
+            $inventario->impuesto    = $porcentaje;
+            $inventario->type        = $tipo;
+            $inventario->save();
+
+            $updated++;
+        }
+
+        if (file_exists($fileWithPath)) {
+            unlink($fileWithPath);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('inventario.television.actualizar')
+                ->withErrors($errores)
+                ->with('success', "Se actualizaron $updated productos correctamente.");
+        }
+
+        return redirect('empresa/inventario/television')
+            ->with('success', "Se actualizaron $updated productos de televisión correctamente.");
+    }
 }
+

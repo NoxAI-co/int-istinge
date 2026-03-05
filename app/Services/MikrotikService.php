@@ -84,6 +84,105 @@ class MikrotikService
     }
 
     /**
+     * Remove IP from morosos address-list
+     * 
+     * @param int $mikrotikId
+     * @param string $ip
+     * @return bool
+     */
+    public function removerMoroso($mikrotikId, $ip)
+    {
+        try {
+            $this->connect($mikrotikId);
+            $listName = 'morosos'; // User code used hardcoded 'morosos', sticking to it or env if user prefers, but user showed 'morosos'
+
+            // Lógica solicitada por el usuario (RAW API)
+            $this->client->write('/ip/firewall/address-list/print', false);
+            $this->client->write('?address='.$ip, false);
+            $this->client->write("?list=".$listName, false);
+            $this->client->write('=.proplist=.id');
+            $ARRAYS = $this->client->read();
+
+            if(count($ARRAYS)>0){
+                $this->client->write('/ip/firewall/address-list/remove', false);
+                $this->client->write('=.id='.$ARRAYS[0]['.id']);
+                $this->client->read();
+            }
+            
+            $this->client->disconnect();
+            return true;
+
+        } catch (Exception $e) {
+            Log::error('Mikrotik remove moroso error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Add IP to morosos address-list
+     * 
+     * @param int $mikrotikId
+     * @param string $ip
+     * @param string $comment
+     * @return bool
+     */
+    public function agregarMoroso($mikrotikId, $ip, $comment)
+    {
+        try {
+            $this->connect($mikrotikId);
+            $listName = env('MIKROTIK_LIST_NAME', 'morosos');
+
+            // Verificar si ya existe
+            $exists = $this->client->comm('/ip/firewall/address-list/print', [
+                "?address" => $ip,
+                "?list" => $listName
+            ]);
+
+            if (empty($exists)) {
+                $this->client->comm('/ip/firewall/address-list/add', [
+                    "address" => $ip,
+                    "list" => $listName,
+                    "comment" => $comment
+                ]);
+            }
+            
+            return true;
+        } catch (Exception $e) {
+            Log::error('Mikrotik add moroso error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Add IP to morosos address-list (Direct Logic requested by user)
+     * 
+     * @param int $mikrotikId
+     * @param string $ip
+     * @param string $comment
+     * @return bool
+     */
+    public function agregarMorosoDirecto($mikrotikId, $ip, $comment)
+    {
+        try {
+            $this->connect($mikrotikId);
+            
+            // Lógica solicitada por el usuario: Directamente agregar sin verificar
+            $this->client->comm("/ip/firewall/address-list/add", array(
+                "address" => $ip,
+                "comment" => $comment,
+                "list" => 'morosos'
+            ));
+            
+            $this->client->disconnect();
+            return true;
+
+        } catch (Exception $e) {
+            Log::error('Mikrotik add moroso direct error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Format the response from Mikrotik
      * 
      * @param array $data
@@ -132,8 +231,14 @@ class MikrotikService
                         // El usuario especificó: "pasar por la tabla facturas_contratos"
                         // El modelo Contrato tiene la relación facturas() mapeada a facturas_contratos
                         
-                        $ultimaFactura = $contrato->facturas()->orderBy('created_at', 'desc')->first();
-
+                        // Buscar la última factura (ya sea por la relación o por contrato_id directo)
+                        // Utilizamos factura.id para asegurar orden cronológico real, evadiendo fallos de created_at en tabla pivote.
+                        $ultimaFactura = $contrato->facturas()->orderBy('factura.id', 'desc')->first();
+                        
+                        if (!$ultimaFactura) {
+                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)->orderBy('id', 'desc')->first();
+                        }
+                        
                         if ($ultimaFactura) {
                             $ultimaFacturaData = [
                                 'id' => $ultimaFactura->id,
@@ -141,17 +246,20 @@ class MikrotikService
                                 'estatus' => $ultimaFactura->estatus
                             ];
 
-                            // Lógica de discrepancia:
-                            // "si esa factura tiene un estatus = 0 significa que el contrato tiene la ultima factura pagada"
-                            // En base de datos Factura: estatus 1 = Abierta (No pagada), Estatus 0 o 2 = Cerrada/Anulada/Pagada
-                            // Entonces si estatus != 1, está pagada.
-                            
-                            if ($ultimaFactura->estatus != 1) { // Asumiendo != 1 es Pagada/Cerrada
+                            $estadoString = $ultimaFactura->estatus();
+
+                            // Dependemos del método estatus() de Factura que retorna el estado real como string.
+                            // Posibles retornos: 'Abierta', 'Cerrada', 'Anulada', 'Abonada', 'Cerrada con nota crédito', etc.
+                            if ($estadoString === 'Cerrada' || $estadoString === 'Cerrada con nota crédito') { // Pagada
                                 $tieneDiscrepancia = true;
                                 $estadoSistema = 'Pagada';
                                 $mensajeDiscrepancia = "El cliente aparece en morosos (Mikrotik) pero su última factura en el sistema figura como PAGADA/CERRADA.";
+                            } else if ($estadoString === 'Anulada') { // Anulada
+                                $estadoSistema = 'Anulada';
+                                $tieneDiscrepancia = false;
                             } else {
-                                $estadoSistema = 'En Mora'; // Estatus 1
+                                // 'Abierta', 'Abonada', 'Abierta con nota crédito' son considerados con deuda
+                                $estadoSistema = 'En Mora'; 
                             }
                         } else {
                             $estadoSistema = 'Sin Facturas';

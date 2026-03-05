@@ -192,7 +192,7 @@
 								<a><i data-tippy-content="Si el cliente tiene más de una factura (a partir de 2 facturas) saldrán en la tabla, usa las fechas desde - hasta para obtener mayor precisión y saber si un cliente se le generó varias veces la facturación en un mes." class="icono far fa-question-circle"></i></a>
 							</span>
 						</div>
-						<div class="col-md-2 pl-1 pt-1 d-none">
+						<div class="col-md-2 pl-1 pt-1">
 							<select title="Enviada a Correo" class="form-control rounded selectpicker" id="correo">
 								<option value="1">Si</option>
 								<option value="A">No</option>
@@ -214,18 +214,22 @@
 	<div class="row card-description">
 		<div class="col-md-12">
     		<div class="container-filtercolumn form-inline">
-    			@if(Auth::user()->empresa()->efecty == 1)
-    			<a href="{{route('facturas.downloadefecty')}}" class="btn btn-warning btn-sm" style="background: #938B16; border: solid #938B16 1px;"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
-    			@endif
-				{{-- @if(isset($_SESSION['permisos']['830']))
-    			<a class="btn btn-outline-success btn-sm disabled mr-1 d-none" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-sitemap"></i> Convertir a facturas electrónicas en Lote</a>
-    			@endif --}}
-    			@if(isset($_SESSION['permisos']['750']))
-    			<a href="{{route('campos.organizar', 4)}}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-table"></i> Organizar Tabla</a>
-    			@endif
-                @if(isset($_SESSION['permisos']['774']))
-                <a href="{{route('promesas-pago.index')}}" class="btn btn-outline-danger btn-sm mr-1"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
-                @endif
+    			<div class="dropdown mr-1">
+                    <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownOtrasAcciones" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Otras Acciones
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownOtrasAcciones">
+                        @if(Auth::user()->empresa()->efecty == 1)
+                        <a class="dropdown-item" href="{{route('facturas.downloadefecty')}}"><i class="fas fa-cloud-download-alt"></i> Descargar Archivo Efecty</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['750']))
+                        <a class="dropdown-item" href="{{route('campos.organizar', 4)}}"><i class="fas fa-table"></i> Organizar Tabla</a>
+                        @endif
+                        @if(isset($_SESSION['permisos']['774']))
+                        <a class="dropdown-item text-danger" href="{{route('promesas-pago.index')}}"><i class="fas fa-calendar"></i> Ver Promesas de Pago</a>
+                        @endif
+                    </div>
+                </div>
                 <div class="dropdown mr-1">
                     <button class="btn btn-warning dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Acciones en Lote
@@ -234,6 +238,7 @@
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_emitir"><i class="fas fa-server"></i> Convertir a facturas electrónicas en Lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_siigo"><i class="fas fa-server"></i> Enviar a Siigo en lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_enviar_correo"><i class="fas fa-envelope"></i> Enviar al correo en lote</a>
                         @if(isset($_SESSION['permisos']['44']))
                         <a class="dropdown-item text-danger" href="javascript:void(0)" id="btn_eliminar"><i class="fas fa-trash"></i> Eliminar facturas en lote</a>
                         @endif
@@ -774,6 +779,7 @@
 			data.fact_siigo = $('#fact_siigo').val();
 			data.otras_opciones = $('#otras_opciones').val();
 			data.tipo_facturacion = $('#tipo_facturacion').val();
+			data.correo = $('#correo').val();
 			data.filtro = true;
 
 			// Solo enviar filtros_aplicados cuando se ha hecho clic en el botón filtrar
@@ -1106,6 +1112,93 @@
             })
         });
 
+        $('#btn_enviar_correo').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if(nro <= 0){
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura.',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas por correo?',
+                text: 'Las facturas que hayan sido marcadas como enviadas anteriormente serán omitidas.',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    cargando(true);
+                    var url = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/enviomasivocorreo/` + facturas.join(',') :
+                        `/empresa/facturas/enviomasivocorreo/` + facturas.join(',');
+
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                        success: function(data) {
+                            cargando(false);
+
+                            if (data.success == false) {
+                                swal({
+                                    title: 'ERROR',
+                                    html: data.message || 'Ocurrió un error en la solicitud',
+                                    type: 'error',
+                                    confirmButtonColor: '#d33',
+                                    confirmButtonText: 'ACEPTAR',
+                                });
+                                return false;
+                            } else {
+                                let html = `<p><strong>Enviados:</strong> ${data.enviados} | <strong>Omitidos:</strong> ${data.omitidos} | <strong>Errores:</strong> ${data.errores}</p>`;
+                                if(data.detalle && data.detalle.length > 0){
+                                    html += '<ul style="max-height: 200px; overflow-y: auto; text-align: left; font-size: 13px;">';
+                                    data.detalle.forEach(function(res) {
+                                        let color = res.estado === 'enviado' ? 'green' : (res.estado === 'omitido' ? 'orange' : 'red');
+                                        html += `<li style="color:${color};"><strong>${res.codigo}:</strong> ${res.mensaje}</li>`;
+                                    });
+                                    html += '</ul>';
+                                }
+
+                                swal({
+                                    title: 'PROCESO FINALIZADO',
+                                    html: html,
+                                    type: 'success',
+                                    confirmButtonColor: '#1A59A1',
+                                    confirmButtonText: 'ACEPTAR',
+                                });
+                            }
+                            getDataTable();
+                        },
+                        error: function(xhr) {
+                            cargando(false);
+                            swal({
+                                title: 'ERROR',
+                                html: 'Se ha producido un error intentando enviar las facturas. Es probable que la tarea esté tardando demasiado.',
+                                type: 'error',
+                                showConfirmButton: true,
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
         $('#btn_eliminar').on('click', function(e) {
             var table = $('#tabla-facturas').DataTable();
             var nro = table.rows('.selected').data().length;
@@ -1235,9 +1328,9 @@
 		$('#otras_opciones').val('').selectpicker('refresh');
 		$('#tipo_facturacion').val('').selectpicker('refresh');
 		$('#state_contrato').val('').selectpicker('refresh');
-		$('#state_contrato').val('').selectpicker('refresh');
 		$('#servidor').val('').selectpicker('refresh');
 		$('#prorrateo').val('').selectpicker('refresh');
+		$('#correo').val('').selectpicker('refresh');
 		$('#form-filter').addClass('d-none');
 		$('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
 		getDataTable();
@@ -1265,6 +1358,7 @@
             'state_contrato=' + encodeURIComponent($('#state_contrato').val() || ''),
 
             'prorrateo=' + encodeURIComponent($('#prorrateo').val() || ''),
+            'correo=' + encodeURIComponent($('#correo').val() || ''),
             'tipo=1'
         ].join('&');
 

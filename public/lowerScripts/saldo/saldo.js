@@ -1,26 +1,26 @@
-function validateCampos(){
+function validateCampos() {
 
-    if( 
-        $("#codigo").val() == "" || 
-        $("#inventario_producto").val() == "" || 
-        $("#costo").val() == "" || 
+    if (
+        $("#codigo").val() == "" ||
+        $("#inventario_producto").val() == "" ||
+        $("#costo").val() == "" ||
         $("#venta_producto").val() == "" ||
         $("#devolucion").val() == ""
-    ){
+    ) {
         return false;
-    }else{
+    } else {
         return true;
     }
 }
 
-function crearFilaSaldo(){
+function crearFilaSaldo() {
 
     //logica para tener numeros de los tr |importante|
-    var nro=$('#table-saldoinicial tbody tr').length +1 ;
-    if ($('#saldoini'+nro).length > 0) {
+    var nro = $('#table-saldoinicial tbody tr').length + 1;
+    if ($('#saldoini' + nro).length > 0) {
         for (i = 1; i <= nro; i++) {
-            if ($('#saldoini'+i).length == 0) {
-                nro=i;
+            if ($('#saldoini' + i).length == 0) {
+                nro = i;
                 break;
             }
         }
@@ -72,48 +72,48 @@ function crearFilaSaldo(){
     ` +
         `</tr>`
     );
-    
+
 
     //Valores iniciales para seleccionar cuenta.
-    $('#puc_cuenta'+nro).append($('<option>',
+    $('#puc_cuenta' + nro).append($('<option>',
         {
             value: 0,
-            text : 'Seleccione una opción',
+            text: 'Seleccione una opción',
             selected: true,
             disabled: true
         }
     ));
 
-    $.each( puc, function( key, value ){
-        $('#puc_cuenta'+nro).append($('<option>',
+    $.each(puc, function (key, value) {
+        $('#puc_cuenta' + nro).append($('<option>',
             {
                 value: value.id,
-                text : value.codigo+" - "+ value.nombre+""
+                text: value.codigo + " - " + value.nombre + ""
             }));
     });
 
     //Valores iniciales para seleccionar un contacto.
-    $('#contacto'+nro).append($('<option>',
+    $('#contacto' + nro).append($('<option>',
         {
             value: 0,
-            text : 'Seleccione una opción',
+            text: 'Seleccione una opción',
             selected: true,
             disabled: true
         }
     ));
 
-    $.each( contactos, function( key, value ){
-        $('#contacto'+nro).append($('<option>',
+    $.each(contactos, function (key, value) {
+        $('#contacto' + nro).append($('<option>',
             {
                 value: value.id,
-                text : value.nombre
+                text: value.nombre + (value.apellido1 ? ' ' + value.apellido1 : '') + (value.apellido2 ? ' ' + value.apellido2 : '')
             }));
     });
 
-   
 
-    $('#contacto'+nro).selectpicker('refresh');
-    $('#puc_cuenta'+nro).selectpicker('refresh');
+
+    $('#contacto' + nro).selectpicker('refresh');
+    $('#puc_cuenta' + nro).selectpicker('refresh');
 
 }
 
@@ -123,23 +123,23 @@ function eliminarSaldo(i) {
     totalSaldoInicial();
 }
 
-function totalSaldoInicial(nro){
-    
+function totalSaldoInicial(nro) {
+
     let totalCredito = 0;
     let totalDebito = 0;
 
-    $('#table-saldoinicial tbody tr').each(function() {
+    $('#table-saldoinicial tbody tr').each(function () {
 
-        var idFila=$(this).attr('fila');
-        idCredito=$("#credito"+idFila);
-        idDebito=$("#debito"+idFila);
+        var idFila = $(this).attr('fila');
+        idCredito = $("#credito" + idFila);
+        idDebito = $("#debito" + idFila);
 
         if (idCredito.val()) {
-            totalCredito+=parseFloat(idCredito.val());
+            totalCredito += parseFloat(idCredito.val());
         }
 
         if (idDebito.val()) {
-            totalDebito+=parseFloat(idDebito.val());
+            totalDebito += parseFloat(idDebito.val());
         }
 
     });
@@ -161,20 +161,20 @@ function totalSaldoInicial(nro){
     //     return;
     // }
 
-    if(totalCredito != totalDebito){
+    if (totalCredito != totalDebito) {
         $("#spanError").html("El débito y el crédito están disparejos por: $" + Math.abs(totalCredito - totalDebito));
-        $("#spanError").attr('value',1);
-    }else{
-        $("#spanError").html(""); 
-        $("#spanError").attr('value',0);
+        $("#spanError").attr('value', 1);
+    } else {
+        $("#spanError").html("");
+        $("#spanError").attr('value', 0);
     }
 
     $('#totalCredito').html(number_format(totalCredito));
     $('#totalDebito').html(number_format(totalDebito));
 }
 
-function modalComprobante(nroFila){
-    
+function modalComprobante(nroFila) {
+
     //construimos y mostramos el modal con la información.
     $('#editModalComprobante').html('');
     $('#editModalComprobante').append(`
@@ -246,7 +246,7 @@ function modalComprobante(nroFila){
     $("#editModalComprobante").modal('show');
 }
 
-function updateInputModal(nroFila){
+function updateInputModal(nroFila) {
 
     //recuperamos la informacion del modal
     let prefijo = $("#prefijo").val();
@@ -257,60 +257,59 @@ function updateInputModal(nroFila){
     objInput = {
         prefijo: prefijo,
         nroComprobante: nroComprobante,
-        cuota: cuota, 
+        cuota: cuota,
         fecha: fecha
     }
 
-    if(prefijo == "" || nroComprobante == "" || fecha == "" || cuota== ""){
+    if (prefijo == "" || nroComprobante == "" || fecha == "" || cuota == "") {
         alert("Debe diligenciar todos los campos.")
         return;
     }
 
     //parseamos la posible información que haya en el input delnroFila.
-    let input = $("#divInput"+nroFila);
-    input.attr('tipo',2);
-    input.attr('prefijo',objInput.prefijo);
-    input.attr('nroComprobante',objInput.nroComprobante);
-    input.attr('cuota',objInput.cuota);
-    input.attr('fecha',objInput.fecha);
-    input.val(objInput.prefijo+'|'+objInput.nroComprobante+"|"+objInput.cuota+"|"+objInput.fecha);
+    let input = $("#divInput" + nroFila);
+    input.attr('tipo', 2);
+    input.attr('prefijo', objInput.prefijo);
+    input.attr('nroComprobante', objInput.nroComprobante);
+    input.attr('cuota', objInput.cuota);
+    input.attr('fecha', objInput.fecha);
+    input.val(objInput.prefijo + '|' + objInput.nroComprobante + "|" + objInput.cuota + "|" + objInput.fecha);
 
     $("#editModalComprobante").modal('hide');
 }
 
-function showDetalleCartera(){
-    
+function showDetalleCartera() {
+
     let opcion = document.querySelector('input[name=saldo_radio]:checked').value
 
-    if(opcion == 1)
-    {
-    $(".detallecartera1").addClass('d-flex');
-    $(".detallecartera1").removeClass('d-none');
-    
-    $(".detallecartera2").addClass('d-none');
-    $(".detallecartera2").removeClass('d-flex');
+    if (opcion == 1) {
+        $(".detallecartera1").addClass('d-flex');
+        $(".detallecartera1").removeClass('d-none');
 
-    }else{
+        $(".detallecartera2").addClass('d-none');
+        $(".detallecartera2").removeClass('d-flex');
+
+    } else {
         $(".detallecartera2").addClass('d-flex');
         $(".detallecartera2").removeClass('d-none');
-        
+
         $(".detallecartera1").addClass('d-none');
         $(".detallecartera1").removeClass('d-flex');
     }
 }
 
-function validateDetalleCartera(pucId,nro){
+function validateDetalleCartera(pucId, nro) {
 
 
     if (window.location.pathname.split("/")[1] === "software") {
-        var url='/software/empresa/comprobantes/validatecartera';
-    }else{
+        var url = '/software/empresa/comprobantes/validatecartera';
+    } else {
         var url = '/empresa/comprobantes/validatecartera';
     }
 
     $.ajax({
         url: url,
-        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         type: "GET",
         datatype: "json",
         data: {
@@ -318,47 +317,47 @@ function validateDetalleCartera(pucId,nro){
         },
         success: function (response) {
 
-            if(response == true){
-                $("#divCartera"+nro).addClass('d-flex');
-                $("#divCartera"+nro).removeClass('d-none');
-            }else{
-                $("#divInput"+nro).val(0);
-                $("#divCartera"+nro).addClass('d-none');
-                $("#divCartera"+nro).removeClass('d-flex');
+            if (response == true) {
+                $("#divCartera" + nro).addClass('d-flex');
+                $("#divCartera" + nro).removeClass('d-none');
+            } else {
+                $("#divInput" + nro).val(0);
+                $("#divCartera" + nro).addClass('d-none');
+                $("#divCartera" + nro).removeClass('d-flex');
             }
         },
     });
 }
 
-function validateComprobante(form){
+function validateComprobante(form) {
 
     let isValid = true;
 
-    $('#table-saldoinicial tbody tr').each(function() {
-        var idFila=$(this).attr('fila');
+    $('#table-saldoinicial tbody tr').each(function () {
+        var idFila = $(this).attr('fila');
 
-        if(!$("#puc_cuenta"+idFila).val()){
+        if (!$("#puc_cuenta" + idFila).val()) {
             alert("De escoger una categoría en la fila " + idFila);
             isValid = false;
             return;
         }
 
-        if(!$("#contacto"+idFila).val()){
+        if (!$("#contacto" + idFila).val()) {
             alert("De escoger un tercero en la fila " + idFila);
             isValid = false;
             return;
         }
     });
 
-    if($("#spanError").attr('value') == 1){
+    if ($("#spanError").attr('value') == 1) {
         alert("El crédito y el débito no son iguales");
         isValid = false;
         return;
     }
 
 
-    if(isValid){
-        $("#"+form).submit();
+    if (isValid) {
+        $("#" + form).submit();
     }
 
 }   

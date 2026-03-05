@@ -275,7 +275,7 @@
                             </div>
 
 
-                            <div class="col-md-4 form-group d-none" id="div_direccion">
+                            <div class="col-md-4 form-group" id="div_direccion">
                                 <label class="control-label">¿Usar la misma dirección del contacto? <span
                                         class="text-danger">*</span></label>
                                 <div class="input-group">
@@ -291,13 +291,13 @@
                                 </span>
                             </div>
 
-                            <div class="col-md-4 form-group d-none" id="div_address_street">
+                            <div class="col-md-4 form-group" id="div_address_street">
                                 <label class="control-label">Dirección de Instalación <span
                                         class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <input type="hidden" class="form-control" id="input_direccion">
                                     <input type="text" class="form-control" name="address_street" id="address_street"
-                                        value="{{ old('address_street') }}" required="">
+                                        value="{{ old('address_street') }}">
                                     <span class="help-block error">
                                         <strong>{{ $errors->first('address_street') }}</strong>
                                     </span>
@@ -796,6 +796,13 @@
                                 </span>
                             </div>
 
+                            <div class="col-md-4 form-group">
+                                <label class="control-label">Precio Personalizado Internet
+                                    <a><i data-tippy-content="Si deseas cobrar un precio diferente al del plan para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del plan." class="icono far fa-question-circle"></i></a>
+                                </label>
+                                <input type="number" class="form-control" name="precio_personalizado_internet" id="precio_personalizado_internet" value="{{ old('precio_personalizado_internet') }}" placeholder="Dejar vacío para usar precio del plan" min="0" step="any">
+                            </div>
+
 
                         </div>
                     </div>
@@ -840,7 +847,14 @@
                                     </select>
                                     <span class="help-block error">
                                         <strong>{{ $errors->first('state_olt_catv') }}</strong>
-                                    </span>
+                                    </span> 
+                                </div>
+
+                                <div class="col-md-4 form-group">
+                                    <label class="control-label">Precio Personalizado TV
+                                        <a><i data-tippy-content="Si deseas cobrar un precio diferente al del servicio de TV para este contrato, ingrésalo aquí. Si se deja vacío, se usará el precio del servicio." class="icono far fa-question-circle"></i></a>
+                                    </label>
+                                    <input type="number" class="form-control" name="precio_personalizado_tv" id="precio_personalizado_tv" value="{{ old('precio_personalizado_tv') }}" placeholder="Dejar vacío para usar precio del servicio" min="0" step="any">
                                 </div>
 
                             </div>
@@ -1112,7 +1126,7 @@
                                 <div class="d-flex align-items-center">
                                     <label class="switch mb-0">
                                         <input type="hidden" name="fact_primer_mes" value="0">
-                                        <input type="checkbox" name="fact_primer_mes" id="fact_primer_mes" value="1">
+                                        <input type="checkbox" name="fact_primer_mes" id="fact_primer_mes" value="1" checked>
                                         <span class="slider round"></span>
                                     </label>
                                     <span class="ml-2" id="fact_primer_mes_label">Si</span>

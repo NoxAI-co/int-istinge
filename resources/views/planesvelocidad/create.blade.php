@@ -155,7 +155,7 @@
         	            <label class="control-label">Tipo de Plan <span class="text-danger">*</span></label>
         	            <select class="form-control selectpicker" name="tipo_plan" id="tipo_plan" required="" title="Seleccione">
         	                <option {{old('tipo_plan')==1?'selected':''}} value="1">Residencial</option>
-        	                <option {{old('tipo_plan')==2?'selected':''}} value="2">Corportativo</option>
+        	                <option {{old('tipo_plan')==2?'selected':''}} value="2">Corportativo (con iva 19%)</option>
           			    </select>
         	            <span class="help-block error">
         	                <strong>{{ $errors->first('tipo_plan') }}</strong>

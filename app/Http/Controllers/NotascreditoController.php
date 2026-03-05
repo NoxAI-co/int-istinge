@@ -145,7 +145,7 @@ class NotascreditoController extends Controller
 
         return datatables()->eloquent($notas)
         ->editColumn('nro', function (NotaCredito $notas) {
-            return $notas->nro ? "<a href=" . route('notascredito.show', $notas->nro) . ">$notas->nro</a>" : "";
+            return $notas->nro ? "<a href=" . route('notascredito.show', $notas->nro) . ">{$notas->prefijo}{$notas->nro}</a>" : "";
         })
         ->editColumn('cliente', function (NotaCredito $notas) {
             return  $notas->cliente ? "<a href=" . route('contactos.show', $notas->cliente()->id) . " target='_blank'>{$notas->cliente()->nombre} {$notas->cliente()->apellidos()}</a>" : "";
@@ -293,6 +293,9 @@ class NotascreditoController extends Controller
 
         $notac = new NotaCredito();
         $notac->nro = $caja;
+        if (isset($nro->prefijo_credito) || \Schema::hasColumn('notas_credito', 'prefijo')) {
+            $notac->prefijo = $nro->prefijo_credito;
+        }
         $notac->empresa = Auth::user()->empresa;
         $notac->cliente = $request->cliente;
         $notac->tipo = $request->tipo;
@@ -1006,6 +1009,12 @@ class NotascreditoController extends Controller
         $nota = NotaCredito::where('empresa', $empresa->id)
             ->where('nro', $id)
             ->first();
+
+        if (!$nota) {
+            $nota = NotaCredito::where('empresa', $empresa->id)
+                ->where('id', $id)
+                ->first();
+        }
 
         if (!$nota) {
             return back()->with('error', 'No se ha encontrado la nota de crédito');

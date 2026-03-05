@@ -31,7 +31,7 @@ class Inventario extends Model
     protected $fillable = [
         'empresa', 'producto', 'ref', 'precio', 'descripcion', 'impuesto', 'id_impuesto', 'imagen', 'nro', 'categoria',
         'inicial', 'unidad', 'status',  'created_at', 'updated_at', 'tipo_producto', 'publico', 'costo_unidad', 'lista', 'link', 'type',
-        'siigo_id',
+        'siigo_id','nombre_empresa', 'nit_empresa', 'dv_empresa', 'email_empresa', 'direccion_empresa'
     ];
 
     public function setPrecioAttribute($value)

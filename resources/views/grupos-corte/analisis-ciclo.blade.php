@@ -280,10 +280,10 @@
                             <i class="fas fa-sync-alt"></i> Refrescar Análisis
                         </button>
 
-                        <!-- Botón: Vincular Facturas Manuales (Dinámico via JS) -->
+                        <!-- Botón: Vincular Facturas no marcadas (Dinámico via JS) -->
                         <div id="actionFixUnflaggedInvoices" style="display: none;">
                             <button class="btn btn-outline-success btn-sm mr-2 mb-2" onclick="vincularFacturasManuales()">
-                                <i class="fas fa-link"></i> Vincular facturas manuales
+                                <i class="fas fa-link"></i> Vincular facturas no marcadas
                             </button>
                         </div>
                     </div>
@@ -331,49 +331,75 @@
 <div class="row mb-4">
     <div class="col-md-6 mb-3">
         <div class="card stat-card success h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="text-muted mb-1">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            En Fecha Esperada (Día {{ $cycleStats['dia_esperado'] }})
-                        @else
-                            Facturas en el Mes (Día No Aplica)
-                        @endif
-                    </h6>
-                    <h2 class="mb-0 text-success font-weight-bold">{{ $cycleStats['facturas_en_fecha'] ?? 0 }}</h2>
-                    <small class="text-muted">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            Facturas creadas en el día programado
-                        @else
-                            Total de facturas detectadas para este período
-                        @endif
-                    </small>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                En Fecha Esperada (Día {{ $cycleStats['dia_esperado'] }})
+                            @else
+                                Facturas en el Mes (Día No Aplica)
+                            @endif
+                        </h6>
+                        <h2 class="mb-0 text-success font-weight-bold">{{ $cycleStats['facturas_en_fecha'] ?? 0 }}</h2>
+                        <small class="text-muted">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                Facturas creadas en el día programado
+                            @else
+                                Total de facturas detectadas para este período
+                            @endif
+                        </small>
+                    </div>
+                    <i class="fas fa-calendar-check fa-3x text-success opacity-25"></i>
                 </div>
-                <i class="fas fa-calendar-check fa-3x text-success opacity-25"></i>
+                <div class="mt-2 text-left small border-top pt-2 text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 1"><i class="fas fa-check-circle text-success"></i> Factura del mes SI:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_manual'] ?? 0 }}</b>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 0"><i class="fas fa-times-circle text-danger"></i> Factura del mes NO:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_en_fecha_auto'] ?? 0 }}</b>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-6 mb-3">
         <div class="card stat-card warning h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="text-muted mb-1">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            En Otras Fechas
-                        @else
-                            Reporte no disponible
-                        @endif
-                    </h6>
-                    <h2 class="mb-0 text-warning font-weight-bold">{{ $cycleStats['facturas_fuera_fecha'] ?? 0 }}</h2>
-                    <small class="text-muted">
-                        @if(($cycleStats['dia_esperado'] ?? 0) > 0)
-                            Facturas creadas antes o después del día programado
-                        @else
-                            El grupo no tiene un día de factura fijo
-                        @endif
-                    </small>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                En Otras Fechas
+                            @else
+                                Reporte no disponible
+                            @endif
+                        </h6>
+                        <h2 class="mb-0 text-warning font-weight-bold">{{ $cycleStats['facturas_fuera_fecha'] ?? 0 }}</h2>
+                        <small class="text-muted">
+                            @if(($cycleStats['dia_esperado'] ?? 0) > 0)
+                                Facturas creadas antes o después del día programado
+                            @else
+                                El grupo no tiene un día de factura fijo
+                            @endif
+                        </small>
+                    </div>
+                    <i class="fas fa-calendar-minus fa-3x text-warning opacity-25"></i>
                 </div>
-                <i class="fas fa-calendar-minus fa-3x text-warning opacity-25"></i>
+                @if(($cycleStats['dia_esperado'] ?? 0) > 0 || (isset($cycleStats['facturas_fuera_fecha']) && $cycleStats['facturas_fuera_fecha'] > 0))
+                <div class="mt-2 text-left small border-top pt-2 text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 1"><i class="fas fa-check-circle text-success"></i> Factura del mes SI:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_manual'] ?? 0 }}</b>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span title="factura_mes_manual = 0"><i class="fas fa-times-circle text-danger"></i> Factura del mes NO:</span>
+                        <b class="text-dark">{{ $cycleStats['facturas_fuera_fecha_auto'] ?? 0 }}</b>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -575,6 +601,13 @@
                                     @if(isset($f['estatus_texto']))
                                         <span class="badge badge-{{ $f['estatus_clase'] }} badge-pill ml-1" style="font-size: 0.7em;">{{ $f['estatus_texto'] }}</span>
                                     @endif
+                                    
+                                    @if(isset($f['factura_mes_manual']))
+                                        <span class="badge badge-{{ $f['factura_mes_manual'] == 1 ? 'info' : 'warning' }} badge-pill ml-1" style="font-size: 0.7em;">
+                                            <i class="fas fa-calendar-check"></i> Factura del Mes: {{ $f['factura_mes_manual'] == 1 ? 'SI' : 'NO' }}
+                                        </span>
+                                    @endif
+
                                     @if($index > 0)
                                     <a href="javascript:void(0)" onclick="eliminarFacturaDuplicada({{ $f['id'] }}, {{ $dup['contrato_id'] }})" class="text-danger ml-2" title="Eliminar esta factura">
                                         <i class="fas fa-trash-alt"></i>
@@ -648,6 +681,7 @@
                 </button>
             </div>
             <div class="modal-body p-0">
+                <div id="reasonModalActionContainer" class="px-3 pt-3 pb-0 bg-light"></div>
                 <div class="px-3 py-2 bg-light border-bottom">
                     <div class="input-group input-group-sm">
                         <div class="input-group-prepend">
@@ -741,7 +775,7 @@
         if (typeof cycleStats !== 'undefined' && cycleStats.missing_reasons) {
             const hasOffBillingIssue = cycleStats.missing_reasons.some(r => r.code === 'contract_disabled_off');
             const hasNumberingIssue = cycleStats.missing_reasons.some(r => r.code === 'no_valid_numbering');
-            const hasUnflaggedIssue = cycleStats.missing_reasons.some(r => r.code === 'manual_invoice_unflagged');
+            const hasUnflaggedIssue = cycleStats.missing_reasons.some(r => r.code === 'unflagged_invoice');
 
             if (hasOffBillingIssue) $('#actionFixOffBilling').show();
             if (hasNumberingIssue) $('#actionFixNumbering').show();
@@ -761,6 +795,18 @@ function showReasonDetails(reasonCode) {
     const details = cycleStats.missing_details.filter(d => d.razon_code === reasonCode);
     
     document.getElementById('reasonModalTitle').textContent = reason.title + ` (${reason.count} contratos)`;
+    
+    // Manage custom actions based on reasonCode
+    const actionContainer = document.getElementById('reasonModalActionContainer');
+    if (actionContainer) {
+        if (reasonCode === 'first_invoice_skip') {
+            actionContainer.innerHTML = `<button class="btn btn-warning btn-sm mb-3 w-100 font-weight-bold" onclick="actualizarContratosPrimerMes()">
+                <i class="fas fa-edit"></i> Actualizar contratos para que generen factura el primer mes del ciclo
+            </button>`;
+        } else {
+            actionContainer.innerHTML = '';
+        }
+    }
     
     const tbody = document.getElementById('reasonDetailsBody');
     tbody.innerHTML = '';
@@ -1141,8 +1187,8 @@ function prorrateoExtra() {
 
 function vincularFacturasManuales() {
     swal({
-        title: "¿Vincular facturas manuales?",
-        text: "Se marcarán como 'Factura del Mes' todas las facturas manuales detectadas para que el sistema las reconozca en este ciclo.",
+        title: "¿Vincular facturas no marcadas?",
+        text: "Se marcarán como 'Factura del Mes' todas las facturas del mes detectadas que no tienen este atributo, para que el sistema las reconozca en este ciclo.",
         type: "question",
         showCancelButton: true,
         confirmButtonText: "Sí, vincular ahora",
@@ -1152,6 +1198,41 @@ function vincularFacturasManuales() {
         preConfirm: () => {
             return $.ajax({
                 url: "{{ route('grupos-corte.marcar-facturas-mes-lote') }}",
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    idGrupo: grupoId,
+                    periodo: '{{ $periodo }}'
+                }
+            });
+        },
+        allowOutsideClick: () => !swal.isLoading()
+    }).then((result) => {
+        if (result.value) {
+            if (result.value.success) {
+                swal("¡Éxito!", result.value.message, "success").then(() => {
+                    location.reload();
+                });
+            } else {
+                swal("Error", result.value.message || "Ocurrió un error inesperado.", "error");
+            }
+        }
+    });
+}
+
+function actualizarContratosPrimerMes() {
+    swal({
+        title: "¿Actualizar contratos para generar factura el primer mes?",
+        text: "Esta acción actualizará los contratos de este grupo que tienen la opción 'Primera factura no corresponde' permitiendo que el sistema intente generar su factura en el primer ciclo del contrato.",
+        type: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, actualizar contratos",
+        cancelButtonText: "Cancelar",
+        confirmButtonClass: "btn-warning",
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            return $.ajax({
+                url: "{{ route('grupos-corte.actualizar-contratos-primer-mes') }}",
                 method: 'POST',
                 data: {
                     _token: '{{ csrf_token() }}',
@@ -1343,7 +1424,7 @@ function eliminarTodasDuplicadas() {
 function eliminarCiclo() {
     swal({
         title: '¿Eliminar facturación del ciclo?',
-        html: 'Esta acción <strong>eliminará todas las facturas</strong> generadas para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
+        html: 'Esta acción <strong>eliminará todas las facturas</strong> marcadas como "Factura del Mes" generadas para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
         type: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',

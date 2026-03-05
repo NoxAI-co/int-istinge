@@ -1149,7 +1149,7 @@ class ContratosController extends Controller
                     $API->disconnect();
 
                 }else {
-                    $mensaje = 'NO SE HA PODIDO CREAR EL CONTRATO DE SERVICIOS';
+                    $mensaje = 'La conexión a la mikrotik ' . $mikrotik->nombre . ' no se pudo establecer';
                     return redirect('empresa/contratos')->with('danger', $mensaje);
                 }
             }
@@ -1208,6 +1208,7 @@ class ContratosController extends Controller
             $contrato->tipo_moden              = $request->tipo_moden;
             $contrato->descuento_pesos         = $request->descuento_pesos;
             $contrato->fact_primer_mes         = $request->fact_primer_mes;
+            $contrato->estrato                 = $request->estrato;
             $contrato->fecha_hasta_desc        = isset($request->fecha_hasta_desc) ? $request->fecha_hasta_desc : null;
 
             if ($request->rd_item_vencimiento) {
@@ -1259,7 +1260,7 @@ class ContratosController extends Controller
                 if (isset($response->status) && $response->status == false) {
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                 } else {
-                    if ($response->status == true && $request->state_olt_catv == 0) {
+                    if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
                     } else {
                         $contrato->state_olt_catv = 1;
@@ -1291,6 +1292,14 @@ class ContratosController extends Controller
 
             if ($request->servicio_tv) {
                 $contrato->servicio_tv = $request->servicio_tv;
+            }
+
+            // Precios personalizados
+            if(isset($request->precio_personalizado_internet) && $request->precio_personalizado_internet != ''){
+                $contrato->precio_personalizado_internet = $request->precio_personalizado_internet;
+            }
+            if(isset($request->precio_personalizado_tv) && $request->precio_personalizado_tv != ''){
+                $contrato->precio_personalizado_tv = $request->precio_personalizado_tv;
             }
 
             if ($request->oficina) {
@@ -1439,7 +1448,7 @@ class ContratosController extends Controller
                 if (isset($response->status) && $response->status == false) {
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                 } else {
-                    if ($response->status == true && $request->state_olt_catv == 0) {
+                    if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
                     } else {
                         $contrato->state_olt_catv = 1;
@@ -1603,7 +1612,10 @@ class ContratosController extends Controller
             'contracts.pago_siigo_contrato',
             'contracts.cajanap_id',
             'contracts.cajanap_puerto',
-            'contracts.prorrateo'
+            'contracts.prorrateo',
+            'contracts.estrato',
+            'contracts.precio_personalizado_internet',
+            'contracts.precio_personalizado_tv',
         )
             ->where('contracts.id', $id)->where('contracts.empresa', Auth::user()->empresa)->first();
 
@@ -1744,6 +1756,16 @@ class ContratosController extends Controller
             } else {
                 $contrato->servicio_otro = null;
             }
+
+            
+            // Precios personalizados
+            if(isset($request->precio_personalizado_internet)){
+                $contrato->precio_personalizado_internet = $request->precio_personalizado_internet != '' ? $request->precio_personalizado_internet : null;
+            }
+            if(isset($request->precio_personalizado_tv)){
+                $contrato->precio_personalizado_tv = $request->precio_personalizado_tv != '' ? $request->precio_personalizado_tv : null;
+            }
+
             $contrato->save();
 
             $plan = PlanesVelocidad::where('id', $request->plan_id)->first();
@@ -2407,7 +2429,7 @@ class ContratosController extends Controller
                     if (isset($response->status) && $response->status == false) {
                         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
                     } else {
-                        if ($response->status == true && $request->state_olt_catv == 0) {
+                        if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                             $contrato->state_olt_catv = 0;
                         } else {
                             $contrato->state_olt_catv = 1;
@@ -3108,10 +3130,12 @@ class ContratosController extends Controller
             'Fecha Creacion',
             'Creador',
             'Ultimo pago',
-            'Desactivado'
+            'Desactivado',
+            'Usuario',
+            'Contrasena'
         );
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ','AR');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS');
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific171717
@@ -3122,13 +3146,13 @@ class ContratosController extends Controller
             ->setCategory("Reporte excel"); //Categorias
         // Se combinan las celdas A1 hasta D1, para colocar ah171717 el titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AQ1');
+            ->mergeCells('A1:AS1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', $tituloReporte);
         // Titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AQ1');
+            ->mergeCells('A1:AS1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', 'Reporte Contratos - Fecha ' . date('d-m-Y')); // Titulo del reporte
@@ -3136,12 +3160,12 @@ class ContratosController extends Controller
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'), 'alignment' => array(
             'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:AQ1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AS1')->applyFromArray($estilo);
         $estilo = array('fill' => array(
             'type' => PHPExcel_Style_Fill::FILL_SOLID,
             'color' => array('rgb' => 'd08f50')
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AQ2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
 
         $estilo = array(
             'fill' => array(
@@ -3160,7 +3184,7 @@ class ContratosController extends Controller
                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
             )
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AQ2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '2', utf8_decode($titulosColumnas[$i]));
@@ -3484,7 +3508,9 @@ class ContratosController extends Controller
                 ->setCellValue($letras[39] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
                 ->setCellValue($letras[40] . $i, $contrato->creador)
                 ->setCellValue($letras[41] . $i, $contrato->fechaUltimoPago())
-                ->setCellValue($letras[42] . $i, $contrato->status ? 'No' : 'Si');
+                ->setCellValue($letras[42] . $i, $contrato->status ? 'No' : 'Si')
+                ->setCellValue($letras[43] . $i, $contrato->usuario)
+                ->setCellValue($letras[44] . $i, $contrato->password);
             $i++;
         }
 
@@ -3503,10 +3529,10 @@ class ContratosController extends Controller
             ),
             'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:AQ' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AS' . $i)->applyFromArray($estilo);
 
-        for ($i = 'A'; $i <= $letras[41]; $i++) {
-            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        for ($j = 'A'; $j <= $letras[44]; $j++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($j)->setAutoSize(TRUE);
         }
 
         // Se asigna el nombre a la hoja
@@ -4830,7 +4856,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion', 'Precio Personalizado Internet', 'Precio Personalizado TV'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -4866,12 +4892,16 @@ class ContratosController extends Controller
             'AC' => 'IP Local Address para PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AD' => 'Usuario para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AE' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
-            'AF' => 'Línea. Opcional en todos los tipos de conexión.'
+            'AF' => 'Línea. Opcional en todos los tipos de conexión.',
+            'AG' => 'Estrato del contrato. Opcional.',
+            'AH' => 'Dirección de instalación del contrato. Opcional.',
+            'AI' => 'Precio personalizado de Internet. Opcional.',
+            'AJ' => 'Precio personalizado de TV. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de actualizacion de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema")
@@ -5018,7 +5048,9 @@ class ContratosController extends Controller
                 ->setCellValue("AC$j", $contrato->local_adress_pppoe ?? '')
                 ->setCellValue("AD$j", $contrato->usuario ?? '')
                 ->setCellValue("AE$j", $contrato->password ?? '')
-                ->setCellValue("AF$j", $contrato->linea ?? '');
+                ->setCellValue("AF$j", $contrato->linea ?? '')
+                ->setCellValue("AG$j", $contrato->estrato ?? '')
+                ->setCellValue("AH$j", $contrato->address_street ?? '');
 
             $j++;
         }
@@ -5053,7 +5085,7 @@ class ContratosController extends Controller
             'IP', 'MAC', 'Conexion', 'Interfaz', 'Local Address / Segmento', 'Simple Queue', 'Tipo de Tecnologia',
             'Nombre de la Caja NAP', 'Nodo', 'Access Point', 'Grupo de Corte', 'Facturacion', 'Descuento',
             'Canal', 'Oficina', 'Tecnologia', 'Fecha del Contrato', 'Cliente en Mikrotik', 'Tipo Contrato',
-            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea'
+            'Profile', 'IP Local Address', 'Usuario', 'Contrasena', 'Linea', 'Estrato', 'Direccion', 'Precio Personalizado Internet', 'Precio Personalizado TV'
         );
 
         // Comentarios detallados para cada campo con información de obligatoriedad y tipo de conexión
@@ -5088,12 +5120,16 @@ class ContratosController extends Controller
             'AB' => 'IP Local Address para PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AC' => 'Usuario para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
             'AD' => 'Contraseña para conexión PPPoE. Obligatorio solo para PPPoE. No aplica para otros tipos.',
-            'AE' => 'Línea. Opcional en todos los tipos de conexión.'
+            'AE' => 'Línea. Opcional en todos los tipos de conexión.',
+            'AF' => 'Estrato del contrato. Opcional.',
+            'AG' => 'Dirección de instalación del contrato. Opcional.',
+            'AH' => 'Precio personalizado de Internet. Opcional.',
+            'AI' => 'Precio personalizado de TV. Opcional.'
         );
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Archivo de Importación de Contratos Internet " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
@@ -5194,20 +5230,44 @@ class ContratosController extends Controller
 
     public function cargando(Request $request)
     {
-        $request->validate([
-            'archivo' => 'required|mimes:xlsx',
-        ], [
-            'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
-        ]);
-
         $create = 0;
         $modf = 0;
-        $imagen = $request->file('archivo');
-        $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
+
+        // Opciones de auto-relleno (enviadas desde el modal de configuración)
+        $autofillIp = $request->input('autofill_ip', 0);
+        $autofillIpCount = 0;
+        
+        $autofillState = $request->input('autofill_state', 0);
+        $autofillStateValue = $request->input('autofill_state_value', 'habilitado');
+        $autofillStateCount = 0;
+        
+        $autofillFacturacion = $request->input('autofill_facturacion', 0);
+        $autofillFacturacionValue = $request->input('autofill_facturacion_value', 'estandar');
+        $autofillFacturacionCount = 0;
+
         $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
-        $imagen->move($path, $nombre_imagen);
+
+        // Si viene del modal de configuración, re-usar el archivo ya subido
+        if ($request->input('archivo_guardado')) {
+            $nombre_imagen = $request->input('archivo_guardado');
+            $fileWithPath = $path . "/" . $nombre_imagen;
+            if (!file_exists($fileWithPath)) {
+                return back()->withErrors(['archivo' => 'El archivo ya no existe. Por favor, vuelva a subirlo.'])->withInput();
+            }
+        } else {
+            // Primera vez: validar y subir archivo
+            $request->validate([
+                'archivo' => 'required|mimes:xlsx',
+            ], [
+                'archivo.mimes' => 'El archivo debe ser de extensión xlsx'
+            ]);
+            $imagen = $request->file('archivo');
+            $nombre_imagen = 'archivo.' . $imagen->getClientOriginalExtension();
+            $imagen->move($path, $nombre_imagen);
+            $fileWithPath = $path . "/" . $nombre_imagen;
+        }
+
         Ini_set('max_execution_time', 500);
-        $fileWithPath = $path . "/" . $nombre_imagen;
         //Identificando el tipo de archivo
         $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
         //Creando el lector.
@@ -5223,6 +5283,10 @@ class ContratosController extends Controller
 
         // Array para recopilar todas las identificaciones no encontradas
         $identificacionesNoEncontradas = [];
+        $ipsDuplicadas = [];
+        $ipsRegistradasEnArchivo = [];
+        $validacionesSolucionables = [];
+        $erroresRecopilados = [];
 
         // Verificar el encabezado en la fila 3 para determinar si es actualización
         // Si la columna A en la fila 3 dice "Nro Contrato", entonces todas las filas tienen nro contrato
@@ -5244,21 +5308,31 @@ class ContratosController extends Controller
             if ($tieneNroContratoEnEncabezado) {
                 $esNroContrato = true;
                 $nro_contrato_actualizar = is_numeric($valorColumnaA) ? $valorColumnaA : null;
-                $nit = $sheet->getCell("B" . $row)->getValue(); // Si hay nro contrato, la identificación está en B
+                $nit_raw = $sheet->getCell("B" . $row)->getValue(); // Si hay nro contrato, la identificación está en B
             } else {
                 // Sin encabezado de Nro Contrato, tratar A como identificación
                 $esNroContrato = false;
                 $nro_contrato_actualizar = null;
-                $nit = $valorColumnaA;
+                $nit_raw = $valorColumnaA;
+            }
+
+            // Limpiar NIT de formatos Excel (decimales) o guiones de verificación
+            $nit_str = trim((string)$nit_raw);
+            if (strpos($nit_str, '-') !== false) {
+                $nit_parts = explode('-', $nit_str);
+                    // $nit = trim($nit_parts[0]);
+            } else {
+                // $nit = preg_replace('/\.0+$/', '', $nit_str);
             }
 
             // Datos comunes - ajustar columnas según si hay nro contrato
             // IMPORTANTE: Cuando hay Nro Contrato en A, TODAS las columnas se desplazan una posición a la derecha
             // Estructura CON Nro Contrato: A=Nro, B=Identificacion, C=Servicio, D=Serial ONU, E=OLT SN MAC, F=Plan, G=Mikrotik, H=Estado
             // Estructura SIN Nro Contrato: A=Identificacion, B=Servicio, C=Serial ONU, D=OLT SN MAC, E=Plan, F=Mikrotik, G=Estado
+            $nit = $this->cleanIdentification($nit_raw);
             if ($esNroContrato) {
                 // CON nro contrato: todo desplazado una columna a la derecha
-                $request->servicio   = $sheet->getCell("C" . $row)->getValue();  // C = Servicio
+                $request->servicio   = $this->repairEncoding($sheet->getCell("C" . $row)->getValue());  // C = Servicio
                 $request->serial_onu = $sheet->getCell("D" . $row)->getValue();  // D = Serial ONU
                 $request->olt_sn_mac = $sheet->getCell("E" . $row)->getValue();  // E = OLT SN MAC
                 $request->plan       = $sheet->getCell("F" . $row)->getValue();  // F = Plan (NO E!)
@@ -5266,7 +5340,7 @@ class ContratosController extends Controller
                 $request->state      = $sheet->getCell("H" . $row)->getValue();  // H = Estado
             } else {
                 // SIN nro contrato: lectura normal
-                $request->servicio   = $sheet->getCell("B" . $row)->getValue();  // B = Servicio
+                $request->servicio   = $this->repairEncoding($sheet->getCell("B" . $row)->getValue());  // B = Servicio
                 $request->serial_onu = $sheet->getCell("C" . $row)->getValue();  // C = Serial ONU
                 $request->olt_sn_mac = $sheet->getCell("D" . $row)->getValue();  // D = OLT SN MAC
                 $request->plan       = $sheet->getCell("E" . $row)->getValue();  // E = Plan
@@ -5357,6 +5431,10 @@ class ContratosController extends Controller
             $colUsuario = $esNroContrato ? 'AD' : 'AC';
             $colClave = $esNroContrato ? 'AE' : 'AD';
             $colLinea = $esNroContrato ? 'AF' : 'AE';
+            $colEstrato = $esNroContrato ? 'AG' : 'AF';
+            $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
+            $colPrecioInternet = $esNroContrato ? 'AI' : 'AH';
+            $colPrecioTV = $esNroContrato ? 'AJ' : 'AI';
 
             // Leer todos los campos de la estructura unificada
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
@@ -5382,6 +5460,10 @@ class ContratosController extends Controller
             $request->usuario = $sheet->getCell($colUsuario . $row)->getValue();
             $request->clave = $sheet->getCell($colClave . $row)->getValue();
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
+            $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
+            $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
+            $request->precio_personalizado_internet = $sheet->getCell($colPrecioInternet . $row)->getValue();
+            $request->precio_personalizado_tv = $sheet->getCell($colPrecioTV . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto antes de validar
             if (!empty($request->grupo_corte)) {
@@ -5429,16 +5511,49 @@ class ContratosController extends Controller
                     ];
                 }
             }
-            if (!$request->servicio) {
-                $error->servicio = "El campo Servicio es obligatorio";
-            }
+
             if ($request->mikrotik != "") {
                 // Buscar en minúsculas
                 $miko = Mikrotik::whereRaw('LOWER(nombre) = ?', [strtolower($request->mikrotik)])->first();
                 if (!$miko) {
                     $error->mikrotik = "El mikrotik ingresado no se encuentra en nuestra base de datos";
+                    $mikoId = 0;
                 } else {
                     $mikoId = $miko->id;
+                }
+            } else {
+                $mikoId = 0;
+            }
+
+            if (!$request->servicio) {
+                $error->servicio = "El campo Servicio es obligatorio";
+            }
+
+            if (!empty($request->ip)) {
+                $queryIp = Contrato::where('ip', $request->ip)->where('empresa', Auth::user()->empresa);
+                
+                // El conteo de IPs repetidas se hace por mikrotik (server_configuration_id)
+                if ($mikoId > 0) {
+                    $queryIp->where('server_configuration_id', $mikoId);
+                }
+
+                if ($esNroContrato && $nro_contrato_actualizar) {
+                    $queryIp->where('nro', '!=', $nro_contrato_actualizar);
+                }
+                
+                $isDuplicateInFile = false;
+                // Tracking por Mikrotik en el archivo
+                if (isset($ipsRegistradasEnArchivo[$mikoId][$request->ip])) {
+                    $isDuplicateInFile = true;
+                } else {
+                    $ipsRegistradasEnArchivo[$mikoId][$request->ip] = true;
+                }
+
+                if ($queryIp->count() > 0 || $isDuplicateInFile) {
+                    $ipsDuplicadas[] = [
+                        'fila' => $row,
+                        'ip' => $request->ip
+                    ];
                 }
             }
 
@@ -5453,18 +5568,40 @@ class ContratosController extends Controller
                         $mikoId = 0;
                     }
 
-                    // Buscar en minúsculas
+                    // Buscar primero como plan de velocidad
                     $num = PlanesVelocidad::whereRaw('LOWER(name) = ?', [strtolower($planValue)])->where('mikrotik', $mikoId)->count();
                     if ($num == 0) {
-                        $error->plan = "El plan de velocidad " . $planValue . " ingresado no se encuentra en nuestra base de datos. Verifique que la columna Plan (F) contenga el nombre correcto del plan.";
+                        // Fallback: buscar como item de inventario type TV
+                        $inventarioTV = Inventario::whereRaw('LOWER(producto) = ?', [strtolower($planValue)])
+                            ->where('empresa', Auth::user()->empresa)
+                            ->where('type', 'TV')
+                            ->first();
+                        if (!$inventarioTV) {
+                            $error->plan = "El plan de velocidad o servicio de TV '" . $planValue . "' no se encuentra en nuestra base de datos. Verifique que la columna Plan (F) contenga el nombre correcto del plan o del servicio de TV.";
+                        }
                     }
                 }
             }
             if (!$request->state) {
-                $error->state = "El campo estado es obligatorio";
+                if ($autofillState) {
+                    // Auto-relleno activo
+                } else {
+                    if (!isset($validacionesSolucionables['estados_vacios'])) {
+                        $validacionesSolucionables['estados_vacios'] = 0;
+                    }
+                    $validacionesSolucionables['estados_vacios']++;
+                }
             }
             if ($request->conexion != 2 && !$request->ip) {
-                $error->ip = "El campo IP es obligatorio";
+                if ($autofillIp) {
+                    // Auto-relleno activo: no generar error, se asignará IP por defecto en el segundo bucle
+                } else {
+                    // Registrar como validación solucionable en lugar de error directo
+                    if (!isset($validacionesSolucionables['ip_vacias'])) {
+                        $validacionesSolucionables['ip_vacias'] = 0;
+                    }
+                    $validacionesSolucionables['ip_vacias']++;
+                }
             }
             if (!$request->conexion) {
                 $error->conexion = "El campo conexión es obligatorio";
@@ -5497,7 +5634,14 @@ class ContratosController extends Controller
                 }
             }
             if (!$request->facturacion) {
-                $error->facturacion = "El campo facturacion es obligatorio";
+                if ($autofillFacturacion) {
+                    // Auto-relleno activo
+                } else {
+                    if (!isset($validacionesSolucionables['facturacion_vacias'])) {
+                        $validacionesSolucionables['facturacion_vacias'] = 0;
+                    }
+                    $validacionesSolucionables['facturacion_vacias']++;
+                }
             }
 
             if (!$request->tecnologia) {
@@ -5508,26 +5652,61 @@ class ContratosController extends Controller
             }
 
             if (count((array) $error) > 0) {
-                $fila["error"] = 'FILA ' . $row;
-                $error = (array) $error;
-                var_dump($error);
-                var_dump($fila);
-
-                array_unshift($error, $fila);
-                $result = (object) $error;
-                return back()->withErrors($result)->withInput();
+                $erroresRecopilados[] = [
+                    'fila' => $row,
+                    'errores' => (array) $error
+                ];
             }
         }
 
-        // Al final del primer bucle, verificar si hay identificaciones no encontradas
-        if (count($identificacionesNoEncontradas) > 0) {
-            $mensajeErrores = "<strong>Las siguientes identificaciones no se encuentran registradas en el sistema:</strong><br><ul style='margin-top: 10px; margin-bottom: 10px;'>";
-            foreach ($identificacionesNoEncontradas as $item) {
-                $mensajeErrores .= "<li>Fila {$item['fila']}: <strong>{$item['identificacion']}</strong></li>";
+        // Si hay validaciones solucionables y no se han confirmado las opciones de auto-relleno
+        // Mostrar el modal PRIMERO, incluso si también hay errores duros
+        if (count($validacionesSolucionables) > 0 && !$autofillIp) {
+            $redirect = back()->with('validaciones_importacion', $validacionesSolucionables)
+                              ->with('archivo_guardado', $nombre_imagen)
+                              ->withInput();
+            // Si también hay errores duros, incluirlos para que se muestren junto al modal
+            if (count($erroresRecopilados) > 0) {
+                $allErrors = [];
+                foreach ($erroresRecopilados as $item) {
+                    $allErrors[] = 'FILA ' . $item['fila'];
+                    foreach ($item['errores'] as $msg) {
+                        $allErrors[] = $msg;
+                    }
+                }
+                $redirect = $redirect->withErrors($allErrors);
             }
-            $mensajeErrores .= "</ul>Por favor, verifique estas identificaciones en el archivo Excel y asegúrese de que los contactos estén creados antes de importar los contratos.";
+            return $redirect;
+        }
 
-            return back()->withErrors(['identificaciones' => $mensajeErrores])->withInput();
+        // Si solo hay errores duros (sin validaciones solucionables), mostrarlos
+        if (count($erroresRecopilados) > 0) {
+            $allErrors = [];
+            foreach ($erroresRecopilados as $item) {
+                $allErrors[] = 'FILA ' . $item['fila'];
+                foreach ($item['errores'] as $msg) {
+                    $allErrors[] = $msg;
+                }
+            }
+            return back()->withErrors($allErrors)->withInput();
+        }
+
+        $mensajeErroresAlert = '';
+        if (count($identificacionesNoEncontradas) > 0) {
+            $mensajeErroresAlert .= "<strong>Las siguientes identificaciones no se encuentran registradas en el sistema:</strong><br><ul style='margin-top: 10px; margin-bottom: 10px;'>";
+            foreach ($identificacionesNoEncontradas as $item) {
+                $mensajeErroresAlert .= "<li>Fila {$item['fila']}: <strong>{$item['identificacion']}</strong></li>";
+            }
+            $mensajeErroresAlert .= "</ul>";
+        }
+
+        if (count($ipsDuplicadas) > 0) {
+            $numDuplicados = count($ipsDuplicadas);
+            $mensajeErroresAlert .= "<strong>Las siguientes filas no fueron registradas porque las IPs ya están registradas un total de $numDuplicados:</strong><br><ul style='margin-top: 10px; margin-bottom: 10px;'>";
+            foreach ($ipsDuplicadas as $item) {
+                $mensajeErroresAlert .= "<li>Fila {$item['fila']}: <strong>{$item['ip']}</strong></li>";
+            }
+            $mensajeErroresAlert .= "</ul>";
         }
 
         for ($row = 4; $row <= $highestRow; $row++) {
@@ -5536,17 +5715,44 @@ class ContratosController extends Controller
                 break;
             }
 
+            $skipRow = false;
+            foreach ($identificacionesNoEncontradas as $item) {
+                if ($item['fila'] == $row) {
+                    $skipRow = true;
+                    break;
+                }
+            }
+            foreach ($ipsDuplicadas as $item) {
+                if ($item['fila'] == $row) {
+                    $skipRow = true;
+                    break;
+                }
+            }
+            
+            if ($skipRow) {
+                continue;
+            }
+
             // Usar la misma detección del encabezado que en el primer bucle
             // Si el encabezado indica que hay Nro Contrato, todas las filas se tratan como actualización
             if ($tieneNroContratoEnEncabezado) {
                 $esNroContrato = true;
                 $nro_contrato_actualizar = is_numeric($valorColumnaA) ? $valorColumnaA : null;
-                $nit = $sheet->getCell("B" . $row)->getValue(); // Si hay nro contrato, la identificación está en B
+                $nit_raw = $sheet->getCell("B" . $row)->getValue(); // Si hay nro contrato, la identificación está en B
             } else {
                 // Sin encabezado de Nro Contrato, tratar A como identificación
                 $esNroContrato = false;
                 $nro_contrato_actualizar = null;
-                $nit = $valorColumnaA;
+                $nit_raw = $valorColumnaA;
+            }
+
+            // Limpiar NIT de formatos Excel (decimales) o guiones de verificación
+            $nit_str = trim((string)$nit_raw);
+            if (strpos($nit_str, '-') !== false) {
+                $nit_parts = explode('-', $nit_str);
+                $nit = trim($nit_parts[0]);
+            } else {
+                $nit = preg_replace('/\.0+$/', '', $nit_str);
             }
 
             $request                = (object) array();
@@ -5570,9 +5776,10 @@ class ContratosController extends Controller
             // IMPORTANTE: Cuando hay Nro Contrato en A, TODAS las columnas se desplazan una posición a la derecha
             // Estructura CON Nro Contrato: A=Nro, B=Identificacion, C=Servicio, D=Serial ONU, E=OLT SN MAC, F=Plan, G=Mikrotik, H=Estado
             // Estructura SIN Nro Contrato: A=Identificacion, B=Servicio, C=Serial ONU, D=OLT SN MAC, E=Plan, F=Mikrotik, G=Estado
+            $nit = $this->cleanIdentification($nit_raw);
             if ($esNroContrato) {
                 // CON nro contrato: todo desplazado una columna a la derecha
-                $request->servicio      = $sheet->getCell("C" . $row)->getValue();  // C = Servicio
+                $request->servicio      = $this->repairEncoding($sheet->getCell("C" . $row)->getValue());  // C = Servicio
                 $request->serial_onu    = $sheet->getCell("D" . $row)->getValue();  // D = Serial ONU
                 $request->olt_sn_mac    = $sheet->getCell("E" . $row)->getValue();  // E = OLT SN MAC
                 $request->plan          = $sheet->getCell("F" . $row)->getValue();  // F = Plan (NO E!)
@@ -5580,7 +5787,7 @@ class ContratosController extends Controller
                 $request->state         = $sheet->getCell("H" . $row)->getValue();  // H = Estado
             } else {
                 // SIN nro contrato: lectura normal
-                $request->servicio      = $sheet->getCell("B" . $row)->getValue();  // B = Servicio
+                $request->servicio      = $this->repairEncoding($sheet->getCell("B" . $row)->getValue());  // B = Servicio
                 $request->serial_onu    = $sheet->getCell("C" . $row)->getValue();  // C = Serial ONU
                 $request->olt_sn_mac    = $sheet->getCell("D" . $row)->getValue();  // D = OLT SN MAC
                 $request->plan          = $sheet->getCell("E" . $row)->getValue();  // E = Plan
@@ -5653,6 +5860,10 @@ class ContratosController extends Controller
             $colUsuario = $esNroContrato ? 'AD' : 'AC';
             $colClave = $esNroContrato ? 'AE' : 'AD';
             $colLinea = $esNroContrato ? 'AF' : 'AE';
+            $colEstrato = $esNroContrato ? 'AG' : 'AF';
+            $colAddressStreet = $esNroContrato ? 'AH' : 'AG';
+            $colPrecioInternet = $esNroContrato ? 'AI' : 'AH';
+            $colPrecioTV = $esNroContrato ? 'AJ' : 'AI';
 
             $request->ip = $sheet->getCell($colIP . $row)->getValue();
             $request->mac = $sheet->getCell($colMAC . $row)->getValue();
@@ -5677,6 +5888,10 @@ class ContratosController extends Controller
             $request->usuario = $sheet->getCell($colUsuario . $row)->getValue();
             $request->clave = $sheet->getCell($colClave . $row)->getValue();
             $request->linea = $sheet->getCell($colLinea . $row)->getValue();
+            $request->estrato = $sheet->getCell($colEstrato . $row)->getValue();
+            $request->address_street = $sheet->getCell($colAddressStreet . $row)->getValue();
+            $request->precio_personalizado_internet = $sheet->getCell($colPrecioInternet . $row)->getValue();
+            $request->precio_personalizado_tv = $sheet->getCell($colPrecioTV . $row)->getValue();
 
             // Aplicar strtolower a campos tipo texto
             if (!empty($request->grupo_corte)) {
@@ -5716,14 +5931,24 @@ class ContratosController extends Controller
                     return back()->withErrors(['mikrotik' => 'El mikrotik ingresado no se encuentra en nuestra base de datos'])->withInput();
                 }
             }
+            $request->es_tv = false;
             if ($request->plan != "") {
-                // Buscar en minúsculas
+                // Buscar primero como plan de velocidad
                 $planesVelocidad = PlanesVelocidad::whereRaw('LOWER(name) = ?', [strtolower($request->plan)])->first();
                 if ($planesVelocidad) {
                     $request->plan = $planesVelocidad->id;
                 } else {
-                    // Manejar el caso en el que no se encuentra el plan de velocidad
-                    $error->plan = "El plan de velocidad " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
+                    // Fallback: buscar como item de inventario type TV
+                    $inventarioTV = Inventario::whereRaw('LOWER(producto) = ?', [strtolower($request->plan)])
+                        ->where('empresa', Auth::user()->empresa)
+                        ->where('type', 'TV')
+                        ->first();
+                    if ($inventarioTV) {
+                        $request->plan = $inventarioTV->id;
+                        $request->es_tv = true;
+                    } else {
+                        $error->plan = "El plan de velocidad o servicio de TV " . $request->plan . " ingresado no se encuentra en nuestra base de datos";
+                    }
                 }
             }
             if ($request->grupo_corte != "") {
@@ -5850,16 +6075,45 @@ class ContratosController extends Controller
                 $contrato->servicio = $this->normaliza($request->servicio) . '-' . $contrato->nro;
             }
 
-            $contrato->plan_id                 = $request->plan;
+            // Si es un servicio de TV, guardar en servicio_tv; si es plan de velocidad, guardar en plan_id
+            if (isset($request->es_tv) && $request->es_tv) {
+                $contrato->servicio_tv             = $request->plan;
+                // No sobreescribir plan_id si ya tiene uno y estamos actualizando
+                if (!$esNroContrato || !$nro_contrato_actualizar) {
+                    $contrato->plan_id             = null;
+                }
+            } else {
+                $contrato->plan_id                 = $request->plan;
+            }
             $contrato->server_configuration_id = $request->mikrotik;
-            $contrato->state                   = $request->state;
-            $contrato->ip                      = $request->ip;
+            
+            // Auto-rellenar Estado si está vacío
+            if (empty($request->state) && $autofillState) {
+                $contrato->state = $autofillStateValue;
+                $autofillStateCount++;
+            } else {
+                $contrato->state = $request->state;
+            }
+            // Auto-rellenar IP si está vacía y autofill está activo
+            if (empty($request->ip) && $request->conexion != 2 && $autofillIp) {
+                $contrato->ip = '000.000.0.00';
+                $autofillIpCount++;
+            } else {
+                $contrato->ip = $request->ip;
+            }
             $contrato->conexion                = $request->conexion;
             $contrato->simple_queue            = $request->simple_queue ?? null;
             $contrato->interfaz                = $request->interfaz ?? null;
             $contrato->local_address           = $request->local_address ?? null;
             $contrato->grupo_corte             = $request->grupo_corte;
-            $contrato->facturacion             = $request->facturacion;
+            
+            // Auto-rellenar Facturación si está vacía
+            if (empty($request->facturacion) && $autofillFacturacion) {
+                $contrato->facturacion = $autofillFacturacionValue;
+                $autofillFacturacionCount++;
+            } else {
+                $contrato->facturacion = $request->facturacion;
+            }
             $contrato->tecnologia              = $request->tecnologia;
             $contrato->tipo_contrato           = $request->tipo_contrato;
             $contrato->profile                 = $request->profile ?? null;
@@ -5872,12 +6126,16 @@ class ContratosController extends Controller
             $contrato->mac_address             = $request->mac ?? null;
             $contrato->serial_onu              = $request->serial_onu;
             $contrato->olt_sn_mac              = $request->olt_sn_mac ?? null;
-            $contrato->created_at              = $request->created_at;
+            $contrato->created_at              = $this->validateDateOrNow($request->created_at);
             $contrato->mk                      = $request->mk;
             $contrato->usuario                 = $request->usuario ?? null;
             $contrato->password                = $request->clave ?? null;
             $contrato->local_adress_pppoe      = $request->local_address_pppoe ?? null;
             $contrato->linea                   = $request->linea ?? null;
+            $contrato->estrato                 = $request->estrato ?? null;
+            $contrato->address_street          = $request->address_street ?? null;
+            $contrato->precio_personalizado_internet = $request->precio_personalizado_internet ?? null;
+            $contrato->precio_personalizado_tv       = $request->precio_personalizado_tv ?? null;
 
             // Manejar caja NAP y puerto
             if ($cajaNap != null) {
@@ -5921,13 +6179,13 @@ class ContratosController extends Controller
 
             // Solo actualizar created_at si es un nuevo contrato
             if (!($esNroContrato && $nro_contrato_actualizar && isset($contrato->id))) {
-                $contrato->created_at = Carbon::now();
+                // Ya se asignó en la línea 5944 usando validateDateOrNow
             } else {
                 // Para actualizaciones, solo actualizar si viene fecha en el Excel
                 if (!empty($request->created_at)) {
-                    $contrato->created_at = $request->created_at;
+                    $contrato->created_at = $this->validateDateOrNow($request->created_at);
                 }
-                // Si no viene fecha, mantener la fecha original
+                // Si no viene fecha, se mantiene la fecha original del contrato (laravel no la sobreescribe si no se asigna)
             }
 
             $contrato->save();
@@ -5941,6 +6199,20 @@ class ContratosController extends Controller
         if ($modf > 0) {
             $mensaje .= ' MODIFICADOS: ' . $modf;
         }
+        if ($autofillIpCount > 0) {
+            $mensaje .= '. ' . $autofillIpCount . ' registro(s) fueron agregados con la IP 000.000.0.00 porque no fue ingresada.';
+        }
+        if ($autofillStateCount > 0) {
+            $mensaje .= '. ' . $autofillStateCount . ' registro(s) fueron agregados con el Estado ' . ucfirst($autofillStateValue) . ' porque no fue ingresado.';
+        }
+        if ($autofillFacturacionCount > 0) {
+            $mensaje .= '. ' . $autofillFacturacionCount . ' registro(s) fueron agregados con la Facturación ' . ucfirst($autofillFacturacionValue) . ' porque no fue ingresada.';
+        }
+
+        if ($mensajeErroresAlert != '') {
+            return redirect('empresa/contratos')->with('success', $mensaje)->with('danger', $mensajeErroresAlert);
+        }
+
         return redirect('empresa/contratos')->with('success', $mensaje);
     }
 
@@ -5979,9 +6251,18 @@ class ContratosController extends Controller
         for ($row = 4; $row <= $highestRow; $row++) {
             $request = (object) array();
             //obtengo el A4 desde donde empieza la data
-            $nit = $sheet->getCell("A" . $row)->getValue();
-            if (empty($nit)) {
+            $nit_raw = $sheet->getCell("A" . $row)->getValue();
+            if (empty($nit_raw)) {
                 break;
+            }
+
+            // Limpiar NIT de formatos Excel (decimales) o guiones de verificación
+            $nit_str = trim((string)$nit_raw);
+            if (strpos($nit_str, '-') !== false) {
+                $nit_parts = explode('-', $nit_str);
+                $nit = trim($nit_parts[0]);
+            } else {
+                $nit = preg_replace('/\.0+$/', '', $nit_str);
             }
 
             $request->servicio      = $sheet->getCell("B" . $row)->getValue();
@@ -6043,9 +6324,18 @@ class ContratosController extends Controller
         }
 
         for ($row = 4; $row <= $highestRow; $row++) {
-            $nit = $sheet->getCell("A" . $row)->getValue();
-            if (empty($nit)) {
+            $nit_raw = $sheet->getCell("A" . $row)->getValue();
+            if (empty($nit_raw)) {
                 break;
+            }
+
+            // Limpiar NIT de formatos Excel (decimales) o guiones de verificación
+            $nit_str = trim((string)$nit_raw);
+            if (strpos($nit_str, '-') !== false) {
+                $nit_parts = explode('-', $nit_str);
+                $nit = trim($nit_parts[0]);
+            } else {
+                $nit = preg_replace('/\.0+$/', '', $nit_str);
             }
             $request                = (object) array();
             $request->servicio      = $sheet->getCell("B" . $row)->getValue();
@@ -6130,7 +6420,7 @@ class ContratosController extends Controller
             $contrato->servicio_tv             = $request->plan;
             $contrato->state                   = $request->state;
             $contrato->serial_onu              = $request->serial_onu;
-            $contrato->created_at              = $request->created_at;
+            $contrato->created_at              = $this->validateDateOrNow($request->created_at);
             $contrato->tecnologia              = $request->tecnologia;
 
             $contrato->save();
@@ -6457,46 +6747,51 @@ class ContratosController extends Controller
         }
     }
 
-    //Metodo para obtener los items de los contratos que tienen la opcion de facturar agruapada
     public function rowItem(Request $request)
     {
-        //No se que significa item pendiente de asignacion en el cron controller, este es otor motivo de creacion de item.
-
         try {
-            if (isset($request->contrato_id) && isset($request->cliente_id)) {
-
-                $contrato = Contrato::find($request->contrato_id);
-
-                /* Preguntamos primero si el contrato seleccionado tiene facturacion agrupada,
-                 si es asi entonces tenemos que investigar los demas contratos asociados para saber si son agrupados tambien.
-                */
-                if ($contrato->factura_individual == 0) {
-                    $contratos = Contrato::where('client_id', $request->cliente_id)->where('factura_individual', 0)->get();
-                } else {
-                    $contratos = Contrato::where('id', $request->contrato_id)->get();
-                }
-
+            if (isset($request->cliente_id)) {
+                
                 $items = [];
-                foreach ($contratos as $co) {
-
-                    //Buscamos los items del contrato y los vamos almecenando en items.
-                    if ($co->plan_id) {
-                        $plan = PlanesVelocidad::find($co->plan_id);
-                        $item = Inventario::find($plan->item);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
+                if (!empty($request->contrato_id)) {
+                    if (is_array($request->contrato_id)) {
+                        $contratos = Contrato::whereIn('id', $request->contrato_id)->get();
+                    } else {
+                        $contrato = Contrato::find($request->contrato_id);
+                        if ($contrato && $contrato->factura_individual == 0) {
+                            $contratos = Contrato::where('client_id', $request->cliente_id)->where('factura_individual', 0)->get();
+                        } else {
+                            $contratos = Contrato::where('id', $request->contrato_id)->get();
+                        }
                     }
 
-                    if ($co->servicio_tv) {
-                        $item = Inventario::find($co->servicio_tv);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
-                    }
+                    foreach ($contratos as $co) {
+                        if ($co->plan_id) {
+                            $plan = PlanesVelocidad::find($co->plan_id);
+                            if ($plan && $plan->item) {
+                                $item = Inventario::find($plan->item);
+                                if ($item) {
+                                    $item->contrato_nro = $co->nro;
+                                    $items[] = $item;
+                                }
+                            }
+                        }
 
-                    if ($co->servicio_otro) {
-                        $item = Inventario::find($co->servicio_otro);
-                        $item->contrato_nro = $co->nro;
-                        $items[] = $item;
+                        if ($co->servicio_tv) {
+                            $item = Inventario::find($co->servicio_tv);
+                            if ($item) {
+                                $item->contrato_nro = $co->nro;
+                                $items[] = $item;
+                            }
+                        }
+
+                        if ($co->servicio_otro) {
+                            $item = Inventario::find($co->servicio_otro);
+                            if ($item) {
+                                $item->contrato_nro = $co->nro;
+                                $items[] = $item;
+                            }
+                        }
                     }
                 }
 
@@ -6508,7 +6803,7 @@ class ContratosController extends Controller
                 ]);
             }
         } catch (\Throwable $th) {
-            $errorData = json_decode($th->getMessage(), true);
+            $errorData = json_decode($th->getMessage(), true) ?? $th->getMessage();
             return response()->json(['code' => 422, 'message' => $errorData]);
         }
     }

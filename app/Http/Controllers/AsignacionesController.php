@@ -777,72 +777,54 @@ class AsignacionesController extends Controller
 
     public function imprimir($id)
     {
-        // TODO: we should really test this method, as the generation of the PDF
-        // can sometimes go wrong. Or make a better error. The following can be
-        // upgraded to use something like Go or Rust, but I feel this is fine
-        // for now.
-        /** @var User $company */
-        $company = ((object) FacadesAuth::user())->empresa();
-        $request = request()->all();
+        $digital = ContratoDigital::findOrFail($id);
 
+        $contact = $digital->cliente;
+        $company = Empresa::first(); // Or Auth::user()->empresa() if preferred, but first() is safe for PDF generation
+        $contract = $digital->contrato;
+        $contractDetails = $digital->contrato;
 
-        $digital = ContratoDigital::Find($id);
-
-        if($digital){
-            $contact = $digital->cliente;
-            $company = Empresa::Find(1);
-            $contract = $digital->contrato;
-            $contractDetails = $digital->contrato;
-
-            $contacto = Contacto::Find($digital->cliente_id);
-            if($contacto->firma_isp != null && $digital->firma == null){
-                $digital->firma = $contacto->firma_isp;
-                $digital->estado_firma = 1;
-                $digital->save();
-            }
-
-            view()->share(['title' => 'Contrato de Internet']);
-            $pdf = Pdf::loadView('pdf.contrato', compact([
-                'contact',
-                'company',
-                'contract',
-                'contractDetails',
-                'digital'
-            ]));
-            return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
+        if ($contact->firma_isp != null && $digital->firma == null) {
+            $digital->firma = $contact->firma_isp;
+            $digital->estado_firma = 1;
+            $digital->save();
         }
-        else{
-            return redirect('empresa/asignaciones')->with('danger', 'No existe un registro con ese id');
-        }
+
+        view()->share(['title' => 'Contrato de Internet']);
+        $pdf = Pdf::loadView('pdf.contrato', compact([
+            'contact',
+            'company',
+            'contract',
+            'contractDetails',
+            'digital'
+        ]));
+        return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
     }
 
     // funcion que permita imprimir el contrato en firma de asignaciones
     public function imprimir_firma($id)
     {
-        // TODO: we should really test this method, as the generation of the PDF
-        // can sometimes go wrong. Or make a better error. The following can be
-        // upgraded to use something like Go or Rust, but I feel this is fine
-        // for now.
-        /** @var User $company */
+        $digital = ContratoDigital::find($id);
+        if (!$digital) {
+            $digital = ContratoDigital::where('cliente_id', $id)->orderBy('id', 'DESC')->first();
+        }
 
-            $company = Empresa::first();
-            $empresa = Empresa::first();
-            // La variable es nula o evaluada como falsa, haz algo aquí
-                /** @var Contacto $contact */
-            $contact = Contacto::where('id', $id)
-            ->where('empresa', $empresa->id)
-            ->firstOrFail();
-            $company = $empresa;
-            /** @var Contacto $contact */
-            $contact = Contacto::where('id', $id)
-                ->where('empresa', $company->id)
-                ->firstOrFail();
+        if (!$digital) {
+            abort(404, 'No se encontró el contrato digital.');
+        }
+
+        $contact = $digital->cliente;
+        $contract = $digital->contrato;
+        $company = Empresa::first();
+        $empresa = $company;
 
         view()->share(['title' => 'Contrato de Internet']);
         $pdf = Pdf::loadView('pdf.contrato_firma', compact([
             'contact',
             'company',
-            'empresa'
+            'empresa',
+            'digital',
+            'contract'
         ]));
         return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
     }
@@ -895,101 +877,96 @@ class AsignacionesController extends Controller
 
     public function enviar($id)
     {
-        view()->share(['title' => 'Contrato de Internet']);
-        $digital = ContratoDigital::Find($id);
+        $digital = ContratoDigital::findOrFail($id);
         $contact = $digital->cliente;
-        if($contact) {
-            if (!$contact->email) {
-                return back()->with('danger', 'EL CLIENTE NO TIENE UN CORREO ELECTRÓNICO REGISTRADO');
-            }
-            $host = ServidorCorreo::where('estado', 1)->where('empresa', Auth::user()->empresa)->first();
-            if($host) {
-                $existing = config('mail');
-                $new =array_merge(
-                    $existing,
-                    [
-                        'host' => $host->servidor,
-                        'port' => $host->puerto,
-                        'encryption' => $host->seguridad,
-                        'username' => $host->usuario,
-                        'password' => $host->password,
-                        'from' => [
-                            'address' => $host->address,
-                            'name' => $host->name
-                        ],
-                    ]
-                );
-                config(['mail'=>$new]);
-            }
-            $idContrato = $contact->cotrato_id;
+        $contract = $digital->contrato;
+        $contractDetails = $digital->contrato;
 
-            $company = ((object) FacadesAuth::user())->empresa();
-
-            try {
-                $contract = $digital->contrato;
-                // TODO: This should be within the contract method, but right now it
-                // will break other things, so it will stay here.
-                if (is_null($contract)) {
-                    throw new ModelNotFoundException();
-                }
-            } catch (ModelNotFoundException $e) {
-                return back()->with('danger', 'El contacto no tiene un contrato asociado.');
-            }
-
-            try {
-                $contractDetails = $digital->contrato;
-            } catch (ModelNotFoundException $e) {
-                return back()->with('danger', 'Los detalles del contrato no fueron encontrados.');
-            }
-
-            $pdf = Pdf::loadView('pdf.contrato', compact([
-                'contact',
-                'company',
-                'contract',
-                'contractDetails',
-                'digital'
-            ]))->stream();
-
-            $email = $contact->email;
-            $cliente = $contact->nombre;
-            self::sendMail('emails.contrato', compact('contact'), compact('pdf', 'contact', 'email', 'cliente'), function ($message) use ($pdf, $contact) {
-                $message->attachData($pdf, 'contrato_digital_servicios.pdf', ['mime' => 'application/pdf']);
-                $message->to($contact->email)->subject("Contrato Digital de Servicios - ".Auth::user()->empresa()->nombre);
-            });
-            return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A '.$contact->nombre.' '.$contact->apellidos()));
+        if (!$contact->email) {
+            return back()->with('danger', 'EL CLIENTE NO TIENE UN CORREO ELECTRÓNICO REGISTRADO');
         }
-        return back()->with('danger', 'CONTRATO DIGITAL NO ENVIADO');
+
+        if (!$contract) {
+            return back()->with('danger', 'El contacto no tiene un contrato asociado.');
+        }
+
+        $company = Empresa::first();
+
+        $host = ServidorCorreo::where('estado', 1)->where('empresa', $company->id)->first();
+        if ($host) {
+            $existing = config('mail');
+            $new = array_merge(
+                $existing,
+                [
+                    'host' => $host->servidor,
+                    'port' => $host->puerto,
+                    'encryption' => $host->seguridad,
+                    'username' => $host->usuario,
+                    'password' => $host->password,
+                    'from' => [
+                        'address' => $host->address,
+                        'name' => $host->name
+                    ],
+                ]
+            );
+            config(['mail' => $new]);
+        }
+
+        view()->share(['title' => 'Contrato de Internet']);
+        $pdf = Pdf::loadView('pdf.contrato', compact([
+            'contact',
+            'company',
+            'contract',
+            'contractDetails',
+            'digital'
+        ]))->output();
+
+        $email = $contact->email;
+        $cliente = $contact->nombre;
+        self::sendMail('emails.contrato', compact('contact'), compact('pdf', 'contact', 'email', 'cliente'), function ($message) use ($pdf, $contact, $company) {
+            $message->attachData($pdf, 'contrato_digital_servicios.pdf', ['mime' => 'application/pdf']);
+            $message->to($contact->email)->subject("Contrato Digital de Servicios - " . $company->nombre);
+        });
+
+        return back()->with('success', strtoupper('EL CONTRATO DIGITAL DE SERVICIOS HA SIDO ENVIADO CORRECTAMENTE A ' . $contact->nombre . ' ' . $contact->apellidos()));
     }
 
     public function generar_link($id)
     {
-        $contacto = Contacto::find($id);
+        $contrato = Contrato::find($id);
         $empresa = Empresa::first();
 
-        if($contacto) {
-            $sw = 1;
-            while ($sw == 1) {
-                $ref = Funcion::generateRandomString();
-                if (Contacto::where('referencia_asignacion', $ref)->first()) {
-                    $ref = Funcion::generateRandomString();
-                } else {
-                    $sw = 0;
-                    $contacto->referencia_asignacion = $ref;
-                    $contacto->save();
-                }
-            }
+        if (!$contrato) {
+            $contacto = Contacto::find(request()->cliente);
+            if ($contacto) {
+                $ref = $contacto->nit;
+                $link = config('app.url') . "/api/contrato-digital/" . $ref;
 
-            $link = config('app.url')."/api/contrato-digital/".$ref;
+                return response()->json([
+                    'success'  => true,
+                    'contacto' => $contacto->id,
+                    'text'     => "<a href='" . config('app.url') . "/api/contrato-digital/" . $ref . "' target='_blank'>" . config('app.url') . "/api/contrato-digital/" . $ref . "</a><br><br><button class='btn btn-primary btn-lg' data-clipboard-text='" . $link . "'>COPIAR URL</button>
+                    ",
+                    'link'     => config('app.url') . "/api/contrato-digital/" . $ref,
+                    'type'     => 'success'
+                ]);
+            }
+        }
+
+        if ($contrato) {
+            $ref = $contrato->nro;
+            $contacto = Contacto::find($contrato->client_id);
+            $link = config('app.url') . "/api/contrato-digital/" . $ref;
 
             return response()->json([
                 'success'  => true,
                 'contacto' => $contacto->id,
-                'text'     => "<a href='".config('app.url')."/api/contrato-digital/".$ref."' target='_blank'>".config('app.url')."/api/contrato-digital/".$ref."</a><br><br><button class='btn btn-primary btn-lg' data-clipboard-text='".$link."'>COPIAR URL</button>
+                'text'     => "<a href='" . config('app.url') . "/api/contrato-digital/" . $ref . "' target='_blank'>" . config('app.url') . "/api/contrato-digital/" . $ref . "</a><br><br><button class='btn btn-primary btn-lg' data-clipboard-text='" . $link . "'>COPIAR URL</button>
                 ",
-                'link'     => config('app.url')."/api/contrato-digital/".$ref,
+                'link'     => config('app.url') . "/api/contrato-digital/" . $ref,
                 'type'     => 'success'
             ]);
         }
-        return response()->json(['success' => false,'text' => 'Algo falló, intente nuevamente', 'type' => 'error']);
+        return response()->json(['success' => false, 'text' => 'Algo falló, intente nuevamente', 'type' => 'error']);
     }
 }

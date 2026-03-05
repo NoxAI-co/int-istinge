@@ -484,10 +484,55 @@
         from { transform: scale(0.9); opacity: 0; }
         to { transform: scale(1); opacity: 1; }
     }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
     
     /* Scrollbar */
     .custom-scroll::-webkit-scrollbar { width: 6px; }
     .custom-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
+
+    /* Error Alert Banner */
+    .whatsapp-error-alert {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        color: #856404;
+        padding: 10px 16px;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        animation: fadeIn 0.3s ease-out;
+        border-bottom: 1px solid #f0d78e;
+    }
+
+    .whatsapp-error-alert.error-critical {
+        background-color: #f8d7da;
+        border-left-color: #dc3545;
+        color: #721c24;
+        border-bottom-color: #f1aeb5;
+    }
+
+    .whatsapp-error-alert .error-icon {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .whatsapp-error-alert .error-body {
+        flex: 1;
+    }
+
+    .whatsapp-error-alert .error-title {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .whatsapp-error-alert .error-detail {
+        font-size: 0.82rem;
+        opacity: 0.85;
+    }
 </style>
 
 <div id="whatsapp-chat-app">
@@ -538,7 +583,7 @@
                 >
             </div>
             
-            <div class="chat-list custom-scroll">
+            <div class="chat-list custom-scroll" ref="chatList">
                 <div v-if="loadingConversations" style="text-align: center; padding: 20px; color: #667781;">
                     CARGANDO CHATS...
                 </div>
@@ -567,6 +612,16 @@
                             <span v-if="conv.unread_count > 0" class="unread-badge">@{{ conv.unread_count }}</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Load more indicator -->
+                <div v-if="loadingMore" style="text-align: center; padding: 12px; color: #667781;">
+                    <span style="display:inline-block; width:20px; height:20px; border:3px solid #d1d7db; border-top-color:#00a884; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle;"></span>
+                    <span style="margin-left:8px; font-size:0.85rem;">Cargando más...</span>
+                </div>
+                <div v-else-if="!loadingConversations && !hasMoreConversations && conversations.length > 0"
+                     style="text-align:center; padding:10px; color:#aaa; font-size:0.8rem;">
+                    No hay más conversaciones
                 </div>
             </div>
         </div>
@@ -601,6 +656,15 @@
                         <button class="btn-close" @click="closeConversation">
                             Cerrar
                         </button>
+                    </div>
+                </div>
+
+                <!-- Error Alert Banner -->
+                <div v-if="lastMessageError" class="whatsapp-error-alert" :class="{ 'error-critical': lastMessageError.critical }">
+                    <span class="error-icon">@{{ lastMessageError.critical ? '🚫' : '⚠️' }}</span>
+                    <div class="error-body">
+                        <div class="error-title">@{{ lastMessageError.title }}</div>
+                        <div class="error-detail">@{{ lastMessageError.detail }}</div>
                     </div>
                 </div>
 
@@ -659,7 +723,8 @@
                                 <div class="message-meta">
                                     <span>@{{ formatTime(msg.created_at) }}</span>
                                     <span v-if="msg.direction === 'outbound'">
-                                        <span v-if="msg.status === 'read'" class="msg-status read">✓✓</span>
+                                        <span v-if="msg.status === 'failed'" class="msg-status" style="color: #dc3545;" :title="msg.error_message || 'Error al enviar'">✗</span>
+                                        <span v-else-if="msg.status === 'read'" class="msg-status read">✓✓</span>
                                         <span v-else-if="msg.status === 'delivered'" class="msg-status sent">✓✓</span>
                                         <span v-else class="msg-status sent">✓</span>
                                     </span>
@@ -793,7 +858,12 @@ new Vue({
         panX: 0,
         panY: 0,
         startX: 0,
-        startY: 0
+        startY: 0,
+
+        // Pagination
+        currentPage: 1,
+        lastPage: 1,
+        loadingMore: false,
     },
     
     computed: {
@@ -806,6 +876,23 @@ new Vue({
                 (c.name && c.name.toLowerCase().includes(query)) ||
                 (c.phone_number && c.phone_number.includes(query))
             );
+        },
+
+        hasMoreConversations() {
+            return this.currentPage < this.lastPage;
+        },
+
+        lastMessageError() {
+            const messages = this.messages || [];
+            if (messages.length === 0) return null;
+
+            // Get the last message by created_at
+            const sorted = [...messages].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const lastMsg = sorted[0];
+
+            if (!lastMsg || !lastMsg.error_message) return null;
+
+            return this.translateErrorMessage(lastMsg.error_message);
         },
 
         groupedMessages() {
@@ -889,6 +976,20 @@ new Vue({
         window.addEventListener('mouseup', () => {
             this.isDragging = false;
         });
+
+        // Infinite scroll for conversations
+        this._convScrollHandler = this.handleConversationsScroll.bind(this);
+        this.$nextTick(() => {
+            if (this.$refs.chatList) {
+                this.$refs.chatList.addEventListener('scroll', this._convScrollHandler);
+            }
+        });
+    },
+
+    beforeDestroy() {
+        if (this.$refs.chatList && this._convScrollHandler) {
+            this.$refs.chatList.removeEventListener('scroll', this._convScrollHandler);
+        }
     },
     
     methods: {
@@ -898,10 +999,21 @@ new Vue({
             this.messages = [];
             this.selectedConversation = null;
             this.lastUpdateTimestamp = null;
+            this.currentPage = 1;
+            this.lastPage = 1;
+            this.loadingMore = false;
             
             if (this.selectedInstanceId) {
                 this.loadConversations();
                 this.startPolling();
+
+                // Re-attach scroll listener on next tick (ref stays mounted)
+                this.$nextTick(() => {
+                    if (this.$refs.chatList) {
+                        this.$refs.chatList.removeEventListener('scroll', this._convScrollHandler);
+                        this.$refs.chatList.addEventListener('scroll', this._convScrollHandler);
+                    }
+                });
             }
         },
         
@@ -909,15 +1021,55 @@ new Vue({
             if (!this.selectedInstanceId) return;
             
             this.loadingConversations = true;
+            this.currentPage = 1;
             try {
                 const response = await axios.get(window.routes.conversations, {
-                    params: { instance_id: this.selectedInstanceId }
+                    params: { instance_id: this.selectedInstanceId, page: 1, per_page: 20 }
                 });
                 this.conversations = response.data.data || [];
+                // Capture pagination metadata if the API exposes it
+                const meta = response.data.meta || response.data;
+                this.lastPage = meta.last_page || meta.lastPage || 1;
+                console.log('📋 Conversations page 1/' + this.lastPage + ' loaded (' + this.conversations.length + ' items)');
             } catch (error) {
                 console.error('Error cargando conversaciones:', error);
             } finally {
                 this.loadingConversations = false;
+            }
+        },
+
+        async loadMoreConversations() {
+            if (!this.selectedInstanceId || this.loadingMore || !this.hasMoreConversations) return;
+
+            this.loadingMore = true;
+            const nextPage = this.currentPage + 1;
+            try {
+                const response = await axios.get(window.routes.conversations, {
+                    params: { instance_id: this.selectedInstanceId, page: nextPage, per_page: 20 }
+                });
+                const newConvs = response.data.data || [];
+                const meta = response.data.meta || response.data;
+                this.lastPage = meta.last_page || meta.lastPage || this.lastPage;
+
+                // Append without duplicates
+                const existingIds = new Set(this.conversations.map(c => c.id));
+                newConvs.forEach(c => { if (!existingIds.has(c.id)) this.conversations.push(c); });
+
+                this.currentPage = nextPage;
+                console.log('📋 Conversations page ' + this.currentPage + '/' + this.lastPage + ' loaded');
+            } catch (error) {
+                console.error('Error cargando más conversaciones:', error);
+            } finally {
+                this.loadingMore = false;
+            }
+        },
+
+        handleConversationsScroll() {
+            const el = this.$refs.chatList;
+            if (!el) return;
+            // Trigger when within 80px of the bottom
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+                this.loadMoreConversations();
             }
         },
         
@@ -1179,6 +1331,57 @@ new Vue({
             }
         },
         
+        // ========== ERROR TRANSLATION ==========
+
+        translateErrorMessage(rawError) {
+            const errorMap = {
+                'Business eligibility payment issue': {
+                    title: 'Problema de pago en la cuenta de WhatsApp Business',
+                    detail: 'La cuenta de WhatsApp Business tiene un problema con el método de pago. Los mensajes no se pueden enviar hasta que se resuelva el pago en la plataforma de Meta.',
+                    critical: true
+                },
+                'Message failed to send because more than 24 hours have passed since the customer last replied to this number': {
+                    title: 'Ventana de conversación expirada',
+                    detail: 'Han pasado más de 24 horas desde la última respuesta del cliente. Solo se pueden enviar plantillas de mensaje aprobadas.',
+                    critical: false
+                },
+                'Rate limit hit': {
+                    title: 'Límite de envío alcanzado',
+                    detail: 'Se ha superado el límite de mensajes permitidos. Espere unos minutos antes de intentar enviar nuevamente.',
+                    critical: false
+                },
+                'Recipient phone number not in allowed list': {
+                    title: 'Número no permitido',
+                    detail: 'El número del destinatario no está en la lista de números permitidos. Verifique la configuración de la cuenta.',
+                    critical: false
+                },
+                'Media download error': {
+                    title: 'Error al descargar multimedia',
+                    detail: 'No se pudo descargar el archivo multimedia adjunto. Intente enviar el mensaje nuevamente.',
+                    critical: false
+                }
+            };
+
+            // Exact match
+            if (errorMap[rawError]) {
+                return errorMap[rawError];
+            }
+
+            // Partial match (some errors may have extra details appended)
+            for (const key in errorMap) {
+                if (rawError.toLowerCase().includes(key.toLowerCase())) {
+                    return errorMap[key];
+                }
+            }
+
+            // Fallback: show raw error in a user-friendly way
+            return {
+                title: 'Error en el envío del mensaje',
+                detail: rawError,
+                critical: false
+            };
+        },
+
         // ========== UTILIDADES ==========
         
         scrollToBottom() {
@@ -1192,15 +1395,39 @@ new Vue({
             if (!timestamp) return '';
             
             const date = new Date(timestamp);
+            if (isNaN(date.getTime())) return '';
+
             const now = new Date();
-            const diffInHours = (now - date) / (1000 * 60 * 60);
-            
-            if (diffInHours < 24) {
-                return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-            } else if (diffInHours < 48) {
+
+            // Build calendar date strings in local time (YYYY-MM-DD)
+            const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const msgDay  = toYMD(date);
+            const today   = toYMD(now);
+
+            const yesterdayDate = new Date(now);
+            yesterdayDate.setDate(now.getDate() - 1);
+            const yesterday = toYMD(yesterdayDate);
+
+            // Start of the current week (Monday)
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // Monday = 0
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            if (msgDay === today) {
+                // Same day: show time (e.g. "9:37 a. m.")
+                return date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
+            } else if (msgDay === yesterday) {
                 return 'Ayer';
+            } else if (date >= startOfWeek) {
+                // Within the current week (but not today/yesterday): show weekday name
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                return days[date.getDay()];
             } else {
-                return date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' });
+                // Older: show short date DD/MM/YY
+                const dd = String(date.getDate()).padStart(2, '0');
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const yy = String(date.getFullYear()).slice(-2);
+                return `${dd}/${mm}/${yy}`;
             }
         },
         

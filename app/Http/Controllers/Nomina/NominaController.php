@@ -2470,6 +2470,7 @@ class NominaController extends Controller
             return back();
         }
 
+        $nomina->editValorTotal();
         $totalidad = $nomina->resumenTotal();
         $persona = $nomina->nomina->persona;
         $mensajePeriodo = request()->periodo;
@@ -2643,6 +2644,7 @@ class NominaController extends Controller
 
         $persona = Persona::find($nomina->fk_idpersona);
         $title = 'RESUMEN DE PAGO ' . $persona->nombre();
+        $nominaPeriodo->editValorTotal();
         $totalidad = $nominaPeriodo->resumenTotal();
         $user = Auth::user();
         $prestacionSocial = null;
@@ -2742,58 +2744,60 @@ class NominaController extends Controller
         ];
 
         foreach ($nominas as $nomina) {
-            $totalidad['pago']['salario'] += $nomina->resumenTotal()['pago']['salario'];
-            $totalidad['pago']['subsidioDeTransporte'] += $nomina->resumenTotal()['pago']['subsidioDeTransporte'];
-            $totalidad['pago']['retencionesDeducciones'] += $nomina->resumenTotal()['pago']['retencionesDeducciones'];
-            $totalidad['pago']['total'] += $nomina->resumenTotal()['pago']['total'];
-            $totalidad['pago']['extrasOrdinariasRecargos'] += $nomina->resumenTotal()['pago']['extrasOrdinariasRecargos'];
-            $totalidad['pago']['vacaciones'] += $nomina->resumenTotal()['pago']['vacaciones'];
-            $totalidad['pago']['ingresosAdicionales'] += $nomina->resumenTotal()['pago']['ingresosAdicionales'];
+            $nomina->editValorTotal();
+            $resumen = $nomina->resumenTotal();
 
-            $totalidad['diasTrabajados']['diasPeriodo'] += $nomina->resumenTotal()['diasTrabajados']['diasPeriodo'];
-            $totalidad['diasTrabajados']['total'] += $nomina->resumenTotal()['diasTrabajados']['total'];
+            $totalidad['pago']['salario'] += $resumen['pago']['salario'];
+            $totalidad['pago']['subsidioDeTransporte'] += $resumen['pago']['subsidioDeTransporte'];
+            $totalidad['pago']['retencionesDeducciones'] += $resumen['pago']['retencionesDeducciones'];
+            $totalidad['pago']['total'] += $resumen['pago']['total'];
+            $totalidad['pago']['extrasOrdinariasRecargos'] += $resumen['pago']['extrasOrdinariasRecargos'];
+            $totalidad['pago']['vacaciones'] += $resumen['pago']['vacaciones'];
+            $totalidad['pago']['ingresosAdicionales'] += $resumen['pago']['ingresosAdicionales'];
+
+            $totalidad['diasTrabajados']['diasPeriodo'] += $resumen['diasTrabajados']['diasPeriodo'];
+            $totalidad['diasTrabajados']['total'] += $resumen['diasTrabajados']['total'];
             $totalidad['diasTrabajados']['ausencia'] = $nomina->diasAusenteDetalle();
 
-            $totalidad['salarioSubsidio']['salario'] += $nomina->resumenTotal()['salarioSubsidio']['salario'];
-            $totalidad['salarioSubsidio']['subsidioTransporte'] += $nomina->resumenTotal()['salarioSubsidio']['subsidioTransporte'];
-            $totalidad['salarioSubsidio']['total'] += $nomina->resumenTotal()['salarioSubsidio']['total'];
-            $totalidad['salarioSubsidio']['salarioCompleto'] = $nomina->resumenTotal()['salarioSubsidio']['salarioCompleto'];
-            $totalidad['salarioSubsidio']['valorDia'] = $nomina->resumenTotal()['salarioSubsidio']['valorDia'];
+            $totalidad['salarioSubsidio']['salario'] += $resumen['salarioSubsidio']['salario'];
+            $totalidad['salarioSubsidio']['subsidioTransporte'] += $resumen['salarioSubsidio']['subsidioTransporte'];
+            $totalidad['salarioSubsidio']['total'] += $resumen['salarioSubsidio']['total'];
+            $totalidad['salarioSubsidio']['salarioCompleto'] = $resumen['salarioSubsidio']['salarioCompleto'];
+            $totalidad['salarioSubsidio']['valorDia'] = $resumen['salarioSubsidio']['valorDia'];
 
-            $totalidad['ibcSeguridadSocial']['salario'] += $nomina->resumenTotal()['ibcSeguridadSocial']['salario'];
-            $totalidad['ibcSeguridadSocial']['total'] += $nomina->resumenTotal()['ibcSeguridadSocial']['total'];
-            $totalidad['ibcSeguridadSocial']['vacaciones'] += $nomina->resumenTotal()['ibcSeguridadSocial']['vacaciones'];
-            $totalidad['ibcSeguridadSocial']['ingresosyExtras'] += $nomina->resumenTotal()['ibcSeguridadSocial']['ingresosyExtras'];
-            $totalidad['ibcSeguridadSocial']['incapacidades'] += $nomina->resumenTotal()['ibcSeguridadSocial']['incapacidades'];
-            $totalidad['ibcSeguridadSocial']['salarioParcial'] += $nomina->resumenTotal()['ibcSeguridadSocial']['salarioParcial'];
-            $totalidad['ibcSeguridadSocial']['licencias'] += $nomina->resumenTotal()['ibcSeguridadSocial']['licencias'];
+            $totalidad['ibcSeguridadSocial']['salario'] += $resumen['ibcSeguridadSocial']['salario'];
+            $totalidad['ibcSeguridadSocial']['total'] += $resumen['ibcSeguridadSocial']['total'];
+            $totalidad['ibcSeguridadSocial']['vacaciones'] += $resumen['ibcSeguridadSocial']['vacaciones'];
+            $totalidad['ibcSeguridadSocial']['ingresosyExtras'] += $resumen['ibcSeguridadSocial']['ingresosyExtras'];
+            $totalidad['ibcSeguridadSocial']['incapacidades'] += $resumen['ibcSeguridadSocial']['incapacidades'];
+            $totalidad['ibcSeguridadSocial']['salarioParcial'] += $resumen['ibcSeguridadSocial']['salarioParcial'];
+            $totalidad['ibcSeguridadSocial']['licencias'] += $resumen['ibcSeguridadSocial']['licencias'];
 
             $totalidad['ibcSeguridadSocial']['total_ibcseguridad_social'] = $totalidad['ibcSeguridadSocial']['vacaciones'] +
             $totalidad['ibcSeguridadSocial']['ingresosyExtras'] + $totalidad['ibcSeguridadSocial']['incapacidades'] +
             $totalidad['ibcSeguridadSocial']['licencias'];
 
-            $totalidad['retenciones']['salud'] += $nomina->resumenTotal()['retenciones']['salud'];
-            $totalidad['retenciones']['pension'] += $nomina->resumenTotal()['retenciones']['pension'];
-            $totalidad['retenciones']['total'] += $nomina->resumenTotal()['retenciones']['total'];
-            $totalidad['retenciones']['porcentajeSalud'] = $nomina->resumenTotal()['retenciones']['porcentajeSalud'];
-            $totalidad['retenciones']['porcentajePension'] = $nomina->resumenTotal()['retenciones']['porcentajePension'];
+            $totalidad['retenciones']['salud'] += $resumen['retenciones']['salud'];
+            $totalidad['retenciones']['pension'] += $resumen['retenciones']['pension'];
+            $totalidad['retenciones']['total'] += $resumen['retenciones']['total'];
+            $totalidad['retenciones']['porcentajeSalud'] = $resumen['retenciones']['porcentajeSalud'];
+            $totalidad['retenciones']['porcentajePension'] = $resumen['retenciones']['porcentajePension'];
 
-            $totalidad['seguridadSocial']['pension'] += $nomina->resumenTotal()['seguridadSocial']['pension'];
-            $totalidad['seguridadSocial']['riesgo1'] += $nomina->resumenTotal()['seguridadSocial']['riesgo1'];
-            $totalidad['seguridadSocial']['total'] += $nomina->resumenTotal()['seguridadSocial']['total'];
+            $totalidad['seguridadSocial']['pension'] += $resumen['seguridadSocial']['pension'];
+            $totalidad['seguridadSocial']['riesgo1'] += $resumen['seguridadSocial']['riesgo1'];
+            $totalidad['seguridadSocial']['total'] += $resumen['seguridadSocial']['total'];
 
-            $totalidad['parafiscales']['cajaCompensacion'] += $nomina->resumenTotal()['parafiscales']['cajaCompensacion'];
-            $totalidad['parafiscales']['total'] += $nomina->resumenTotal()['parafiscales']['total'];
+            $totalidad['parafiscales']['cajaCompensacion'] += $resumen['parafiscales']['cajaCompensacion'];
+            $totalidad['parafiscales']['total'] += $resumen['parafiscales']['total'];
 
-            $totalidad['provisionPrestacion']['cesantias'] += $nomina->resumenTotal()['provisionPrestacion']['total'];
-            $totalidad['provisionPrestacion']['interesesCesantias'] += $nomina->resumenTotal()['provisionPrestacion']['interesesCesantias'];
-            $totalidad['provisionPrestacion']['primaServicios'] += $nomina->resumenTotal()['provisionPrestacion']['primaServicios'];
-            $totalidad['provisionPrestacion']['vacaciones'] += $nomina->resumenTotal()['provisionPrestacion']['vacaciones'];
-            $totalidad['provisionPrestacion']['total'] += $nomina->resumenTotal()['provisionPrestacion']['total'];
+            $totalidad['provisionPrestacion']['cesantias'] += $resumen['provisionPrestacion']['total'];
+            $totalidad['provisionPrestacion']['interesesCesantias'] += $resumen['provisionPrestacion']['interesesCesantias'];
+            $totalidad['provisionPrestacion']['primaServicios'] += $resumen['provisionPrestacion']['primaServicios'];
+            $totalidad['provisionPrestacion']['vacaciones'] += $resumen['provisionPrestacion']['vacaciones'];
+            $totalidad['provisionPrestacion']['total'] += $resumen['provisionPrestacion']['total'];
 
-            $totalidad['deducciones']['total'] += $nomina->resumenTotal()['deducciones']['total'];
+            $totalidad['deducciones']['total'] += $resumen['deducciones']['total'];
 
-            //$totalidad[$i] = $nomina->resumenTotal();
             $persona = $nomina->nomina->persona;
             $periodo = $nomina->nomina->periodo;
             $year = $nomina->nomina->year;

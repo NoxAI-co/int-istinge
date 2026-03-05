@@ -899,69 +899,53 @@ class PucMovimiento extends Model
         1: guardar el movimiento, y miramos que no exista inngun movimiento sobre este documento
         2: Actualizar el movimiento y borrar el anterior.
     */
-    public static function saldoInicial($request,$opcion=1,$siguienteNumero=null,$detalleFinal){
-
-        $numeracion = Numeracion::where('empresa', Auth::user()->empresa)->first();
-        $siguienteNumero = $numeracion->contabilidad+1;
-        $numeracion->contabilidad = $siguienteNumero;
-        $numeracion->save();
-
+    public static function saldoInicial($request, $opcion = 1, $siguienteNumero = null, $detalleFinal)
+    {
         $empresa = Auth::user()->empresa;
 
-        if($opcion == 1){
-
-            if($siguienteNumero == null){
-                $numeracion = Numeracion::where('empresa',$empresa)->first();
-                $siguienteNumero = $numeracion->contabilidad+1;
-                $numeracion->contabilidad = $siguienteNumero;
-                $numeracion->save();
-            }
-
-            //obtebemos le tipo de comprobnate que estamos manipulando
-            $tipoComprobante = DB::table('tipo_comprobante')->where('id',$request->tipo_comprobante)->first();
-
-            $i = 0;
-            foreach($request->puc_cuenta as $p){
-
-                $mov = new PucMovimiento;
-                $mov->nro = $siguienteNumero;
-                $mov->tipo_comprobante = $tipoComprobante->nro;
-                $mov->consecutivo_comprobante = $siguienteNumero;
-                $mov->fecha_elaboracion = Carbon::parse($request->fecha)->format('Y-m-d');
-                $mov->documento_id = $siguienteNumero;
-                $mov->codigo_cuenta = Puc::find($request->puc_cuenta[$i])->codigo;
-                $mov->cuenta_id = Puc::find($request->puc_cuenta[$i])->id;
-                $mov->identificacion_tercero = Contacto::find($request->contacto[$i])->nit;
-                $mov->cliente_id = Contacto::find($request->contacto[$i])->id;
-                $mov->descripcion = $request->descripcion[$i];
-                $mov->credito =  $request->credito[$i];
-                $mov->debito =  $request->debito[$i];
-                $mov->enlace_a = 7;
-                $mov->empresa = $empresa;
-
-                //registro del posible detalle del comprobante.
-                $mov->consecutivo = $detalleFinal[$i]["nroComprobante"] != 0 ? $detalleFinal[$i]["nroComprobante"] : '';
-                $mov->prefijo = $detalleFinal[$i]["prefijo"] != 0 ? $detalleFinal[$i]["prefijo"] : '';
-                $mov->no_cuota = $detalleFinal[$i]["cuota"] != 0 ? $detalleFinal[$i]["cuota"] : '';
-                $mov->fecha_vencimiento = $detalleFinal[$i]["fecha"] != 0 ? $detalleFinal[$i]["fecha"] : '';
-
-                $mov->save();
-
-                $i++;
-            }
-        }else if($opcion == 2){
-
-            $movimientos = PucMovimiento::where('nro',$siguienteNumero)->where('tipo_comprobante',999)->get();
-            if(count($movimientos) > 0){
-                foreach($movimientos as $mov){
-                    $siguienteNumero = $mov->nro;
-                    $mov->delete();
-                }
-            }
-
-            PucMovimiento::saldoInicial($request,1,$siguienteNumero,$detalleFinal);
+        if (is_null($siguienteNumero) || $siguienteNumero == 0) {
+            $numeracion = Numeracion::where('empresa', $empresa)->first();
+            $siguienteNumero = $numeracion->contabilidad + 1;
+            $numeracion->contabilidad = $siguienteNumero;
+            $numeracion->save();
         }
 
+        if ($opcion == 1) {
+            $tipoComprobante = DB::table('tipo_comprobante')->where('id', $request->tipo_comprobante)->first();
+
+            $i = 0;
+            $puc_cuentas = $request->puc_cuenta;
+            if (is_array($puc_cuentas)) {
+                foreach ($puc_cuentas as $p) {
+                    $mov = new PucMovimiento;
+                    $mov->nro = $siguienteNumero;
+                    $mov->tipo_comprobante = $tipoComprobante ? $tipoComprobante->nro : 999;
+                    $mov->consecutivo_comprobante = $siguienteNumero;
+                    $mov->fecha_elaboracion = Carbon::parse($request->fecha)->format('Y-m-d');
+                    $mov->documento_id = $siguienteNumero;
+                    $mov->codigo_cuenta = Puc::find($request->puc_cuenta[$i])->codigo;
+                    $mov->cuenta_id = Puc::find($request->puc_cuenta[$i])->id;
+                    $mov->identificacion_tercero = Contacto::find($request->contacto[$i])->nit;
+                    $mov->cliente_id = Contacto::find($request->contacto[$i])->id;
+                    $mov->descripcion = $request->descripcion[$i];
+                    $mov->credito =  $request->credito[$i];
+                    $mov->debito =  $request->debito[$i];
+                    $mov->enlace_a = 7;
+                    $mov->empresa = $empresa;
+
+                    $mov->consecutivo = (isset($detalleFinal[$i]["nroComprobante"]) && $detalleFinal[$i]["nroComprobante"] != 0) ? $detalleFinal[$i]["nroComprobante"] : '';
+                    $mov->prefijo = (isset($detalleFinal[$i]["prefijo"]) && $detalleFinal[$i]["prefijo"] != 0) ? $detalleFinal[$i]["prefijo"] : '';
+                    $mov->no_cuota = (isset($detalleFinal[$i]["cuota"]) && $detalleFinal[$i]["cuota"] != 0) ? $detalleFinal[$i]["cuota"] : '';
+                    $mov->fecha_vencimiento = (isset($detalleFinal[$i]["fecha"]) && $detalleFinal[$i]["fecha"] != 0) ? $detalleFinal[$i]["fecha"] : '';
+
+                    $mov->save();
+                    $i++;
+                }
+            }
+        } else if ($opcion == 2) {
+            PucMovimiento::where('nro', $siguienteNumero)->where('empresa', $empresa)->delete();
+            PucMovimiento::saldoInicial($request, 1, $siguienteNumero, $detalleFinal);
+        }
     }
 
     public function cliente(){

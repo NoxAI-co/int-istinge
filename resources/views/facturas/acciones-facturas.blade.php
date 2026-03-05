@@ -13,15 +13,15 @@
     @endif
 	@if($factura->estatus==1)
 		<a href="{{route('ingresos.create_id', ['cliente'=>$factura->cliente, 'factura'=>$factura->id])}}" class="btn btn-outline-primary btn-icons" title="Agregar pago"><i class="fas fa-money-bill"></i></a>
-		@if(($factura->emitida != 1) && isset($_SESSION['permisos']['43']))
-        <a href="{{route('facturas.edit',$factura->id)}}"  class="btn btn-outline-primary btn-icons" title="Editar"><i class="fas fa-edit"></i></a>
-        @endif
         @if(isset($_SESSION['permisos']['775']))
             <a href="javascript:modificarPromesa('{{$factura->id}}')" class="btn btn-outline-danger btn-icons promesa" idfactura="{{$factura->id}}" title="Promesa de Pago">
                 <i class="fas fa-calendar"></i>
             </a>
         @endif
 	@endif
+	@if(($factura->estatus==1 || (isset($factura->total()->total) && $factura->total()->total == 0)) && ($factura->emitida != 1) && isset($_SESSION['permisos']['43']))
+        <a href="{{route('facturas.edit',$factura->id)}}"  class="btn btn-outline-primary btn-icons" title="Editar"><i class="fas fa-edit"></i></a>
+    @endif
 	<form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
 		{{ csrf_field() }}
 	</form>
