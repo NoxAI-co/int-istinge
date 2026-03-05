@@ -4311,7 +4311,8 @@ class FacturasController extends Controller{
         // Validar que la factura exista
         if (!$factura) {
             return response()->json([
-                "error" => "Factura no encontrada"
+                "success" => false,
+                "message" => "Factura no encontrada"
             ], 404);
         }
 
@@ -4320,7 +4321,8 @@ class FacturasController extends Controller{
         // Validar que la numeración exista
         if (!$numeracion) {
             return response()->json([
-                "error" => "Numeración no encontrada"
+                "success" => false,
+                "message" => "Numeración no encontrada"
             ], 404);
         }
 
@@ -4332,7 +4334,8 @@ class FacturasController extends Controller{
         // Validar que la empresa exista
         if (!$empresa) {
             return response()->json([
-                "error" => "Empresa no encontrada"
+                "success" => false,
+                "message" => "Empresa no encontrada"
             ], 404);
         }
 
@@ -4341,7 +4344,8 @@ class FacturasController extends Controller{
         // Validar que el cliente exista
         if (!$cliente) {
             return response()->json([
-                "error" => "Cliente no encontrado"
+                "success" => false,
+                "message" => "Cliente no encontrado"
             ], 404);
         }
 

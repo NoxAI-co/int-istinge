@@ -1183,7 +1183,10 @@
 			error: function(xhr) {
 				$('#btn-renumerar').prop('disabled', false).html('<i class="fas fa-check"></i> Renumerar');
 				var msg = 'Error al renumerar las facturas';
-				if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+				if (xhr.responseJSON) {
+					if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+					else if (xhr.responseJSON.error) msg = xhr.responseJSON.error;
+				}
 				$('#error-renumerar').text(msg).show();
 			}
 		});

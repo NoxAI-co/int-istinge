@@ -3673,6 +3673,14 @@ function validateDianByCorreo(id, rutasuccess) {
                 method: 'post',
                 data: { id: id, },
                 success: function (validate) {
+                    if (validate.success === false) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: validate.message || validate.error || 'Error en la validación',
+                            type: 'error'
+                        });
+                        return;
+                    }
                     if (validate.numeracion.inicioverdadero == null) {
                         $mensaje = "Para emitir a la Dian se debe tener un inicio en la numeración de la factura.";
                         $footer = "<a target='_blank' href='configuracion/numeraciones'>Configura tus numeraciones</a>";
@@ -3761,6 +3769,16 @@ function validateDianByCorreo(id, rutasuccess) {
                     } else {
                         window.location.href = rutasuccess;
                     }
+                },
+                error: function (xhr) {
+                    var msg = 'Error al validar la factura ante la DIAN';
+                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    else if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                    Swal.fire({
+                        title: 'Error',
+                        text: msg,
+                        type: 'error'
+                    });
                 }
             })
         }
@@ -3806,6 +3824,14 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
                 method: 'post',
                 data: { id: id, },
                 success: function (validate) {
+                    if (validate.success === false) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: validate.message || validate.error || 'Error en la validación',
+                            type: 'error'
+                        });
+                        return;
+                    }
 
                     //-- Validaciones por numeración --//
                     /*if (validate.numeracion.prefijo == null) {
@@ -3958,6 +3984,16 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
 
                     }
 
+                },
+                error: function (xhr) {
+                    var msg = 'Error al validar la factura ante la DIAN';
+                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    else if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                    Swal.fire({
+                        title: 'Error',
+                        text: msg,
+                        type: 'error'
+                    });
                 }
             })
         }
