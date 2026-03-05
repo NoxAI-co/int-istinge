@@ -3014,7 +3014,8 @@ class FacturasController extends Controller{
             $factura->nonkey = $key;
             $factura->save();
             $cliente = $factura->cliente()->nombre.' '.$factura->cliente()->apellidos();
-            $tituloCorreo = $empresa->nombre.": Factura N° $factura->codigo";
+            $palabra = ($factura->tipo == 1) ? 'COBRO' : 'Factura';
+            $tituloCorreo = $empresa->nombre.": $palabra N° $factura->codigo";
             $xmlPath = 'xml/empresa'.auth()->user()->empresa.'/FV/FV-'.$factura->codigo.'.xml';
             //return $xmlPath;
 
@@ -7767,7 +7768,8 @@ class FacturasController extends Controller{
 
             $total        = Funcion::Parsear($factura->total()->total);
             $cliente      = $factura->cliente()->nombre . ' ' . $factura->cliente()->apellidos();
-            $tituloCorreo = $empresa->nombre . ": Factura N° {$factura->codigo}";
+            $palabra      = ($factura->tipo == 1) ? 'COBRO' : 'Factura';
+            $tituloCorreo = $empresa->nombre . ": {$palabra} N° {$factura->codigo}";
             $xmlPath      = 'xml/empresa' . $empresa->id . '/FV/FV-' . $factura->codigo . '.xml';
 
             $host = ServidorCorreo::where('estado', 1)->where('empresa', $empresa->id)->first();
