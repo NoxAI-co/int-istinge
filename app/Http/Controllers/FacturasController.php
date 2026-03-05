@@ -3074,6 +3074,10 @@ class FacturasController extends Controller{
                             'factura' => $factura->codigo,
                             'error'   => $resultado['message']
                         ]);
+                        if ($redireccionar) {
+                            return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: ' . $resultado['message']);
+                        }
+                        return;
                     }
                 } else {
                     // Flujo original SMTP + SendInBlue legacy
