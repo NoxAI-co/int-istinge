@@ -1875,6 +1875,10 @@ class FacturasController extends Controller{
                 return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
             }
 
+            if($request->contratos_json != ''){
+                $contrato = Contrato::where('id', $request->contratos_json)->first();
+            }
+
         }
 
         //Actualiza el nro de inicio para la numeracion seleccionada

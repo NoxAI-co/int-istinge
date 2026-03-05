@@ -818,7 +818,7 @@ function contratos_facturas(contacto) {
                         contactoData = contactoData[0];
                     }
 
-                    if (contactoData.factura_est_elec == 1) {
+                    if (contactoData.factura_est_elec == 1 || $('#electronica').length > 0) {
                         // Quitar required del campo contrato
                         $('#contratos_json').removeAttr('required');
                         // Quitar asterisco del label si existe
@@ -932,7 +932,7 @@ function contacto(selected, modificar = false, type = 1) {
 
 
             // Manejar campo contrato cuando factura_est_elec = 1
-            if (data.factura_est_elec == 1) {
+            if (data.factura_est_elec == 1 || $('#electronica').length > 0) {
                 // Quitar required del campo contrato
                 $('#contratos_json').removeAttr('required');
                 // Quitar asterisco del label si existe
