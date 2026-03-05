@@ -122,7 +122,8 @@ class Factura extends Model
 
     public function contratos(){
         if(DB::table('facturas_contratos')->where('factura_id',$this->id)->first()){
-            return $contratos = DB::table('facturas_contratos')->where('factura_id',$this->id)->get();
+            return $contratos = DB::table('facturas_contratos')
+            ->where('factura_id',$this->id)->get();
         }
         else return false;
     }

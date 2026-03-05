@@ -11,8 +11,9 @@
 		<div class="form-group col-md-2">
 		    <label>Tipo</label>
 		    <select class="form-control selectpicker" name="tipo">
-		    	<option value="1" {{1==$request->tipo?'selected':''}}>Emitidas</option>
-		    	<option value="0" {{0==$request->tipo?'selected':''}}>No emitidas</option>
+		    	<option value="2" {{$request->tipo == 2 || !$request->has('tipo') ? 'selected' : ''}}>Ambas</option>
+		    	<option value="1" {{$request->tipo == '1' ? 'selected' : ''}}>Emitidas</option>
+		    	<option value="0" {{$request->tipo === '0' ? 'selected' : ''}}>No emitidas</option>
 		    </select>
 	  	</div>
         <div class="form-group col-md-2">
@@ -106,17 +107,17 @@
 				@foreach($facturas as $factura)
 					<tr>
                         <td><a href="{{route('facturas.show',$factura->id)}}" target="_blank">{{$factura->codigo}}</a> </td>
-                        <td><a href="{{route('contactos.show',$factura->cliente()->id)}}" target="_blank">{{$factura->cliente()->nombre}}  {{$factura->cliente()->apellidos()}} @if($factura->cliente()->celular) | {{$factura->cliente()->celular}}@endif</a></td>
-                        <td><a href="{{route('contactos.show',$factura->cliente()->id)}}" target="_blank">{{$factura->cliente()->nit}}</a></td>
-                        <td>{{$factura->cliente()->estrato}}</td>
-                        <td>{{$factura->cliente()->municipio()->nombre}}</td>
+                        <td><a href="{{route('contactos.show',$factura->cliente)}}" target="_blank">{{$factura->nombrecliente}} {{$factura->ape1cliente ?? ''}} {{$factura->ape2cliente ?? ''}} @if($factura->celularcliente) | {{$factura->celularcliente}}@endif</a></td>
+                        <td><a href="{{route('contactos.show',$factura->cliente)}}" target="_blank">{{$factura->nitcliente ?? ''}}</a></td>
+                        <td>{{$factura->estratocliente ?? ''}}</td>
+                        <td>{{$factura->municipio ?? ''}}</td>
                         <td>{{date('d-m-Y', strtotime($factura->fecha))}}</td>
                         <td>{{date('d-m-Y', strtotime($factura->vencimiento))}}</td>
                         <td>{{$factura->emitida == 1 ? 'Emitida' : 'No emitida'}}</td>
                         <td>{{$factura->estatus()}}</td>
-                        <td>{{$factura->total()->subtotal}}</td>
-                        <td>{{$factura->total()->valImpuesto}}</td>
-                        <td>{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total()->total - $factura->devoluciones())}}</td>
+                        <td>{{$factura->subtotal}}</td>
+                        <td>{{$factura->iva}}</td>
+                        <td>{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total)}}</td>
 					</tr>
 				@endforeach
 			</tbody>

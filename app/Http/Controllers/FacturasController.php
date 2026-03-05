@@ -954,7 +954,16 @@ class FacturasController extends Controller{
         ->addColumn('acciones', function ($factura) use ($empresa) {
             return view('facturas.acciones-facturas', compact('factura', 'empresa'));
         })
-        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento'])
+        ->editColumn('correo', function ($factura) {
+            if ($factura->correo == 1) {
+                return '<span class="badge badge-success">Si</span>';
+            } else if ($factura->correo == 400) {
+                return '<span class="badge badge-danger">Error envío</span>';
+            } else {
+                return '<span class="badge badge-secondary">No</span>';
+            }
+        })
+        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento', 'correo'])
         ->toJson();
     }
 
@@ -1573,7 +1582,16 @@ class FacturasController extends Controller{
         ->addColumn('acciones', function ($factura) use ($empresa) {
             return view('facturas.acciones-facturas', compact('factura', 'empresa'));
         })
-        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento'])
+        ->editColumn('correo', function ($factura) {
+            if ($factura->correo == 1) {
+                return '<span class="badge badge-success">Si</span>';
+            } else if ($factura->correo == 400) {
+                return '<span class="badge badge-danger">Error envío</span>';
+            } else {
+                return '<span class="badge badge-secondary">No</span>';
+            }
+        })
+        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento', 'correo'])
         ->toJson();
     }
 
