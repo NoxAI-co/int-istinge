@@ -53,6 +53,7 @@ use App\Integracion;
 use App\PucMovimiento; use App\Puc;
 use App\Plantilla;
 use App\Services\ElectronicBillingService;
+use App\Services\BrevoMailService;
 use App\CRM;
 use App\Instance;
 use App\MovimientoLOG;
@@ -3041,13 +3042,49 @@ class FacturasController extends Controller{
                     $this->generateXmlPdfEmail($statusJson['document'], $factura, $emails, $dataFactura, $CUFEvr, $items, $resolucion, $tituloCorreo);
                 }
             }else{
-                   self::sendMail('emails.email', compact('factura', 'total', 'cliente'), compact('pdf', 'emails', 'tituloCorreo', 'xmlPath'), function($message) use ($pdf, $emails,$tituloCorreo,$xmlPath){
-                    $message->attachData($pdf, 'factura.pdf', ['mime' => 'application/pdf']);
-                    if(file_exists($xmlPath)){
-                        $message->attach($xmlPath, ['as' => 'factura.xml', 'mime' => 'text/plain']);
+                // Verificar si el proveedor es Brevo (proveedor = 1)
+                if ($host && $host->proveedor == 1) {
+                    // Envío vía API transaccional de Brevo
+                    $brevoService = new BrevoMailService($host->password);
+                    $html = view('emails.email', compact('factura', 'total', 'cliente'))->render();
+
+                    $adjuntos = [];
+                    $adjuntos[] = [
+                        'name'    => 'factura_' . $factura->codigo . '.pdf',
+                        'content' => base64_encode($pdf),
+                    ];
+                    if (file_exists($xmlPath)) {
+                        $adjuntos[] = [
+                            'name'    => 'factura_' . $factura->codigo . '.xml',
+                            'content' => base64_encode(file_get_contents($xmlPath)),
+                        ];
                     }
-                    $message->to($emails)->subject($tituloCorreo);
-                });
+
+                    $resultado = $brevoService->send(
+                        $emails,
+                        $tituloCorreo,
+                        $html,
+                        $host->name,
+                        $host->address,
+                        $adjuntos
+                    );
+
+                    if (!$resultado['success']) {
+                        \Log::error('Error enviando factura con Brevo', [
+                            'factura' => $factura->codigo,
+                            'error'   => $resultado['message']
+                        ]);
+                    }
+                } else {
+                    // Flujo original SMTP + SendInBlue legacy
+                    self::sendMail('emails.email', compact('factura', 'total', 'cliente'), compact('pdf', 'emails', 'tituloCorreo', 'xmlPath'), function($message) use ($pdf, $emails,$tituloCorreo,$xmlPath){
+                        $message->attachData($pdf, 'factura.pdf', ['mime' => 'application/pdf']);
+                        if(file_exists($xmlPath)){
+                            $message->attach($xmlPath, ['as' => 'factura.xml', 'mime' => 'text/plain']);
+                        }
+                        $message->to($emails)->subject($tituloCorreo);
+                    });
+                }
             }
 
             //$factura->correo = 1;
