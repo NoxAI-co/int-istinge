@@ -3045,57 +3045,28 @@ class FacturasController extends Controller{
                 if ($statusJson["statusCode"] == 200) {
                     $this->generateXmlPdfEmail($statusJson['document'], $factura, $emails, $dataFactura, $CUFEvr, $items, $resolucion, $tituloCorreo);
                 }
-            }else{
-                // Verificar si el proveedor es Brevo (proveedor = 1)
-                if ($host && $host->proveedor == 1) {
-                    // Envío vía API transaccional de Brevo
-                    $brevoService = new BrevoMailService($host->password);
-                    $html = view('emails.email', compact('factura', 'total', 'cliente'))->render();
+            }elseif($factura->emitida == 0){
+                // Delegar al helper modular (Brevo o SMTP según proveedor)
+                $resultado = $this->sendCorreoFacturaNoEmitida($factura, $empresa, $emails);
 
-                    $adjuntos = [];
-                    $adjuntos[] = [
-                        'name'    => 'factura_' . $factura->codigo . '.pdf',
-                        'content' => base64_encode($pdf),
-                    ];
-                    if (file_exists($xmlPath)) {
-                        $adjuntos[] = [
-                            'name'    => 'factura_' . $factura->codigo . '.xml',
-                            'content' => base64_encode(file_get_contents($xmlPath)),
-                        ];
+                if (!$resultado['success']) {
+                    if ($redireccionar) {
+                        return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: ' . $resultado['message']);
                     }
-
-                    $resultado = $brevoService->send(
-                        $emails,
-                        $tituloCorreo,
-                        $html,
-                        $host->name,
-                        $host->address,
-                        $adjuntos
-                    );
-
-                    if (!$resultado['success']) {
-                        \Log::error('Error enviando factura con Brevo', [
-                            'factura' => $factura->codigo,
-                            'error'   => $resultado['message']
-                        ]);
-                        if ($redireccionar) {
-                            return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: ' . $resultado['message']);
-                        }
-                        return;
-                    }
-                } else {
-                    // Flujo original SMTP + SendInBlue legacy
-                    self::sendMail('emails.email', compact('factura', 'total', 'cliente'), compact('pdf', 'emails', 'tituloCorreo', 'xmlPath'), function($message) use ($pdf, $emails,$tituloCorreo,$xmlPath){
-                        $message->attachData($pdf, 'factura.pdf', ['mime' => 'application/pdf']);
-                        if(file_exists($xmlPath)){
-                            $message->attach($xmlPath, ['as' => 'factura.xml', 'mime' => 'text/plain']);
-                        }
-                        $message->to($emails)->subject($tituloCorreo);
-                    });
+                    return;
                 }
+            }else{
+                if ($redireccionar) {
+                    return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: Estado de emisión desconocido');
+                }
+                return;
             }
 
-            $factura->correo = 1;
+            // correo=1 ya lo gestiona sendCorreoFacturaNoEmitida para no emitidas.
+            // Para emitidas, se marca explícitamente aquí.
+            if ($factura->emitida == 1) {
+                $factura->correo = 1;
+            }
             $factura->observaciones = ' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
             $factura->save();
             if ($redireccionar) {
@@ -7759,7 +7730,119 @@ class FacturasController extends Controller{
      * Omite facturas que ya fueron enviadas (correo == 1).
      * Requiere que la factura esté emitida (emitida == 1).
      */
+    /**
+     * Envía el PDF de una factura NO emitida por correo electrónico.
+     * Soporta Brevo API (proveedor=1) y SMTP legacy.
+     * Retorna ['success' => bool, 'message' => string]
+     *
+     * @param  \App\Model\Ingresos\Factura  $factura
+     * @param  \App\Empresa                 $empresa
+     * @param  string|array                 $emails   Destinatario(s)
+     * @return array
+     */
+    private function sendCorreoFacturaNoEmitida($factura, $empresa, $emails): array
+    {
+        try {
+            // Normalizar emails
+            if (!is_array($emails)) {
+                $emails = [$emails];
+            }
+            $emails = array_filter($emails);
+
+            if (empty($emails)) {
+                return ['success' => false, 'message' => 'No hay destinatarios válidos'];
+            }
+
+            // Generar PDF
+            $items       = ItemsFactura::where('factura', $factura->id)->get();
+            $itemscount  = $items->count();
+            $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
+            $resolucion  = NumeracionFactura::find($factura->numeracion);
+            $ingreso     = IngresosFactura::where('factura', $factura->id)->first();
+            $tipo        = 'Factura de venta original';
+
+            $pdf = ($empresa->formato_impresion == 1)
+                ? PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones', 'resolucion', 'ingreso'))->stream()
+                : PDF::loadView('pdf.factura',     compact('items', 'factura', 'itemscount', 'tipo', 'retenciones', 'resolucion', 'ingreso'))->stream();
+
+            $total        = Funcion::Parsear($factura->total()->total);
+            $cliente      = $factura->cliente()->nombre . ' ' . $factura->cliente()->apellidos();
+            $tituloCorreo = $empresa->nombre . ": Factura N° {$factura->codigo}";
+            $xmlPath      = 'xml/empresa' . $empresa->id . '/FV/FV-' . $factura->codigo . '.xml';
+
+            $host = ServidorCorreo::where('estado', 1)->where('empresa', $empresa->id)->first();
+
+            if ($host && $host->proveedor == 1) {
+                // ── Envío vía Brevo API transaccional ──────────────────────
+                $adjuntos = [[
+                    'name'    => 'factura_' . $factura->codigo . '.pdf',
+                    'content' => base64_encode($pdf),
+                ]];
+                if (file_exists($xmlPath)) {
+                    $adjuntos[] = [
+                        'name'    => 'factura_' . $factura->codigo . '.xml',
+                        'content' => base64_encode(file_get_contents($xmlPath)),
+                    ];
+                }
+
+                $html      = view('emails.email', compact('factura', 'total', 'cliente'))->render();
+                $brevo     = new BrevoMailService($host->password);
+                $resultado = $brevo->send($emails, $tituloCorreo, $html, $host->name, $host->address, $adjuntos);
+
+                if ($resultado['success']) {
+                    $factura->correo = 1;
+                    $factura->save();
+                } else {
+                    \Log::error('Error Brevo en sendCorreoFacturaNoEmitida', [
+                        'factura' => $factura->codigo,
+                        'error'   => $resultado['message'],
+                    ]);
+                }
+
+                return $resultado;
+            }
+
+            // ── Envío vía SMTP legacy ───────────────────────────────────────
+            if ($host) {
+                $existing = config('mail');
+                config(['mail' => array_merge($existing, [
+                    'host'       => $host->servidor,
+                    'port'       => $host->puerto,
+                    'encryption' => $host->seguridad,
+                    'username'   => $host->usuario,
+                    'password'   => $host->password,
+                    'from'       => ['address' => $host->address, 'name' => $host->name],
+                ])]);
+            }
+
+            self::sendMail(
+                'emails.email',
+                compact('factura', 'total', 'cliente'),
+                compact('pdf', 'emails', 'tituloCorreo', 'xmlPath'),
+                function ($message) use ($pdf, $emails, $tituloCorreo, $xmlPath) {
+                    $message->attachData($pdf, 'factura.pdf', ['mime' => 'application/pdf']);
+                    if (file_exists($xmlPath)) {
+                        $message->attach($xmlPath, ['as' => 'factura.xml', 'mime' => 'text/plain']);
+                    }
+                    $message->to($emails)->subject($tituloCorreo);
+                }
+            );
+
+            $factura->correo = 1;
+            $factura->save();
+
+            return ['success' => true, 'message' => 'Correo enviado correctamente'];
+
+        } catch (\Exception $e) {
+            \Log::error('Error en sendCorreoFacturaNoEmitida: ' . $e->getMessage(), [
+                'factura' => $factura->codigo ?? null,
+            ]);
+            return ['success' => false, 'message' => 'Error al enviar: ' . $e->getMessage()];
+        }
+    }
+
     public function envioMasivoCorreo($facturas)
+
     {
         $facturasIds = explode(',', $facturas);
         $empresa = Auth::user()->empresaObj;
@@ -7788,20 +7871,9 @@ class FacturasController extends Controller{
             if ($factura->correo == 1) {
                 $omitidos++;
                 $detalle[] = [
-                    'codigo' => $factura->codigo,
-                    'estado' => 'omitido',
+                    'codigo'  => $factura->codigo,
+                    'estado'  => 'omitido',
                     'mensaje' => 'Ya fue enviada al correo anteriormente'
-                ];
-                continue;
-            }
-
-            // Validar que la factura esté emitida
-            if ($factura->emitida != 1) {
-                $errores++;
-                $detalle[] = [
-                    'codigo' => $factura->codigo,
-                    'estado' => 'error',
-                    'mensaje' => 'La factura no ha sido emitida'
                 ];
                 continue;
             }
@@ -7811,40 +7883,72 @@ class FacturasController extends Controller{
             if (!$cliente || !$cliente->email) {
                 $errores++;
                 $detalle[] = [
-                    'codigo' => $factura->codigo,
-                    'estado' => 'error',
+                    'codigo'  => $factura->codigo,
+                    'estado'  => 'error',
                     'mensaje' => 'El cliente no tiene correo registrado'
                 ];
                 continue;
             }
 
-            try {
-                DB::reconnect();
-                $mensajeCorreo = $this->sendPdfEmailBTW($btw, $factura, $cliente, $empresa, 1);
+            // ── Factura emitida: usa BTW Service ──────────────────────────
+            if ($factura->emitida == 1) {
+                try {
+                    DB::reconnect();
+                    $mensajeCorreo = $this->sendPdfEmailBTW($btw, $factura, $cliente, $empresa, 1);
 
-                // Verificar si se envió exitosamente
-                $factura->refresh();
-                if ($factura->correo == 1) {
+                    $factura->refresh();
+                    if ($factura->correo == 1) {
+                        $enviados++;
+                        $detalle[] = [
+                            'codigo'  => $factura->codigo,
+                            'estado'  => 'enviado',
+                            'mensaje' => $mensajeCorreo
+                        ];
+                    } else {
+                        $errores++;
+                        $detalle[] = [
+                            'codigo'  => $factura->codigo,
+                            'estado'  => 'error',
+                            'mensaje' => $mensajeCorreo
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    $errores++;
+                    $detalle[] = [
+                        'codigo'  => $factura->codigo,
+                        'estado'  => 'error',
+                        'mensaje' => 'Error: ' . $e->getMessage()
+                    ];
+                }
+                continue;
+            }
+
+            // ── Factura NO emitida: usa Brevo o SMTP ─────────────────────
+            if ($factura->emitida == 0) {
+                $emails = $cliente->email;
+                $resultado = $this->sendCorreoFacturaNoEmitida($factura, $empresa, $emails);
+
+                if ($resultado['success']) {
                     $enviados++;
                     $detalle[] = [
-                        'codigo' => $factura->codigo,
-                        'estado' => 'enviado',
-                        'mensaje' => $mensajeCorreo
+                        'codigo'  => $factura->codigo,
+                        'estado'  => 'enviado',
+                        'mensaje' => $resultado['message']
                     ];
                 } else {
                     $errores++;
                     $detalle[] = [
-                        'codigo' => $factura->codigo,
-                        'estado' => 'error',
-                        'mensaje' => $mensajeCorreo
+                        'codigo'  => $factura->codigo,
+                        'estado'  => 'error',
+                        'mensaje' => $resultado['message']
                     ];
                 }
-            } catch (\Exception $e) {
+            } else {
                 $errores++;
                 $detalle[] = [
-                    'codigo' => $factura->codigo,
-                    'estado' => 'error',
-                    'mensaje' => 'Error: ' . $e->getMessage()
+                    'codigo'  => $factura->codigo,
+                    'estado'  => 'error',
+                    'mensaje' => 'Estado de emisión desconocido'
                 ];
             }
         }
