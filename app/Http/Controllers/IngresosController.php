@@ -1797,12 +1797,20 @@ class IngresosController extends Controller
                 // quitamos el + si lo tiene para la API
                 $phone = ltrim($telefonoCompleto, '+');
 
+                $companyNit = $empresaObj->nit ?? \App\Empresa::find(1)->nit;
+
                 $this->registerCentralizedBatch(
                     $instance->phone_number_id,
                     $phone,
                     $wamid,
                     $mensajeEnviado,
-                    $cliente->nombre . ' ' . $cliente->apellido1
+                    $cliente->nombre . ' ' . $cliente->apellido1,
+                    'template',
+                    'sent',
+                    null,
+                    null,
+                    $ingreso->id,
+                    $companyNit
                 );
             }
 

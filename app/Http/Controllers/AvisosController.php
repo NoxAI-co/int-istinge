@@ -519,12 +519,23 @@ class AvisosController extends Controller
                             $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
                             
                             if ($wamid) {
+                                $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
+                                
+                                $contractId = $contrato->id ?? null;
+                                $invoiceId = $factura->id ?? null;
+
                                 $this->registerCentralizedBatch(
                                     $instance->phone_number_id,
                                     $telefonoCompleto,
                                     $wamid,
                                     $mensajeEnviado,
-                                    $contacto->nombre . ' ' . $contacto->apellido1
+                                    $contacto->nombre . ' ' . $contacto->apellido1,
+                                    'template',
+                                    'sent',
+                                    $invoiceId,
+                                    $contractId,
+                                    null,
+                                    $companyNit
                                 );
                             }
                         } else {
@@ -989,12 +1000,23 @@ class AvisosController extends Controller
 
                 // Sync con Chat System (Centralizado) si success
                 if ($status === 'success' && $messageId) {
+                    $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
+                    
+                    $contractId = $contrato->id ?? null;
+                    $invoiceId = $factura->id ?? null;
+
                     $this->registerCentralizedBatch(
                         $instance->phone_number_id,
                         $telefonoCompleto,
                         $messageId,
                         $mensajeEnviado,
-                        $contacto->nombre . ' ' . $contacto->apellido1
+                        $contacto->nombre . ' ' . $contacto->apellido1,
+                        'template',
+                        'sent',
+                        $invoiceId,
+                        $contractId,
+                        null,
+                        $companyNit
                     );
                 }
 

@@ -5103,12 +5103,27 @@ class CronController extends Controller
                     $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
                     
                     if ($wamid) {
+                        $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
+                        
+                        $contractId = null;
+                        $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        if ($facturaContrato) {
+                            $contract = \App\Contrato::where('nro', $facturaContrato->contrato_nro)->first();
+                            $contractId = $contract?->id;
+                        }
+
                         $this->registerCentralizedBatch(
                             $instance->phone_number_id,
                             $phone,
                             $wamid,
                             $mensajeProcesado,
-                            $contacto->nombre . ' ' . $contacto->apellido1
+                            $contacto->nombre . ' ' . $contacto->apellido1,
+                            'template',
+                            'sent',
+                            $factura->id,
+                            $contractId,
+                            null,
+                            $companyNit
                         );
                     }
                 } else {
