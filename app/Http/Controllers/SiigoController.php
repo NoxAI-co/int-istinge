@@ -24,6 +24,18 @@ class SiigoController extends Controller
      * @param bool $returnArray Si debe retornar como array (true) o objeto (false)
      * @return mixed Respuesta de la API
      */
+    private function parseName($fullName)
+    {
+        $parts = explode(' ', trim($fullName));
+        $parts = array_filter($parts);
+        
+        if (count($parts) >= 2) {
+            return [$parts[0], end($parts)];
+        }
+        
+        return [$fullName];
+    }
+
     private function executeSiigoRequest($curlOptions, $returnArray = false)
     {
         $curl = curl_init();
@@ -494,7 +506,7 @@ class SiigoController extends Controller
                     "id_type"        => $cliente_factura->dv ? "31" : "13",
                     "identification" => $cliente_factura->nit,
                     "branch_office"  => "0",
-                    "name"           => $cliente_factura->nombre,
+                    "name"           => $this->parseName($cliente_factura->nombre),
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [
