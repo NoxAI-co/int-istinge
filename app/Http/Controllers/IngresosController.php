@@ -590,6 +590,7 @@ class IngresosController extends Controller
 
             //Si el tipo de ingreso es de facturas
             $totalIngreso=0;
+            $contratos_procesados_mk = []; // Controlar ejecuciones duplicadas MK
             if ($ingreso->tipo == 1) {
                 $saldoFavorUsado = 0;
                 foreach ($request->factura_pendiente as $key => $value) {
@@ -632,12 +633,11 @@ class IngresosController extends Controller
 
                         if($contrato){
                             try {
-                                $ultimaFactura = $contrato->facturas->last();
-                                //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
-                                if($ultimaFactura){
-                                    if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
-                                        // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
-                                        $contratoId = $contrato->id;
+                                if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
+                                    $contratos_procesados_mk[] = $contrato->id; // Registramos para no repetir en esta petición
+                                    
+                                    // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
+                                    $contratoId = $contrato->id;
                                         $empresaId = $empresa->id;
                                         $ingresoId = $ingreso->id;
                                         app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
@@ -655,7 +655,6 @@ class IngresosController extends Controller
                                             }
                                         });
                                     }
-                                }
                             } catch (\Throwable $thMK) {
                                 Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
