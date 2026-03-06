@@ -1267,19 +1267,48 @@ class IngresosController extends Controller
 
                             if(count($ARRAYS)>0){
                                 $idToRemove = $ARRAYS[0]['.id'];
-                                Log::info('[MK-PAGO] Intentando remove .id=' . $idToRemove . ' para IP: ' . $contrato->ip);
+                                
+                                // Registro MovimientoLOG intentando remove
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')';
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                                 $API->write('/ip/firewall/address-list/remove', false);
                                 $API->write('=.id=' . $idToRemove, true);
                                 $READ = $API->read();
-                                Log::info('[MK-PAGO] Respuesta remove:', is_array($READ) ? $READ : [$READ]);
+
+                                // Registro MovimientoLOG respuesta remove
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Respuesta comando remove: ' . json_encode($READ);
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                                 // Verificar si realmente se eliminó de morosos
                                 $API->write('/ip/firewall/address-list/print', false);
                                 $API->write('?address=' . $contrato->ip, false);
                                 $API->write('?list=morosos', true);
                                 $verificacion = $API->read();
-                                Log::info('[MK-PAGO] Verificacion post-remove (debe estar vacio):', is_array($verificacion) ? $verificacion : [$verificacion]);
+
+                                if (empty($verificacion)) {
+                                    $descVerif = '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no se encuentra en la lista de morosos.';
+                                } else {
+                                    $descVerif = '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue apareciendo en la lista de morosos después del comando remove.';
+                                }
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = $descVerif;
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                                 #AGREGAMOS A IP_AUTORIZADAS#
                                 $resultAdd = $API->comm("/ip/firewall/address-list/add", array(
@@ -1287,22 +1316,34 @@ class IngresosController extends Controller
                                     "list" => 'ips_autorizadas'
                                     )
                                 );
-                                Log::info('[MK-PAGO] Respuesta add ips_autorizadas:', is_array($resultAdd) ? $resultAdd : [$resultAdd]);
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
                                 #AGREGAMOS A IP_AUTORIZADAS#
 
                                 $mensaje = "- Se ha sacado la ip de morosos.";
-                                Log::info('[MK-PAGO] Mensaje asignado OK');
 
                                 // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                                 DB::reconnect();
 
                                 $ingreso->revalidacion_enable_internet = 1;
                                 $ingreso->save();
-                                Log::info('[MK-PAGO] Ingreso guardado con revalidacion_enable_internet=1');
 
                                 $contrato->state = 'enabled';
                                 $contrato->save();
-                                Log::info('[MK-PAGO] Contrato ' . $contrato->nro . ' state=enabled guardado');
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                             }else{
                                 Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
