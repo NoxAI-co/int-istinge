@@ -494,7 +494,7 @@ class SiigoController extends Controller
                     "id_type"        => $cliente_factura->dv ? "31" : "13",
                     "identification" => $cliente_factura->nit,
                     "branch_office"  => "0",
-                    "name"           => [$cliente_factura->nombre],
+                    "name"           => $cliente_factura->nombre,
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [
