@@ -2591,6 +2591,10 @@ class Controller extends BaseController
         $plazo=TerminosPago::where('dias', Funcion::diffDates($date_suspension, Carbon::now())+1)->first();
         $nro = NumeracionFactura::tipoNumeracion($contrato);
 
+        if (!$nro) {
+            return false;
+        }
+
         $inicio = $nro->inicio;
 
         // Validacion para que solo asigne numero consecutivo si no existe.

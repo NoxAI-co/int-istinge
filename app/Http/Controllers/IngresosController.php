@@ -1266,29 +1266,43 @@ class IngresosController extends Controller
                             $ARRAYS = $API->read();
 
                             if(count($ARRAYS)>0){
-                                $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id='.$ARRAYS[0]['.id']);
-                                $READ = $API->read();
+                                $idToRemove = $ARRAYS[0]['.id'];
+                                Log::info('[MK-PAGO] Intentando remove .id=' . $idToRemove . ' para IP: ' . $contrato->ip);
 
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id=' . $idToRemove, true);
+                                $READ = $API->read();
+                                Log::info('[MK-PAGO] Respuesta remove:', is_array($READ) ? $READ : [$READ]);
+
+                                // Verificar si realmente se eliminó de morosos
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write('?list=morosos', true);
+                                $verificacion = $API->read();
+                                Log::info('[MK-PAGO] Verificacion post-remove (debe estar vacio):', is_array($verificacion) ? $verificacion : [$verificacion]);
 
                                 #AGREGAMOS A IP_AUTORIZADAS#
-                                $API->comm("/ip/firewall/address-list/add", array(
+                                $resultAdd = $API->comm("/ip/firewall/address-list/add", array(
                                     "address" => $contrato->ip,
                                     "list" => 'ips_autorizadas'
                                     )
                                 );
+                                Log::info('[MK-PAGO] Respuesta add ips_autorizadas:', is_array($resultAdd) ? $resultAdd : [$resultAdd]);
                                 #AGREGAMOS A IP_AUTORIZADAS#
 
-
                                 $mensaje = "- Se ha sacado la ip de morosos.";
+                                Log::info('[MK-PAGO] Mensaje asignado OK');
+
                                 // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                                 DB::reconnect();
 
                                 $ingreso->revalidacion_enable_internet = 1;
                                 $ingreso->save();
+                                Log::info('[MK-PAGO] Ingreso guardado con revalidacion_enable_internet=1');
 
                                 $contrato->state = 'enabled';
                                 $contrato->save();
+                                Log::info('[MK-PAGO] Contrato ' . $contrato->nro . ' state=enabled guardado');
 
                             }else{
                                 Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
