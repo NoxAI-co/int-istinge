@@ -5109,7 +5109,7 @@ class CronController extends Controller
                         $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                         if ($facturaContrato) {
                             $contract = \App\Contrato::where('nro', $facturaContrato->contrato_nro)->first();
-                            $contractId = $contract?->id;
+                            $contractId = $contract ? $contract->id : null;
                         }
 
                         $this->registerCentralizedBatch(
