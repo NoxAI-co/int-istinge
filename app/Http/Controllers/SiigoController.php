@@ -100,6 +100,15 @@ class SiigoController extends Controller
         }
 
         if ($empresa && $cron == null && $usuario_siigo !== null && $api_key_siigo !== null) {
+            // Si los campos vienen vacíos, eliminamos la configuración
+            if (empty($usuario_siigo) || empty($api_key_siigo)) {
+                $empresa->usuario_siigo = null;
+                $empresa->api_key_siigo = null;
+                $empresa->token_siigo = null;
+                $empresa->fecha_token_siigo = null;
+                $empresa->save();
+                return 1;
+            }
 
             //Probando conexion de la api.
             $curl = curl_init();

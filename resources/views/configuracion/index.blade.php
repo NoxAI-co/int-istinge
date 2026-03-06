@@ -591,6 +591,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    @if(Auth::user()->empresa()->api_key_siigo)
+                    <button type="button" class="btn btn-outline-danger" onclick="quitarSiigo()">Quitar Conexión</button>
+                    @endif
                     <a href="javascript:configuracionSiigo()" class="btn btn-success">Guardar</A>
                 </div>
             </div>
@@ -2468,7 +2471,7 @@
                     if (data == 1) {
                         Swal.fire({
                             type: 'success',
-                            title: 'La configuración de Siigo ha sido registrada con éxito',
+                            title: 'La configuración de Siigo ha sido actualizada con éxito',
                             text: 'Recargando la página',
                             showConfirmButton: false,
                             timer: 5000
@@ -2490,6 +2493,25 @@
                     }, 2000);
                 }
             });
+        }
+
+        function quitarSiigo() {
+            Swal.fire({
+                title: '¿Desea quitar la conexión con Siigo?',
+                text: "Se eliminarán las credenciales guardadas.",
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, quitar conexión',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.value) {
+                    $("#usuario_siigo").val("");
+                    $("#api_key_siigo").val("");
+                    configuracionSiigo();
+                }
+            })
         }
 
         function prorrateo() {
