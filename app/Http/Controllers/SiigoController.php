@@ -78,7 +78,7 @@ class SiigoController extends Controller
 
     public function configurarSiigo(Request $request = null, $cron = null)
     {
-        $empresa = Empresa::find(1);
+        $empresa = (Auth::check()) ? Auth::user()->empresa() : Empresa::find(1);
         $usuario_siigo = null;
         $api_key_siigo = null;
 
@@ -88,19 +88,18 @@ class SiigoController extends Controller
             // No hacer nada aquí, el código del else if se encargará
         } else {
             // Si viene desde la ruta web, obtener el Request usando el helper
-            // Laravel puede no inyectar Request cuando tiene valor por defecto null
             if ($request === null) {
                 $request = request();
             }
 
-            // Obtener parámetros del request (query string para GET)
+            // Obtener parámetros del request
             $usuario_siigo = $request->input('usuario_siigo');
             $api_key_siigo = $request->input('api_key_siigo');
             $cron = $request->input('cron', null);
         }
 
-        if ($empresa && $cron == null && $usuario_siigo !== null && $api_key_siigo !== null) {
-            // Si los campos vienen vacíos, eliminamos la configuración
+        if ($empresa && $cron == null && $request->has('usuario_siigo') && $request->has('api_key_siigo')) {
+            // Si los campos vienen vacíos (o null por el middleware), eliminamos la configuración
             if (empty($usuario_siigo) || empty($api_key_siigo)) {
                 $empresa->usuario_siigo = null;
                 $empresa->api_key_siigo = null;
