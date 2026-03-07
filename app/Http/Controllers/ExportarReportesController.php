@@ -72,6 +72,7 @@ class ExportarReportesController extends Controller
             ->select('factura.id', 'factura.codigo', 'factura.nro','factura.cot_nro', DB::raw('c.nombre as nombrecliente'),
                     'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa')
             ->where('factura.tipo', 2)
+            ->where('c.status',1)
             ->where('factura.estatus',0);
 
             // if($comprobacionFacturas->count() >2100){
@@ -208,6 +209,7 @@ class ExportarReportesController extends Controller
         // Validar cantidad de registros antes de procesar
         $countQuery = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
             ->where('factura.tipo', 2)
+            ->where('c.status',1)
             ->where('factura.empresa', Auth::user()->empresa);
 
         if ($request->tipo !== null && $request->tipo != 2) {
@@ -406,6 +408,7 @@ class ExportarReportesController extends Controller
         // Validar cantidad de registros antes de procesar
         $comprobacionFacturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
         ->where('factura.tipo',1)
+        ->where('c.status',1)
         ->where('factura.empresa',Auth::user()->empresa)
         ->where('factura.fecha','>=', $dates['inicio'])
         ->where('factura.fecha','<=', $dates['fin']);
