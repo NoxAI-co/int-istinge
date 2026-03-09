@@ -29,7 +29,13 @@ class SiigoController extends Controller
         $parts = explode(' ', trim($fullName));
         $parts = array_values(array_filter($parts));
         
-        return $nameArray = (count($parts) > 0) ? $parts : [$fullName];
+        if (count($parts) > 2) {
+            $firstName = array_shift($parts);
+            $lastName = implode(' ', $parts);
+            return [$firstName, $lastName];
+        }
+        
+        return (count($parts) > 0) ? $parts : [$fullName];
     }
 
     private function executeSiigoRequest($curlOptions, $returnArray = false)
