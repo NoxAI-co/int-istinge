@@ -27,13 +27,9 @@ class SiigoController extends Controller
     private function parseName($fullName)
     {
         $parts = explode(' ', trim($fullName));
-        $parts = array_filter($parts);
+        $parts = array_values(array_filter($parts));
         
-        if (count($parts) >= 2) {
-            return [$parts[0], end($parts)];
-        }
-        
-        return [$fullName];
+        return $nameArray = (count($parts) > 0) ? $parts : [$fullName];
     }
 
     private function executeSiigoRequest($curlOptions, $returnArray = false)
@@ -506,7 +502,15 @@ class SiigoController extends Controller
                     "id_type"        => $cliente_factura->dv ? "31" : "13",
                     "identification" => $cliente_factura->nit,
                     "branch_office"  => "0",
-                    "name"           => ($cliente_factura->dv) ? [$cliente_factura->nombre] : ( (isset($cliente_factura->apellido1) && !empty($cliente_factura->apellido1)) ? array_values(array_filter([$cliente_factura->nombre, $cliente_factura->apellido1, $cliente_factura->apellido2])) : $this->parseName($cliente_factura->nombre) ),
+                    "name"           => (function($c) {
+                        if ($c->dv) return [$c->nombre];
+                        $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
+                        if (count($nArr) < 2) {
+                            $f = \App\Contacto::where('nit', $c->nit)->first();
+                            if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
+                        }
+                        return $nArr;
+                    })($cliente_factura),
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [
