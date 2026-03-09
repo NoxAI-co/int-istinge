@@ -506,7 +506,7 @@ class SiigoController extends Controller
                     "id_type"        => $cliente_factura->dv ? "31" : "13",
                     "identification" => $cliente_factura->nit,
                     "branch_office"  => "0",
-                    "name"           => $this->parseName($cliente_factura->nombre),
+                    "name"           => ($cliente_factura->dv) ? [$cliente_factura->nombre] : ( (isset($cliente_factura->apellido1) && !empty($cliente_factura->apellido1)) ? array_values(array_filter([$cliente_factura->nombre, $cliente_factura->apellido1, $cliente_factura->apellido2])) : $this->parseName($cliente_factura->nombre) ),
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [
