@@ -96,11 +96,11 @@ function aplicarCorreccion() {
 // Helper to build routes (assuming a global object or simple replacement)
 function buildRoute(name, id) {
     // Usar la base URL dinámica definida en el blade, o fallback a la raíz
-    const baseUrl = window.auditBaseUrl || '/auditoria/facturas';
-    if (name === 'auditoria.facturas.corregir') return `${baseUrl}/corregir/${id}`;
-    if (name === 'auditoria.facturas.aplicar') return `${baseUrl}/aplicar/${id}`;
-    if (name === 'auditoria.facturas.buscar-cliente') return `${baseUrl}/buscar-cliente`;
-    if (name === 'auditoria.facturas.contratos-cliente') return `${baseUrl}/contratos-cliente`;
+    const baseUrl = window.auditBaseUrl || '/auditoria/dian';
+    if (name === 'auditoria.dian.corregir') return `${baseUrl}/corregir/${id}`;
+    if (name === 'auditoria.dian.aplicar') return `${baseUrl}/aplicar/${id}`;
+    if (name === 'auditoria.dian.buscar-cliente') return `${baseUrl}/buscar-cliente`;
+    if (name === 'auditoria.dian.contratos-cliente') return `${baseUrl}/contratos-cliente`;
     return baseUrl;
 }
 

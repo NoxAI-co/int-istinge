@@ -139,10 +139,10 @@
             <a href="{{ route('auditoria.facturas.pdf', $session->id) }}" class="btn btn-outline-danger btn-round mr-2">
                 <i class="fas fa-file-pdf mr-1"></i> PDF Discrepancias
             </a>
-            <a href="{{ route('auditoria.facturas.logs', $session->id) }}" class="btn btn-outline-info btn-round mr-2">
+            <a href="{{ route('auditoria.dian.logs', $session->id) }}" class="btn btn-outline-info btn-round mr-2">
                 <i class="fas fa-history mr-1"></i> Historial Cambios
             </a>
-            <a href="{{ route('auditoria.facturas') }}" class="btn btn-light btn-round">
+            <a href="{{ route('auditoria.dian') }}" class="btn btn-light btn-round">
                 <i class="fas fa-arrow-left mr-1"></i> Volver
             </a>
         </div>
@@ -315,7 +315,7 @@
 <script>
     var currentStatus = 'all';
     window.dianTable = null; // Definir globalmente para dian-audit.js
-    window.auditBaseUrl = "{{ route('auditoria.facturas') }}";
+    window.auditBaseUrl = "{{ route('auditoria.dian') }}";
 
     $(document).ready(function() {
         $('[title]').tooltip(); // Inicializar tooltips de Bootstrap
@@ -325,7 +325,7 @@
             serverSide: true,
             pageLength: 50,
             ajax: {
-                url: "{{ route('auditoria.facturas.datatables', $session->id) }}",
+                url: "{{ route('auditoria.dian.datatables', $session->id) }}",
                 data: function(d) {
                     d.status = currentStatus;
                 }

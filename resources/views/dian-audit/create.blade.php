@@ -79,7 +79,7 @@
                     <p class="mb-0 opacity-75">Sincronice sus archivos oficiales con el sistema</p>
                 </div>
 
-                <form action="{{ route('auditoria.facturas.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm" class="form-premium">
+                <form action="{{ route('auditoria.dian.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm" class="form-premium">
                     @csrf
                     <div class="card-body p-4">
                         <div class="mb-4">
@@ -125,7 +125,7 @@
                     </div>
 
                     <div class="card-footer bg-white p-4 text-right border-top-0">
-                        <a href="{{ route('auditoria.facturas') }}" class="btn btn-link text-muted mr-3">Cancelar</a>
+                        <a href="{{ route('auditoria.dian') }}" class="btn btn-link text-muted mr-3">Cancelar</a>
                         <button type="submit" class="btn btn-premium" id="btnSubmit">
                             <i class="fas fa-rocket mr-2"></i> Iniciar Auditoría
                         </button>

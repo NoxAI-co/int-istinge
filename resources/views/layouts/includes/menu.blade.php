@@ -624,7 +624,12 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
             @endif
             @if(isset($_SESSION['permisos']['832']))
             <li class="nav-item" id="auditoria-facturas">
-                <a class="nav-link" href="{{route('auditoria.facturas')}}">Facturas</a>
+                <a class="nav-link" href="{{route('auditoria.facturas.index')}}">Facturas</a>
+            </li>
+            @endif
+            @if(isset($_SESSION['permisos']['832']))
+            <li class="nav-item" id="auditoria-dian">
+                <a class="nav-link" href="{{route('auditoria.dian.index')}}">DIAN</a>
             </li>
             @endif
         </ul>

@@ -1955,6 +1955,11 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::group(['prefix' => 'auditoria', 'as' => 'auditoria.'], function () {
 		Route::get('contratos', 'AuditoriaController@contratos')->name('contratos');
 		Route::group(['prefix' => 'facturas', 'as' => 'facturas.'], function() {
+            Route::get('/', 'AuditoriaController@facturas')->name('index');
+            Route::post('/', 'AuditoriaController@auditoria_facturas')->name('auditoria_facturas');
+        });
+
+		Route::group(['prefix' => 'dian', 'as' => 'dian.'], function() {
             Route::get('/', 'DianAuditController@index')->name('index');
             Route::get('/crear', 'DianAuditController@create')->name('create');
             Route::post('/upload', 'DianAuditController@upload')->name('upload');
@@ -1968,8 +1973,6 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
             Route::get('/contratos-cliente', 'DianAuditController@getContratosCliente')->name('contratos-cliente');
             Route::delete('/eliminar/{id}', 'DianAuditController@destroy')->name('destroy');
         });
-        // Mantener compatibilidad con el menú lateral
-        Route::get('facturas', 'DianAuditController@index')->name('facturas');
 	});
 	Route::resource('barrios', 'BarriosController');
 	Route::post('/delete-barrio/{id}', 'BarriosController@delete');

@@ -31,15 +31,15 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0 mb-1">
-                    <li class="breadcrumb-item"><a href="{{ route('auditoria.facturas') }}">Auditoría</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('auditoria.facturas.session', $session->id) }}">Detalle</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('auditoria.dian.index') }}">Auditoría</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('auditoria.dian.session', $session->id) }}">Detalle</a></li>
                     <li class="breadcrumb-item active">Logs</li>
                 </ol>
             </nav>
             <h2 class="font-weight-bold text-dark mb-0">Traceability: {{ $session->periodo }}</h2>
             <small class="text-muted"><i class="fas fa-history mr-1"></i> Histórico de modificaciones manuales</small>
         </div>
-        <a href="{{ route('auditoria.facturas.session', $session->id) }}" class="btn btn-light btn-round">
+        <a href="{{ route('auditoria.dian.session', $session->id) }}" class="btn btn-light btn-round">
             <i class="fas fa-arrow-left mr-1"></i> Volver al Detalle
         </a>
     </div>

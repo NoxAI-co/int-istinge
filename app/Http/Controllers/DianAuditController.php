@@ -38,7 +38,7 @@ class DianAuditController extends Controller
     public function index()
     {
         $this->getAllPermissions(Auth::user()->id);
-        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-facturas', 'icon' => 'fas fa-user-secret', 'title' => 'Auditoría DIAN']);
+        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-dian', 'icon' => 'fas fa-user-secret', 'title' => 'Auditoría DIAN']);
         
         $kpis = [
             'total_sesiones' => DianAuditSession::count(),
@@ -55,7 +55,7 @@ class DianAuditController extends Controller
     public function create()
     {
         $this->getAllPermissions(Auth::user()->id);
-        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-facturas', 'icon' => 'fas fa-upload', 'title' => 'Cargar Reporte DIAN']);
+        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-dian', 'icon' => 'fas fa-upload', 'title' => 'Cargar Reporte DIAN']);
         return view('dian-audit.create');
     }
 
@@ -80,7 +80,7 @@ class DianAuditController extends Controller
 
         try {
             $this->procesarArchivoDian($session);
-            return redirect()->route('auditoria.facturas.session', $session->id)
+            return redirect()->route('auditoria.dian.session', $session->id)
                 ->with('success', 'Archivo procesado correctamente.');
         } catch (\Exception $e) {
             $session->update([
@@ -190,9 +190,8 @@ class DianAuditController extends Controller
 
     public function session($id)
     {
-        $this->getAllPermissions(Auth::user()->id);
         $session = DianAuditSession::with('user')->findOrFail($id);
-        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-facturas', 'icon' => 'fas fa-file-invoice-dollar', 'title' => 'Detalle de Auditoría: ' . $session->periodo]);
+        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-dian', 'icon' => 'fas fa-file-invoice-dollar', 'title' => 'Detalle de Auditoría: ' . $session->periodo]);
         return view('dian-audit.session', compact('session'));
     }
 
@@ -420,7 +419,7 @@ class DianAuditController extends Controller
     {
         $this->getAllPermissions(Auth::user()->id);
         $session = DianAuditSession::findOrFail($sessionId);
-        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-facturas', 'icon' => 'fas fa-history', 'title' => 'Log de Correcciones: ' . $session->periodo]);
+        view()->share(['seccion' => 'auditoria', 'subseccion' => 'auditoria-dian', 'icon' => 'fas fa-history', 'title' => 'Log de Correcciones: ' . $session->periodo]);
         return view('dian-audit.logs', compact('session'));
     }
 

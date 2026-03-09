@@ -133,7 +133,7 @@
             <p class="mb-0 opacity-75">Control de integridad y conciliación de facturación electrónica</p>
         </div>
         <div>
-            <a href="{{ route('auditoria.facturas.create') }}" class="btn btn-premium">
+            <a href="{{ route('auditoria.dian.create') }}" class="btn btn-premium">
                 <i class="fas fa-plus-circle mr-2"></i> Nueva Carga de Reporte
             </a>
         </div>

@@ -333,6 +333,7 @@ class IngresosController extends Controller
             $user = Auth::user();
             $empresa = Empresa::Find($user->empresa);
             $morosos = "";
+            $msj_siigo = "";
 
             // Verificamos si la suma es mayor que 0
             if($request->anticipo == 1){
@@ -431,10 +432,10 @@ class IngresosController extends Controller
                                         Log::info("Respuesta después del refresh: " . json_encode($response));
 
                                         if(isset($response['success']) && $response['success'] == false){
-                                            return back()->with('danger', "No se ha podido establecer conexión con siigo después de refrescar el token y no se ha generado el pago")->withInput();
+                                            $msj_siigo = " No se ha podido establecer conexión con siigo después de refrescar el token.";
                                         }
                                     } else {
-                                        return back()->with('danger', "No se ha podido establecer conexión con siigo, no se pudo refrescar el token y no se ha generado el pago")->withInput();
+                                        $msj_siigo = " No se ha podido establecer conexión con siigo, no se pudo refrescar el token.";
                                     }
                                 }
                             }
@@ -1170,10 +1171,10 @@ class IngresosController extends Controller
                     return redirect()->route('ingresos.tirillawpp', [
                         'id'   => $ingreso->nro, // igual que en tu blade
                         'name' => $factura->id
-                    ]);
+                    ])->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.' . $msj_siigo);
                 }
 
-                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.';
+                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.' . $msj_siigo;
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
