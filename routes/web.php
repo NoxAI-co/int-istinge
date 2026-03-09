@@ -20,6 +20,7 @@ use App\Http\Controllers\PlanesVelocidadController;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Cache;
 
+
 Route::get('sendmail', 'Controller@sendmail');
 
 Route::get('phpinfo', function () {
@@ -1951,11 +1952,25 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::resource('productos', 'ProductosController');
 
 	//AUDITORIA
-	Route::group(['prefix' => 'auditoria'], function () {
-		Route::get('contratos', 'AuditoriaController@contratos')->name('auditoria.contratos');
-		Route::get('facturas', 'AuditoriaController@facturas')->name('auditoria.facturas');
+	Route::group(['prefix' => 'auditoria', 'as' => 'auditoria.'], function () {
+		Route::get('contratos', 'AuditoriaController@contratos')->name('contratos');
+		Route::group(['prefix' => 'facturas', 'as' => 'facturas.'], function() {
+            Route::get('/', 'DianAuditController@index')->name('index');
+            Route::get('/crear', 'DianAuditController@create')->name('create');
+            Route::post('/upload', 'DianAuditController@upload')->name('upload');
+            Route::get('/sesion/{id}', 'DianAuditController@session')->name('session');
+            Route::get('/datatables/{sessionId}', 'DianAuditController@datatables')->name('datatables');
+            Route::get('/corregir/{recordId}', 'DianAuditController@corregir')->name('corregir');
+            Route::post('/aplicar/{recordId}', 'DianAuditController@aplicarCorreccion')->name('aplicar');
+            Route::get('/logs/{sessionId}', 'DianAuditController@logsSesion')->name('logs');
+            Route::get('/pdf/{sessionId}', 'DianAuditController@exportarDiscrepanciasPdf')->name('pdf');
+            Route::get('/buscar-cliente', 'DianAuditController@buscarCliente')->name('buscar-cliente');
+            Route::get('/contratos-cliente', 'DianAuditController@getContratosCliente')->name('contratos-cliente');
+            Route::delete('/eliminar/{id}', 'DianAuditController@destroy')->name('destroy');
+        });
+        // Mantener compatibilidad con el menú lateral
+        Route::get('facturas', 'DianAuditController@index')->name('facturas');
 	});
-	Route::resource('auditoria', 'AuditoriaController');
 	Route::resource('barrios', 'BarriosController');
 	Route::post('/delete-barrio/{id}', 'BarriosController@delete');
 
