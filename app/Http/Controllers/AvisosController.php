@@ -132,7 +132,7 @@ class AvisosController extends Controller
         $opcion = 'whatsapp';
 
         view()->share(['title' => 'Envío de Notificaciones por '.$opcion, 'icon' => 'fas fa-paper-plane']);
-        $plantillas = Plantilla::where('status', 1)->whereIn('tipo', [0, 2, 3])->get();
+        $plantillas = Plantilla::where('status', 1)->whereIn('tipo', [3])->get();
 
         $contratos = Contrato::select('contracts.*', 'contactos.id as c_id',
         'contactos.nombre as c_nombre', 'contactos.apellido1 as c_apellido1',
