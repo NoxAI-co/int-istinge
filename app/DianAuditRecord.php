@@ -69,6 +69,6 @@ class DianAuditRecord extends Model
 
     public function getFolioCompletoAttribute()
     {
-        return ($this->prefijo ?: '') . ($this->folio ?: '');
+        return str_replace(' ', '', ($this->prefijo ?: '') . ($this->folio ?: ''));
     }
 }

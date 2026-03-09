@@ -484,29 +484,49 @@ class DianAuditController extends Controller
 
     private function parseMonto($monto)
     {
-        // Formatos posibles: " 7.333,00 ", "7,333.00", etc.
-        // Asumiendo formato colombiano: punto miles, coma decimales
+        if (is_numeric($monto)) return (float) $monto;
+        
         $monto = trim($monto);
-        // Si hay coma y punto, asumimos formato CO (1.000,00)
-        if (strpos($monto, '.') !== false && strpos($monto, ',') !== false) {
-            $monto = str_replace('.', '', $monto);
-            $monto = str_replace(',', '.', $monto);
-        } else {
-            // Si solo hay uno, intentamos adivinar. Si hay coma y 2 decimales, es decimal.
-            // Pero en CO muchas veces 55.000 no tiene decimales.
-            // Si termina en ,XX o .XX es probable que sea decimal.
-            if (preg_match('/[,\.][0-9]{2}$/', $monto)) {
+        $monto = str_replace(['$', ' '], '', $monto);
+
+        if (empty($monto)) return 0;
+
+        // Count dots and commas
+        $dots = substr_count($monto, '.');
+        $commas = substr_count($monto, ',');
+
+        if ($dots > 0 && $commas > 0) {
+            // Mixed separators (e.g. 1.234,56 or 1,234.56)
+            // The last one is usually the decimal separator
+            $lastDot = strrpos($monto, '.');
+            $lastComma = strrpos($monto, ',');
+            
+            if ($lastComma > $lastDot) {
+                // CO standard: 1.234,56
+                $monto = str_replace('.', '', $monto);
                 $monto = str_replace(',', '.', $monto);
-                // Si despues de reemplazar queda mas de un punto, el primero era miles.
-                if (substr_count($monto, '.') > 1) {
-                    $pos = strpos($monto, '.');
-                    $monto = substr($monto, 0, $pos) . substr($monto, $pos + 1);
-                }
             } else {
-                // Sin decimales claros, quitar cualquier separador para tratar como entero
-                $monto = str_replace(['.', ',', ' ', '$'], '', $monto);
+                // US standard: 1,234.56
+                $monto = str_replace(',', '', $monto);
             }
+        } elseif ($dots == 1 || $commas == 1) {
+            // Only one separator. Could be thousand OR decimal.
+            // If there are exactly 3 digits after it, assume it's a thousand separator (1.000 or 1,000)
+            $lastPos = max(strrpos($monto, '.'), strrpos($monto, ','));
+            $after = substr($monto, $lastPos + 1);
+            
+            if (strlen($after) == 3) {
+                 // Thousand (e.g. 50.000 or 50,000)
+                 $monto = str_replace(['.', ','], '', $monto);
+            } else {
+                 // Decimal (e.g. 50.00 or 50,00)
+                 $monto = str_replace(',', '.', $monto);
+            }
+        } else {
+            // Multiple dots or commas, or none. Remove everything to get the digits.
+            $monto = str_replace(['.', ','], '', $monto);
         }
+
         return (float) $monto;
     }
 
