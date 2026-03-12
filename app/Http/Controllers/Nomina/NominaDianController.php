@@ -1186,7 +1186,8 @@ class NominaDianController extends Controller
                     "FechaGen" => date('Y-m-d'),
                     "HoraGen" => date('H:i:sP'),
                     "PeriodoNomina" => "4",
-                    "TipoMoneda" => "COP"
+                    "TipoMoneda" => "COP",
+                    "Notas" => $nomina->nota
                 ],
                 "Empleador" => [
                     "RazonSocial" => $empresa->nombre,
@@ -1238,7 +1239,8 @@ class NominaDianController extends Controller
                 "Redondeo" => "00.00",
                 "DevengadosTotal" => "00.00",
                 "DeduccionesTotal" => "00.00",
-                "ComprobanteTotal" => "00.00"
+                "ComprobanteTotal" => "00.00",
+                "Notas" => $nomina->nota
             );
 
         } catch(Exception $e){
@@ -2753,6 +2755,8 @@ class NominaDianController extends Controller
                 'btw_login'    => $empresa->btw_login ?? null,
                 'software'     => 1,
             ]);
+
+            // dd($jsonBTW);
 
         } catch (\Throwable $e) {
 
