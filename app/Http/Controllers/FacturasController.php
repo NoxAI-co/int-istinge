@@ -578,7 +578,6 @@ class FacturasController extends Controller{
                                 ->where('dian_response', 'like', '%409%')
                                 ->whereIn('estatus', [0, 2])
                                 ->where('statusdian', 1)
-                                ->where('dian_service', 0)
                                 ->where('emitida', 0)
                                 ->whereRaw('MONTH(fecha) = MONTH(CURDATE())')
                                 ->whereRaw('YEAR(fecha) = YEAR(CURDATE())')

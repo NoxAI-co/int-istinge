@@ -197,6 +197,7 @@ Route::get('/estatus-emision-dian', 'CronController@validateEmisionApi');
 Route::get('/validar-factura-doble', 'CronController@validarFacturasDobles');
 Route::get('/validate-codigo-emision', 'CronController@validateCodeEmision');
 Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
+Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
 /*PAYU*/
 
 Route::get('/respuestapayu', 'Controller@respuestapayu')->name('respuestapayu');
@@ -758,6 +759,16 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('facturas-whatsapp-envio', 'FacturasController@facturasWhastappEnvio')->name('cronjob.whatsapp-facturas-envio');
 		Route::get('facturas-whatsapp-reiniciar', 'FacturasController@facturasWhastappReiniciar')->name('cronjob.whatsapp-facturas-reiniciar');
 	});
+
+	// ─── Emisiones DIAN (CronDian) ───
+	Route::get('cronjobs/emisiones-dian', 'CronDianController@vista')->name('cronjobs.emisiones-dian');
+	Route::get('api/cron-dian/estado', 'CronDianController@estado');
+	Route::get('api/cron-dian/logs', 'CronDianController@logs');
+	Route::get('api/cron-dian/detalle/{log_id}', 'CronDianController@detalle');
+	Route::get('api/cron-dian/alertas-numeracion', 'CronDianController@alertasNumeracion');
+	Route::post('api/cron-dian/ejecutar-manual', 'CronDianController@ejecutarManual');
+	Route::post('api/cron-dian/resolver-alerta/{id}', 'CronDianController@resolverAlerta');
+	Route::post('api/cron-dian/configurar-fecha', 'CronDianController@guardarConfiguracion');
 
     // Saldos iniciales
     Route::group(['prefix' => 'saldos_iniciales'], function () {

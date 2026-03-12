@@ -649,6 +649,14 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
             <li class="nav-item" id="cronjobs-contratos">
                 <a class="nav-link" href="{{route('cronjob.whatsapp-facturas-index')}}">Facturas Whatsapp</a>
             </li>
+            <li class="nav-item" id="cronjobs-emisiones-dian">
+                <a class="nav-link" href="{{route('cronjobs.emisiones-dian')}}">
+                    Emisiones DIAN
+                    @if(isset($alertas_numeracion_count) && $alertas_numeracion_count > 0)
+                        <span class="badge badge-warning badge-pill ml-1">{{ $alertas_numeracion_count }}</span>
+                    @endif
+                </a>
+            </li>
         </ul>
     </div>
 </li>
