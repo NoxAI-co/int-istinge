@@ -7655,8 +7655,13 @@ class FacturasController extends Controller{
             $fecha_suspension = $sheet->getCell("E" . $row)->getFormattedValue();
             $saldo_inicial = trim($sheet->getCell("F" . $row)->getValue());
 
-            if (empty($tipo_factura) || empty($saldo_inicial) || $saldo_inicial == 0) {
-                $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial) o el saldo inicial es 0";
+            if (empty($tipo_factura) || $saldo_inicial === "" || $saldo_inicial === null) {
+                $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial)";
+                continue;
+            }
+
+            if ($saldo_inicial <= 0) {
+                $errores[] = "Fila $row: El saldo inicial ($saldo_inicial) debe ser mayor a 0. No se permiten saldos negativos o en cero.";
                 continue;
             }
 
@@ -7752,10 +7757,10 @@ class FacturasController extends Controller{
         }
 
         if (count($errores) > 0) {
-            return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales existosamente. Hubieron algunos errores.");
+            return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales exitosamente. Sin embargo, hubo errores en algunas filas.");
         }
 
-        return redirect('empresa/factura-index')->with('success', "Se han importado $creados saldos iniciales existosamente!");
+        return redirect()->route('facturas.index')->with('success', "Se han importado $creados saldos iniciales exitosamente!");
     }
 
     /**

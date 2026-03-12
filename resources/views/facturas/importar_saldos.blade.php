@@ -1,5 +1,27 @@
 @extends('layouts.app')
 @section('content')
+    @if(Session::has('success'))
+        <div class="alert alert-success" >
+            {{Session::get('success')}}
+        </div>
+    @endif
+
+    @if(Session::has('danger'))
+        <div class="alert alert-danger" >
+            {{Session::get('danger')}}
+        </div>
+    @endif
+
+    @if(count($errors) > 0 && !$errors->has('archivo'))
+        <div class="alert alert-danger">
+            <ul>
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
 	<style>
 	    .card-title {
 	        font-size: 1.5rem;
