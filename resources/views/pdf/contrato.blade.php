@@ -245,6 +245,9 @@
                         </div>
 
                         <div style="border: 1px  solid #000; margin-top: 5px; padding:2px; text-align: right;">
+                            @if(isset($contract) && $contract->iva_factura == 1)
+                                <b>IVA: 19%</b> &nbsp;&nbsp;&nbsp;
+                            @endif
                             VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$company->moneda}} {{ App\Funcion::Parsear($total_tv + $total_internet) }}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
                         </div>
 
