@@ -148,7 +148,23 @@
                             <p style="text-align: justify;" class="small pl-2">Tipo de Cliente: Nuevo <input type="checkbox" /> Modificación <input type="checkbox" /></p>
 
                             <p style="text-align: justify;" class="small pl-2">Tipo red: FTTH <input type="checkbox"> WIRELESS <input type="checkbox" ></p><br>
-
+                            @php
+                            $total_tv = 0; $total_internet = 0;
+                            if (isset($contract->servicio_tv)){
+                                $total_tv = (($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio;
+                            }
+                            if (isset($contract->server_configuration_id)){
+                                $total_internet = $contract->plan()->price;
+                            }
+                            if (isset($contract) && $contract->iva_factura == 1) {
+                                if ($total_tv > 0) {
+                                    $total_tv = $total_tv * 1.19;
+                                }
+                                if ($total_internet > 0) {
+                                    $total_internet = $total_internet * 1.19;
+                                }
+                            }
+                            @endphp
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INTERNET</p>
                             <table style="width: 100%; text-align:center; padding:5px;">
                                 <tr style="background-color: {{$empresa->color}}; color: #fff;">
@@ -169,9 +185,9 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    {{-- <td style="font-size: 9px;"><b>{{$empresa->color->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</b></td> --}}
+                                    <td style="font-size: 9px;"><b>{{$empresa->moneda}} {{ isset($contract->server_configuration_id) ? App\Funcion::Parsear($total_internet) : '________' }}</b></td>
                                     <td style="font-size: 9px;">Total</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</td> --}}
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->server_configuration_id) ? App\Funcion::Parsear($total_internet) : '________' }}</td>
                                 </tr>
                             </table>
 
@@ -195,24 +211,15 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}}{{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td> --}}
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear($total_tv) : '________' }}</td>
                                     <td style="font-size: 9px;">Total</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td> --}}
-                                    @php
-                                    $total_tv = 0; $total_internet = 0;
-                                    if (isset($contract->servicio_tv)){
-                                        $total_tv = (($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio;
-                                    }
-                                    if (isset($contract->server_configuration_id)){
-                                        $total_internet = $contract->plan()->price;
-                                    }
-                                    @endphp
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear($total_tv) : '________' }}</td>
                                 </tr>
                             </table>
                         </div>
 
                         <div style="border: 1px  solid #000; margin-top: 5px; padding:2px; text-align: right;">
-                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$empresa->moneda}}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
+                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$empresa->moneda}} {{ App\Funcion::Parsear($total_tv + $total_internet) }}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
                         </div>
 
                         <br><p style="text-align: justify; color: blue;" class="small">* Espacio diligenciado por el usuario</p>
