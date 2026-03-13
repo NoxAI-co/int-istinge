@@ -554,6 +554,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
     Route::post('morosos/fix-disabled', 'MorososController@fixDisabledDiscrepancy')->name('morosos.fix.disabled');
     Route::post('morosos/fix-disabled-batch', 'MorososController@fixDisabledDiscrepancyBatch')->name('morosos.fix.disabled.batch');
 
+	Route::get('deshabilitados-navegando', 'MorososController@deshabilitadosNavegando')->name('deshabilitados.index');
+
 	Route::get('/', 'HomeController@index')->name('empresa');
 
 	// Ruta para el PDF de asignación de material
