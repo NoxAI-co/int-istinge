@@ -67,7 +67,7 @@
                 <div class="col-sm-8">
                     <div class="input-group">
                         <select class="form-control selectpicker" name="id_tecnico" id="id_tecnico" required="" title="Seleccione" data-live-search="true" data-size="5">
-                            <option value="{{$material_asignado->tecnico->id}}">{{$material_asignado->tecnico->nombres}}</option>
+                            <option value="{{$material_asignado->tecnico->id ?? ''}}">{{$material_asignado->tecnico->nombres ?? 'Desconocido'}}</option>
                         </select>
                     </div>
                 </div>
@@ -110,7 +110,7 @@
                             </td>
                             <td class="no-padding" style="padding-top: 2% !important;">
                                 <select class="form-control selectpicker items_inv" title="Seleccione" data-live-search="true" data-size="5" name="item[]" id="item{{$key + 1}}" onchange="setReference('{{$key + 1}}', this.value);" required="">
-                                    <option value="{{$material->id}}" selected>{{$material->producto->}} - ({{$material->ref}})</option>
+                                    <option value="{{$material->id}}" selected>{{$material->producto}} - ({{$material->ref}})</option>
                                 </select>
                             </td>
                             <td>
@@ -174,7 +174,7 @@
                             </tr>
                             <tr>
                                 <th>Técnico:</th>
-                                <td>{{ $material_asignado->tecnico->nombres }}</td>
+                                <td>{{ $material_asignado->tecnico->nombres ?? 'Desconocido' }}</td>
                             </tr>
                             <tr>
                                 <th>Fecha:</th>

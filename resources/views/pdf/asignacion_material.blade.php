@@ -104,12 +104,12 @@
 <table class="titulo">
     <tr>
         <th width="20%" class="right smalltd">TÉCNICO</th>
-        <td colspan="3">{{$asignacion->tecnico->nombres}}</td>
+        <td colspan="3">{{$asignacion->tecnico->nombres ?? 'Desconocido'}}</td>
         <th width="20%" class="center smalltd">FECHA</th>
     </tr>
     <tr>
         <th class="right smalltd">IDENTIFICACIÓN</th>
-        <td colspan="3">{{$asignacion->tecnico->cedula}}</td>
+        <td colspan="3">{{$asignacion->tecnico->cedula ?? 'N/A'}}</td>
         <td class="center">{{date('d/m/Y', strtotime($asignacion->fecha))}}</td>
     </tr>
     @if($asignacion->notas)
@@ -148,7 +148,7 @@
         <tr>
             <td style="width: 50%; border: none;">
                 <div style="border-top: 1px solid #000; margin: 0 50px;">
-                    <p>Firma del Técnico<br>{{$asignacion->tecnico->nombres}}</p>
+                    <p>Firma del Técnico<br>{{$asignacion->tecnico->nombres ?? 'Desconocido'}}</p>
                 </div>
             </td>
             <td style="width: 50%; border: none;">
