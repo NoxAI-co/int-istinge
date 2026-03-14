@@ -378,10 +378,11 @@ class CronDianController extends Controller
             }
         }
 
-        // 4D-E: Verificar rango usando 'codigo' de la factura
+        // 4D-E: Verificar rango usando 'codigo' de la factura (extrayendo solo la parte numérica)
+        $prefijoEscapado = $numeracion->prefijo ? addslashes($numeracion->prefijo) : '';
         $maxNroEmitido = Factura::where('numeracion', $numeracion->id)
             ->where('emitida', 1)
-            ->max('codigo');
+            ->max(DB::raw("CAST(REPLACE(codigo, '{$prefijoEscapado}', '') AS UNSIGNED)"));
 
         $rangoSuperado = false;
         if ($maxNroEmitido && $maxNroEmitido >= $numeracion->final) {
@@ -509,13 +510,14 @@ class CronDianController extends Controller
                     continue;
                 }
 
-                // ── 5c: Verificar que el código no supere el final de la resolución ──
-                if ($factura->codigo && $numFactura->final && $factura->codigo > $numFactura->final) {
+                // ── 5c: Verificar que el código numérico no supere el final de la resolución ──
+                $codigoNumerico = (int) str_replace($numFactura->prefijo ?? '', '', $factura->codigo);
+                if ($codigoNumerico > 0 && $numFactura->final && $codigoNumerico > $numFactura->final) {
                     $this->registrarAlertaNumeracion(
                         1,
                         $numFactura->id,
                         'rango_superado',
-                        $factura->codigo,
+                        $codigoNumerico,
                         $numFactura->final,
                         1
                     );
