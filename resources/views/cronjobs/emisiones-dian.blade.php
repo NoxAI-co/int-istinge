@@ -587,7 +587,12 @@ $(function() {
             if (!pollingInterval) pollingInterval = setInterval(fetchEstado, 4000);
         } else {
             $('#estado-spinner').addClass('d-none');
-            if (data.ultima_ejecucion) {
+
+            if (data.emision_automatica == 0) {
+                $('#estado-msg').attr('class', 'alert alert-warning border-left-warning shadow-sm p-3 mb-0');
+                $('#estado-texto').html('<i class="fas fa-exclamation-triangle mr-1"></i> <strong>Aviso:</strong> La emisión automática está desactivada en la configuración general. Los ciclos automáticos no se ejecutarán.');
+                $('#console-status-text').text('INACTIVO');
+            } else if (data.ultima_ejecucion) {
                 var ue = data.ultima_ejecucion;
                 var cls = ue.estado === 'completado' ? 'alert-success border-left-success' : (ue.estado === 'error' ? 'alert-danger border-left-danger' : 'alert-warning border-left-warning');
                 $('#estado-msg').attr('class', 'alert ' + cls + ' shadow-sm p-3 mb-0');

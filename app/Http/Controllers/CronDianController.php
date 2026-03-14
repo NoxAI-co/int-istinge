@@ -142,6 +142,7 @@ class CronDianController extends Controller
             'alertas_numeracion'  => $alertas,
             'progreso_porcentaje' => $progresoPorcentaje,
             'detalles_actuales'   => $detallesActuales,
+            'emision_automatica'  => $empresa ? $empresa->emision_automatica : 0,
         ]);
     }
 
