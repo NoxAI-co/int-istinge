@@ -480,6 +480,7 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -642,7 +643,7 @@ $(function() {
             confirmButtonText: 'Sí, despegar',
             cancelButtonText: 'Ahora no',
             background: '#fff',
-            customClass: { popup: 'rounded-xl' }
+            customClass: { popup: ['rounded-xl'] }
         }).then(function(result) {
             if (result.value) {
                 $('#btn-ejecutar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Iniciando...');
