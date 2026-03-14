@@ -234,7 +234,7 @@
                             {!! str_replace('badge ', 'badge badge-premium ', $s->status_badge) !!}
                         </td>
                         <td class="text-right d-flex justify-content-end">
-                            <a href="{{ route('auditoria.facturas.session', $s->id) }}" class="btn btn-sm btn-outline-primary btn-round px-3 mr-2">
+                            <a href="{{ route('auditoria.dian.session', $s->id) }}" class="btn btn-sm btn-outline-primary btn-round px-3 mr-2">
                                 <i class="fas fa-search-plus mr-1"></i> Gestionar
                             </a>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-round px-2" onclick="eliminarSesion({{ $s->id }})">
@@ -279,7 +279,7 @@
                 });
 
                 $.ajax({
-                    url: "{{ route('auditoria.facturas') }}/eliminar/" + id,
+                    url: "{{ route('auditoria.dian.index') }}/eliminar/" + id,
                     method: 'DELETE',
                     data: {
                         _token: '{{ csrf_token() }}',

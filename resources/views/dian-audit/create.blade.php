@@ -125,7 +125,7 @@
                     </div>
 
                     <div class="card-footer bg-white p-4 text-right border-top-0">
-                        <a href="{{ route('auditoria.dian') }}" class="btn btn-link text-muted mr-3">Cancelar</a>
+                        <a href="{{ route('auditoria.dian.index') }}" class="btn btn-link text-muted mr-3">Cancelar</a>
                         <button type="submit" class="btn btn-premium" id="btnSubmit">
                             <i class="fas fa-rocket mr-2"></i> Iniciar Auditoría
                         </button>

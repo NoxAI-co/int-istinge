@@ -128,7 +128,7 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0 mb-1">
-                    <li class="breadcrumb-item"><a href="{{ route('auditoria.facturas') }}">Auditoría</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('auditoria.dian.index') }}">Auditoría</a></li>
                     <li class="breadcrumb-item active">Detalle</li>
                 </ol>
             </nav>
@@ -136,13 +136,13 @@
             <small class="text-muted">Procesado el {{ $session->created_at->format('d/m/Y H:i') }} por {{ $session->user->nombres }}</small>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('auditoria.facturas.pdf', $session->id) }}" class="btn btn-outline-danger btn-round mr-2">
+            <a href="{{ route('auditoria.dian.pdf', $session->id) }}" class="btn btn-outline-danger btn-round mr-2">
                 <i class="fas fa-file-pdf mr-1"></i> PDF Discrepancias
             </a>
             <a href="{{ route('auditoria.dian.logs', $session->id) }}" class="btn btn-outline-info btn-round mr-2">
                 <i class="fas fa-history mr-1"></i> Historial Cambios
             </a>
-            <a href="{{ route('auditoria.dian') }}" class="btn btn-light btn-round">
+            <a href="{{ route('auditoria.dian.index') }}" class="btn btn-light btn-round">
                 <i class="fas fa-arrow-left mr-1"></i> Volver
             </a>
         </div>
@@ -315,7 +315,7 @@
 <script>
     var currentStatus = 'all';
     window.dianTable = null; // Definir globalmente para dian-audit.js
-    window.auditBaseUrl = "{{ route('auditoria.dian') }}";
+    window.auditBaseUrl = "{{ route('auditoria.dian.index') }}";
 
     $(document).ready(function() {
         $('[title]').tooltip(); // Inicializar tooltips de Bootstrap
