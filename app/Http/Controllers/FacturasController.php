@@ -1903,27 +1903,30 @@ class FacturasController extends Controller{
         $codigoEditado = $request->codigo_editado;
 
         // Si hay un código editado, validarlo y usarlo
-        if ($codigoEditado && !empty($codigoEditado)) {
-            // Validar que el código no exista
-            $existe = Factura::where('numeracion', $nro->id)
-                ->where('codigo', $codigoEditado)
-                ->exists();
+      if ($codigoEditado && !empty($codigoEditado)) {
+          // Validar que el código no exista EN ESTA EMPRESA
+          $existe = Factura::where('empresa', $user->empresa)
+              ->where('codigo', $codigoEditado)
+              ->exists();
 
-            if ($existe) {
-                $mensaje = 'El código editado ya existe en otra factura.';
-                return redirect()->back()->with('error', $mensaje)->withInput();
-            }
+          if ($existe) {
+              $mensaje = 'El código editado ya existe en otra factura de su empresa.';
+              return redirect()->back()->with('error', $mensaje)->withInput();
+          }
 
-            $codigoFinal = $codigoEditado;
-        } else {
-            // Validacion para que solo asigne numero consecutivo si no existe.
-            while (Factura::where('codigo',$nro->prefijo.$inicio)->first()) {
-                $nro->save();
-                $inicio=$nro->inicio;
-                $nro->inicio += 1;
-            }
-            $codigoFinal = $nro->prefijo.$inicio;
-        }
+          $codigoFinal = $codigoEditado;
+      } else {
+          // Validacion MUY ESTRICTA: Autoincrementar si el código ya existe para la empresa
+          // Esto evita colisiones con el UNIQUE INDEX de MySQL
+          while (Factura::where('empresa', $user->empresa)->where('codigo', $nro->prefijo.$inicio)->exists()) {
+              $inicio++; // Sumar al temporal
+              
+              // Guardar el nuevo inicio en la resolución
+              $nro->inicio = $inicio;
+              $nro->save();
+          }
+          $codigoFinal = $nro->prefijo.$inicio;
+      }
 
         if($request->nro_remision){
             DB::table('remisiones')->where('nro', $request->nro_remision)->update(['estatus' => 3]);
@@ -2293,6 +2296,26 @@ class FacturasController extends Controller{
 
                 // Calcular total anterior para comparar con OnePay
                 $totalAnterior = $factura->totalAPI($user->empresa)->total;
+
+                // Validación Anti-Duplicidad y Bloqueo DIAN
+                if ($request->has('codigo') && $request->codigo != $factura->codigo) {
+                    // 1. Validar si ya tuvo intento en la DIAN
+                    if ($factura->emitida == 1 || $factura->uuid != null || $factura->dian_response != null) {
+                        return back()->with('error', 'No se puede modificar el código de esta factura porque ya tiene un registro de emisión o intento de envío a la DIAN.');
+                    }
+
+                    // 2. Validar que el nuevo código no exista ya en la empresa
+                    $existeCodigo = Factura::where('empresa', $user->empresa)
+                        ->where('codigo', $request->codigo)
+                        ->where('id', '!=', $id)
+                        ->exists();
+
+                    if ($existeCodigo) {
+                        return back()->with('error', 'El código de factura ' . $request->codigo . ' ya está en uso por otra factura. Intente con otro número.');
+                    }
+
+                    $factura->codigo = $request->codigo;
+                }
 
                 //Modificacion de los datos de la factura
                 $factura->notas =$request->notas;

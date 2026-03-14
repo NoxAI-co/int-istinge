@@ -596,18 +596,52 @@ class CronDianController extends Controller
                     }
                 }
 
-                // ── 6e: Actualizar detalle ──
-                DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
-                    'estado'            => 'emitida',
-                    'cufe'              => $cufe,
-                    'intento'           => $intentos,
-                    'mensaje'           => $mensajeDetalle,
-                    'tiempo_respuesta_ms' => $tiempoMs,
-                    'updated_at'        => Carbon::now(),
-                ]);
+                try {
+                    // Instanciar BTW para enviar el correo
+                    $btwService = new BTWService();
+                    $mensajeCorreo = '';
+                    
+                    if($modoBTW == 'prod'){
+                        $mensajeCorreo = \App\Http\Controllers\Controller::sendPdfEmailBTW(
+                            $btwService, 
+                            $factura, 
+                            $factura->clienteObj, 
+                            $empresa, 
+                            1
+                        );
+                    }
 
-                $totalEmitidas++;
-                $this->dianLog->info("EMITIDA: id={$factura->id}, codigo={$factura->codigo}, cufe={$cufe}, tiempo={$tiempoMs}ms");
+                    // ── 6e: Actualizar detalle con resultado correo ──
+                    $mensajeFinal = $mensajeDetalle;
+                    if ($mensajeCorreo != '') {
+                        $mensajeFinal .= " | Correo: " . $mensajeCorreo;
+                    }
+
+                    DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
+                        'estado'            => 'emitida',
+                        'cufe'              => $cufe,
+                        'intento'           => $intentos,
+                        'mensaje'           => $mensajeFinal,
+                        'tiempo_respuesta_ms' => $tiempoMs,
+                        'updated_at'        => Carbon::now(),
+                    ]);
+
+                    $totalEmitidas++;
+                    $this->dianLog->info("EMITIDA: id={$factura->id}, codigo={$factura->codigo}, cufe={$cufe}, tiempo={$tiempoMs}ms, correo={$mensajeCorreo}");
+                } catch (\Exception $e) {
+                    // Si falla el envío de correo o la actualización del detalle
+                    // Aseguramos que el estado de emisión no se pierda en el log final
+                    DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
+                        'estado'            => 'emitida',
+                        'cufe'              => $cufe,
+                        'intento'           => $intentos,
+                        'mensaje'           => $mensajeDetalle . " | Error en envío de correo: " . $e->getMessage(),
+                        'tiempo_respuesta_ms' => $tiempoMs,
+                        'updated_at'        => Carbon::now(),
+                    ]);
+                    $totalEmitidas++;
+                    $this->dianLog->error("EMITIDA pero error en Correo: id={$factura->id}: {$e->getMessage()}");
+                }
             } else {
                 // ── 6f: Fallida ──
                 DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
