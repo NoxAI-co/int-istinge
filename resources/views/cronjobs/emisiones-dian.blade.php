@@ -211,7 +211,13 @@
             <p class="mb-0 opacity-75">Gestión y monitoreo del proceso de facturación electrónica en tiempo real</p>
         </div>
         <div class="d-flex align-items-center">
-            <button id="btn-refresh" class="btn btn-outline-light border-0 mr-3" style="border-radius: 12px; padding: 10px 15px;">
+            <div class="bg-white p-2 rounded-pill mr-3 d-flex align-items-center shadow-sm px-3">
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="switch-emision" {{ $empresa->emision_automatica ? 'checked' : '' }}>
+                    <label class="custom-control-label text-dark font-weight-bold" for="switch-emision" style="cursor: pointer;">Emisión Automática</label>
+                </div>
+            </div>
+            <button id="btn-refresh" class="btn btn-outline-light border-0 mr-2" style="border-radius: 12px; padding: 10px 15px;">
                 <i class="fas fa-sync-alt"></i>
             </button>
             <button id="btn-ejecutar" class="btn btn-premium btn-premium-success shadow-none">
@@ -587,11 +593,16 @@ $(function() {
             if (!pollingInterval) pollingInterval = setInterval(fetchEstado, 4000);
         } else {
             $('#estado-spinner').addClass('d-none');
+            
+            // Sincronizar switch de emisión
+            if (data.emision_automatica != undefined) {
+                $('#switch-emision').prop('checked', data.emision_automatica == 1);
+            }
 
             if (data.emision_automatica == 0) {
                 $('#estado-msg').attr('class', 'alert alert-warning border-left-warning shadow-sm p-3 mb-0');
-                $('#estado-texto').html('<i class="fas fa-exclamation-triangle mr-1"></i> <strong>Aviso:</strong> La emisión automática está desactivada en la configuración general. Los ciclos automáticos no se ejecutarán.');
-                $('#console-status-text').text('INACTIVO');
+                $('#estado-texto').html('<i class="fas fa-exclamation-triangle mr-2"></i> <strong>Emisión Automática Desactivada:</strong> El sistema no procesará facturas automáticamente hasta que habilites la opción.');
+                $('#console-status-text').text('DESACTIVADO');
             } else if (data.ultima_ejecucion) {
                 var ue = data.ultima_ejecucion;
                 var cls = ue.estado === 'completado' ? 'alert-success border-left-success' : (ue.estado === 'error' ? 'alert-danger border-left-danger' : 'alert-warning border-left-warning');
@@ -603,7 +614,12 @@ $(function() {
                 $('#estado-texto').html('Sistema listo. No hay ejecuciones activas.');
             }
             $('#progreso-section').fadeOut();
-            if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+            
+            // Si no hay ejecución activa, bajar la frecuencia del polling
+            if (pollingInterval) { 
+                clearInterval(pollingInterval); 
+                pollingInterval = setInterval(fetchEstado, 15000); 
+            }
         }
 
         $('#pendientes-header').text(data.pendientes_total);
@@ -656,8 +672,20 @@ $(function() {
                     url: baseUrl + 'api/cron-dian/ejecutar-manual',
                     type: 'POST',
                     headers: { 'X-CSRF-TOKEN': csrfToken },
-                    success: function() { fetchEstado(); dtHistorial.ajax.reload(); },
-                    error: function() { Swal.fire('Error', 'No se pudo iniciar.', 'error'); },
+                    success: function(res) { 
+                        if (res.status == 'inactivo') {
+                            Swal.fire({
+                                title: 'Emisión Desactivada',
+                                text: 'La opción de emisión automática está desactivada. Por favor actívala en el panel superior para poder procesar facturas.',
+                                icon: 'warning',
+                                confirmButtonColor: '#667eea'
+                            });
+                        } else {
+                            fetchEstado(); 
+                            dtHistorial.ajax.reload(); 
+                        }
+                    },
+                    error: function() { Swal.fire('Error', 'No se pudo iniciar el proceso.', 'error'); },
                     complete: function() { $('#btn-ejecutar').prop('disabled', false).html('<i class="fas fa-rocket mr-1"></i> Ejecutar Ahora'); }
                 });
             }
@@ -742,8 +770,43 @@ $(function() {
         return new Date(str).toLocaleString();
     }
 
+    // ─── Toggle Emisión Automática ───
+    $('#switch-emision').on('change', function() {
+        var status = $(this).is(':checked') ? 1 : 0;
+        var label = $(this).next('label');
+        
+        $.ajax({
+            url: baseUrl + 'api/cron-dian/toggle-emision',
+            type: 'POST',
+            data: { status: status },
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            success: function(res) {
+                if (res.status == 'ok') {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    Toast.fire({
+                        icon: 'success',
+                        title: res.mensaje
+                    });
+                    fetchEstado(); // Actualizar banners
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'No se pudo actualizar la configuración.', 'error');
+                // Revertir switch
+                $('#switch-emision').prop('checked', !status);
+            }
+        });
+    });
+
     $('#btn-refresh').on('click', function() { fetchEstado(); dtHistorial.ajax.reload(); });
-    fetchEstado(); setInterval(fetchEstado, 10000);
+    fetchEstado(); 
+    pollingInterval = setInterval(fetchEstado, 15000);
 });
 </script>
 @endsection
