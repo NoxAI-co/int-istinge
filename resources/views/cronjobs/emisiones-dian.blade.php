@@ -5,15 +5,20 @@
     /* Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
+    /* Premium Design System */
     :root {
-        --primary: #4e73df;
-        --success: #1cc88a;
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #2af598 0%, #009efd 100%);
+        --danger-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --warning-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        --primary: #667eea;
+        --success: #009efd;
         --info: #36b9cc;
         --warning: #f6c23e;
         --danger: #e74a3b;
         --dark: #2e3b4e;
         --glass: rgba(255, 255, 255, 0.9);
-        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        --glass-shadow: 0 10px 40px rgba(0,0,0,0.03);
     }
 
     body {
@@ -21,229 +26,290 @@
         background-color: #f8f9fc;
     }
 
-    /* Premium Cards */
-    .card-premium {
-        background: var(--glass);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 15px;
-        box-shadow: var(--glass-shadow);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        margin-bottom: 1.5rem;
-    }
-
-    .card-premium:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.2);
-    }
-
-    .card-title-premium {
-        font-weight: 700;
-        color: var(--dark);
-        letter-spacing: -0.5px;
-    }
-
-    /* KPI Section */
-    .kpi-card {
-        padding: 1.5rem;
-        border-radius: 15px;
+    /* Header System */
+    .audit-header {
+        background: var(--primary-gradient);
+        padding: 40px 30px;
+        margin: -20px -20px 30px -20px;
         color: white;
+        border-radius: 0 0 30px 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    /* Premium Cards */
+    .audit-card {
+        border: none;
+        border-radius: 15px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
         overflow: hidden;
+        margin-bottom: 25px;
+        background: white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    .audit-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+
+    .kpi-card {
+        padding: 25px;
         position: relative;
+        color: white;
+        min-height: 140px;
     }
 
-    .kpi-card i {
+    .kpi-card .icon {
         position: absolute;
-        right: -10px;
-        bottom: -10px;
-        font-size: 5rem;
-        opacity: 0.1;
-        transform: rotate(-15deg);
+        right: 20px;
+        bottom: 10px;
+        font-size: 3.5rem;
+        opacity: 0.2;
+        transition: transform 0.3s ease;
     }
 
-    .bg-gradient-primary { background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); }
-    .bg-gradient-success { background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%); }
-    .bg-gradient-danger { background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%); }
-    .bg-gradient-warning { background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%); }
+    .audit-card:hover .icon {
+        transform: scale(1.1) rotate(-10deg);
+    }
 
     .kpi-value {
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-bottom: 5px;
+        display: block;
         line-height: 1;
     }
 
     .kpi-label {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 500;
         text-transform: uppercase;
-        font-weight: 600;
-        opacity: 0.8;
+        letter-spacing: 1px;
+        opacity: 0.9;
+    }
+
+    .bg-gradient-blue { background: var(--primary-gradient); }
+    .bg-gradient-green { background: var(--success-gradient); }
+    .bg-gradient-red { background: var(--danger-gradient); }
+    .bg-gradient-gold { background: var(--warning-gradient); }
+
+    /* Containers */
+    .premium-container {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: var(--glass-shadow);
+        margin-bottom: 30px;
     }
 
     /* Progress Section */
     .progress-premium {
-        height: 35px;
+        height: 12px;
         border-radius: 50px;
-        background-color: #eaecf4;
-        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
-        overflow: hidden;
+        background-color: #f1f5f9;
+        margin-top: 10px;
     }
 
     .progress-bar-premium {
         border-radius: 50px;
-        font-weight: 700;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        background: var(--success-gradient);
+        box-shadow: 0 4px 10px rgba(0, 158, 253, 0.3);
         transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     /* Console Logger Style */
     .console-logger {
-        background: #1e1e1e;
-        color: #d4d4d4;
-        border-radius: 10px;
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        padding: 15px;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 12px;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        padding: 20px;
         max-height: 400px;
         overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
     }
 
     .console-line {
-        margin-bottom: 5px;
-        border-bottom: 1px solid #333;
-        padding-bottom: 5px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding-bottom: 8px;
         font-size: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
     }
 
-    .console-timestamp { color: #888; margin-right: 10px; }
-    .console-status { font-weight: bold; text-transform: uppercase; margin-right: 10px; }
-    .status-emitida { color: #4ec9b0; }
-    .status-fallida { color: #f44747; }
-    .status-pendiente { color: #ce9178; }
-    .status-omitida_numeracion { color: #dcdcaa; }
-
-    /* Badge Styles */
-    .badge-pill-custom {
-        padding: 0.4em 1em;
-        border-radius: 50px;
+    .console-timestamp { color: #94a3b8; margin-right: 12px; font-weight: 500; }
+    .console-status { font-weight: 700; text-transform: uppercase; margin-right: 12px; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+    .status-emitida { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .status-fallida { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-pendiente { background: rgba(234, 179, 8, 0.2); color: #fbbf24; }
+    
+    /* Buttons */
+    .btn-premium {
+        background: var(--primary-gradient);
+        border: none;
+        padding: 12px 25px;
+        border-radius: 12px;
         font-weight: 600;
-    }
-
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; }
-    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #aaa; }
-
-    /* Floating UI Elements */
-    .btn-floating {
-        border-radius: 50px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        color: white;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
 
-    .btn-floating:hover {
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    .btn-premium:hover {
+        transform: scale(1.05);
+        color: white;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
     }
+
+    .btn-premium-success {
+        background: var(--success-gradient);
+        box-shadow: 0 4px 15px rgba(42, 245, 152, 0.3);
+    }
+
+    .btn-premium-success:hover {
+        box-shadow: 0 6px 20px rgba(42, 245, 152, 0.5);
+    }
+
+    /* Table System */
+    .table-premium thead th {
+        background: #f8fafc;
+        border: none;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 1px;
+        padding: 15px;
+    }
+
+    .table-premium td {
+        vertical-align: middle;
+        padding: 18px 15px;
+        border-top: 1px solid #f1f5f9;
+        font-size: 0.9rem;
+    }
+
+    .badge-premium {
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+
 </style>
 
 <div class="container-fluid">
     {{-- ═══════════════════════════════════════════════════════════════
          PANEL DE CABECERA
          ═══════════════════════════════════════════════════════════════ --}}
-    <div class="row align-items-center mb-4">
-        <div class="col-md-7">
-            <h2 class="card-title-premium mb-1">Emisiones Automáticas DIAN</h2>
-            <p class="text-muted"><i class="fas fa-info-circle"></i> Gestiona y monitorea el proceso de facturación electrónica en tiempo real.</p>
+    <!-- Premium Header -->
+    <div class="audit-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="font-weight-bold mb-1">Emisiones Automáticas DIAN</h1>
+            <p class="mb-0 opacity-75">Gestión y monitoreo del proceso de facturación electrónica en tiempo real</p>
         </div>
-        <div class="col-md-5 text-right">
-            <button id="btn-ejecutar" class="btn btn-success btn-floating mr-2">
-                <i class="fas fa-rocket mr-1"></i> Ejecutar Ahora
+        <div class="d-flex align-items-center">
+            <button id="btn-refresh" class="btn btn-outline-light border-0 mr-3" style="border-radius: 12px; padding: 10px 15px;">
+                <i class="fas fa-sync-alt"></i>
             </button>
-            <button id="btn-refresh" class="btn btn-white btn-floating border">
-                <i class="fas fa-sync-alt mr-1"></i> Sincronizar
+            <button id="btn-ejecutar" class="btn btn-premium btn-premium-success shadow-none">
+                <i class="fas fa-rocket mr-2"></i> Ejecutar Ahora
             </button>
         </div>
     </div>
 
     {{-- Info Empresa & Numeración --}}
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card card-premium bg-white">
-                <div class="card-body p-4">
-                    <div class="row text-center text-md-left">
-                        <div class="col-md-3 border-right mb-3 mb-md-0">
-                            <h6 class="text-muted font-weight-bold mb-2">EMPRESA</h6>
-                            <h5 class="mb-1 text-truncate" title="{{ $empresa->nombre ?? 'N/A' }}">{{ $empresa->nombre ?? 'N/A' }}</h5>
-                            <small class="text-primary font-weight-bold">NIT: {{ $empresa->nit ?? 'N/A' }}</small>
-                        </div>
-                        <div class="col-md-3 border-right mb-3 mb-md-0">
-                            <h6 class="text-muted font-weight-bold mb-2">RESOLUCIÓN</h6>
-                            <h5 class="mb-1">{{ $numeracion->nombre ?? ($numeracion->prefijo ?? 'Sin activa') }}</h5>
-                            <small class="text-muted">Rango: {{ $numeracion->inicioverdadero ?? $numeracion->inicio }} - {{ $numeracion->final }}</small>
-                        </div>
-                        <div class="col-md-2 border-right mb-3 mb-md-0">
-                            <h6 class="text-muted font-weight-bold mb-2">VIGENCIA</h6>
-                            @if($numeracion && $numeracion->desde && $numeracion->hasta)
-                                <h5 class="mb-1">{{ date('d M, Y', strtotime($numeracion->hasta)) }}</h5>
-                                <small class="text-muted">Expira en {{ \Carbon\Carbon::parse($numeracion->hasta)->diffForHumans() }}</small>
-                            @else
-                                <h5 class="mb-1 text-danger">No configurada</h5>
-                            @endif
-                        </div>
-                        <div class="col-md-2 border-right mb-3 mb-md-0">
-                            <h6 class="text-muted font-weight-bold mb-2">EMITIR DESDE</h6>
-                            <input type="date" id="fecha_inicio_emision_dian" class="form-control form-control-sm border-0 bg-light rounded shadow-none w-100" value="{{ $empresa->fecha_inicio_emision_dian }}" title="Solo se emitirán facturas de esta fecha en adelante" style="max-width: 140px; margin: 0 auto 0 0;">
-                            <small class="text-muted d-block mt-1" id="save-date-feedback" style="min-height: 18px;"></small>
-                        </div>
-                        <div class="col-md-2 text-center">
-                            <h6 class="text-muted font-weight-bold mb-2">PENDIENTES</h6>
-                            <h2 class="text-warning font-weight-bold mb-0" id="pendientes-header">{{ $pendientes }}</h2>
-                            <small class="text-muted">Facturas tipo=2</small>
-                        </div>
+    <div class="premium-container" style="margin-top: -30px; position: relative; z-index: 10;">
+        <div class="row text-center text-md-left align-items-center">
+            <div class="col-md-3 border-right mb-3 mb-md-0">
+                <div class="d-flex align-items-center justify-content-center justify-content-md-start">
+                    <div class="bg-light p-3 rounded-circle mr-3 text-primary"><i class="fas fa-building fa-lg"></i></div>
+                    <div>
+                        <h6 class="text-muted font-weight-bold mb-0 small uppercase">Empresa</h6>
+                        <h5 class="mb-0 text-truncate font-weight-bold" style="max-width: 180px;">{{ $empresa->nombre ?? 'N/A' }}</h5>
+                        <small class="text-primary font-weight-bold">NIT: {{ $empresa->nit ?? 'N/A' }}</small>
                     </div>
+                </div>
+            </div>
+            <div class="col-md-3 border-right mb-3 mb-md-0">
+                <div class="d-flex align-items-center justify-content-center justify-content-md-start">
+                    <div class="bg-light p-3 rounded-circle mr-3 text-info"><i class="fas fa-file-invoice-dollar fa-lg"></i></div>
+                    <div>
+                        <h6 class="text-muted font-weight-bold mb-0 small uppercase">Resolución</h6>
+                        <h5 class="mb-0 font-weight-bold">{{ $numeracion->nombre ?? ($numeracion->prefijo ?? 'Sin activa') }}</h5>
+                        <small class="text-muted">Rango: {{ $numeracion->inicioverdadero ?? $numeracion->inicio }} - {{ $numeracion->final }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 border-right mb-3 mb-md-0 text-center">
+                <h6 class="text-muted font-weight-bold mb-1 small uppercase">Emitir Desde</h6>
+                <div class="d-inline-block position-relative">
+                    <input type="date" id="fecha_inicio_emision_dian" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 py-1 shadow-none font-weight-bold" value="{{ $empresa->fecha_inicio_emision_dian }}" style="width: auto;">
+                    <div id="save-date-feedback" class="position-absolute w-100 text-center" style="bottom: -20px; font-size: 0.7rem;"></div>
+                </div>
+            </div>
+            <div class="col-md-2 border-right mb-3 mb-md-0 text-center">
+                <h6 class="text-muted font-weight-bold mb-1 small uppercase">Vigencia</h6>
+                @if($numeracion && $numeracion->hasta)
+                    <h5 class="mb-0 font-weight-bold">{{ date('d M, Y', strtotime($numeracion->hasta)) }}</h5>
+                    <small class="text-muted">{{ \Carbon\Carbon::parse($numeracion->hasta)->diffForHumans() }}</small>
+                @else
+                    <h5 class="mb-0 text-danger font-weight-bold">No definida</h5>
+                @endif
+            </div>
+            <div class="col-md-2 text-center">
+                <h6 class="text-muted font-weight-bold mb-0 small uppercase">Pendientes</h6>
+                <h2 class="text-warning font-weight-bold mb-0" id="pendientes-header" style="font-size: 2.5rem;">{{ $pendientes }}</h2>
+                <small class="text-muted font-weight-bold uppercase" style="font-size: 0.65rem;">Facturas Tipo 2</small>
+            </div>
+        </div>
+    </div>
+
+
+    {{-- ═══════════════════════════════════════════════════════════════
+         ESTADO Y KPIs
+         ═══════════════════════════════════════════════════════════════ --}}
+    <div class="row" id="kpi-section" style="display:none;">
+        <div class="col-lg-3 col-md-6">
+            <div class="audit-card bg-gradient-blue">
+                <div class="kpi-card">
+                    <span class="kpi-label">Lote Total</span>
+                    <span class="kpi-value" id="kpi-total">0</span>
+                    <div class="icon"><i class="fas fa-boxes"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="audit-card bg-gradient-green">
+                <div class="kpi-card">
+                    <span class="kpi-label">Exitosas</span>
+                    <span class="kpi-value" id="kpi-emitidas">0</span>
+                    <div class="icon"><i class="fas fa-check-double"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="audit-card bg-gradient-red">
+                <div class="kpi-card">
+                    <span class="kpi-label">Fallidas</span>
+                    <span class="kpi-value" id="kpi-fallidas">0</span>
+                    <div class="icon"><i class="fas fa-times-circle"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="audit-card bg-gradient-gold">
+                <div class="kpi-card">
+                    <span class="kpi-label">Alertas</span>
+                    <span class="kpi-value" id="kpi-alertas">0</span>
+                    <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- ═══════════════════════════════════════════════════════════════
-         ESTADO Y KPIs
-         ═══════════════════════════════════════════════════════════════ --}}
-    <div class="row mb-3" id="kpi-section" style="display:none;">
-        <div class="col-md-3 mb-3">
-            <div class="card kpi-card bg-gradient-primary shadow">
-                <div class="kpi-label">Lote Total</div>
-                <div class="kpi-value" id="kpi-total">0</div>
-                <i class="fas fa-boxes"></i>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card kpi-card bg-gradient-success shadow">
-                <div class="kpi-label">Exitosas</div>
-                <div class="kpi-value" id="kpi-emitidas">0</div>
-                <i class="fas fa-check-double"></i>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card kpi-card bg-gradient-danger shadow">
-                <div class="kpi-label">Fallidas</div>
-                <div class="kpi-value" id="kpi-fallidas">0</div>
-                <i class="fas fa-times-circle"></i>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card kpi-card bg-gradient-warning shadow">
-                <div class="kpi-label">Alertas</div>
-                <div class="kpi-value" id="kpi-alertas">0</div>
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-        </div>
-    </div>
 
     {{-- Estado de ejecución alerta interactiva --}}
     <div class="row mb-4" id="estado-ejecucion-container">
@@ -258,21 +324,18 @@
     {{-- Barra de Progreso --}}
     <div class="row mb-4" id="progreso-section" style="display:none;">
         <div class="col-md-12">
-            <div class="card card-premium">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="card-title-premium mb-0"><i class="fas fa-sync fa-spin mr-2"></i> PROGRESO DE EMISIÓN</h6>
-                        <span id="progress-percentage-label" class="badge badge-success">0%</span>
-                    </div>
-                    <div class="progress progress-premium">
-                        <div class="progress-bar progress-bar-premium bg-success progress-bar-striped progress-bar-animated"
-                             id="progress-bar" role="progressbar" style="width: 0%">
-                        </div>
-                    </div>
+            <div class="premium-container py-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="font-weight-bold mb-0 text-dark uppercase small"><i class="fas fa-spinner fa-spin mr-2 text-primary"></i> Progreso de Emisión en Lote</h6>
+                    <span id="progress-percentage-label" class="badge-premium bg-gradient-green text-white">0%</span>
+                </div>
+                <div class="progress progress-premium">
+                    <div class="progress-bar progress-bar-premium" id="progress-bar" role="progressbar" style="width: 0%"></div>
                 </div>
             </div>
         </div>
     </div>
+
 
     {{-- ═══════════════════════════════════════════════════════════════
          ALERTAS Y CONSOLA (2 COLUMNAS)
@@ -280,14 +343,15 @@
     <div class="row mb-4">
         {{-- Consola en tiempo real --}}
         <div class="col-lg-8 mb-3" id="detalle-section" style="display:none;">
-            <div class="card card-premium h-100">
-                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-terminal mr-1"></i> MONITOR EN VIVO</h6>
-                    <small class="text-muted" id="console-status-text">ESPERANDO...</small>
+            <div class="premium-container h-100 mb-0">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="font-weight-bold text-dark m-0"><i class="fas fa-terminal mr-2 text-primary"></i> Monitor de Eventos</h6>
+                    <span class="badge badge-premium bg-light text-primary" id="console-status-text">ESPERANDO</span>
                 </div>
-                <div class="card-body pt-0">
-                    <div class="console-logger" id="detalle-tbody">
-                        <div class="console-line">Ready to monitor...</div>
+                <div class="console-logger" id="detalle-tbody">
+                    <div class="console-line">
+                        <span class="console-timestamp">[{{ date('H:i:s') }}]</span>
+                        <span>Listo para monitorear...</span>
                     </div>
                 </div>
             </div>
@@ -295,63 +359,54 @@
 
         {{-- Alertas de Numeración --}}
         <div class="col-lg-4 mb-3" id="alertas-section" style="display:none;">
-            <div class="card card-premium border-left-warning h-100">
-                <div class="card-header bg-transparent border-0">
-                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-bell mr-1"></i> ALERTAS DE RESOLUCIÓN</h6>
+            <div class="premium-container border-left border-warning h-100 mb-0">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="font-weight-bold text-warning m-0"><i class="fas fa-bell mr-2"></i> Alertas de Resolución</h6>
+                    <i class="fas fa-exclamation-circle text-warning opacity-50"></i>
                 </div>
-                <div class="card-body pt-0">
-                    <div id="alertas-container">
-                        {{-- Inyectado dinámicamente --}}
-                    </div>
+                <div id="alertas-container">
+                    {{-- Inyectado dinámicamente --}}
                 </div>
             </div>
         </div>
     </div>
+
 
     {{-- ═══════════════════════════════════════════════════════════════
          HISTORIAL DE EJECUCIONES (DataTables)
          ═══════════════════════════════════════════════════════════════ --}}
     <div class="row mb-5">
         <div class="col-md-12">
-            <div class="card card-premium shadow">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <h5 class="m-0 font-weight-bold text-dark"><i class="fas fa-history mr-2"></i> Historial de Ciclos</h5>
-                        </div>
-                        <div class="col text-right">
-                             <div class="form-row justify-content-end">
-                                <div class="col-auto">
-                                    <select id="filtro-estado" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 shadow-none">
-                                        <option value="">Todos los estados</option>
-                                        <option value="completado">Completados</option>
-                                        <option value="parcial">Parciales</option>
-                                        <option value="error">Errores</option>
-                                    </select>
-                                </div>
-                                <div class="col-auto">
-                                    <input type="date" id="filtro-desde" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 shadow-none">
-                                </div>
-                             </div>
-                        </div>
+            <div class="premium-container" style="padding: 0; overflow: hidden;">
+                <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="m-0 font-weight-bold text-dark"><i class="fas fa-history mr-2 text-primary"></i> Historial de Ciclos de Emisión</h5>
+                        <p class="text-muted small mb-0">Trazabilidad completa de las ejecuciones automáticas y manuales</p>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <select id="filtro-estado" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 mr-2 shadow-none" style="height: 38px;">
+                            <option value="">Filtro: Todos</option>
+                            <option value="completado">Completados</option>
+                            <option value="parcial">Parciales</option>
+                            <option value="error">Errores</option>
+                        </select>
+                        <input type="date" id="filtro-desde" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 shadow-none" style="height: 38px;">
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-custom" id="table-historial" style="width:100%">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>FECHA Y HORA</th>
-                                    <th>DURACIÓN</th>
-                                    <th>ESTADO</th>
-                                    <th>METRICAS</th>
-                                    <th>ORIGEN</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-premium" id="table-historial" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>ID Ciclo</th>
+                                <th>Fecha y Hora</th>
+                                <th>Duración</th>
+                                <th>Estado</th>
+                                <th>Progreso</th>
+                                <th>Origen</th>
+                                <th class="text-right">Acción</th>
+                            </tr>
+                        </thead>
+                    </table>
                 </div>
             </div>
         </div>
@@ -451,16 +506,16 @@ $(function() {
             { data: 'id', name: 'id', orderable: false, render: function(d, t, row) {
                 var total = row.total_a_emitir || 1;
                 var perc = (row.total_emitidas / total * 100).toFixed(0);
-                return '<div class="progress" style="height: 5px; width: 80px; margin-bottom: 2px;">'+
-                        '<div class="progress-bar bg-success" style="width:'+ perc +'%"></div>'+
+                return '<div class="progress" style="height: 6px; width: 100px; margin-bottom: 4px; border-radius: 10px; background: #f1f5f9;">'+
+                        '<div class="progress-bar bg-success" style="width:'+ perc +'%; border-radius: 10px; background: var(--success-gradient) !important;"></div>'+
                        '</div>'+
-                       '<small class="text-muted">' + row.total_emitidas + '/' + row.total_a_emitir + '</small>';
+                       '<small class="text-muted font-weight-bold">' + row.total_emitidas + ' de ' + row.total_a_emitir + '</small>';
             }},
             { data: 'creado_por', name: 'creado_por', render: function(d) {
-                return d === 'manual' ? '<span class="badge badge-light border text-info"><i class="fas fa-user-edit mr-1"></i>MAN</span>' : '<span class="badge badge-light border text-muted"><i class="fas fa-robot mr-1"></i>AUTO</span>';
+                return d === 'manual' ? '<span class="badge-premium bg-light text-primary border"><i class="fas fa-user-edit mr-1"></i>Manual</span>' : '<span class="badge-premium bg-light text-muted border"><i class="fas fa-robot mr-1"></i>Auto</span>';
             }},
             { data: 'id', orderable: false, searchable: false, render: function(d) {
-                return '<button class="btn btn-sm btn-link text-primary btn-ver-detalle" data-id="'+d+'"><i class="fas fa-chevron-right fa-lg"></i></button>';
+                return '<button class="btn btn-sm btn-outline-primary btn-ver-detalle border-0" style="border-radius: 10px;" data-id="'+d+'"><i class="fas fa-eye fa-lg"></i></button>';
             }}
         ],
         order: [[0, 'desc']],
@@ -660,8 +715,15 @@ $(function() {
     });
 
     function badgeEstado(estado) {
-        var cls = { completado: 'success', parcial: 'warning', error: 'danger', ejecutando: 'info', emitida: 'success', fallida: 'danger' };
-        return '<span class="badge badge-pill badge-pill-custom badge-'+(cls[estado]||'secondary')+'">'+estado.toUpperCase()+'</span>';
+        var cls = { 
+            completado: 'bg-gradient-green text-white', 
+            parcial: 'bg-gradient-gold text-white', 
+            error: 'bg-gradient-red text-white', 
+            ejecutando: 'bg-gradient-blue text-white', 
+            emitida: 'bg-gradient-green text-white', 
+            fallida: 'bg-gradient-red text-white' 
+        };
+        return '<span class="badge-premium '+(cls[estado]||'bg-light text-dark border')+'">'+estado.toUpperCase()+'</span>';
     }
 
     function formatFecha(str) {
