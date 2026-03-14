@@ -421,7 +421,7 @@
 
 {{-- MODAL DETALLE PREMIUM --}}
 <div class="modal fade" id="modalDetalle" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-dialog modal-xl" style="max-width: 90%;" role="document">
         <div class="modal-content shadow-lg border-0 rounded-lg">
             <div class="modal-header bg-dark text-white border-0">
                 <h5 class="modal-title font-weight-bold">

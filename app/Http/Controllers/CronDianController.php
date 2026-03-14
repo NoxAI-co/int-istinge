@@ -378,10 +378,10 @@ class CronDianController extends Controller
             }
         }
 
-        // 4D-E: Verificar rango
+        // 4D-E: Verificar rango usando 'codigo' de la factura
         $maxNroEmitido = Factura::where('numeracion', $numeracion->id)
             ->where('emitida', 1)
-            ->max('nro');
+            ->max('codigo');
 
         $rangoSuperado = false;
         if ($maxNroEmitido && $maxNroEmitido >= $numeracion->final) {
@@ -509,13 +509,13 @@ class CronDianController extends Controller
                     continue;
                 }
 
-                // ── 5c: Verificar que nro no supere el final ──
-                if ($factura->nro && $numFactura->final && $factura->nro > $numFactura->final) {
+                // ── 5c: Verificar que el código no supere el final de la resolución ──
+                if ($factura->codigo && $numFactura->final && $factura->codigo > $numFactura->final) {
                     $this->registrarAlertaNumeracion(
                         1,
                         $numFactura->id,
                         'rango_superado',
-                        $factura->nro,
+                        $factura->codigo,
                         $numFactura->final,
                         1
                     );
