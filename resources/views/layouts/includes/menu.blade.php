@@ -633,7 +633,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
                 <a class="nav-link" href="{{ route('morosos.index') }}">Morosos</a>
             </li>
             <li class="nav-item" id="deshabilitados">
-                <a class="nav-link" href="{{ route('deshabilitados.index') }}">Deshabilitados Y Navegando</a>
+                <a class="nav-link" href="{{ route('deshabilitados.index') }}">Disabled y Navegando</a>
             </li>
         </ul>
     </div>
