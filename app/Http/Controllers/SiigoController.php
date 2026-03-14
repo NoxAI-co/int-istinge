@@ -498,40 +498,56 @@ class SiigoController extends Controller
     
             $draft = ($empresa->siigo_emitida == 1) ? false : true;
     
+            $nombreArr = (function($c) {
+                if ($c->dv) return [$c->nombre];
+                $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
+                if (count($nArr) < 2) {
+                    $f = \App\Contacto::where('nit', $c->nit)->first();
+                    if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
+                }
+                return $nArr;
+            })($cliente_factura);
+
+            $customerData = [
+                "person_type"    => $cliente_factura->dv ? "Company" : "Person",
+                "id_type"        => $cliente_factura->dv ? "31" : "13",
+                "identification" => $cliente_factura->nit,
+                "branch_office"  => "0",
+                "name"           => $nombreArr,
+                "address" => [
+                    "address" => $cliente_factura->direccion ?: "Sin dirección",
+                    "city" => [
+                        "country_code" => "CO",
+                        "country_name" => "Colombia",
+                        "state_code"   => $departamento->codigo,
+                        "state_name"   => $departamento->nombre,
+                        "city_code"    => $municipio->codigo_completo,
+                        "city_name"    => $municipio->nombre
+                    ]
+                ],
+                "contacts" => [
+                    [
+                        "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
+                        "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
+                        "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
+                    ]
+                ]
+            ];
+
+            $celular = !empty($cliente_factura->celular) ? $cliente_factura->celular : (!empty($cliente_factura->telefono1) ? $cliente_factura->telefono1 : null);
+            if ($celular) {
+                $customerData["phones"] = [
+                    ["number" => $celular]
+                ];
+            }
+
             $data = [
                 "document" => ["id" => $request->tipo_comprobante],
                 "date"     => $factura->fecha,
                 "draft"    => $draft,
-    
-                "customer" => [
-                    "person_type"    => $cliente_factura->dv ? "Company" : "Person",
-                    "id_type"        => $cliente_factura->dv ? "31" : "13",
-                    "identification" => $cliente_factura->nit,
-                    "branch_office"  => "0",
-                    "name"           => (function($c) {
-                        if ($c->dv) return [$c->nombre];
-                        $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
-                        if (count($nArr) < 2) {
-                            $f = \App\Contacto::where('nit', $c->nit)->first();
-                            if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
-                        }
-                        return $nArr;
-                    })($cliente_factura),
-                    "address" => [
-                        "address" => $cliente_factura->direccion,
-                        "city" => [
-                            "country_code" => "CO",
-                            "country_name" => "Colombia",
-                            "state_code"   => $departamento->codigo,
-                            "state_name"   => $departamento->nombre,
-                            "city_code"    => $municipio->codigo_completo,
-                            "city_name"    => $municipio->nombre
-                        ]
-                    ]
-                ],
-    
-                "seller" => $request->usuario,
-                "items"  => $array_items_factura,
+                "customer" => $customerData,
+                "seller"   => $request->usuario,
+                "items"    => $array_items_factura,
     
                 "payments" => [
                     [
