@@ -429,7 +429,7 @@
 $(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');
     var pollingInterval = null;
-    var baseUrl = window.location.origin + '/empresa/';
+    var baseUrl = '{{ url('/empresa') }}/';
 
     // ─── DataTable Historial ───
     var dtHistorial = $('#table-historial').DataTable({
