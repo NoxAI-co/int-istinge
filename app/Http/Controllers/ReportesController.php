@@ -2639,7 +2639,6 @@ class ReportesController extends Controller
     public function facturasElectronicas(Request $request)
     {
         $this->getAllPermissions(Auth::user()->id);
-        DB::enableQueryLog();
         view()->share(['seccion' => 'reportes', 'title' => 'Reporte de Facturas Electrónicas', 'icon' =>'fas fa-chart-line']);
 
         $campos = ['', 'nombrecliente', 'factura.fecha', 'factura.vencimiento', 'nro', 'nro', 'nro', 'nro'];
@@ -2651,16 +2650,22 @@ class ReportesController extends Controller
         $orderby = $campos[$request->orderby];
         $order = $request->order == 1 ? 'DESC' : 'ASC';
 
-        // ✅ Se agrega el join con barrios y la columna del nombre del barrio
         $facturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
             ->leftJoin('barrios as b', 'c.barrio_id', '=', 'b.id')
+            ->leftJoin('municipios as m', 'c.fk_idmunicipio', '=', 'm.id')
             ->select(
                 'factura.id',
                 'factura.codigo',
                 'factura.nro',
                 'factura.cot_nro',
                 DB::raw('c.nombre as nombrecliente'),
-                DB::raw('IFNULL(b.nombre, "") as barrio'), // <-- Aquí añadimos el nombre del barrio
+                DB::raw('c.apellido1 as ape1cliente'),
+                DB::raw('c.apellido2 as ape2cliente'),
+                DB::raw('c.nit as nitcliente'),
+                DB::raw('c.estrato as estratocliente'),
+                DB::raw('c.celular as celularcliente'),
+                DB::raw('IFNULL(m.nombre, "") as municipio'),
+                DB::raw('IFNULL(b.nombre, "") as barrio'),
                 'factura.cliente',
                 'factura.fecha',
                 'factura.vencimiento',
@@ -2670,10 +2675,12 @@ class ReportesController extends Controller
             )
             ->where('factura.tipo', 2)
             ->where('factura.empresa', Auth::user()->empresa)
-            ->where('emitida', $request->tipo)
             ->groupBy('factura.id');
 
-        $example = $facturas->get()->last();
+        // Soporte para "Ambas" (tipo == 2 significa ambas)
+        if ($request->tipo !== null && $request->tipo != 2) {
+            $facturas->where('emitida', $request->tipo);
+        }
 
         $dates = $this->setDateRequest($request);
 
@@ -2681,19 +2688,18 @@ class ReportesController extends Controller
             $facturas = $facturas->where('factura.fecha', '>=', $dates['inicio'])
                 ->where('factura.fecha', '<=', $dates['fin']);
         }
-        $ides = [];
+
         if ($request->forma_pago) {
             $facturas->join('ingresos_factura as ig', 'factura.id', '=', 'ig.factura')
                      ->join('ingresos as i', 'ig.ingreso', '=', 'i.id')
                      ->where('i.forma_pago', $request->forma_pago);
         }
 
-        $facturas=$facturas->OrderBy($orderby, $order)->get();
+        $facturas = $facturas->OrderBy($orderby, $order)->get();
 
-        foreach ($facturas as $factura) {
-            $ides[] = $factura->id;
-        }
+        $ides = $facturas->pluck('id')->toArray();
 
+        // Calcular totales por factura en batch
         foreach ($facturas as $invoice) {
             $invoice->subtotal = $invoice->total()->subsub;
             $invoice->iva = $invoice->impuestos_totales();
@@ -2730,6 +2736,7 @@ class ReportesController extends Controller
             $total = $this->precision((float)$subtotal + $result->impuesto);
         }
         $formasPago = FormaPago::where('relacion',1)->orWhere('relacion',2)->get();
+        $example = null;
         return view('reportes.facturasElectronicas.index')->with(compact('facturas', 'subtotal', 'total', 'request', 'example', 'formasPago'));
     }
 

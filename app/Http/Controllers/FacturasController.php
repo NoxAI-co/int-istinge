@@ -578,7 +578,6 @@ class FacturasController extends Controller{
                                 ->where('dian_response', 'like', '%409%')
                                 ->whereIn('estatus', [0, 2])
                                 ->where('statusdian', 1)
-                                ->where('dian_service', 0)
                                 ->where('emitida', 0)
                                 ->whereRaw('MONTH(fecha) = MONTH(CURDATE())')
                                 ->whereRaw('YEAR(fecha) = YEAR(CURDATE())')
@@ -954,7 +953,16 @@ class FacturasController extends Controller{
         ->addColumn('acciones', function ($factura) use ($empresa) {
             return view('facturas.acciones-facturas', compact('factura', 'empresa'));
         })
-        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento'])
+        ->editColumn('correo', function ($factura) {
+            if ($factura->correo == 1) {
+                return '<span class="badge badge-success">Si</span>';
+            } else if ($factura->correo == 400) {
+                return '<span class="badge badge-danger">Error envío</span>';
+            } else {
+                return '<span class="badge badge-secondary">No</span>';
+            }
+        })
+        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento', 'correo'])
         ->toJson();
     }
 
@@ -1573,7 +1581,16 @@ class FacturasController extends Controller{
         ->addColumn('acciones', function ($factura) use ($empresa) {
             return view('facturas.acciones-facturas', compact('factura', 'empresa'));
         })
-        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento'])
+        ->editColumn('correo', function ($factura) {
+            if ($factura->correo == 1) {
+                return '<span class="badge badge-success">Si</span>';
+            } else if ($factura->correo == 400) {
+                return '<span class="badge badge-danger">Error envío</span>';
+            } else {
+                return '<span class="badge badge-secondary">No</span>';
+            }
+        })
+        ->rawColumns(['codigo', 'cliente', 'nitcliente', 'estado', 'acciones', 'vencimiento', 'correo'])
         ->toJson();
     }
 
@@ -5937,12 +5954,27 @@ class FacturasController extends Controller{
             $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
             
             if ($wamid) {
+                $companyNit = $empresaObj->nit ?? \App\Empresa::find(1)->nit;
+                
+                $contractId = null;
+                $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                if ($facturaContrato) {
+                    $contract = \App\Contrato::where('nro', $facturaContrato->contrato_nro)->first();
+                    $contractId = $contract ? $contract->id : null;
+                }
+
                 $this->registerCentralizedBatch(
                     $instance->phone_number_id,
                     $phone,
                     $wamid,
                     $mensajeProcesado,
-                    $contacto->nombre . ' ' . $contacto->apellido1
+                    $contacto->nombre . ' ' . $contacto->apellido1,
+                    'template',
+                    'sent',
+                    $factura->id,
+                    $contractId,
+                    null,
+                    $companyNit
                 );
             }
 
@@ -7623,8 +7655,13 @@ class FacturasController extends Controller{
             $fecha_suspension = $sheet->getCell("E" . $row)->getFormattedValue();
             $saldo_inicial = trim($sheet->getCell("F" . $row)->getValue());
 
-            if (empty($tipo_factura) || empty($saldo_inicial) || $saldo_inicial == 0) {
-                $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial) o el saldo inicial es 0";
+            if (empty($tipo_factura) || $saldo_inicial === "" || $saldo_inicial === null) {
+                $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial)";
+                continue;
+            }
+
+            if ($saldo_inicial <= 0) {
+                $errores[] = "Fila $row: El saldo inicial ($saldo_inicial) debe ser mayor a 0. No se permiten saldos negativos o en cero.";
                 continue;
             }
 
@@ -7720,10 +7757,10 @@ class FacturasController extends Controller{
         }
 
         if (count($errores) > 0) {
-            return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales existosamente. Hubieron algunos errores.");
+            return redirect()->route('saldos_iniciales.importar')->withErrors($errores)->with('success', "Se han creado $creados facturas de saldos iniciales exitosamente. Sin embargo, hubo errores en algunas filas.");
         }
 
-        return redirect('empresa/factura-index')->with('success', "Se han importado $creados saldos iniciales existosamente!");
+        return redirect()->route('facturas.index')->with('success', "Se han importado $creados saldos iniciales exitosamente!");
     }
 
     /**

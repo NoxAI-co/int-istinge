@@ -416,6 +416,11 @@
                 <div class="mt-2 text-left small border-top pt-1 text-muted">
                     <div>Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['con_prorrateo'] ?? 0 }}</b></div>
                     <div>Sin Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['sin_prorrateo'] ?? 0 }}</b></div>
+                    @if(isset($cycleStats['total_contratos_ciclo']))
+                    <div class="border-top mt-1 pt-1" title="Contratos creados antes del fin del período y con contacto válido">
+                        <span class="text-secondary">En ciclo: </span><b>{{ $cycleStats['total_contratos_ciclo'] }}</b>
+                    </div>
+                    @endif
                 </div>
                 @endif
             </div>

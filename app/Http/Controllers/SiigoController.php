@@ -24,6 +24,20 @@ class SiigoController extends Controller
      * @param bool $returnArray Si debe retornar como array (true) o objeto (false)
      * @return mixed Respuesta de la API
      */
+    private function parseName($fullName)
+    {
+        $parts = explode(' ', trim($fullName));
+        $parts = array_values(array_filter($parts));
+        
+        if (count($parts) > 2) {
+            $firstName = array_shift($parts);
+            $lastName = implode(' ', $parts);
+            return [$firstName, $lastName];
+        }
+        
+        return (count($parts) > 0) ? $parts : [$fullName];
+    }
+
     private function executeSiigoRequest($curlOptions, $returnArray = false)
     {
         $curl = curl_init();
@@ -78,7 +92,7 @@ class SiigoController extends Controller
 
     public function configurarSiigo(Request $request = null, $cron = null)
     {
-        $empresa = Empresa::find(1);
+        $empresa = (Auth::check()) ? Auth::user()->empresa() : Empresa::find(1);
         $usuario_siigo = null;
         $api_key_siigo = null;
 
@@ -88,18 +102,26 @@ class SiigoController extends Controller
             // No hacer nada aquí, el código del else if se encargará
         } else {
             // Si viene desde la ruta web, obtener el Request usando el helper
-            // Laravel puede no inyectar Request cuando tiene valor por defecto null
             if ($request === null) {
                 $request = request();
             }
 
-            // Obtener parámetros del request (query string para GET)
+            // Obtener parámetros del request
             $usuario_siigo = $request->input('usuario_siigo');
             $api_key_siigo = $request->input('api_key_siigo');
             $cron = $request->input('cron', null);
         }
 
-        if ($empresa && $cron == null && $usuario_siigo !== null && $api_key_siigo !== null) {
+        if ($empresa && $cron == null && $request->has('usuario_siigo') && $request->has('api_key_siigo')) {
+            // Si los campos vienen vacíos (o null por el middleware), eliminamos la configuración
+            if (empty($usuario_siigo) || empty($api_key_siigo)) {
+                $empresa->usuario_siigo = null;
+                $empresa->api_key_siigo = null;
+                $empresa->token_siigo = null;
+                $empresa->fecha_token_siigo = null;
+                $empresa->save();
+                return 1;
+            }
 
             //Probando conexion de la api.
             $curl = curl_init();
@@ -486,7 +508,15 @@ class SiigoController extends Controller
                     "id_type"        => $cliente_factura->dv ? "31" : "13",
                     "identification" => $cliente_factura->nit,
                     "branch_office"  => "0",
-                    "name"           => [$cliente_factura->nombre],
+                    "name"           => (function($c) {
+                        if ($c->dv) return [$c->nombre];
+                        $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
+                        if (count($nArr) < 2) {
+                            $f = \App\Contacto::where('nit', $c->nit)->first();
+                            if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
+                        }
+                        return $nArr;
+                    })($cliente_factura),
                     "address" => [
                         "address" => $cliente_factura->direccion,
                         "city" => [

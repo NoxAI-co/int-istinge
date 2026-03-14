@@ -43,8 +43,13 @@ class BillingCycleAnalyzer
             // Calcular fecha del ciclo
             $fechaCiclo = $this->calcularFechaCiclo($grupoCorte, $periodo);
             $empresaId = $grupoCorte->empresa;
+
+            // Total real de contratos del grupo (sin filtro de fecha, solo activos)
+            $totalContratosGrupo = Contrato::where('grupo_corte', $grupoCorteId)
+                ->where('status', 1)
+                ->count();
             
-            // Obtener contratos que deberían facturar
+            // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
             
             // Obtener facturas generadas en el ciclo
@@ -97,7 +102,8 @@ class BillingCycleAnalyzer
                 'grupo_corte' => $grupoCorte,
                 'periodo' => $periodo,
                 'fecha_ciclo' => $fechaCiclo,
-                'total_contratos' => $contratosEsperados->count(),
+                'total_contratos' => $totalContratosGrupo,
+                'total_contratos_ciclo' => $contratosEsperados->count(),
                 'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],

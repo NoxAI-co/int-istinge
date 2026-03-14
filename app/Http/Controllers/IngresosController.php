@@ -333,6 +333,7 @@ class IngresosController extends Controller
             $user = Auth::user();
             $empresa = Empresa::Find($user->empresa);
             $morosos = "";
+            $msj_siigo = "";
 
             // Verificamos si la suma es mayor que 0
             if($request->anticipo == 1){
@@ -431,10 +432,10 @@ class IngresosController extends Controller
                                         Log::info("Respuesta después del refresh: " . json_encode($response));
 
                                         if(isset($response['success']) && $response['success'] == false){
-                                            return back()->with('danger', "No se ha podido establecer conexión con siigo después de refrescar el token y no se ha generado el pago")->withInput();
+                                            $msj_siigo = " No se ha podido establecer conexión con siigo después de refrescar el token.";
                                         }
                                     } else {
-                                        return back()->with('danger', "No se ha podido establecer conexión con siigo, no se pudo refrescar el token y no se ha generado el pago")->withInput();
+                                        $msj_siigo = " No se ha podido establecer conexión con siigo, no se pudo refrescar el token.";
                                     }
                                 }
                             }
@@ -590,6 +591,7 @@ class IngresosController extends Controller
 
             //Si el tipo de ingreso es de facturas
             $totalIngreso=0;
+            $contratos_procesados_mk = []; // Controlar ejecuciones duplicadas MK
             if ($ingreso->tipo == 1) {
                 $saldoFavorUsado = 0;
                 foreach ($request->factura_pendiente as $key => $value) {
@@ -632,12 +634,11 @@ class IngresosController extends Controller
 
                         if($contrato){
                             try {
-                                $ultimaFactura = $contrato->facturas->last();
-                                //validacion de que solo haga las funciones mikrotik si se trata de la ultima factura.
-                                if($ultimaFactura){
-                                    if($empresa->consultas_mk == 1 && $ultimaFactura->id == $factura->id){
-                                        // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
-                                        $contratoId = $contrato->id;
+                                if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
+                                    $contratos_procesados_mk[] = $contrato->id; // Registramos para no repetir en esta petición
+                                    
+                                    // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
+                                    $contratoId = $contrato->id;
                                         $empresaId = $empresa->id;
                                         $ingresoId = $ingreso->id;
                                         app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
@@ -655,7 +656,6 @@ class IngresosController extends Controller
                                             }
                                         });
                                     }
-                                }
                             } catch (\Throwable $thMK) {
                                 Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
@@ -1171,10 +1171,10 @@ class IngresosController extends Controller
                     return redirect()->route('ingresos.tirillawpp', [
                         'id'   => $ingreso->nro, // igual que en tu blade
                         'name' => $factura->id
-                    ]);
+                    ])->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.' . $msj_siigo);
                 }
 
-                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.';
+                $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL PAGO.' . $msj_siigo;
                 return redirect('empresa/ingresos/'.$ingreso->id)->with('success', $mensaje)->with('factura_id', $ingreso->id)->with('tirilla', $tirilla);
             }
 
@@ -1266,21 +1266,68 @@ class IngresosController extends Controller
                             $ARRAYS = $API->read();
 
                             if(count($ARRAYS)>0){
+                                $idToRemove = $ARRAYS[0]['.id'];
+                                
+                                // Registro MovimientoLOG intentando remove
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')';
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
+
                                 $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id='.$ARRAYS[0]['.id']);
+                                $API->write('=.id=' . $idToRemove, true);
                                 $READ = $API->read();
 
+                                // Registro MovimientoLOG respuesta remove
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Respuesta comando remove: ' . json_encode($READ);
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
+
+                                // Verificar si realmente se eliminó de morosos
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write('?list=morosos', true);
+                                $verificacion = $API->read();
+
+                                if (empty($verificacion)) {
+                                    $descVerif = '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no se encuentra en la lista de morosos.';
+                                } else {
+                                    $descVerif = '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue apareciendo en la lista de morosos después del comando remove.';
+                                }
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = $descVerif;
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                                 #AGREGAMOS A IP_AUTORIZADAS#
-                                $API->comm("/ip/firewall/address-list/add", array(
+                                $resultAdd = $API->comm("/ip/firewall/address-list/add", array(
                                     "address" => $contrato->ip,
                                     "list" => 'ips_autorizadas'
                                     )
                                 );
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
                                 #AGREGAMOS A IP_AUTORIZADAS#
 
-
                                 $mensaje = "- Se ha sacado la ip de morosos.";
+
                                 // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                                 DB::reconnect();
 
@@ -1289,6 +1336,14 @@ class IngresosController extends Controller
 
                                 $contrato->state = 'enabled';
                                 $contrato->save();
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
 
                             }else{
                                 Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
@@ -1743,12 +1798,20 @@ class IngresosController extends Controller
                 // quitamos el + si lo tiene para la API
                 $phone = ltrim($telefonoCompleto, '+');
 
+                $companyNit = $empresaObj->nit ?? \App\Empresa::find(1)->nit;
+
                 $this->registerCentralizedBatch(
                     $instance->phone_number_id,
                     $phone,
                     $wamid,
                     $mensajeEnviado,
-                    $cliente->nombre . ' ' . $cliente->apellido1
+                    $cliente->nombre . ' ' . $cliente->apellido1,
+                    'template',
+                    'sent',
+                    null,
+                    null,
+                    $ingreso->id,
+                    $companyNit
                 );
             }
 

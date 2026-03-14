@@ -320,9 +320,7 @@ class ContratosController extends Controller
                 });
             }
             if ($request->grupo_corte) {
-                $contratos->where(function ($query) use ($request) {
-                    $query->orWhere('contracts.grupo_corte', $request->grupo_corte);
-                });
+                $contratos->where('contracts.grupo_corte', $request->grupo_corte);
             }
             if ($request->state) {
                 $contratos->where(function ($query) use ($request) {

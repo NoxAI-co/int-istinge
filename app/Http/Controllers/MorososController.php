@@ -215,6 +215,21 @@ class MorososController extends Controller
         return view('mikrotik.discrepancias_disabled', compact('discrepancias', 'mikrotik'));
     }
 
+    public function deshabilitadosNavegando()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $mikrotiks = Mikrotik::where('empresa', Auth::user()->empresa)->get();
+        
+        view()->share([
+            'seccion' => 'contratos',
+            'subseccion' => 'clientes',
+            'title' => 'Deshabilitados Y Navegando',
+            'icon' => 'fas fa-unlink'
+        ]);
+        
+        return view('mikrotik.deshabilitados_navegando', compact('mikrotiks'));
+    }
+
     public function fixDisabledDiscrepancy(Request $request)
     {
         $request->validate([

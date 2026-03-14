@@ -20,6 +20,7 @@ use App\Http\Controllers\PlanesVelocidadController;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Cache;
 
+
 Route::get('sendmail', 'Controller@sendmail');
 
 Route::get('phpinfo', function () {
@@ -196,6 +197,7 @@ Route::get('/estatus-emision-dian', 'CronController@validateEmisionApi');
 Route::get('/validar-factura-doble', 'CronController@validarFacturasDobles');
 Route::get('/validate-codigo-emision', 'CronController@validateCodeEmision');
 Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
+Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
 /*PAYU*/
 
 Route::get('/respuestapayu', 'Controller@respuestapayu')->name('respuestapayu');
@@ -552,6 +554,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
     Route::post('morosos/fix-disabled', 'MorososController@fixDisabledDiscrepancy')->name('morosos.fix.disabled');
     Route::post('morosos/fix-disabled-batch', 'MorososController@fixDisabledDiscrepancyBatch')->name('morosos.fix.disabled.batch');
 
+	Route::get('deshabilitados-navegando', 'MorososController@deshabilitadosNavegando')->name('deshabilitados.index');
+
 	Route::get('/', 'HomeController@index')->name('empresa');
 
 	// Ruta para el PDF de asignación de material
@@ -757,6 +761,16 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('facturas-whatsapp-envio', 'FacturasController@facturasWhastappEnvio')->name('cronjob.whatsapp-facturas-envio');
 		Route::get('facturas-whatsapp-reiniciar', 'FacturasController@facturasWhastappReiniciar')->name('cronjob.whatsapp-facturas-reiniciar');
 	});
+
+	// ─── Emisiones DIAN (CronDian) ───
+	Route::get('cronjobs/emisiones-dian', 'CronDianController@vista')->name('cronjobs.emisiones-dian');
+	Route::get('api/cron-dian/estado', 'CronDianController@estado');
+	Route::get('api/cron-dian/logs', 'CronDianController@logs');
+	Route::get('api/cron-dian/detalle/{log_id}', 'CronDianController@detalle');
+	Route::get('api/cron-dian/alertas-numeracion', 'CronDianController@alertasNumeracion');
+	Route::post('api/cron-dian/ejecutar-manual', 'CronDianController@ejecutarManual');
+	Route::post('api/cron-dian/resolver-alerta/{id}', 'CronDianController@resolverAlerta');
+	Route::post('api/cron-dian/configurar-fecha', 'CronDianController@guardarConfiguracion');
 
     // Saldos iniciales
     Route::group(['prefix' => 'saldos_iniciales'], function () {
@@ -1951,11 +1965,28 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::resource('productos', 'ProductosController');
 
 	//AUDITORIA
-	Route::group(['prefix' => 'auditoria'], function () {
-		Route::get('contratos', 'AuditoriaController@contratos')->name('auditoria.contratos');
-		Route::get('facturas', 'AuditoriaController@facturas')->name('auditoria.facturas');
+	Route::group(['prefix' => 'auditoria', 'as' => 'auditoria.'], function () {
+		Route::get('contratos', 'AuditoriaController@contratos')->name('contratos');
+		Route::group(['prefix' => 'facturas', 'as' => 'facturas.'], function() {
+            Route::get('/', 'AuditoriaController@facturas')->name('index');
+            Route::post('/', 'AuditoriaController@auditoria_facturas')->name('auditoria_facturas');
+        });
+
+		Route::group(['prefix' => 'dian', 'as' => 'dian.'], function() {
+            Route::get('/', 'DianAuditController@index')->name('index');
+            Route::get('/crear', 'DianAuditController@create')->name('create');
+            Route::post('/upload', 'DianAuditController@upload')->name('upload');
+            Route::get('/sesion/{id}', 'DianAuditController@session')->name('session');
+            Route::get('/datatables/{sessionId}', 'DianAuditController@datatables')->name('datatables');
+            Route::get('/corregir/{recordId}', 'DianAuditController@corregir')->name('corregir');
+            Route::post('/aplicar/{recordId}', 'DianAuditController@aplicarCorreccion')->name('aplicar');
+            Route::get('/logs/{sessionId}', 'DianAuditController@logsSesion')->name('logs');
+            Route::get('/pdf/{sessionId}', 'DianAuditController@exportarDiscrepanciasPdf')->name('pdf');
+            Route::get('/buscar-cliente', 'DianAuditController@buscarCliente')->name('buscar-cliente');
+            Route::get('/contratos-cliente', 'DianAuditController@getContratosCliente')->name('contratos-cliente');
+            Route::delete('/eliminar/{id}', 'DianAuditController@destroy')->name('destroy');
+        });
 	});
-	Route::resource('auditoria', 'AuditoriaController');
 	Route::resource('barrios', 'BarriosController');
 	Route::post('/delete-barrio/{id}', 'BarriosController@delete');
 

@@ -5103,12 +5103,27 @@ class CronController extends Controller
                     $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
                     
                     if ($wamid) {
+                        $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
+                        
+                        $contractId = null;
+                        $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        if ($facturaContrato) {
+                            $contract = \App\Contrato::where('nro', $facturaContrato->contrato_nro)->first();
+                            $contractId = $contract ? $contract->id : null;
+                        }
+
                         $this->registerCentralizedBatch(
                             $instance->phone_number_id,
                             $phone,
                             $wamid,
                             $mensajeProcesado,
-                            $contacto->nombre . ' ' . $contacto->apellido1
+                            $contacto->nombre . ' ' . $contacto->apellido1,
+                            'template',
+                            'sent',
+                            $factura->id,
+                            $contractId,
+                            null,
+                            $companyNit
                         );
                     }
                 } else {
@@ -5320,156 +5335,7 @@ class CronController extends Controller
 
         return $facturas;
     }
-
-    public function validateEmisionApi(){
-
-        $bearerToken = env('EMISION_TOKEN');
-        $urlEmision = env('URL_EMISION_DIAN');
-        $mesInicio = Carbon::now()->startOfMonth()->toDateString();
-        $finMes = Carbon::now()->endOfMonth()->toDateString();
-
-        if($bearerToken != "" && $urlEmision != "")
-        {
-            $facturas = Factura::where('fecha','>=',$mesInicio)->where('fecha','<=',$finMes)
-            ->where('emitida',1)
-            ->where('tipo',2)
-            ->where('dian_service',0);
-
-            $pos = Factura::where('fecha','>=',$mesInicio)->where('fecha','<=',$finMes)
-            ->where('emitida',1)
-            ->where('tipo',6)
-            ->where('dian_service',0);
-
-            $documentoSoporte = FacturaProveedores::where('fecha','>=',$mesInicio)->where('fecha','<=',$finMes)
-            ->where('emitida',1)
-            ->where('dian_service',0);
-
-            $notasCredito = NotaCredito::where('fecha','>=',$mesInicio)->where('fecha','<=',$finMes)
-            ->where('emitida',1)
-            ->where('dian_service',0);
-
-            $notasDebito = NotaDebito::where('fecha','>=',$mesInicio)->where('fecha','<=',$finMes)
-            ->where('emitida',1)
-            ->where('dian_service',0);
-
-            $nominas = Nomina::where('fecha_emision','>=',$mesInicio)->where('fecha_emision','<=',$finMes)
-            ->where('emitida',1)
-            ->where('dian_service',0);
-
-            $data = [
-                'facturas' => $facturas->count(),
-                'pos' => $pos->count(),
-                'documentosoporte' => $documentoSoporte->count(),
-                'notascredito' => $notasCredito->count(),
-                'notasdebito' => $notasDebito->count(),
-                'nomina' => $nominas->count(),
-            ];
-
-            try {
-                $emisionService = new EmisionesService();
-                $response = $emisionService->sendEmisionsEmpresa($data);
-
-                $response = json_decode($response);
-
-                if(isset($response->status) && $response->status == 200){
-                    $facturas->update(['dian_service'=> 1]);
-                    $pos->update(['dian_service'=> 1]);
-                    $documentoSoporte->update(['dian_service'=> 1]);
-                    $notasCredito->update(['dian_service'=> 1]);
-                    $notasDebito->update(['dian_service'=> 1]);
-                    $nominas->update(['dian_service'=> 1]);
-                }
-                // Log::info('Finalizado con exito el informe de emisiones del dia: ' . Carbon::now()->format('Y-m-d'));
-
-            } catch (ClientException $e) {
-                if($e->getResponse()->getStatusCode() === 404) {
-                    Log::error('Hay un error en la importacion de la informacion: ' . Carbon::now()->format('Y-m-d'));
-                    // return $e;
-                }
-            }
-        }else{
-            Log::error('No hay credenciales para registrar las emisiones: ' . Carbon::now()->format('Y-m-d'));
-        }
-
-        //REVISION RECONEXION GENERAL//.
-        $empresa = Empresa::Find(1);
-        if($empresa->reconexion_generica == 1 && $empresa->dias_reconexion_generica != null){
-            $diasMas = $empresa->dias_reconexion_generica;
-
-            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-            leftJoin('facturas_contratos as fcs', 'fcs.factura_id', '=', 'f.id')
-            ->leftJoin('contracts as cs', function ($join) {
-                $join->on('cs.nro', '=', 'fcs.contrato_nro');
-            })->
-            select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id')->
-            where('f.estatus',1)->
-            whereIn('f.tipo', [1,2])->
-            where('contactos.status',1)->
-            where('cs.fecha_suspension', null)->
-            // where('f.id',191)->
-            whereDate(DB::raw("DATE_ADD(f.vencimiento, INTERVAL $diasMas DAY)"), '<=', now())->
-            orderBy('f.id', 'desc')->
-            get();
-
-            foreach ($contactos as $contacto) {
-
-                $factura = Factura::find($contacto->factura);
-
-                //ESto es lo que hay que refactorizar.
-                $facturaContratos = DB::table('facturas_contratos')
-                ->where('factura_id',$factura->id)->pluck('contrato_nro');
-
-                if(!DB::table('facturas_contratos')
-                ->where('factura_id',$factura->id)->first()){
-                    $facturaContratos = Contrato::where('id',$factura->contrato_id)->pluck('nro');
-                }
-
-                $contratosId = Contrato::whereIn('nro',$facturaContratos)
-                ->pluck('id');
-
-                $ultimaFacturaRegistrada = Factura::
-                where('cliente',$factura->cliente)
-                ->where('estatus','<>',2)
-                ->whereIn('contrato_id',$contratosId)
-                ->orderBy('created_at', 'desc')
-                ->value('id');
-
-                //manera antigua de buscar el contrato.
-                if(!$ultimaFacturaRegistrada){
-                      $ultimaFacturaRegistrada = Factura::
-                        where('cliente',$factura->cliente)
-                        ->where('contrato_id',$factura->contrato_id)
-                        ->orderBy('created_at', 'desc')
-                        ->value('id');
-                }
-
-                if($factura->id == $ultimaFacturaRegistrada){
-                    $itemReconexion = Inventario::where('type','RECONEXION')->first();
-                    $itemExiste = ItemsFactura::where('factura',$factura->id)->where('ref','RECONEXION')->first();
-                    if($itemReconexion && !$itemExiste){
-                        $item = new ItemsFactura();
-                        $item->factura     = $factura->id;
-                        $item->producto    = $itemReconexion->id;
-                        $item->ref         = $itemReconexion->ref;
-                        $item->precio      = $itemReconexion->precio;
-                        $item->descripcion = $itemReconexion->descripcion;
-                        $item->id_impuesto = $itemReconexion->id_impuesto;
-                        $item->impuesto    = $itemReconexion->impuesto;
-                        $item->cant        = 1;
-                        $item->desc        = $itemReconexion->descuento;
-                        $item->save();
-                    }
-                }
-            }
-        }
-        //Fin REVISION RECONEXION GENERAL//.
-
-
-        //Inicio validacion de codigos iguales emitidos
-        // $this->validateCodeEmision();
-        //Fin validacion de codigos iguales emitidos
-    }
-
+    
     //Este metodo me permite validar que facturas se crearon con el mismo codigo y quedaron emitidas, la que tiene el
     //codigo 409 es la que no quedo emitida y debe cambiar de codigo.
     public function validarFacturasDobles(){

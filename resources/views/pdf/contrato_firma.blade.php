@@ -105,8 +105,25 @@
                         </div>
 
                         <div style="width: 100%; background-color: {{$empresa->color}}; clear:both;  margin-top: 10px;">
+                            @php
+                            $total_tv = 0; $total_internet = 0;
+                            if (isset($contract->servicio_tv)){
+                                $total_tv = (($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio;
+                            }
+                            if (isset($contract->server_configuration_id)){
+                                $total_internet = $contract->plan()->price;
+                            }
+                            if (isset($contract) && $contract->iva_factura == 1) {
+                                if ($total_tv > 0) {
+                                    $total_tv = $total_tv * 1.19;
+                                }
+                                if ($total_internet > 0) {
+                                    $total_internet = $total_internet * 1.19;
+                                }
+                            }
+                            @endphp
                             <p style="color: white; margin: 2px; text-align: justify; padding: 5px;" class="">
-                                Este contrato explica las condiciones para la prestación de los servicios entre usted y <b>{{$empresa->nombre}}</b>, por el que pagará mínimo mensualmente <b>$ _______</b>. Este contrato tendrá vigencia de ____ meses, contados a partir del <b>__/__/____</b>. El plazo máximo de instalación es de 15 días hábiles. Acepto que mi contrato se renueve sucesiva y automáticamente por un plazo igual al inicial <input checked="checked" type="checkbox"> *
+                                Este contrato explica las condiciones para la prestación de los servicios entre usted y <b>{{$empresa->nombre}}</b>, por el que pagará mínimo mensualmente <b>${{ App\Funcion::Parsear($total_tv + $total_internet) }}</b>. Este contrato tendrá vigencia de {{ isset($contract->contrato_permanencia_meses) ? $contract->contrato_permanencia_meses : '____' }} meses, contados a partir del <b>{{ isset($contract->created_at) ? date('d/m/Y', strtotime($contract->created_at)) : '__/__/____' }}</b>. El plazo máximo de instalación es de 15 días hábiles. Acepto que mi contrato se renueve sucesiva y automáticamente por un plazo igual al inicial <input checked="checked" type="checkbox"> *
                             </p>
                         </div>
 
@@ -169,9 +186,9 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    {{-- <td style="font-size: 9px;"><b>{{$empresa->color->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</b></td> --}}
+                                    <td style="font-size: 9px;"><b>{{$empresa->moneda}} {{ isset($contract->server_configuration_id) ? App\Funcion::Parsear($total_internet) : '________' }}</b></td>
                                     <td style="font-size: 9px;">Total</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}} {{ isset($contractDetails->server_configuration_id) ? App\Funcion::Parsear($contractDetails->plan()->price) : '________' }}</td> --}}
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->server_configuration_id) ? App\Funcion::Parsear($total_internet) : '________' }}</td>
                                 </tr>
                             </table>
 
@@ -195,24 +212,18 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size: 9px;">Valor</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}}{{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td> --}}
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear($total_tv) : '________' }}</td>
                                     <td style="font-size: 9px;">Total</td>
-                                    {{-- <td style="font-size: 9px;">{{$empresa->color->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear((($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio) : '________' }}</td> --}}
-                                    @php
-                                    $total_tv = 0; $total_internet = 0;
-                                    if (isset($contract->servicio_tv)){
-                                        $total_tv = (($contract->plan('true')->precio * $contract->plan('true')->impuesto)/100)+$contract->plan('true')->precio;
-                                    }
-                                    if (isset($contract->server_configuration_id)){
-                                        $total_internet = $contract->plan()->price;
-                                    }
-                                    @endphp
+                                    <td style="font-size: 9px;">{{$empresa->moneda}} {{ isset($contract->servicio_tv) ? App\Funcion::Parsear($total_tv) : '________' }}</td>
                                 </tr>
                             </table>
                         </div>
 
                         <div style="border: 1px  solid #000; margin-top: 5px; padding:2px; text-align: right;">
-                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$empresa->moneda}}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
+                            @if(isset($contract) && $contract->iva_factura == 1)
+                                <b>IVA: 19%</b> &nbsp;&nbsp;&nbsp;
+                            @endif
+                            VALOR TOTAL <span style="background-color:silver;">&nbsp;&nbsp;&nbsp;{{$empresa->moneda}} {{ App\Funcion::Parsear($total_tv + $total_internet) }}&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;
                         </div>
 
                         <br><p style="text-align: justify; color: blue;" class="small">* Espacio diligenciado por el usuario</p>

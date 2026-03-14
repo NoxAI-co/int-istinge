@@ -124,8 +124,8 @@
 				<tr>
 					<td></td>
 					<td><a href="#">{{ $material->referencia }}</a></td>
-					<td>{{$material->tecnico->nombres}}</td>
-					<td>{{$material->tecnico->email}}</td>
+					<td>{{$material->tecnico->nombres ?? 'Desconocido'}}</td>
+					<td>{{$material->tecnico->email ?? 'N/A'}}</td>
 					<td>{{$material->fecha}}</td>
 					<td>
 						<a href="{{ route('asignacionmaterial.edit', $material->id) }}" class="btn btn-outline-primary btn-icons" title="Editar"><i class="fas fa-edit"></i></a>
