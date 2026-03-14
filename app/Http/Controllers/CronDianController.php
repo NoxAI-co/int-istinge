@@ -254,6 +254,21 @@ class CronDianController extends Controller
         return response()->json(['status' => 'error', 'mensaje' => 'Empresa no encontrada.'], 404);
     }
 
+    public function toggleEmision(Request $request)
+    {
+        $empresa = Empresa::find(1);
+        if ($empresa) {
+            $empresa->emision_automatica = $request->status;
+            $empresa->save();
+            return response()->json([
+                'status' => 'ok', 
+                'emision_automatica' => $empresa->emision_automatica,
+                'mensaje' => $empresa->emision_automatica ? 'Emisión automática activada' : 'Emisión automática desactivada'
+            ]);
+        }
+        return response()->json(['status' => 'error', 'mensaje' => 'Empresa no encontrada.'], 404);
+    }
+
     // =========================================================================
     // CRONJOB PRINCIPAL — GET /emision-factura-dian
     // =========================================================================

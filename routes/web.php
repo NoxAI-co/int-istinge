@@ -771,6 +771,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('api/cron-dian/ejecutar-manual', 'CronDianController@ejecutarManual');
 	Route::post('api/cron-dian/resolver-alerta/{id}', 'CronDianController@resolverAlerta');
 	Route::post('api/cron-dian/configurar-fecha', 'CronDianController@guardarConfiguracion');
+	Route::post('api/cron-dian/toggle-emision', 'CronDianController@toggleEmision');
 
     // Saldos iniciales
     Route::group(['prefix' => 'saldos_iniciales'], function () {
