@@ -344,6 +344,15 @@
         font-weight: 500;
         white-space: nowrap;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .relation-badge:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        opacity: 0.9;
     }
 
     .badge-contrato {
@@ -754,18 +763,18 @@
 
                                     <!-- Badges de relaciones -->
                                     <div v-if="msg.contrato || msg.factura || msg.ingreso" class="message-relations" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
-                                        <span v-if="msg.contrato" class="relation-badge badge-contrato" :title="'Contrato: ' + msg.contrato.nro">
+                                        <a v-if="msg.contrato" :href="msg.contrato.url" target="_blank" class="relation-badge badge-contrato" :title="'Contrato: ' + msg.contrato.nro">
                                             <i class="fas fa-file-contract" style="margin-right: 4px;"></i>
                                             Contrato: @{{ msg.contrato.nro }}
-                                        </span>
-                                        <span v-if="msg.factura" class="relation-badge badge-factura" :title="'Factura: ' + msg.factura.codigo">
+                                        </a>
+                                        <a v-if="msg.factura" :href="msg.factura.url" target="_blank" class="relation-badge badge-factura" :title="'Factura: ' + msg.factura.codigo">
                                             <i class="fas fa-file-invoice-dollar" style="margin-right: 4px;"></i>
                                             Factura: @{{ msg.factura.codigo }}
-                                        </span>
-                                        <span v-if="msg.ingreso" class="relation-badge badge-ingreso" :title="'Ingreso: ' + msg.ingreso.nro">
+                                        </a>
+                                        <a v-if="msg.ingreso" :href="msg.ingreso.url" target="_blank" class="relation-badge badge-ingreso" :title="'Ingreso: ' + msg.ingreso.nro">
                                             <i class="fas fa-money-bill-wave" style="margin-right: 4px;"></i>
                                             Ingreso: @{{ msg.ingreso.nro }}
-                                        </span>
+                                        </a>
                                     </div>
                                 </div>
                                 

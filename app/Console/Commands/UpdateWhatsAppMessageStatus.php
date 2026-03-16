@@ -140,12 +140,27 @@ class UpdateWhatsAppMessageStatus extends Command
     private function processMessage($message, Instance $instance)
     {
         $status = $message['status'] ?? 'sent';
+        $errorMessage = $message['error_message'] ?? null;
         $incomingInvoiceId = $message['incoming_invoice_id'] ?? null;
         $incomingPaymentId = $message['incoming_payment_id'] ?? null;
+
+        // Verificar si es el error específico de Meta sobre healthy ecosystem engagement
+        // En este caso, no actualizamos whatsapp = 0 porque el primer mensaje pudo haberse enviado bien
+        $isHealthyEcosystemError = $errorMessage && 
+            stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;
 
         // Determinar el valor de whatsapp según el status
         // Si es "delivered" o "read" → whatsapp = 1
         // Si es diferente (sent, failed, etc.) → whatsapp = 0
+        // EXCEPCIÓN: Si es el error de healthy ecosystem, no cambiamos a 0
+        if ($isHealthyEcosystemError && ($status === 'failed' || $status === 'sent')) {
+            // No actualizar en este caso, mantener el valor actual
+            return [
+                'factura_actualizada' => false,
+                'ingreso_actualizado' => false
+            ];
+        }
+
         $whatsappValue = ($status === 'delivered' || $status === 'read') ? 1 : 0;
 
         $result = [

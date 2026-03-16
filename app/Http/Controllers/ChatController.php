@@ -362,7 +362,8 @@ class ChatController extends Controller
                 if ($factura) {
                     $message['factura'] = [
                         'id' => $factura->id,
-                        'codigo' => $factura->codigo
+                        'codigo' => $factura->codigo,
+                        'url' => route('facturas.show', $factura->id)
                     ];
                 }
             }
@@ -373,7 +374,8 @@ class ChatController extends Controller
                 if ($contrato) {
                     $message['contrato'] = [
                         'id' => $contrato->id,
-                        'nro' => $contrato->nro
+                        'nro' => $contrato->nro,
+                        'url' => route('contratos.show', $contrato->id)
                     ];
                 }
             }
@@ -384,7 +386,8 @@ class ChatController extends Controller
                 if ($ingreso) {
                     $message['ingreso'] = [
                         'id' => $ingreso->id,
-                        'nro' => $ingreso->nro
+                        'nro' => $ingreso->nro,
+                        'url' => route('ingresos.show', $ingreso->id)
                     ];
                 }
             }
