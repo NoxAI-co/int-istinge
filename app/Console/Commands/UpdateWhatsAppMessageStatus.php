@@ -198,10 +198,9 @@ class UpdateWhatsAppMessageStatus extends Command
         $isHealthyEcosystemError = $errorMessage && 
             stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;
 
-        // Determinar el valor de whatsapp según el status
-        // Si es "delivered" o "read" → whatsapp = 1
-        // Si es diferente (sent, failed, etc.) → whatsapp = 0
-        // EXCEPCIÓN: Si es el error de healthy ecosystem, no cambiamos a 0
+        // Solo marcar whatsapp = 1 si el status es "delivered" o "read"
+        // NO marcar whatsapp = 0 para otros status (sent, failed, etc.)
+        // EXCEPCIÓN: Si es el error de healthy ecosystem, no hacer nada
         if ($isHealthyEcosystemError && ($status === 'failed' || $status === 'sent')) {
             // No actualizar en este caso, mantener el valor actual
             return [
@@ -210,7 +209,16 @@ class UpdateWhatsAppMessageStatus extends Command
             ];
         }
 
-        $whatsappValue = ($status === 'delivered' || $status === 'read') ? 1 : 0;
+        // Solo actualizar si el status es delivered o read (marcar como 1)
+        // No actualizar si es sent o failed (mantener valor actual)
+        if ($status !== 'delivered' && $status !== 'read') {
+            return [
+                'factura_actualizada' => false,
+                'ingreso_actualizado' => false
+            ];
+        }
+
+        $whatsappValue = 1; // Solo marcamos como 1 cuando es delivered o read
 
         $result = [
             'factura_actualizada' => false,
