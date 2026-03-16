@@ -932,7 +932,8 @@ new Vue({
             
             const query = this.searchQuery.toLowerCase();
             return conversations.filter(c => 
-                (c.name && c.name.toLowerCase().includes(query))
+                (c.name && c.name.toLowerCase().includes(query)) ||
+                (c.phone_number && c.phone_number.includes(query))
             );
         },
 
