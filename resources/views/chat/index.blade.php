@@ -972,43 +972,6 @@ new Vue({
             return filtered;
         },
 
-        parseInlineSearch(query) {
-            // Asegurar que query sea una cadena de texto
-            if (!query) return { type: null, id: null, text: '' };
-            
-            const queryStr = String(query || '');
-            if (!queryStr) return { type: null, id: null, text: '' };
-            
-            // Buscar patrones: factura:12170, ingreso:12170, contrato:123
-            const facturaMatch = queryStr.match(/factura[:\s]+(\d+)/i);
-            const ingresoMatch = queryStr.match(/ingreso[:\s]+(\d+)/i);
-            const contratoMatch = queryStr.match(/contrato[:\s]+(\d+)/i);
-            
-            if (facturaMatch) {
-                return {
-                    type: 'invoice',
-                    id: parseInt(facturaMatch[1]),
-                    text: queryStr.replace(/factura[:\s]+\d+/i, '').trim()
-                };
-            }
-            if (ingresoMatch) {
-                return {
-                    type: 'payment',
-                    id: parseInt(ingresoMatch[1]),
-                    text: queryStr.replace(/ingreso[:\s]+\d+/i, '').trim()
-                };
-            }
-            if (contratoMatch) {
-                return {
-                    type: 'contract',
-                    id: parseInt(contratoMatch[1]),
-                    text: queryStr.replace(/contrato[:\s]+\d+/i, '').trim()
-                };
-            }
-            
-            return filtered;
-        },
-
         hasMoreConversations() {
             return this.currentPage < this.lastPage;
         },
