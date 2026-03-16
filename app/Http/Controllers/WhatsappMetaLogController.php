@@ -64,23 +64,44 @@ class WhatsappMetaLogController extends Controller
         $empresaId = Auth::user()->empresa;
         $empresa = Auth::user()->empresa();
 
-        // Antes de construir el datatable, sincronizar con la API central para el rango de fechas solicitado
+        // Obtener fechas del request
+        $fechaDesde = $request->get('fecha_desde') ?: Carbon::now()->startOfMonth()->format('Y-m-d');
+        $fechaHasta = $request->get('fecha_hasta') ?: Carbon::now()->endOfMonth()->format('Y-m-d');
+
+        // Sincronización inteligente: solo sincronizar si faltan datos locales para el rango de fechas
         try {
-            // Buscar una instancia activa asociada a esta empresa
-            $instance = Instance::where('company_id', $empresaId)
-                ->whereNotNull('phone_number_id')
-                ->first();
+            // Verificar si existen datos locales para el rango de fechas solicitado
+            $existenDatos = WhatsappMetaLog::where('empresa', $empresaId)
+                ->whereDate('created_at', '>=', $fechaDesde)
+                ->whereDate('created_at', '<=', $fechaHasta)
+                ->where(function($query) {
+                    $query->whereNotNull('remote_id')
+                          ->orWhereNotNull('wamid');
+                })
+                ->exists();
 
-            if ($instance && $empresa && $empresa->nit) {
-                $fechaDesde = $request->get('fecha_desde') ?: Carbon::now()->startOfMonth()->format('Y-m-d');
-                $fechaHasta = $request->get('fecha_hasta') ?: Carbon::now()->endOfMonth()->format('Y-m-d');
+            // Si no hay datos locales o hay muy pocos, sincronizar con la API central
+            if (!$existenDatos) {
+                $countLocal = WhatsappMetaLog::where('empresa', $empresaId)
+                    ->whereDate('created_at', '>=', $fechaDesde)
+                    ->whereDate('created_at', '<=', $fechaHasta)
+                    ->count();
 
-                $this->syncService->syncForInstanceAndCompany(
-                    $instance,
-                    (int) $empresa->nit,
-                    $fechaDesde,
-                    $fechaHasta
-                );
+                // Si hay menos de 5 registros locales, sincronizar
+                if ($countLocal < 5) {
+                    $instance = Instance::where('company_id', $empresaId)
+                        ->whereNotNull('phone_number_id')
+                        ->first();
+
+                    if ($instance && $empresa && $empresa->nit) {
+                        $this->syncService->syncForInstanceAndCompany(
+                            $instance,
+                            (int) $empresa->nit,
+                            $fechaDesde,
+                            $fechaHasta
+                        );
+                    }
+                }
             }
         } catch (\Exception $e) {
             // No interrumpir el datatable si falla la sincronización, solo loguear
@@ -149,6 +170,13 @@ class WhatsappMetaLogController extends Controller
                           ->orWhere('factura.emitida', '!=', 1);
                 });
             }
+        }
+
+        // Filtro por estados múltiples
+        if ($request->has('estados') && is_array($request->estados) && !empty($request->estados)) {
+            // Los valores ya vienen como: delivered, failed, read, sent, success
+            // No necesitamos mapear porque el frontend ya envía los valores correctos
+            $logs->whereIn('log_meta.status', $request->estados);
         }
 
         return datatables()->eloquent($logs)
@@ -234,7 +262,8 @@ class WhatsappMetaLogController extends Controller
             'fecha_hasta' => Carbon::now()->endOfMonth()->format('Y-m-d'),
             'plantilla_id' => '',
             'contacto_id' => '',
-            'factura_emitida' => 'ambas'
+            'factura_emitida' => 'ambas',
+            'estados' => []
         ]);
     }
 

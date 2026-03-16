@@ -49,6 +49,18 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-12">
+                        <label class="control-label">Estados</label>
+                        <select class="form-control selectpicker" id="estados" name="estados[]" multiple data-size="5" data-selected-text-format="count > 2" title="Todos los estados">
+                            <option value="delivered">Entregado</option>
+                            <option value="failed">Fallido</option>
+                            <option value="read">Leído</option>
+                            <option value="sent">Enviado</option>
+                            <option value="success">Éxito</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
                         <button type="button" class="btn btn-primary" id="btn-filtrar" onclick="aplicarFiltros()">
                             <i class="fas fa-search"></i> Filtrar
                         </button>
@@ -132,6 +144,7 @@
                     d.fecha_desde = $('#fecha_desde').val();
                     d.fecha_hasta = $('#fecha_hasta').val();
                     d.factura_emitida = $('#factura_emitida').val();
+                    d.estados = $('#estados').val(); // Array de estados seleccionados
                 }
             },
             columns: [
@@ -171,9 +184,11 @@
                 $('#fecha_desde').val(response.fecha_desde);
                 $('#fecha_hasta').val(response.fecha_hasta);
                 $('#factura_emitida').val('ambas');
+                $('#estados').val(null).trigger('change');
 
                 $('#plantilla_id').selectpicker('refresh');
                 $('#contacto_id').selectpicker('refresh');
+                $('#estados').selectpicker('refresh');
 
                 if (tabla) {
                     tabla.ajax.reload();
