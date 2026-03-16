@@ -38,6 +38,7 @@ use App\Model\Ingresos\Ingreso;
 use App\Model\Ingresos\IngresosFactura;
 use App\Banco;
 use App\Instance;
+use App\Services\WhatsAppMessageSyncService;
 use App\Model\Gastos\FacturaProveedores;
 use App\Model\Gastos\NotaDebito;
 use App\Model\Ingresos\NotaCredito;
@@ -5142,6 +5143,110 @@ class CronController extends Controller
         }
     }
 
+    /**
+     * Sincronizar logs de WhatsApp Meta desde la API central
+     * Este método se ejecuta desde un cronjob externo (cPanel) cada 15 minutos
+     * 
+     * @return string
+     */
+    public function syncWhatsAppMetaLogs()
+    {
+        try {
+            $syncService = app(WhatsAppMessageSyncService::class);
+            $fechaHoy = Carbon::now()->format('Y-m-d');
+            
+            Log::info('CronController::syncWhatsAppMetaLogs iniciado', [
+                'fecha' => $fechaHoy
+            ]);
+
+            // Obtener todas las instancias activas con phone_number_id
+            $instances = Instance::where('activo', true)
+                ->whereNotNull('phone_number_id')
+                ->whereNotNull('company_id')
+                ->get();
+
+            if ($instances->isEmpty()) {
+                $mensaje = "No se encontraron instancias activas para sincronizar.";
+                Log::warning($mensaje);
+                return $mensaje;
+            }
+
+            $totalLogsCreados = 0;
+            $totalLogsActualizados = 0;
+            $totalFacturasActualizadas = 0;
+            $totalIngresosActualizados = 0;
+            $instanciasProcesadas = 0;
+
+            foreach ($instances as $instance) {
+                try {
+                    // Obtener la empresa asociada
+                    $empresa = Empresa::find($instance->company_id);
+                    if (!$empresa || !$empresa->nit) {
+                        Log::warning('Instancia sin empresa o sin NIT', [
+                            'instance_id' => $instance->id,
+                            'company_id' => $instance->company_id
+                        ]);
+                        continue;
+                    }
+
+                    // Sincronizar para el día actual
+                    $result = $syncService->syncForInstanceAndCompany(
+                        $instance,
+                        (int) $empresa->nit,
+                        $fechaHoy,
+                        $fechaHoy
+                    );
+
+                    $totalLogsCreados += $result['logsCreated'] ?? 0;
+                    $totalLogsActualizados += $result['logsUpdated'] ?? 0;
+                    $totalFacturasActualizadas += $result['facturasActualizadas'] ?? 0;
+                    $totalIngresosActualizados += $result['ingresosActualizados'] ?? 0;
+                    $instanciasProcesadas++;
+
+                    Log::info('Instancia sincronizada exitosamente', [
+                        'instance_id' => $instance->id,
+                        'company_id' => $instance->company_id,
+                        'company_nit' => $empresa->nit,
+                        'logs_created' => $result['logsCreated'] ?? 0,
+                        'logs_updated' => $result['logsUpdated'] ?? 0,
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Error sincronizando instancia en syncWhatsAppMetaLogs', [
+                        'instance_id' => $instance->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            $mensaje = sprintf(
+                "Sincronización completada. Instancias: %d, Logs creados: %d, Logs actualizados: %d, Facturas actualizadas: %d, Ingresos actualizados: %d",
+                $instanciasProcesadas,
+                $totalLogsCreados,
+                $totalLogsActualizados,
+                $totalFacturasActualizadas,
+                $totalIngresosActualizados
+            );
+
+            Log::info('CronController::syncWhatsAppMetaLogs finalizado', [
+                'instancias_procesadas' => $instanciasProcesadas,
+                'logs_creados' => $totalLogsCreados,
+                'logs_actualizados' => $totalLogsActualizados,
+                'facturas_actualizadas' => $totalFacturasActualizadas,
+                'ingresos_actualizados' => $totalIngresosActualizados
+            ]);
+
+            return $mensaje;
+
+        } catch (\Exception $e) {
+            $error = "Error general en syncWhatsAppMetaLogs: " . $e->getMessage();
+            Log::error($error, [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $error;
+        }
+    }
 
     public function aplicateProrrateo(){
 
