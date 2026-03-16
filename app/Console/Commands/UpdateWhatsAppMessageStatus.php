@@ -209,21 +209,20 @@ class UpdateWhatsAppMessageStatus extends Command
             ];
         }
 
-        // Solo actualizar si el status es delivered o read (marcar como 1)
-        // No actualizar si es sent o failed (mantener valor actual)
-        if ($status !== 'delivered' && $status !== 'read') {
-            return [
-                'factura_actualizada' => false,
-                'ingreso_actualizado' => false
-            ];
-        }
-
-        $whatsappValue = 1; // Solo marcamos como 1 cuando es delivered o read
-
         $result = [
             'factura_actualizada' => false,
             'ingreso_actualizado' => false
         ];
+
+        // Determinar el valor de whatsapp según el status
+        if ($status === 'delivered' || $status === 'read') {
+            $whatsappValue = 1; // Entregado/leído
+        } elseif ($status === 'failed' && !$isHealthyEcosystemError) {
+            $whatsappValue = 0; // Fallido (no entregado), excepto si es error de healthy ecosystem
+        } else {
+            // Para otros estados (sent, pending, etc.) no actualizamos
+            return $result;
+        }
 
         // Actualizar factura si existe
         if ($incomingInvoiceId) {

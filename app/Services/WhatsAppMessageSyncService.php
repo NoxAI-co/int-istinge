@@ -216,6 +216,7 @@ class WhatsAppMessageSyncService
 
         // Actualizar documentos asociados según status
         if ($status === 'delivered' || $status === 'read') {
+            // Marcar como entregado/leído (whatsapp = 1)
             if ($incomingInvoiceId) {
                 $factura = Factura::find($incomingInvoiceId);
                 if ($factura && $factura->whatsapp != 1) {
@@ -233,6 +234,32 @@ class WhatsAppMessageSyncService
                         ->where('id', $incomingPaymentId)
                         ->update(['whatsapp' => 1]);
                     $ingresosActualizados++;
+                }
+            }
+        } elseif ($status === 'failed') {
+            // Marcar como no entregado (whatsapp = 0) solo si NO es el error de healthy ecosystem
+            $isHealthyEcosystemError = $errorMessage && 
+                stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;
+            
+            if (!$isHealthyEcosystemError) {
+                if ($incomingInvoiceId) {
+                    $factura = Factura::find($incomingInvoiceId);
+                    if ($factura && $factura->whatsapp != 0) {
+                        DB::table('factura')
+                            ->where('id', $incomingInvoiceId)
+                            ->update(['whatsapp' => 0]);
+                        $facturasActualizadas++;
+                    }
+                }
+
+                if ($incomingPaymentId) {
+                    $ingreso = Ingreso::find($incomingPaymentId);
+                    if ($ingreso && $ingreso->whatsapp != 0) {
+                        DB::table('ingresos')
+                            ->where('id', $incomingPaymentId)
+                            ->update(['whatsapp' => 0]);
+                        $ingresosActualizados++;
+                    }
                 }
             }
         }
