@@ -269,7 +269,7 @@ class ExportarReportesController extends Controller
                 'c.nombre as cliente_nombre',
                 DB::raw("CONCAT(IFNULL(c.apellido1,''), ' ', IFNULL(c.apellido2,'')) as cliente_apellidos"),
                 'c.nit as cliente_nit',
-                'c.estrato as cliente_estrato',
+                DB::raw("(SELECT GROUP_CONCAT(COALESCE(cs.estrato, c.estrato)) FROM facturas_contratos fc2 INNER JOIN contracts cs ON cs.nro = fc2.contrato_nro WHERE fc2.factura_id = factura.id) as cliente_estrato"),
                 'c.celular as cliente_celular',
                 'c.direccion as cliente_direccion',
                 'c.email as cliente_email',

@@ -330,6 +330,40 @@
     .msg-status.read { color: #53bdeb; }
     .msg-status.sent { color: #8696a0; }
 
+    /* Message Relations Badges */
+    .message-relations {
+        margin-top: 8px;
+    }
+
+    .relation-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .badge-contrato {
+        background-color: #e3f2fd;
+        color: #1976d2;
+        border: 1px solid #90caf9;
+    }
+
+    .badge-factura {
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+    }
+
+    .badge-ingreso {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #81c784;
+    }
+
     /* Input Area */
     .chat-input-area {
         min-height: 62px;
@@ -716,6 +750,22 @@
 
                                     <div v-else-if="msg.type === 'audio'">
                                         <audio :src="msg.media_url" controls style="max-width: 250px;"></audio>
+                                    </div>
+
+                                    <!-- Badges de relaciones -->
+                                    <div v-if="msg.contrato || msg.factura || msg.ingreso" class="message-relations" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+                                        <span v-if="msg.contrato" class="relation-badge badge-contrato" :title="'Contrato: ' + msg.contrato.nro">
+                                            <i class="fas fa-file-contract" style="margin-right: 4px;"></i>
+                                            Contrato: @{{ msg.contrato.nro }}
+                                        </span>
+                                        <span v-if="msg.factura" class="relation-badge badge-factura" :title="'Factura: ' + msg.factura.codigo">
+                                            <i class="fas fa-file-invoice-dollar" style="margin-right: 4px;"></i>
+                                            Factura: @{{ msg.factura.codigo }}
+                                        </span>
+                                        <span v-if="msg.ingreso" class="relation-badge badge-ingreso" :title="'Ingreso: ' + msg.ingreso.nro">
+                                            <i class="fas fa-money-bill-wave" style="margin-right: 4px;"></i>
+                                            Ingreso: @{{ msg.ingreso.nro }}
+                                        </span>
                                     </div>
                                 </div>
                                 

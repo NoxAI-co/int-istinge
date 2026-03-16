@@ -138,6 +138,75 @@ class CentralizedWhatsAppService
     }
 
     /**
+     * Get messages with status filters
+     * 
+     * @param string $token (phone_number_id)
+     * @param array $filters ['status' => 'delivered', 'has_invoice' => true, etc.]
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function getMessagesWithStatus(string $token, array $filters = [], int $page = 1, int $perPage = 100)
+    {
+        $queryParams = [
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
+
+        if (isset($filters['status'])) {
+            $queryParams['status'] = $filters['status'];
+        }
+
+        if (isset($filters['has_invoice']) && $filters['has_invoice']) {
+            $queryParams['has_invoice'] = 1;
+        }
+
+        if (isset($filters['has_payment']) && $filters['has_payment']) {
+            $queryParams['has_payment'] = 1;
+        }
+
+        return $this->makeRequest(
+            'GET',
+            'messages',
+            $queryParams,
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
+     * Get message status updates (recent status changes)
+     * 
+     * @param string $token (phone_number_id)
+     * @param string|null $since ISO8601 timestamp
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function getMessageStatusUpdates(string $token, ?string $since = null, int $page = 1, int $perPage = 100)
+    {
+        $queryParams = [
+            'page' => $page,
+            'per_page' => $perPage,
+            'status_updates' => 1,
+        ];
+
+        if ($since) {
+            $queryParams['since'] = $since;
+        }
+
+        return $this->makeRequest(
+            'GET',
+            'messages/status-updates',
+            $queryParams,
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
      * Custom resolve authorization to avoid default behavior if any
      */
     public function resolveAuthorization(&$queryParams, &$formParams, &$headers)

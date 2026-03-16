@@ -9,6 +9,9 @@ use App\Instance;
 use App\WhatsAppConversation;
 use App\WhatsAppMessage;
 use App\Services\CentralizedWhatsAppService;
+use App\Model\Ingresos\Factura;
+use App\Model\Ingresos\Ingreso;
+use App\Contrato;
 use Auth;
 
 class ChatController extends Controller
@@ -211,6 +214,11 @@ class ChatController extends Controller
             ], $response['statusCode'] ?? 500);
         }
 
+        // Enriquecer mensajes con datos de facturas, contratos e ingresos
+        if (isset($response['data']) && is_array($response['data'])) {
+            $response['data'] = $this->enrichMessagesWithRelations($response['data']);
+        }
+
         return response()->json($response);
     }
 
@@ -340,5 +348,48 @@ class ChatController extends Controller
             'success' => true,
             'message' => 'Conversación cerrada'
         ]);
+    }
+
+    /**
+     * Enriquecer mensajes con datos de facturas, contratos e ingresos
+     */
+    private function enrichMessagesWithRelations(array $messages)
+    {
+        foreach ($messages as &$message) {
+            // Agregar información de factura si existe
+            if (isset($message['incoming_invoice_id']) && $message['incoming_invoice_id']) {
+                $factura = Factura::find($message['incoming_invoice_id']);
+                if ($factura) {
+                    $message['factura'] = [
+                        'id' => $factura->id,
+                        'codigo' => $factura->codigo
+                    ];
+                }
+            }
+
+            // Agregar información de contrato si existe
+            if (isset($message['incoming_contract_id']) && $message['incoming_contract_id']) {
+                $contrato = Contrato::find($message['incoming_contract_id']);
+                if ($contrato) {
+                    $message['contrato'] = [
+                        'id' => $contrato->id,
+                        'nro' => $contrato->nro
+                    ];
+                }
+            }
+
+            // Agregar información de ingreso si existe
+            if (isset($message['incoming_payment_id']) && $message['incoming_payment_id']) {
+                $ingreso = Ingreso::find($message['incoming_payment_id']);
+                if ($ingreso) {
+                    $message['ingreso'] = [
+                        'id' => $ingreso->id,
+                        'nro' => $ingreso->nro
+                    ];
+                }
+            }
+        }
+
+        return $messages;
     }
 }

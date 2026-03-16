@@ -27,6 +27,9 @@ class Kernel extends ConsoleKernel
         //$schedule->command('facturas:end')->cron('0 */12 * * *');
         //$schedule->command('pagos:end')->cron('0 */12 * * *');
         //$schedule->command('check:invoices')->everyMinute();everyFiveMinutes
+        
+        // Actualizar status de WhatsApp cada 5 minutos
+        $schedule->command('whatsapp:update-status')->everyFiveMinutes();
     }
 
     /**

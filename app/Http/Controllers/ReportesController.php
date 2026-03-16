@@ -2662,7 +2662,7 @@ class ReportesController extends Controller
                 DB::raw('c.apellido1 as ape1cliente'),
                 DB::raw('c.apellido2 as ape2cliente'),
                 DB::raw('c.nit as nitcliente'),
-                DB::raw('c.estrato as estratocliente'),
+                DB::raw("(SELECT GROUP_CONCAT(COALESCE(cs.estrato, c.estrato)) FROM facturas_contratos fc INNER JOIN contracts cs ON cs.nro = fc.contrato_nro WHERE fc.factura_id = factura.id) as estratocliente"),
                 DB::raw('c.celular as celularcliente'),
                 DB::raw('IFNULL(m.nombre, "") as municipio'),
                 DB::raw('IFNULL(b.nombre, "") as barrio'),

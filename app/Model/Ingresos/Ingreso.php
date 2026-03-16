@@ -28,7 +28,7 @@ class Ingreso extends Model
      * @var array
      */
     protected $fillable = [
-        'nro', 'empresa', 'cliente', 'cuenta', 'metodo_pago', 'fecha', 'observaciones', 'notas', 'tipo', 'estatus', 'created_at', 'updated_at', 'nota_debito', 'total_debito', 'nro_devolucion', 'created_by', 'updated_by'
+        'nro', 'empresa', 'cliente', 'cuenta', 'metodo_pago', 'fecha', 'observaciones', 'notas', 'tipo', 'estatus', 'created_at', 'updated_at', 'nota_debito', 'total_debito', 'nro_devolucion', 'created_by', 'updated_by', 'whatsapp'
     ];
 
     public function setTotalDebitoAttribute($value)

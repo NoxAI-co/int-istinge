@@ -51,7 +51,7 @@
     			</span>
     		</div>
     		<div class="form-group col-md-3">
-    			<label class="control-label">Apellido 1 <span class="text-danger">*</span></label>
+    			<label class="control-label">Apellido 1 <span class="text-danger" id="asterisco_apellido1">*</span></label>
     			<input type="text" class="form-control" name="apellido1" id="apellido1" required="" maxlength="200" value="{{old('apellido1')}}">
     			<span class="help-block error">
     				<strong>{{ $errors->first('apellido1') }}</strong>
@@ -387,9 +387,33 @@
 
 				if (option == 6) {
 					searchDV($("#tip_iden").val());
+					$("#apellido1").removeAttr('required');
+					$("#asterisco_apellido1").hide();
 				}
 				searchMunicipality({{ Auth::user()->empresa()->fk_iddepartamento }}, {{ Auth::user()->empresa()->fk_idmunicipio }});
 			});
+            
+            $('#tip_iden').on('change', function() {
+                if($(this).val() == 6) {
+                    $("#apellido1").removeAttr('required');
+                    $("#asterisco_apellido1").hide();
+                } else {
+                    if($("input[name='tipo_contacto[]'][value='0']").is(":checked")) {
+                        $("#apellido1").attr('required', true);
+                        $("#asterisco_apellido1").show();
+                    }
+                }
+            });
+
+            $("input[name='tipo_contacto[]'][value='0']").on('change', function() {
+                if($(this).is(":checked") && $("#tip_iden").val() != 6) {
+                    $("#apellido1").attr('required', true);
+                    $("#asterisco_apellido1").show();
+                } else {
+                    $("#apellido1").removeAttr('required');
+                    $("#asterisco_apellido1").hide();
+                }
+            });
 
 			setTimeout(function () {
 				$("#municipio").val({{ Auth::user()->empresa()->fk_idmunicipio }});
