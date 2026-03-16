@@ -81,8 +81,16 @@ class ChatController extends Controller
 
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
+        $searchQuery = $request->input('q', '');
+        $filterType = $request->input('filter_type', ''); // 'invoice', 'payment', 'contract', 'all'
+        $filterId = $request->input('filter_id', null);
 
-        // Consumir API Centralizada
+        // Si hay búsqueda o filtros, usar el método de búsqueda
+        if (!empty($searchQuery) || !empty($filterType)) {
+            return $this->searchConversations($request, $instance, $searchQuery, $filterType, $filterId, $page, $perPage);
+        }
+
+        // Consumir API Centralizada normal
         $response = $this->centralizedService->getConversations(
             $instance->phone_number_id,
             $page,
@@ -103,6 +111,231 @@ class ChatController extends Controller
         }
 
         return response()->json($response);
+    }
+
+    /**
+     * Buscar conversaciones con filtros avanzados
+     */
+    private function searchConversations(Request $request, Instance $instance, string $searchQuery, string $filterType, $filterId, int $page, int $perPage)
+    {
+        $searchOptions = [];
+
+        // Agregar texto de búsqueda si existe
+        if (!empty($searchQuery)) {
+            $searchOptions['text'] = $searchQuery;
+        }
+
+        // Agregar filtros de relaciones
+        if ($filterType === 'invoice' || $filterType === 'factura') {
+            $searchOptions['has_invoice'] = true;
+            if ($filterId) {
+                $searchOptions['invoice_id'] = $filterId;
+            }
+        } elseif ($filterType === 'payment' || $filterType === 'ingreso') {
+            $searchOptions['has_payment'] = true;
+            if ($filterId) {
+                $searchOptions['payment_id'] = $filterId;
+            }
+        } elseif ($filterType === 'contract' || $filterType === 'contrato') {
+            $searchOptions['has_contract'] = true;
+            if ($filterId) {
+                $searchOptions['contract_id'] = $filterId;
+            }
+        }
+
+        // Intentar usar el método de búsqueda de la API centralizada
+        try {
+            $response = $this->centralizedService->searchConversations(
+                $instance->phone_number_id,
+                $searchOptions,
+                $page,
+                $perPage
+            );
+
+            if (isset($response['errorMessage'])) {
+                // Si la API no soporta búsqueda, hacer búsqueda manual
+                return $this->manualSearchConversations($instance, $searchQuery, $filterType, $filterId, $page, $perPage);
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            \Log::warning('Error en búsqueda de API centralizada, usando búsqueda manual', [
+                'error' => $e->getMessage()
+            ]);
+            // Fallback a búsqueda manual
+            return $this->manualSearchConversations($instance, $searchQuery, $filterType, $filterId, $page, $perPage);
+        }
+    }
+
+    /**
+     * Búsqueda manual de conversaciones (fallback si la API no soporta búsqueda)
+     */
+    private function manualSearchConversations(Instance $instance, string $searchQuery, string $filterType, $filterId, int $page, int $perPage)
+    {
+        // Obtener todas las conversaciones paginadas
+        $allConversations = [];
+        $currentPage = 1;
+        $maxPages = 10; // Límite de seguridad
+        $hasMore = true;
+
+        while ($hasMore && $currentPage <= $maxPages) {
+            $response = $this->centralizedService->getConversations(
+                $instance->phone_number_id,
+                $currentPage,
+                50
+            );
+
+            if (isset($response['errorMessage'])) {
+                break;
+            }
+
+            $conversations = $response['data'] ?? [];
+            if (empty($conversations)) {
+                break;
+            }
+
+            // Para cada conversación, verificar si cumple los criterios de búsqueda
+            foreach ($conversations as $conversation) {
+                $matches = true;
+
+                // Filtrar por texto en nombre o teléfono
+                if (!empty($searchQuery)) {
+                    $queryLower = strtolower($searchQuery);
+                    $nameMatch = isset($conversation['name']) && stripos($conversation['name'], $searchQuery) !== false;
+                    $phoneMatch = isset($conversation['phone_number']) && strpos($conversation['phone_number'], $searchQuery) !== false;
+                    
+                    // Si no coincide en nombre/teléfono, buscar en mensajes
+                    if (!$nameMatch && !$phoneMatch) {
+                        $messageMatch = $this->searchInConversationMessages($instance, $conversation['id'] ?? null, $searchQuery);
+                        if (!$messageMatch) {
+                            $matches = false;
+                        }
+                    }
+                }
+
+                // Filtrar por tipo de relación
+                if ($matches && !empty($filterType)) {
+                    $hasRelation = $this->conversationHasRelation($instance, $conversation['id'] ?? null, $filterType, $filterId);
+                    if (!$hasRelation) {
+                        $matches = false;
+                    }
+                }
+
+                if ($matches) {
+                    $allConversations[] = $conversation;
+                }
+            }
+
+            // Verificar si hay más páginas
+            $meta = $response['meta'] ?? [];
+            $lastPage = $meta['last_page'] ?? $meta['lastPage'] ?? 1;
+            $hasMore = $currentPage < $lastPage;
+            $currentPage++;
+        }
+
+        // Paginar resultados manualmente
+        $total = count($allConversations);
+        $offset = ($page - 1) * $perPage;
+        $paginatedConversations = array_slice($allConversations, $offset, $perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $paginatedConversations,
+            'meta' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage)
+            ]
+        ]);
+    }
+
+    /**
+     * Buscar texto en los mensajes de una conversación
+     */
+    private function searchInConversationMessages(Instance $instance, $conversationId, string $query)
+    {
+        if (!$conversationId) {
+            return false;
+        }
+
+        try {
+            $response = $this->centralizedService->getMessages(
+                $instance->phone_number_id,
+                $conversationId,
+                1,
+                50 // Buscar en los últimos 50 mensajes
+            );
+
+            if (isset($response['errorMessage'])) {
+                return false;
+            }
+
+            $messages = $response['data'] ?? [];
+            $queryLower = strtolower($query);
+
+            foreach ($messages as $message) {
+                $content = strtolower($message['content'] ?? '');
+                if (strpos($content, $queryLower) !== false) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Verificar si una conversación tiene una relación específica
+     */
+    private function conversationHasRelation(Instance $instance, $conversationId, string $filterType, $filterId = null)
+    {
+        if (!$conversationId) {
+            return false;
+        }
+
+        try {
+            $response = $this->centralizedService->getMessages(
+                $instance->phone_number_id,
+                $conversationId,
+                1,
+                100 // Buscar en los últimos 100 mensajes
+            );
+
+            if (isset($response['errorMessage'])) {
+                return false;
+            }
+
+            $messages = $response['data'] ?? [];
+
+            foreach ($messages as $message) {
+                if ($filterType === 'invoice' || $filterType === 'factura') {
+                    if (isset($message['incoming_invoice_id'])) {
+                        if ($filterId === null || $message['incoming_invoice_id'] == $filterId) {
+                            return true;
+                        }
+                    }
+                } elseif ($filterType === 'payment' || $filterType === 'ingreso') {
+                    if (isset($message['incoming_payment_id'])) {
+                        if ($filterId === null || $message['incoming_payment_id'] == $filterId) {
+                            return true;
+                        }
+                    }
+                } elseif ($filterType === 'contract' || $filterType === 'contrato') {
+                    if (isset($message['incoming_contract_id'])) {
+                        if ($filterId === null || $message['incoming_contract_id'] == $filterId) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

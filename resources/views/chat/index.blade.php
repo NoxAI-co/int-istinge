@@ -618,10 +618,22 @@
         <!-- Sidebar -->
         <div class="chat-sidebar">
             <div class="search-box">
+                <!-- Filtros de relación -->
+                <div style="margin-bottom: 8px; display: flex; gap: 6px;">
+                    <select v-model="filterType" @change="applyFilters" class="filter-select" style="flex: 1; padding: 6px 8px; border: 1px solid #d1d7db; border-radius: 6px; font-size: 0.85rem; background: white;">
+                        <option value="">Todos</option>
+                        <option value="contract">Con Contrato</option>
+                        <option value="invoice">Con Factura</option>
+                        <option value="payment">Con Ingreso</option>
+                    </select>
+                </div>
+                
+                <!-- Campo de búsqueda -->
                 <input 
                     v-model="searchQuery" 
+                    @input="handleSearchInput"
                     type="text" 
-                    placeholder="Buscar o empezar un chat nuevo" 
+                    placeholder="Buscar por nombre, teléfono, factura:12170, ingreso:12170, contrato:123..." 
                     class="search-input"
                 >
             </div>
@@ -897,6 +909,8 @@ new Vue({
         selectedConversation: null,
         newMessage: '',
         searchQuery: '',
+        filterType: '', // 'contract', 'invoice', 'payment', ''
+        filterId: null, // ID específico si se busca por ejemplo "factura:12170"
         loadingConversations: false,
         loadingMessages: false,
         sending: false,
@@ -923,18 +937,72 @@ new Vue({
         currentPage: 1,
         lastPage: 1,
         loadingMore: false,
+        
+        // Search debounce
+        searchTimeout: null,
     },
     
     computed: {
         filteredConversations() {
+            // Si hay búsqueda o filtros, las conversaciones ya vienen filtradas del servidor
+            // Solo aplicamos filtros adicionales si es necesario
             const conversations = this.conversations || [];
-            if (!this.searchQuery) return conversations;
             
-            const query = this.searchQuery.toLowerCase();
-            return conversations.filter(c => 
-                (c.name && c.name.toLowerCase().includes(query)) ||
-                (c.phone_number && c.phone_number.includes(query))
-            );
+            // Si no hay búsqueda ni filtros, devolver todas
+            if (!this.searchQuery && !this.filterType) {
+                return conversations;
+            }
+
+            // Las conversaciones ya vienen filtradas del servidor, pero podemos aplicar
+            // filtros adicionales en el cliente si es necesario
+            let filtered = conversations;
+
+            // Parsear búsqueda inline (factura:12170, ingreso:12170, contrato:123)
+            const inlineFilters = this.parseInlineSearch(this.searchQuery);
+            
+            if (inlineFilters.type && inlineFilters.id) {
+                // Filtrar por relación específica
+                filtered = filtered.filter(c => {
+                    // Necesitamos verificar en los mensajes de la conversación
+                    // Por ahora, confiamos en el filtrado del servidor
+                    return true;
+                });
+            }
+
+            return filtered;
+        },
+
+        parseInlineSearch(query) {
+            if (!query) return { type: null, id: null, text: '' };
+            
+            // Buscar patrones: factura:12170, ingreso:12170, contrato:123
+            const facturaMatch = query.match(/factura[:\s]+(\d+)/i);
+            const ingresoMatch = query.match(/ingreso[:\s]+(\d+)/i);
+            const contratoMatch = query.match(/contrato[:\s]+(\d+)/i);
+            
+            if (facturaMatch) {
+                return {
+                    type: 'invoice',
+                    id: parseInt(facturaMatch[1]),
+                    text: query.replace(/factura[:\s]+\d+/i, '').trim()
+                };
+            }
+            if (ingresoMatch) {
+                return {
+                    type: 'payment',
+                    id: parseInt(ingresoMatch[1]),
+                    text: query.replace(/ingreso[:\s]+\d+/i, '').trim()
+                };
+            }
+            if (contratoMatch) {
+                return {
+                    type: 'contract',
+                    id: parseInt(contratoMatch[1]),
+                    text: query.replace(/contrato[:\s]+\d+/i, '').trim()
+                };
+            }
+            
+            return { type: null, id: null, text: query };
         },
 
         hasMoreConversations() {
@@ -1061,6 +1129,9 @@ new Vue({
             this.currentPage = 1;
             this.lastPage = 1;
             this.loadingMore = false;
+            this.searchQuery = '';
+            this.filterType = '';
+            this.filterId = null;
             
             if (this.selectedInstanceId) {
                 this.loadConversations();
@@ -1082,9 +1153,24 @@ new Vue({
             this.loadingConversations = true;
             this.currentPage = 1;
             try {
-                const response = await axios.get(window.routes.conversations, {
-                    params: { instance_id: this.selectedInstanceId, page: 1, per_page: 20 }
-                });
+                const params = {
+                    instance_id: this.selectedInstanceId,
+                    page: 1,
+                    per_page: 20
+                };
+
+                // Agregar parámetros de búsqueda si existen
+                if (this.searchQuery) {
+                    params.q = this.searchQuery;
+                }
+                if (this.filterType) {
+                    params.filter_type = this.filterType;
+                }
+                if (this.filterId) {
+                    params.filter_id = this.filterId;
+                }
+
+                const response = await axios.get(window.routes.conversations, { params });
                 this.conversations = response.data.data || [];
                 // Capture pagination metadata if the API exposes it
                 const meta = response.data.meta || response.data;
@@ -1130,6 +1216,38 @@ new Vue({
             if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
                 this.loadMoreConversations();
             }
+        },
+
+        handleSearchInput() {
+            // Parsear búsqueda inline
+            const parsed = this.parseInlineSearch(this.searchQuery);
+            
+            if (parsed.type && parsed.id) {
+                // Si hay un filtro inline, actualizar los filtros
+                this.filterType = parsed.type;
+                this.filterId = parsed.id;
+            } else {
+                // Si no hay patrón inline pero había uno antes, limpiar filterId
+                // pero mantener filterType si fue seleccionado manualmente
+                // Solo limpiar filterId si viene de un patrón inline previo
+                if (this.filterId && !this.filterType) {
+                    this.filterId = null;
+                }
+            }
+            
+            // Debounce: esperar 500ms antes de buscar
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                this.loadConversations();
+            }, 500);
+        },
+
+        applyFilters() {
+            // Limpiar filterId cuando cambia el tipo de filtro
+            if (!this.filterType) {
+                this.filterId = null;
+            }
+            this.loadConversations();
         },
         
         async selectConversation(conversation) {

@@ -65,55 +65,104 @@ class UpdateWhatsAppMessageStatus extends Command
             $this->info("Procesando instancia: {$instance->phone_number_id}");
 
             try {
-                // Consultar conversaciones recientes
-                $conversationsResponse = $this->centralizedService->getConversations(
-                    $instance->phone_number_id,
-                    1,
-                    50 // Obtener últimas 50 conversaciones
-                );
-
-                if (isset($conversationsResponse['errorMessage'])) {
-                    $this->error("Error consultando conversaciones: {$conversationsResponse['errorMessage']}");
-                    continue;
-                }
-
-                $conversations = $conversationsResponse['data'] ?? [];
                 $processedMessages = 0;
+                $conversationPage = 1;
+                $hasMoreConversations = true;
+                $maxConversationPages = 20; // Límite de seguridad: máximo 20 páginas (20 * 50 = 1000 conversaciones)
 
-                // Para cada conversación, obtener sus mensajes recientes
-                foreach ($conversations as $conversation) {
-                    $conversationId = $conversation['id'] ?? null;
-                    if (!$conversationId) {
-                        continue;
-                    }
-
-                    // Obtener mensajes de la conversación (últimos 100 para asegurar capturar todos los relevantes)
-                    $messagesResponse = $this->centralizedService->getMessages(
+                // Consultar todas las conversaciones paginadas
+                while ($hasMoreConversations && $conversationPage <= $maxConversationPages) {
+                    $this->line("  Consultando página {$conversationPage} de conversaciones...");
+                    
+                    $conversationsResponse = $this->centralizedService->getConversations(
                         $instance->phone_number_id,
-                        $conversationId,
-                        1,
-                        100
+                        $conversationPage,
+                        50 // 50 conversaciones por página
                     );
 
-                    if (isset($messagesResponse['errorMessage'])) {
-                        continue;
+                    if (isset($conversationsResponse['errorMessage'])) {
+                        $this->error("Error consultando conversaciones página {$conversationPage}: {$conversationsResponse['errorMessage']}");
+                        break;
                     }
 
-                    $messages = $messagesResponse['data'] ?? [];
+                    $conversations = $conversationsResponse['data'] ?? [];
+                    
+                    if (empty($conversations)) {
+                        $hasMoreConversations = false;
+                        break;
+                    }
 
-                    foreach ($messages as $message) {
-                        // Solo procesar mensajes que tengan relación con facturas o ingresos
-                        if (isset($message['incoming_invoice_id']) || isset($message['incoming_payment_id'])) {
-                            $result = $this->processMessage($message, $instance);
-                            if ($result['factura_actualizada']) {
-                                $totalFacturasActualizadas++;
+                    // Verificar si hay más páginas
+                    $meta = $conversationsResponse['meta'] ?? [];
+                    $lastPage = $meta['last_page'] ?? $meta['lastPage'] ?? 1;
+                    $hasMoreConversations = $conversationPage < $lastPage;
+
+                    // Para cada conversación, obtener todos sus mensajes paginados
+                    foreach ($conversations as $conversation) {
+                        $conversationId = $conversation['id'] ?? null;
+                        if (!$conversationId) {
+                            continue;
+                        }
+
+                        $messagePage = 1;
+                        $hasMoreMessages = true;
+                        $maxMessagePages = 10; // Límite de seguridad: máximo 10 páginas (10 * 100 = 1000 mensajes por conversación)
+
+                        // Consultar todos los mensajes de la conversación paginados
+                        while ($hasMoreMessages && $messagePage <= $maxMessagePages) {
+                            $messagesResponse = $this->centralizedService->getMessages(
+                                $instance->phone_number_id,
+                                $conversationId,
+                                $messagePage,
+                                100 // 100 mensajes por página
+                            );
+
+                            if (isset($messagesResponse['errorMessage'])) {
+                                $this->warn("  Error consultando mensajes de conversación {$conversationId}, página {$messagePage}: {$messagesResponse['errorMessage']}");
+                                break;
                             }
-                            if ($result['ingreso_actualizado']) {
-                                $totalIngresosActualizados++;
+
+                            $messages = $messagesResponse['data'] ?? [];
+
+                            if (empty($messages)) {
+                                $hasMoreMessages = false;
+                                break;
                             }
-                            $processedMessages++;
+
+                            // Verificar si hay más páginas de mensajes
+                            $messageMeta = $messagesResponse['meta'] ?? [];
+                            $messageLastPage = $messageMeta['last_page'] ?? $messageMeta['lastPage'] ?? 1;
+                            $hasMoreMessages = $messagePage < $messageLastPage;
+
+                            foreach ($messages as $message) {
+                                // Solo procesar mensajes que tengan relación con facturas o ingresos
+                                if (isset($message['incoming_invoice_id']) || isset($message['incoming_payment_id'])) {
+                                    $result = $this->processMessage($message, $instance);
+                                    if ($result['factura_actualizada']) {
+                                        $totalFacturasActualizadas++;
+                                    }
+                                    if ($result['ingreso_actualizado']) {
+                                        $totalIngresosActualizados++;
+                                    }
+                                    $processedMessages++;
+                                    
+                                    Log::debug('Mensaje procesado en UpdateWhatsAppMessageStatus', [
+                                        'conversation_id' => $conversationId,
+                                        'message_id' => $message['id'] ?? null,
+                                        'incoming_invoice_id' => $message['incoming_invoice_id'] ?? null,
+                                        'incoming_payment_id' => $message['incoming_payment_id'] ?? null,
+                                        'status' => $message['status'] ?? null,
+                                        'factura_actualizada' => $result['factura_actualizada'],
+                                        'ingreso_actualizado' => $result['ingreso_actualizado']
+                                    ]);
+                                }
+                            }
+
+                            $messagePage++;
                         }
                     }
+
+                    $conversationPage++;
                 }
 
                 $this->info("Procesados {$processedMessages} mensajes para la instancia {$instance->phone_number_id}");

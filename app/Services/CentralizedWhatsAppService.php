@@ -207,6 +207,115 @@ class CentralizedWhatsAppService
     }
 
     /**
+     * Search messages with specific relations (invoice, payment, contract)
+     * 
+     * @param string $token (phone_number_id)
+     * @param array $filters ['invoice_id' => int, 'payment_id' => int, 'contract_id' => int]
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function searchMessagesByRelations(string $token, array $filters = [], int $page = 1, int $perPage = 100)
+    {
+        $queryParams = [
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
+
+        if (isset($filters['invoice_id'])) {
+            $queryParams['incoming_invoice_id'] = $filters['invoice_id'];
+        }
+        if (isset($filters['payment_id'])) {
+            $queryParams['incoming_payment_id'] = $filters['payment_id'];
+        }
+        if (isset($filters['contract_id'])) {
+            $queryParams['incoming_contract_id'] = $filters['contract_id'];
+        }
+
+        return $this->makeRequest(
+            'GET',
+            'messages/search',
+            $queryParams,
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
+     * Search messages by text content
+     * 
+     * @param string $token (phone_number_id)
+     * @param string $query Text to search
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function searchMessagesByText(string $token, string $query, int $page = 1, int $perPage = 100)
+    {
+        return $this->makeRequest(
+            'GET',
+            'messages/search',
+            [
+                'page' => $page,
+                'per_page' => $perPage,
+                'q' => $query,
+            ],
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
+     * Search conversations that contain messages matching criteria
+     * 
+     * @param string $token (phone_number_id)
+     * @param array $options ['text' => string, 'has_invoice' => bool, 'has_payment' => bool, 'has_contract' => bool, 'invoice_id' => int, 'payment_id' => int, 'contract_id' => int]
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function searchConversations(string $token, array $options = [], int $page = 1, int $perPage = 50)
+    {
+        $queryParams = [
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
+
+        if (isset($options['text']) && !empty($options['text'])) {
+            $queryParams['q'] = $options['text'];
+        }
+        if (isset($options['has_invoice']) && $options['has_invoice']) {
+            $queryParams['has_invoice'] = 1;
+        }
+        if (isset($options['has_payment']) && $options['has_payment']) {
+            $queryParams['has_payment'] = 1;
+        }
+        if (isset($options['has_contract']) && $options['has_contract']) {
+            $queryParams['has_contract'] = 1;
+        }
+        if (isset($options['invoice_id'])) {
+            $queryParams['invoice_id'] = $options['invoice_id'];
+        }
+        if (isset($options['payment_id'])) {
+            $queryParams['payment_id'] = $options['payment_id'];
+        }
+        if (isset($options['contract_id'])) {
+            $queryParams['contract_id'] = $options['contract_id'];
+        }
+
+        return $this->makeRequest(
+            'GET',
+            'conversations/search',
+            $queryParams,
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
      * Custom resolve authorization to avoid default behavior if any
      */
     public function resolveAuthorization(&$queryParams, &$formParams, &$headers)
