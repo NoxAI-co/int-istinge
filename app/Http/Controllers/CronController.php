@@ -5259,6 +5259,14 @@ class CronController extends Controller
                     $totalLogsActualizados += $result['logsUpdated'] ?? 0;
                     $totalFacturasActualizadas += $result['facturasActualizadas'] ?? 0;
                     $totalIngresosActualizados += $result['ingresosActualizados'] ?? 0;
+
+                    Log::debug('Resultado de sincronización', [
+                        'result' => $result,
+                        'logsCreated' => $result['logsCreated'] ?? 0,
+                        'logsUpdated' => $result['logsUpdated'] ?? 0,
+                        'facturasActualizadas' => $result['facturasActualizadas'] ?? 0,
+                        'ingresosActualizados' => $result['ingresosActualizados'] ?? 0,
+                    ]);
                     $instanciasProcesadas++;
 
                     Log::info('Instancia sincronizada exitosamente', [

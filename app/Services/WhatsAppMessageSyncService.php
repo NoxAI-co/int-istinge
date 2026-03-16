@@ -98,8 +98,8 @@ class WhatsAppMessageSyncService
                     $logsUpdated++;
                 }
 
-                $facturasActualizadas += $result['facturas_actualizadas'];
-                $ingresosActualizados += $result['ingresos_actualizados'];
+                $facturasActualizadas += $result['facturasActualizadas'] ?? 0;
+                $ingresosActualizados += $result['ingresosActualizados'] ?? 0;
             }
 
             $meta = $response['meta'] ?? [];
