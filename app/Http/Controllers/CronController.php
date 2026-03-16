@@ -259,7 +259,7 @@ class CronController extends Controller
             $numeros = [];
             $bulk = '';
             $query = GrupoCorte::query();
-            
+
             if ($idGrupo) {
                 $query->where('id', $idGrupo);
             } else {
@@ -267,7 +267,7 @@ class CronController extends Controller
                       ->whereRaw("STR_TO_DATE(hora_creacion_factura, '%H:%i') <= STR_TO_DATE(?, '%H:%i')", [$horaActual])
                       ->where('status', 1);
             }
-            
+
             $grupos_corte = $query->get();
 
 
@@ -283,7 +283,7 @@ class CronController extends Controller
                 'contracts.state', 'contracts.fecha_corte', 'contracts.fecha_suspension', 'contracts.facturacion',
                 'contracts.plan_id', 'contracts.descuento', 'c.nombre', 'c.nit', 'c.celular', 'c.telefono1',
                 'c.saldo_favor','contracts.created_at','contracts.fact_primer_mes',
-                'e.terminos_cond', 'e.notas_fact', 'contracts.servicio_tv', 
+                'e.terminos_cond', 'e.notas_fact', 'contracts.servicio_tv',
                 'contracts.factura_individual','contracts.nro','contracts.prorrateo')
                 ->where('contracts.grupo_corte',$grupo_corte->id)->
                 where('contracts.status',1)->
@@ -422,7 +422,7 @@ class CronController extends Controller
                             $ultimaFactura->factura_mes_manual = 0;
                             DB::table('factura')->where('id',$ultimaFactura->id)->update(['factura_mes_manual'=>0]);
                         }
-                        
+
                     }
 
                     /* ** Validacion: si la actual es dif a la ultima fac pasa o sino
@@ -1335,42 +1335,48 @@ class CronController extends Controller
             $whereOrder = implode(',', $grupos_corte_array);
 
             //Estamos tomando la ultima factura siempre del cliente con el orderby y el groupby, despues analizamos si esta ultima ya vencio
-            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-                leftJoin('facturas_contratos as fcs', 'fcs.factura_id', '=', 'f.id')
-                ->leftJoin('contracts as cs', function ($join) {
-                    $join->on('cs.nro', '=', 'fcs.contrato_nro');
-                })->
-                select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus',
-                 'f.suspension', 'cs.state', 'f.contrato_id','cs.grupo_corte')->
-                where('f.estatus',1)->
-                whereIn('f.tipo', [1,2])->
-                where('contactos.status',1)->
-                where('cs.state','enabled')->
-                whereIn('cs.grupo_corte',$grupos_corte_array)->
-                where(function($sub){
-                    $sub->whereNull('cs.fecha_suspension')
+            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')
+            ->leftJoin('facturas_contratos as fcs', 'fcs.factura_id', '=', 'f.id')
+            ->leftJoin('contracts as cs', function ($join) {
+                $join->on('cs.nro', '=', 'fcs.contrato_nro');
+            })
+            ->select(
+                'contactos.id',
+                'contactos.nombre',
+                'contactos.nit',
+                'f.id as factura',
+                'f.estatus',
+                'f.suspension',
+                'cs.state',
+                'f.contrato_id',
+                'cs.grupo_corte'
+            )
+            ->where('f.estatus',1)
+            ->whereIn('f.tipo',[1,2])
+            ->where('contactos.status',1)
+            ->where('cs.state','enabled')
+            ->where('cs.server_configuration_id','!=',null)
+            ->whereIn('cs.grupo_corte',$grupos_corte_array)
+            ->where(function($sub){
+                $sub->whereNull('cs.fecha_suspension')
                     ->orWhere('cs.fecha_suspension',0);
-                })->
-                where('cs.server_configuration_id','!=',null)->
-                whereDate('f.vencimiento', '<=', now())->
-                where('f.id', function ($subquery) {
-                    $subquery->selectRaw('MAX(f2.id)')
-                        ->from('factura as f2')
-                        ->whereColumn('f2.cliente', 'contactos.id')
-                        ->where('f2.estatus', 1)
-                        ->whereIn('f2.tipo', [1, 2])
-                        ->whereDate('f2.vencimiento', '<=', now())
-                        ;
-                        //Habilitar cuando no se desee cortar por la ultima factura si no por otra fecha.
-                        // ->
-                        //     whereBetween('f2.created_at', [
-                        //         '2025-12-01 00:00:00',
-                        //         '2025-12-31 23:59:59'
-                        // ]);
-                })->
-                orderByRaw("FIELD(cs.grupo_corte, $whereOrder)")->
-                orderBy('contactos.updated_at', 'asc')->
-                get();
+            })
+            ->whereDate('f.vencimiento','<=',now())
+
+            ->whereIn('f.id', function ($subquery) {
+                $subquery->selectRaw('MAX(fc.factura_id)')
+                    ->from('facturas_contratos as fc')
+                    ->join('factura as f2','f2.id','=','fc.factura_id')
+                    ->whereColumn('f2.cliente','contactos.id')
+                    ->where('f2.estatus',1)
+                    ->whereIn('f2.tipo',[1,2])
+                    ->whereDate('f2.vencimiento','<=',now())
+                    ->groupBy('fc.contrato_nro');
+            })
+
+            ->orderByRaw("FIELD(cs.grupo_corte, $whereOrder)")
+            ->orderBy('contactos.updated_at','asc')
+            ->get();
 
         }else{
             $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
@@ -1426,7 +1432,7 @@ class CronController extends Controller
 
                     $contratoVerificar = Contrato::where('id',$factura->contrato_id)->first();
                     //Validando que si se trate de el contrato del verdadero cliente
-                    
+
                     if($contratoVerificar){
                         if($factura->cliente != $contratoVerificar->client_id){
                             $contrato = Contrato::where('client_id',$factura->cliente)->first();
@@ -2617,7 +2623,7 @@ class CronController extends Controller
 
         // Verificar que el evento sea payment.approved o invoice.paid
         if(isset($requestData['event']['type']) && in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
-            
+
             $factura = null;
             $paymentId = null;
             $montoPagado = 0;
@@ -2625,11 +2631,11 @@ class CronController extends Controller
             if ($requestData['event']['type'] == 'invoice.paid') {
                 $invoice = $requestData['invoice'] ?? [];
                 $payment = $invoice['payment'] ?? [];
-                
+
                 if(isset($invoice['provider_id'])){
                     $factura = Factura::where('codigo', $invoice['provider_id'])->first();
                 }
-                
+
                 if(!$factura && isset($invoice['metadata']['factura_id'])){
                     $factura = Factura::find($invoice['metadata']['factura_id']);
                 }
@@ -2637,7 +2643,7 @@ class CronController extends Controller
                 if(!$factura && isset($invoice['payment_id'])){
                     $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
                 }
-                
+
                 $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
                 // En invoice.paid el monto viene en valor normal
                 $montoPagado = $payment['amount'] ?? 0;
@@ -2647,7 +2653,7 @@ class CronController extends Controller
                 if(isset($payment['provider_id'])){
                     $factura = Factura::where('codigo', $payment['provider_id'])->first();
                 }
-                
+
                 if(!$factura && isset($payment['id'])){
                     $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
                 }
@@ -4483,13 +4489,13 @@ class CronController extends Controller
                     $q->orWhere('fc.contrato_nro', $contrato->nro);
                 }
             })
-            ->where('factura.estatus', 1) 
+            ->where('factura.estatus', 1)
             ->orderBy('factura.id', 'desc')
             ->first();
 
             if($ultimaFactura){
                 $deuda = $ultimaFactura->porpagar(); // Calcular deuda
-                
+
                 // Verificamos si la deuda es mayor a 0 y menor a 5 pesos
                 if($deuda > 0 && $deuda < 5){
                     $clienteNombre = $contrato->cliente() ? $contrato->cliente()->nombre : 'N/A';
@@ -5064,7 +5070,7 @@ class CronController extends Controller
                 // Validar Respuesta
                 $responseData = json_decode(json_encode($response), true);
                 $status = 'error';
-                
+
                 // El MetaWhatsAppService devuelve la respuesta de la API de Meta dentro de una llave 'data'
                 $metaData = $responseData['data'] ?? $responseData;
 
@@ -5090,7 +5096,7 @@ class CronController extends Controller
                     'empresa' => $empresa->id,
                     'mensaje_enviado' => $mensajeProcesado ?: ("Cron Meta: " . $plantilla->title),
                     'plantilla_id' => $plantilla->id,
-                    'enviado_por' => 0 
+                    'enviado_por' => 0
                 ]);
 
                 if ($status === 'success') {
@@ -5101,10 +5107,10 @@ class CronController extends Controller
                     // Sync con Chat System (Centralizado)
                     $phone = $prefijo . ltrim($celular, '0');
                     $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
-                    
+
                     if ($wamid) {
                         $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
-                        
+
                         $contractId = null;
                         $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                         if ($facturaContrato) {
@@ -5335,7 +5341,7 @@ class CronController extends Controller
 
         return $facturas;
     }
-    
+
     //Este metodo me permite validar que facturas se crearon con el mismo codigo y quedaron emitidas, la que tiene el
     //codigo 409 es la que no quedo emitida y debe cambiar de codigo.
     public function validarFacturasDobles(){
