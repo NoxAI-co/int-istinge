@@ -2052,14 +2052,12 @@ class FacturasController extends Controller{
         //Ciclo para registrar los itemas de la factura
         for ($i=0; $i < count($request->ref) ; $i++) {
             $impuesto = Impuesto::where('id', $request->impuesto[$i])->first();
-            if($impuesto){
-                $impuesto->porcentaje = $impuesto->porcentaje;
-            }else{
-                $impuesto->porcentaje = '';
+            if(!$impuesto){
+                $impuesto = (object) ['porcentaje' => ''];
             }
             $producto = Inventario::where('id', $request->item[$i])->first();
             //Si el producto es inventariable y existe esa bodega, restará el valor registrado
-            if ($producto->tipo_producto==1) {
+            if ($producto && $producto->tipo_producto==1) {
                 $ajuste=ProductosBodega::where('empresa', Auth::user()->empresa)->where('bodega', $bodega->id)->where('producto', $producto->id)->first();
                 if ($ajuste) {
                     $ajuste->nro-=$request->cant[$i];
@@ -2436,13 +2434,16 @@ class FacturasController extends Controller{
                         $items = new ItemsFactura;
                     }
                     $impuesto = Impuesto::where('id', $request->impuesto[$i])->first();
+                    if(!$impuesto){
+                        $impuesto = (object) ['porcentaje' => ''];
+                    }
                     $producto = Inventario::where('id', $request->item[$i])->first();
                     //Si el producto es inventariable y existe esa bodega, restará el valor registrado
-                    if ($producto->tipo_producto==1) {
+                    if ($producto && $producto->tipo_producto==1) {
                         if($bodega){
-                            $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $item->producto)->first();
+                            $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $producto->id)->first();
                            if ($ajuste) {
-                           $ajuste->nro+=$item->cant;
+                           $ajuste->nro-=$request->cant[$i];
                            $ajuste->save();
                            }
                        }
