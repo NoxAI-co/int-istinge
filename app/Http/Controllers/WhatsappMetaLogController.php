@@ -6,6 +6,8 @@ use App\WhatsappMetaLog;
 use App\Plantilla;
 use App\Contacto;
 use App\Model\Ingresos\Factura;
+use App\Model\Ingresos\Ingreso;
+use App\Contrato;
 use App\Instance;
 use App\Services\WhatsAppMessageSyncService;
 use Illuminate\Http\Request;
@@ -95,13 +97,18 @@ class WhatsappMetaLogController extends Controller
                 'contactos.apellido1 as contacto_apellido1',
                 'contactos.apellido2 as contacto_apellido2',
                 'plantillas.title as plantilla_title',
-                'factura.codigo as factura_codigo',
-                'factura.emitida as factura_emitida',
+                DB::raw('COALESCE(factura.codigo, factura_old.codigo) as factura_codigo'),
+                DB::raw('COALESCE(factura.emitida, factura_old.emitida) as factura_emitida'),
+                'ingresos.nro as ingreso_nro',
+                'contracts.nro as contrato_nro',
                 'usuarios.nombres as usuario_nombres'
             )
             ->leftJoin('contactos', 'log_meta.contacto_id', '=', 'contactos.id')
             ->leftJoin('plantillas', 'log_meta.plantilla_id', '=', 'plantillas.id')
-            ->leftJoin('factura', 'log_meta.factura_id', '=', 'factura.id')
+            ->leftJoin('factura', 'log_meta.incoming_invoice_id', '=', 'factura.id')
+            ->leftJoin('factura as factura_old', 'log_meta.factura_id', '=', 'factura_old.id')
+            ->leftJoin('ingresos', 'log_meta.incoming_payment_id', '=', 'ingresos.id')
+            ->leftJoin('contracts', 'log_meta.incoming_contract_id', '=', 'contracts.id')
             ->leftJoin('usuarios', 'log_meta.enviado_por', '=', 'usuarios.id')
             ->where('log_meta.empresa', $empresaId);
 
@@ -162,8 +169,22 @@ class WhatsappMetaLogController extends Controller
                 return $log->plantilla_title ?? '-';
             })
             ->editColumn('factura', function ($log) {
-                if ($log->factura_id) {
-                    return '<a href="' . route('facturas.show', $log->factura_id) . '">' . ($log->factura_codigo ?? '-') . '</a>';
+                // Mostrar "Documento" con el número correspondiente según el tipo
+                if ($log->incoming_invoice_id && $log->factura_codigo) {
+                    $url = route('facturas.show', $log->incoming_invoice_id);
+                    return '<a href="' . $url . '">Factura: ' . htmlspecialchars($log->factura_codigo) . '</a>';
+                } elseif ($log->incoming_payment_id && $log->ingreso_nro) {
+                    // Usar la ruta correcta para ingresos (puede ser ingresos/{id} o similar)
+                    $url = url('/empresa/ingresos/' . $log->incoming_payment_id);
+                    return '<a href="' . $url . '">Ingreso: ' . htmlspecialchars($log->ingreso_nro) . '</a>';
+                } elseif ($log->incoming_contract_id && $log->contrato_nro) {
+                    // Usar la ruta correcta para contratos
+                    $url = url('/empresa/contratos/' . $log->incoming_contract_id);
+                    return '<a href="' . $url . '">Contrato: ' . htmlspecialchars($log->contrato_nro) . '</a>';
+                } elseif ($log->factura_id && $log->factura_codigo) {
+                    // Fallback para factura_id antiguo
+                    $url = route('facturas.show', $log->factura_id);
+                    return '<a href="' . $url . '">Factura: ' . htmlspecialchars($log->factura_codigo) . '</a>';
                 }
                 return '-';
             })

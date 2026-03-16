@@ -67,7 +67,7 @@
                                 <th>Fecha/Hora</th>
                                 <th>Cliente</th>
                                 <th>Plantilla</th>
-                                <th>Factura</th>
+                                <th>Documento</th>
                                 <th>Estado</th>
                                 <th>Mensaje</th>
                                 <th>Acciones</th>

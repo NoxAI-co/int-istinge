@@ -5,6 +5,7 @@ namespace App\Services;
 use App\WhatsappMetaLog;
 use App\Model\Ingresos\Factura;
 use App\Model\Ingresos\Ingreso;
+use App\Contrato;
 use App\Instance;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -164,6 +165,25 @@ class WhatsAppMessageSyncService
         /** @var WhatsappMetaLog|null $log */
         $log = $query->first();
 
+        // Determinar contacto_id basándose en las relaciones
+        $contactoId = null;
+        if ($incomingInvoiceId) {
+            $factura = Factura::find($incomingInvoiceId);
+            if ($factura && $factura->cliente) {
+                $contactoId = $factura->cliente;
+            }
+        } elseif ($incomingPaymentId) {
+            $ingreso = Ingreso::find($incomingPaymentId);
+            if ($ingreso && $ingreso->cliente) {
+                $contactoId = $ingreso->cliente;
+            }
+        } elseif ($incomingContractId) {
+            $contrato = Contrato::find($incomingContractId);
+            if ($contrato && $contrato->client_id) {
+                $contactoId = $contrato->client_id;
+            }
+        }
+
         $payload = [
             'remote_id' => $remoteId,
             'wamid' => $wamid,
@@ -171,6 +191,7 @@ class WhatsAppMessageSyncService
             'incoming_contract_id' => $incomingContractId,
             'incoming_payment_id' => $incomingPaymentId,
             'incoming_company_nit' => $companyNit,
+            'contacto_id' => $contactoId, // Actualizar contacto_id basado en las relaciones
             'direction' => $direction,
             'status' => $status,
             'error_message' => $errorMessage,
