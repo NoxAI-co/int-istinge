@@ -5146,7 +5146,7 @@ class CronController extends Controller
     /**
      * Sincronizar logs de WhatsApp Meta desde la API central
      * Este método se ejecuta desde un cronjob externo (cPanel) cada 15 minutos
-     * 
+     *
      * @return string
      */
     public function syncWhatsAppMetaLogs()
@@ -5154,21 +5154,70 @@ class CronController extends Controller
         try {
             $syncService = app(WhatsAppMessageSyncService::class);
             $fechaHoy = Carbon::now()->format('Y-m-d');
-            
+
             Log::info('CronController::syncWhatsAppMetaLogs iniciado', [
                 'fecha' => $fechaHoy
             ]);
 
+            // Diagnosticar: contar instancias con diferentes criterios
+            $totalInstances = Instance::count();
+            $instancesActivas = Instance::where('activo', true)->orWhere('activo', 1)->count();
+            $instancesConPhone = Instance::whereNotNull('phone_number_id')->count();
+            $instancesConCompany = Instance::whereNotNull('company_id')->count();
+
+            Log::info('Diagnóstico de instancias', [
+                'total_instances' => $totalInstances,
+                'instances_activas' => $instancesActivas,
+                'instances_con_phone_number_id' => $instancesConPhone,
+                'instances_con_company_id' => $instancesConCompany,
+            ]);
+
             // Obtener todas las instancias activas con phone_number_id
-            $instances = Instance::where('activo', true)
+            // Intentar con ambos formatos de activo (boolean true o integer 1)
+            $instances = Instance::where(function($query) {
+                    $query->where('activo', true)
+                          ->orWhere('activo', 1);
+                })
                 ->whereNotNull('phone_number_id')
                 ->whereNotNull('company_id')
                 ->get();
 
+            Log::info('Instancias encontradas para sincronizar', [
+                'count' => $instances->count(),
+                'instances' => $instances->map(function($i) {
+                    return [
+                        'id' => $i->id,
+                        'company_id' => $i->company_id,
+                        'phone_number_id' => $i->phone_number_id,
+                        'activo' => $i->activo,
+                    ];
+                })->toArray()
+            ]);
+
             if ($instances->isEmpty()) {
-                $mensaje = "No se encontraron instancias activas para sincronizar.";
-                Log::warning($mensaje);
-                return $mensaje;
+                // Si no hay instancias, intentar buscar todas las empresas con NIT y usar cualquier instancia disponible
+                Log::warning('No se encontraron instancias con los criterios estrictos, intentando método alternativo...');
+
+                // Buscar cualquier instancia con phone_number_id (sin importar activo)
+                $instances = Instance::whereNotNull('phone_number_id')
+                    ->whereNotNull('company_id')
+                    ->get();
+
+                if ($instances->isEmpty()) {
+                    $mensaje = sprintf(
+                        "No se encontraron instancias para sincronizar. Total: %d, Activas: %d, Con phone_number_id: %d, Con company_id: %d",
+                        $totalInstances,
+                        $instancesActivas,
+                        $instancesConPhone,
+                        $instancesConCompany
+                    );
+                    Log::warning($mensaje);
+                    return $mensaje;
+                }
+
+                Log::info('Usando método alternativo: instancias encontradas sin filtro de activo', [
+                    'count' => $instances->count()
+                ]);
             }
 
             $totalLogsCreados = 0;
@@ -5184,10 +5233,19 @@ class CronController extends Controller
                     if (!$empresa || !$empresa->nit) {
                         Log::warning('Instancia sin empresa o sin NIT', [
                             'instance_id' => $instance->id,
-                            'company_id' => $instance->company_id
+                            'company_id' => $instance->company_id,
+                            'phone_number_id' => $instance->phone_number_id
                         ]);
                         continue;
                     }
+
+                    Log::info('Procesando instancia', [
+                        'instance_id' => $instance->id,
+                        'company_id' => $instance->company_id,
+                        'company_nit' => $empresa->nit,
+                        'phone_number_id' => $instance->phone_number_id,
+                        'activo' => $instance->activo
+                    ]);
 
                     // Sincronizar para el día actual
                     $result = $syncService->syncForInstanceAndCompany(
