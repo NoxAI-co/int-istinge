@@ -207,6 +207,56 @@ class CentralizedWhatsAppService
     }
 
     /**
+     * Get WhatsApp messages directly from whatsapp_messages table with filters
+     *
+     * @param string $token (phone_number_id / instance token)
+     * @param array $filters [
+     *   'incoming_company_nit' => int,
+     *   'date_from' => 'YYYY-MM-DD',
+     *   'date_to' => 'YYYY-MM-DD',
+     *   'status' => 'sent,delivered,read' | ['sent','delivered']
+     * ]
+     * @param int $page
+     * @param int $perPage
+     * @return array
+     */
+    public function getWhatsAppMessages(string $token, array $filters = [], int $page = 1, int $perPage = 200)
+    {
+        $queryParams = [
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
+
+        if (isset($filters['incoming_company_nit'])) {
+            $queryParams['incoming_company_nit'] = $filters['incoming_company_nit'];
+        }
+
+        if (isset($filters['date_from'])) {
+            $queryParams['date_from'] = $filters['date_from'];
+        }
+
+        if (isset($filters['date_to'])) {
+            $queryParams['date_to'] = $filters['date_to'];
+        }
+
+        if (isset($filters['status'])) {
+            // Puede ser string o array
+            $queryParams['status'] = is_array($filters['status'])
+                ? implode(',', $filters['status'])
+                : $filters['status'];
+        }
+
+        return $this->makeRequest(
+            'GET',
+            'whatsapp-messages',
+            $queryParams,
+            [],
+            ['X-Instance-Token' => $token],
+            true
+        );
+    }
+
+    /**
      * Search messages with specific relations (invoice, payment, contract)
      * 
      * @param string $token (phone_number_id)

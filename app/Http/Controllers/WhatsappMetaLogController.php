@@ -6,6 +6,8 @@ use App\WhatsappMetaLog;
 use App\Plantilla;
 use App\Contacto;
 use App\Model\Ingresos\Factura;
+use App\Instance;
+use App\Services\WhatsAppMessageSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -13,9 +15,14 @@ use Illuminate\Support\Facades\DB;
 
 class WhatsappMetaLogController extends Controller
 {
+    /**
+     * @var WhatsAppMessageSyncService
+     */
+    protected $syncService;
 
-    public function __construct(){
+    public function __construct(WhatsAppMessageSyncService $syncService){
         $this->middleware('auth');
+        $this->syncService = $syncService;
         view()->share(['seccion' => 'Meta', 'title' => 'Meta', 'icon' =>'fas fa-plus', 'subseccion' => 'logs']);
     }
 
@@ -53,6 +60,33 @@ class WhatsappMetaLogController extends Controller
         $this->getAllPermissions(Auth::user()->id);
 
         $empresaId = Auth::user()->empresa;
+        $empresa = Auth::user()->empresa();
+
+        // Antes de construir el datatable, sincronizar con la API central para el rango de fechas solicitado
+        try {
+            // Buscar una instancia activa asociada a esta empresa
+            $instance = Instance::where('company_id', $empresaId)
+                ->whereNotNull('phone_number_id')
+                ->first();
+
+            if ($instance && $empresa && $empresa->nit) {
+                $fechaDesde = $request->get('fecha_desde') ?: Carbon::now()->startOfMonth()->format('Y-m-d');
+                $fechaHasta = $request->get('fecha_hasta') ?: Carbon::now()->endOfMonth()->format('Y-m-d');
+
+                $this->syncService->syncForInstanceAndCompany(
+                    $instance,
+                    (int) $empresa->nit,
+                    $fechaDesde,
+                    $fechaHasta
+                );
+            }
+        } catch (\Exception $e) {
+            // No interrumpir el datatable si falla la sincronización, solo loguear
+            \Log::error('Error sincronizando whatsapp_meta_logs desde datatable', [
+                'empresa_id' => $empresaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Construir query
         $logs = WhatsappMetaLog::select(

@@ -20,8 +20,20 @@ class WhatsappMetaLog extends Model
      * @var array
      */
     protected $fillable = [
+        'remote_id',
+        'wamid',
+        'incoming_invoice_id',
+        'incoming_contract_id',
+        'incoming_payment_id',
+        'incoming_company_nit',
+        'direction',
         'status',
         'response',
+        'error_message',
+        'metadata',
+        'sent_at',
+        'delivered_at',
+        'read_at',
         'factura_id',
         'contacto_id',
         'empresa',
@@ -77,10 +89,28 @@ class WhatsappMetaLog extends Model
      */
     public function estadoFormateado()
     {
-        if ($this->status === 'success') {
-            return '<span class="badge badge-success">Éxito</span>';
-        } else {
-            return '<span class="badge badge-danger">Error</span>';
+        $status = $this->status;
+
+        if (!$status) {
+            return '<span class="badge badge-secondary">Desconocido</span>';
+        }
+
+        switch ($status) {
+            case 'sent':
+                return '<span class="badge badge-info">Enviado</span>';
+            case 'delivered':
+                return '<span class="badge badge-primary">Entregado</span>';
+            case 'read':
+                return '<span class="badge badge-success">Leído</span>';
+            case 'failed':
+                return '<span class="badge badge-danger">Fallido</span>';
+            case 'pending':
+                return '<span class="badge badge-warning">Pendiente</span>';
+            case 'success':
+                // Compatibilidad hacia atrás con registros antiguos
+                return '<span class="badge badge-success">Éxito</span>';
+            default:
+                return '<span class="badge badge-secondary">' . e(ucfirst($status)) . '</span>';
         }
     }
 
