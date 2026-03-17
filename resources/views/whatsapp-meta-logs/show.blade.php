@@ -156,6 +156,14 @@
                             <h5 class="mb-0"><i class="fas fa-code"></i> Respuesta de la API</h5>
                         </div>
                         <div class="card-body">
+                            @if($log->error_message)
+                                <div class="alert alert-danger mb-3">
+                                    <strong>Mensaje de Error:</strong>
+                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; background: transparent; border: none; padding: 0; color: inherit; font-family: inherit;">{{ $log->error_message }}</pre>
+                                </div>
+                            @endif
+
+                            <h6 class="font-weight-bold">Response Completo:</h6>
                             @if($responseJson)
                                 <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto;"><code>{{ json_encode($responseJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
                             @else

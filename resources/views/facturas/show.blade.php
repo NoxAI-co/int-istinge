@@ -55,6 +55,9 @@
                                 <a href="#" class="btn btn-danger btn-sm disabled" title="Factura enviada por Correo"><i class="far fa-envelope"></i> Factura enviada por Correo</a>
                             @endif
                         @endif
+                        @if($factura->whatsapp==0)
+                            <a href="{{route('facturas.whatsapp',$factura->id)}}" class="btn btn-outline-success btn-sm" title="Enviar Vía WhatsApp"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</a>
+                        @endif
                         @if($factura->estatus==1)
                             <a href="{{route('ingresos.create_id', ['cliente'=>$factura->cliente()->id, 'factura'=>$factura->id])}}" class="btn btn-outline-primary btn-sm" title="Agregar Pago"><i class="fas fa-plus"></i> Agregar Pago</a>
                         @endif
