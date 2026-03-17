@@ -5333,18 +5333,18 @@ class CronController extends Controller
             // ============================
             // Marcar facturas/ingresos con whatsapp=1
             // cuando exista al menos un log delivered/read
-            // por (documento, template_id)
+            // por (documento, wamid)
             // ============================
             $facturasMarcadas = 0;
             $ingresosMarcados = 0;
 
             try {
-                // Agrupar logs exitosos por factura + template_id
+                // Agrupar logs exitosos por factura + wamid
                 $logsFacturas = WhatsappMetaLog::query()
                     ->whereIn('status', ['delivered', 'read'])
                     ->whereNotNull('incoming_invoice_id')
-                    ->whereNotNull('template_id')
-                    ->select('incoming_invoice_id', 'template_id')
+                    ->whereNotNull('wamid')
+                    ->select('incoming_invoice_id', 'wamid')
                     ->distinct()
                     ->get();
 
@@ -5356,12 +5356,12 @@ class CronController extends Controller
                         ->update(['whatsapp' => 1]);
                 }
 
-                // Agrupar logs exitosos por ingreso + template_id
+                // Agrupar logs exitosos por ingreso + wamid
                 $logsIngresos = WhatsappMetaLog::query()
                     ->whereIn('status', ['delivered', 'read'])
                     ->whereNotNull('incoming_payment_id')
-                    ->whereNotNull('template_id')
-                    ->select('incoming_payment_id', 'template_id')
+                    ->whereNotNull('wamid')
+                    ->select('incoming_payment_id', 'wamid')
                     ->distinct()
                     ->get();
 
