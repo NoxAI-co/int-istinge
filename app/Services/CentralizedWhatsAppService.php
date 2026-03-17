@@ -94,20 +94,27 @@ class CentralizedWhatsAppService
      * @param string $templateName
      * @param string $languageCode
      * @param array $components
+     * @param string|null $templateId
      * @return array
      */
-    public function sendTemplate(string $token, string $to, string $templateName, string $languageCode = 'es', array $components = [])
+    public function sendTemplate(string $token, string $to, string $templateName, string $languageCode = 'es', array $components = [], ?string $templateId = null)
     {
+        $payload = [
+            'to' => $to,
+            'template_name' => $templateName,
+            'language_code' => $languageCode,
+            'components' => $components,
+        ];
+
+        if ($templateId !== null) {
+            $payload['template_id'] = $templateId;
+        }
+
         return $this->makeRequest(
             'POST',
             'messages/template',
             [],
-            [
-                'to' => $to,
-                'template_name' => $templateName,
-                'language_code' => $languageCode,
-                'components' => $components,
-            ],
+            $payload,
             ['X-Instance-Token' => $token],
             true
         );
