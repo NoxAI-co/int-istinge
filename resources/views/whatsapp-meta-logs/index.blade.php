@@ -77,12 +77,12 @@
                 <!-- Tabs para separar logs -->
                 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
                     <li class="nav-item" data-toggle="tooltip" data-placement="top" title="Corresponde a los mensajes o documentos enviados desde Integra hacia la plataforma de Meta (WhatsApp).&#10;Esto indica que la solicitud fue procesada y enviada correctamente desde el sistema, pero no garantiza que el mensaje haya sido entregado al destinatario final.">
-                        <a class="nav-link active" id="pills-integra-tab" data-toggle="pill" href="#pills-integra" role="tab" aria-controls="pills-integra" aria-selected="true" onclick="$('#origen_tab').val('integra'); aplicarFiltros();">
+                        <a class="nav-link active" id="pills-integra-tab" data-toggle="pill" href="#pills-integra" role="tab" aria-controls="pills-integra" aria-selected="true" onclick="syncAndFilter('integra');">
                             <i class="fas fa-paper-plane mr-1"></i> Enviados por Integra
                         </a>
                     </li>
                     <li class="nav-item" data-toggle="tooltip" data-placement="top" title="Corresponde a los eventos reportados por Meta (WhatsApp) sobre el estado del mensaje.&#10;Meta es quien gestiona la entrega al usuario final y puede aceptar o rechazar el envío por distintos motivos.&#10;Aquí se informa si el mensaje fue entregado, leído o si ocurrió algún inconveniente durante el proceso.&#10;Un estado como “Entregado” confirma que el mensaje llegó al WhatsApp del destinatario.">
-                        <a class="nav-link" id="pills-meta-tab" data-toggle="pill" href="#pills-meta" role="tab" aria-controls="pills-meta" aria-selected="false" onclick="$('#origen_tab').val('meta'); aplicarFiltros();">
+                        <a class="nav-link" id="pills-meta-tab" data-toggle="pill" href="#pills-meta" role="tab" aria-controls="pills-meta" aria-selected="false" onclick="syncAndFilter('meta');">
                             <i class="fab fa-whatsapp mr-1"></i> Eventos de Meta
                         </a>
                     </li>
@@ -185,6 +185,34 @@
     function aplicarFiltros() {
         if (tabla) {
             tabla.ajax.reload();
+        }
+    }
+
+    function syncAndFilter(origen) {
+        $('#origen_tab').val(origen);
+        
+        if (origen === 'meta') {
+            if (tabla) {
+                $('#tabla-logs_processing').show();
+            }
+            
+            var urlSync = window.location.pathname.split("/")[1] === "software"
+                ? '/software/sync-whatsapp-meta-logs'
+                : '/sync-whatsapp-meta-logs';
+
+            $.ajax({
+                url: urlSync,
+                type: 'GET',
+                success: function() {
+                    aplicarFiltros();
+                },
+                error: function() {
+                    console.error('Error al sincronizar logs de Meta');
+                    aplicarFiltros();
+                }
+            });
+        } else {
+            aplicarFiltros();
         }
     }
 
