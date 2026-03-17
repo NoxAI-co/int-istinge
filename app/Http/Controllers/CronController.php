@@ -52,6 +52,7 @@ use Illuminate\Support\Facades\Log;
 use App\WhatsappMetaLog;
 use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
+use Illuminate\Support\Facades\File;
 
 class CronController extends Controller
 {
@@ -5139,8 +5140,50 @@ class CronController extends Controller
                 }
             }
 
+            /**
+             * Limpieza de PDFs temporales generados en storage/app/public/temp.
+             * Solo se ejecuta entre las 00:00 y las 03:00 para evitar ejecuciones innecesarias.
+             */
+            $horaActual = Carbon::now()->format('H:i');
+            if ($horaActual >= '00:00' && $horaActual <= '03:00') {
+                $this->limpiarPdfsTemp();
+            }
+
         } catch (\Exception $e) {
             Log::error("Error general en envioFacturaWpp: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Elimina los archivos PDF temporales generados en storage/app/public/temp
+     * que no correspondan al día actual (se basa en la fecha de modificación del archivo).
+     */
+    public function limpiarPdfsTemp()
+    {
+        try {
+            $tempPath = storage_path('app/public/temp');
+
+            // Si no existe la carpeta, no hay nada que borrar
+            if (!File::exists($tempPath)) {
+                return;
+            }
+
+            $hoy = Carbon::today();
+
+            // Obtener todos los archivos de la carpeta temp
+            $files = File::files($tempPath);
+
+            foreach ($files as $file) {
+                // Fecha de modificación del archivo
+                $lastModified = Carbon::createFromTimestamp($file->getMTime());
+
+                // Si el archivo es de una fecha anterior a hoy, se elimina
+                if ($lastModified->lt($hoy)) {
+                    File::delete($file->getRealPath());
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error al limpiar PDFs temporales: " . $e->getMessage());
         }
     }
 
