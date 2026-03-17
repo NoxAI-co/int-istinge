@@ -113,6 +113,45 @@
         @endif
     @endif
 
+    {{-- Bloque de Logs de WhatsApp vinculados a esta factura --}}
+    @if(isset($whatsappLogs) && $whatsappLogs->count() > 0)
+        <div class="row mt-3 mx-3">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fab fa-whatsapp text-success"></i>
+                            Mensajes de WhatsApp relacionados con esta factura
+                        </h5>
+                        <small class="text-muted">
+                            Solo se muestran mensajes con estado <strong>entregado (delivered)</strong> o <strong>leído (read)</strong>.
+                        </small>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th width="15%">Fecha</th>
+                                    <th width="15%">Estado</th>
+                                    <th width="70%">Mensaje</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($whatsappLogs as $log)
+                                    <tr>
+                                        <td>{{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y H:i:s') }}</td>
+                                        <td>{!! $log->estadoFormateado() !!}</td>
+                                        <td>{{ $log->mensaje_enviado }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- BANNER DE VALORES -->
     <div class="card-body">
         <div class="row" style="box-shadow: 1px 2px 4px 0 rgba(0,0,0,0.15);background-color: #fff; padding:2% !important;">

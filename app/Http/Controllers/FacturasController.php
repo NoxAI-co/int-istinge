@@ -2558,6 +2558,13 @@ class FacturasController extends Controller{
         $contrato = Contrato::where('client_id',$factura->cliente)->first();
         $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
 
+        // Logs de WhatsApp Meta asociados a esta factura (incoming_invoice_id)
+        // Solo se muestran registros con estados delivered o read
+        $whatsappLogs = WhatsappMetaLog::where('incoming_invoice_id', $factura->id)
+            ->whereIn('status', ['delivered', 'read'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $limitDate   = (Carbon::parse($factura->created_at))->addDay();
         $actualDate  = Carbon::now();
         $wait        = (( $limitDate->greaterThanOrEqualTo($actualDate) && $factura->modificado == 0)? false: true);
@@ -2580,7 +2587,7 @@ class FacturasController extends Controller{
             }
             $items = ItemsFactura::where('factura',$factura->id)->get();
 
-            return view('facturas.show')->with(compact('factura', 'items', 'retenciones', 'realStatus','contrato'));
+            return view('facturas.show')->with(compact('factura', 'items', 'retenciones', 'realStatus','contrato', 'whatsappLogs'));
         }
         return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
     }
