@@ -427,8 +427,8 @@ class AvisosController extends Controller
                         // Header Document
                         if ($plantilla->body_header === 'DOCUMENT' && $factura) {
                             // Generar PDF
-                            $fileName = "Factura_{$factura->codigo}.pdf";
-                            $storagePath = storage_path("app/public/temp/{$fileName}");
+                            $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                            $storagePath = public_path("documentos_meta/{$fileName}");
 
                             if (!file_exists($storagePath)) {
                                 $cronController = new \App\Http\Controllers\CronController();
@@ -441,7 +441,7 @@ class AvisosController extends Controller
                             }
 
                             if (file_exists($storagePath)) {
-                                $urlFactura = url("storage/temp/{$fileName}");
+                                $urlFactura = url("documentos_meta/{$fileName}");
                                 $components[] = [
                                     "type" => "header",
                                     "parameters" => [
@@ -904,8 +904,8 @@ class AvisosController extends Controller
 
                 // Header Document
                 if ($plantilla->body_header === 'DOCUMENT' && $factura) {
-                    $fileName = "Factura_{$factura->codigo}.pdf";
-                    $storagePath = storage_path("app/public/temp/{$fileName}");
+                    $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                    $storagePath = public_path("documentos_meta/{$fileName}");
 
                     if (!file_exists($storagePath)) {
                         $cronController = new \App\Http\Controllers\CronController();
@@ -918,7 +918,7 @@ class AvisosController extends Controller
                     }
 
                     if (file_exists($storagePath)) {
-                        $urlFactura = url("storage/temp/{$fileName}");
+                        $urlFactura = url("documentos_meta/{$fileName}");
                         $components[] = [
                             "type" => "header",
                             "parameters" => [

@@ -1479,11 +1479,16 @@ class IngresosController extends Controller
         }
 
         // 3️⃣ Generar nombre y rutas relativas
-        $fileName = 'Ingreso_' . $ingreso->nro . '.pdf';
-        $relativePath = 'temp/' . $fileName; // se guarda en storage/app/public/temp/
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Ingreso_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $ingreso->nro) . '.pdf';
+        $folderPath = public_path('documentos_meta');
+        $storagePath = $folderPath . '/' . $fileName;
 
-        // 4️⃣ Si ya existe, devolver directamente
+        // 4️⃣ Crear carpeta si no existe
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0775, true);
+        }
+
+        // 5️⃣ Si ya existe, devolver directamente
         if (file_exists($storagePath)) {
             return response()->file($storagePath, [
                 'Content-Type' => 'application/pdf',
@@ -1570,13 +1575,8 @@ class IngresosController extends Controller
         $pdf->setPaper($paper_size, 'portrait');
         $ingresoPDF = $pdf->output();
 
-        // 6️⃣ Crear carpeta si no existe
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        // 7️⃣ Guardar el archivo usando el Filesystem de Laravel
-        Storage::disk('public')->put($relativePath, $ingresoPDF);
+        // 6️⃣ Guardar el archivo directamente apuntando al directorio público
+        file_put_contents($storagePath, $ingresoPDF);
 
         // 8️⃣ Retornar el archivo directamente
         return response()->file($storagePath, [
@@ -1647,9 +1647,8 @@ class IngresosController extends Controller
         $this->getIngresoTirillaTemp($nro, $token);
 
         // Asegurar que el archivo fue generado y accesible
-        $fileName = 'Ingreso_' . $ingreso->nro . '.pdf';
-        $relativePath = 'temp/' . $fileName;
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Ingreso_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $ingreso->nro) . '.pdf';
+        $storagePath = public_path('documentos_meta/' . $fileName);
 
         // Esperar hasta que el archivo exista (máx. 5 intentos)
         $attempts = 0;
@@ -1663,7 +1662,7 @@ class IngresosController extends Controller
         }
 
         // Generar la URL pública accesible
-        $urlDoc = url('storage/temp/' . $fileName);
+        $urlDoc = url('documentos_meta/' . $fileName);
 
         // ============================================================
         // 📦 CONSTRUIR BODY PARA META

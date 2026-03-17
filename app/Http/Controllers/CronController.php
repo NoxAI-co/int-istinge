@@ -4816,11 +4816,16 @@ class CronController extends Controller
         $factura = Factura::findOrFail($id);
 
         // 3️⃣ Generar nombre y rutas relativas
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName; // se guarda en storage/app/public/temp/
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $folderPath = public_path('documentos_meta');
+        $storagePath = $folderPath . '/' . $fileName;
 
-        // 4️⃣ Si ya existe, devolver directamente
+        // 4️⃣ Crear carpeta si no existe
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0775, true);
+        }
+
+        // 5️⃣ Si ya existe, devolver directamente
         if (file_exists($storagePath)) {
             return response()->file($storagePath, [
                 'Content-Type' => 'application/pdf',
@@ -4828,16 +4833,11 @@ class CronController extends Controller
             ]);
         }
 
-        // 5️⃣ Generar el PDF en binario
+        // 6️⃣ Generar el PDF en binario
         $facturaPDF = $this->getPdfFactura($id);
 
-        // 6️⃣ Crear carpeta si no existe
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        // 7️⃣ Guardar el archivo usando el Filesystem de Laravel
-        Storage::disk('public')->put($relativePath, $facturaPDF);
+        // 7️⃣ Guardar el archivo directamente
+        file_put_contents($storagePath, $facturaPDF);
 
         // 8️⃣ Retornar el archivo directamente
         return response()->file($storagePath, [
@@ -4966,8 +4966,8 @@ class CronController extends Controller
                 // 🧩 GENERAR PDF TEMPORAL
                 // ===================================
                 $this->getFacturaTemp($factura->id, config('app.key'));
-                $fileName = "Factura_{$factura->codigo}.pdf";
-                $storagePath = storage_path("app/public/temp/{$fileName}");
+                $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                $storagePath = public_path("documentos_meta/{$fileName}");
 
                 $attempts = 0;
                 while (!file_exists($storagePath) && $attempts < 5) {
@@ -4980,7 +4980,7 @@ class CronController extends Controller
                     continue;
                 }
 
-                $urlFactura = url("storage/temp/{$fileName}");
+                $urlFactura = url("documentos_meta/{$fileName}");
 
                 // ===================================
                 // 📦 PREPARAR DATOS PLANTILLA
@@ -5155,13 +5155,13 @@ class CronController extends Controller
     }
 
     /**
-     * Elimina los archivos PDF temporales generados en storage/app/public/temp
+     * Elimina los archivos PDF temporales generados en public/documentos_meta
      * que no correspondan al día actual (se basa en la fecha de modificación del archivo).
      */
     public function limpiarPdfsTemp()
     {
         try {
-            $tempPath = storage_path('app/public/temp');
+            $tempPath = public_path('documentos_meta');
 
             // Si no existe la carpeta, no hay nada que borrar
             if (!File::exists($tempPath)) {

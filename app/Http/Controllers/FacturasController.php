@@ -5796,11 +5796,16 @@ class FacturasController extends Controller{
         $factura = Factura::findOrFail($id);
 
         // 3️⃣ Generar nombre y rutas relativas
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName; // se guarda en storage/app/public/temp/
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $folderPath = public_path('documentos_meta');
+        $storagePath = $folderPath . '/' . $fileName;
 
-        // 4️⃣ Si ya existe, devolver directamente
+        // 4️⃣ Crear carpeta si no existe
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0775, true);
+        }
+
+        // 5️⃣ Si ya existe, devolver directamente
         if (file_exists($storagePath)) {
             return response()->file($storagePath, [
                 'Content-Type' => 'application/pdf',
@@ -5808,16 +5813,11 @@ class FacturasController extends Controller{
             ]);
         }
 
-        // 5️⃣ Generar el PDF en binario
+        // 6️⃣ Generar el PDF en binario
         $facturaPDF = $this->getPdfFactura($id);
 
-        // 6️⃣ Crear carpeta si no existe
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        // 7️⃣ Guardar el archivo usando el Filesystem de Laravel
-        Storage::disk('public')->put($relativePath, $facturaPDF);
+        // 7️⃣ Guardar el archivo directamente
+        file_put_contents($storagePath, $facturaPDF);
 
         // 8️⃣ Retornar el archivo directamente
         return response()->file($storagePath, [
@@ -5861,9 +5861,8 @@ class FacturasController extends Controller{
         $token = config('app.key');
         $this->getFacturaTemp($id, $token);
 
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName;
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $storagePath = public_path('documentos_meta/' . $fileName);
 
         // Esperar hasta que el archivo exista (máx. 5 intentos)
         $attempts = 0;
@@ -5876,7 +5875,7 @@ class FacturasController extends Controller{
             return back()->with('danger', 'No se pudo generar el archivo PDF temporal.');
         }
 
-        $urlFactura = url('storage/temp/' . $fileName);
+        $urlFactura = url('documentos_meta/' . $fileName);
         $empresaObj = auth()->user()->empresa();
         $estadoCuenta = $factura->estadoCuenta();
         $total = $factura->total()->total;
