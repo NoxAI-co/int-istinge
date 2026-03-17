@@ -1069,6 +1069,10 @@ class NotascreditoController extends Controller
             $CUDE = $infoCude['Numfac'] . $infoCude['FecFac'] . $infoCude['HorFac'] . $infoCude['ValFac'] . $infoCude['CodImp'] . $infoCude['ValImp'] . $infoCude['CodImp2'] . $infoCude['ValImp2'] . $infoCude['CodImp3'] . $infoCude['ValImp3'] . $infoCude['ValTot'] . $infoCude['NitFE'] . $infoCude['NumAdq'] . $infoCude['pin'] . $infoCude['TipoAmb'];
             $CUDEvr = hash('sha384', $CUDE);
 
+            if($nota->uuid != null){
+                $CUDEvr = $nota->uuid;
+            }
+
             $codqr = "NumFac:" . $nota->codigo . "\n" .
                 "NitFac:"  . $data['Empresa']['nit']   . "\n" .
                 "DocAdq:" .  $data['Cliente']['nit'] . "\n" .
