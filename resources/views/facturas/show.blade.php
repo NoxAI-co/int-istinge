@@ -115,37 +115,56 @@
 
     {{-- Bloque de Logs de WhatsApp vinculados a esta factura --}}
     @if(isset($whatsappLogs) && $whatsappLogs->count() > 0)
-        <div class="row mt-3 mx-3">
+        <div class="row mt-4 mx-3">
             <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fab fa-whatsapp text-success"></i>
-                            Mensajes de WhatsApp relacionados con esta factura
-                        </h5>
-                        <small class="text-muted">
-                            Solo se muestran mensajes con estado <strong>entregado (delivered)</strong> o <strong>leído (read)</strong>.
-                        </small>
+                <div class="card shadow-sm border-0">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-white border-0">
+                        <div>
+                            <h5 class="mb-1">
+                                <i class="fab fa-whatsapp text-success mr-1"></i>
+                                Historial de WhatsApp de esta factura
+                            </h5>
+                            <small class="text-muted">
+                                Mensajes que el cliente <strong>recibió</strong> (<em>delivered</em>) o <strong>abrió y leyó</strong> (<em>read</em>).
+                            </small>
+                        </div>
+                        <span class="badge badge-pill badge-success">
+                            {{ $whatsappLogs->count() }} mensaje{{ $whatsappLogs->count() > 1 ? 's' : '' }}
+                        </span>
                     </div>
-                    <div class="card-body" style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-sm table-bordered mb-0">
-                            <thead>
-                                <tr>
-                                    <th width="15%">Fecha</th>
-                                    <th width="15%">Estado</th>
-                                    <th width="70%">Mensaje</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($whatsappLogs as $log)
-                                    <tr>
-                                        <td>{{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y H:i:s') }}</td>
-                                        <td>{!! $log->estadoFormateado() !!}</td>
-                                        <td>{{ $log->mensaje_enviado }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+
+                    <div class="card-body pt-0 pb-3" style="max-height: 260px; overflow-y: auto;">
+                        <ul class="list-unstyled mb-0">
+                            @foreach($whatsappLogs as $log)
+                                <li class="media py-3 border-bottom">
+                                    <div class="mr-3 text-center" style="min-width: 70px;">
+                                        <div class="text-muted small mb-1">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y') }}
+                                        </div>
+                                        <div class="font-weight-bold small">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('H:i') }}
+                                        </div>
+                                    </div>
+                                    <div class="media-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <div>
+                                                {!! $log->estadoFormateado() !!}
+                                            </div>
+                                            @if($log->contacto)
+                                                <small class="text-muted">
+                                                    Para: {{ $log->contacto->nombre ?? '' }} {{ $log->contacto->apellido1 ?? '' }}
+                                                </small>
+                                            @endif
+                                        </div>
+                                        <div class="bg-light rounded px-3 py-2">
+                                            <span class="text-dark" style="white-space: pre-line;">
+                                                {{ $log->mensaje_enviado }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
                 </div>
             </div>
