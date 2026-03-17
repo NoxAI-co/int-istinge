@@ -317,6 +317,49 @@
         opacity: 0.95;
     }
 
+    /* Chips de documentos (factura / ingreso / contrato) con estado */
+    .message-relations {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .relation-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        text-decoration: none;
+    }
+
+    .relation-badge .status-icon {
+        margin-left: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .relation-badge.badge-factura.success,
+    .relation-badge.badge-ingreso.success {
+        background: #e6f9ed;
+        color: #1b5e20;
+    }
+
+    .relation-badge.badge-factura.warning,
+    .relation-badge.badge-ingreso.warning {
+        background: #fff8e1;
+        color: #ff8f00;
+    }
+
+    .relation-badge.badge-factura.error,
+    .relation-badge.badge-ingreso.error {
+        background: #ffebee;
+        color: #c62828;
+    }
+
     .message-meta {
         display: flex;
         align-items: center;
@@ -761,19 +804,55 @@
                                         <audio :src="msg.media_url" controls style="max-width: 250px;"></audio>
                                     </div>
 
-                                    <!-- Badges de relaciones -->
-                                    <div v-if="msg.contrato || msg.factura || msg.ingreso" class="message-relations" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
-                                        <a v-if="msg.contrato" :href="msg.contrato.url" target="_blank" class="relation-badge badge-contrato" :title="'Contrato: ' + msg.contrato.nro">
-                                            <i class="fas fa-file-contract" style="margin-right: 4px;"></i>
+                                    <!-- Badges de relaciones con estado de WhatsApp -->
+                                    <div v-if="msg.contrato || msg.factura || msg.ingreso" class="message-relations">
+                                        <a
+                                            v-if="msg.contrato"
+                                            :href="msg.contrato.url"
+                                            target="_blank"
+                                            class="relation-badge badge-contrato"
+                                            :title="'Contrato: ' + msg.contrato.nro"
+                                        >
+                                            <i class="fas fa-file-contract"></i>
                                             Contrato: @{{ msg.contrato.nro }}
                                         </a>
-                                        <a v-if="msg.factura" :href="msg.factura.url" target="_blank" class="relation-badge badge-factura" :title="'Factura: ' + msg.factura.codigo">
-                                            <i class="fas fa-file-invoice-dollar" style="margin-right: 4px;"></i>
+
+                                        <a
+                                            v-if="msg.factura"
+                                            :href="msg.factura.url"
+                                            target="_blank"
+                                            class="relation-badge badge-factura"
+                                            :class="msg.factura.whatsapp_status_class"
+                                            :title="'Factura: ' + msg.factura.codigo + ' - ' + msg.factura.whatsapp_status_label"
+                                        >
+                                            <i class="fas fa-file-invoice-dollar"></i>
                                             Factura: @{{ msg.factura.codigo }}
+                                            <span class="status-icon">
+                                                <i v-if="msg.factura.whatsapp_status === 'read'" class="fas fa-check-double"></i>
+                                                <i v-else-if="msg.factura.whatsapp_status === 'delivered'" class="fas fa-check"></i>
+                                                <i v-else-if="msg.factura.whatsapp_status === 'sent'" class="fas fa-paper-plane"></i>
+                                                <i v-else class="fas fa-exclamation-triangle"></i>
+                                                @{{ msg.factura.whatsapp_status_label }}
+                                            </span>
                                         </a>
-                                        <a v-if="msg.ingreso" :href="msg.ingreso.url" target="_blank" class="relation-badge badge-ingreso" :title="'Ingreso: ' + msg.ingreso.nro">
-                                            <i class="fas fa-money-bill-wave" style="margin-right: 4px;"></i>
+
+                                        <a
+                                            v-if="msg.ingreso"
+                                            :href="msg.ingreso.url"
+                                            target="_blank"
+                                            class="relation-badge badge-ingreso"
+                                            :class="msg.ingreso.whatsapp_status_class"
+                                            :title="'Ingreso: ' + msg.ingreso.nro + ' - ' + msg.ingreso.whatsapp_status_label"
+                                        >
+                                            <i class="fas fa-money-bill-wave"></i>
                                             Ingreso: @{{ msg.ingreso.nro }}
+                                            <span class="status-icon">
+                                                <i v-if="msg.ingreso.whatsapp_status === 'read'" class="fas fa-check-double"></i>
+                                                <i v-else-if="msg.ingreso.whatsapp_status === 'delivered'" class="fas fa-check"></i>
+                                                <i v-else-if="msg.ingreso.whatsapp_status === 'sent'" class="fas fa-paper-plane"></i>
+                                                <i v-else class="fas fa-exclamation-triangle"></i>
+                                                @{{ msg.ingreso.whatsapp_status_label }}
+                                            </span>
                                         </a>
                                     </div>
                                 </div>
