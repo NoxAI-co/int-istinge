@@ -179,6 +179,21 @@ class WhatsappMetaLogController extends Controller
             $logs->whereIn('log_meta.status', $request->estados);
         }
 
+        // Filtro por documento
+        if ($request->has('documento') && $request->documento != '') {
+            $doc = trim($request->documento);
+            // Limpiar prefijos si el usuario copió directamente la etiqueta
+            $docClean = str_ireplace(['Factura: ', 'Ingreso: ', 'Contrato: ', 'Factura:', 'Ingreso:', 'Contrato:'], '', $doc);
+            $docClean = trim($docClean);
+            
+            $logs->where(function($q) use ($docClean) {
+                $q->where('factura.codigo', 'like', "%{$docClean}%")
+                  ->orWhere('factura_old.codigo', 'like', "%{$docClean}%")
+                  ->orWhere('ingresos.nro', 'like', "%{$docClean}%")
+                  ->orWhere('contracts.nro', 'like', "%{$docClean}%");
+            });
+        }
+
         // Filtro por origen (Pestañas)
         if ($request->has('origen')) {
             if ($request->origen == 'integra') {
