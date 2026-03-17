@@ -2559,11 +2559,21 @@ class FacturasController extends Controller{
         $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
 
         // Logs de WhatsApp Meta asociados a esta factura (incoming_invoice_id)
-        // Solo se muestran registros con estados delivered o read
-        $whatsappLogs = WhatsappMetaLog::where('incoming_invoice_id', $factura->id)
+        // Solo se muestran registros con estados delivered o read.
+        // Agrupamos por wamid para que un mismo mensaje no aparezca duplicado
+        // cuando cambia de "delivered" a "read"; se muestra solo el estado más reciente.
+        $rawWhatsappLogs = WhatsappMetaLog::where('incoming_invoice_id', $factura->id)
             ->whereIn('status', ['delivered', 'read'])
             ->orderBy('created_at', 'desc')
             ->get();
+
+        $whatsappLogs = $rawWhatsappLogs
+            ->groupBy('wamid')
+            ->map(function ($group) {
+                // Tomar el registro más reciente por wamid
+                return $group->sortByDesc('created_at')->first();
+            })
+            ->values();
 
         $limitDate   = (Carbon::parse($factura->created_at))->addDay();
         $actualDate  = Carbon::now();

@@ -5330,13 +5330,69 @@ class CronController extends Controller
                 }
             }
 
+            // ============================
+            // Marcar facturas/ingresos con whatsapp=1
+            // cuando exista al menos un log delivered/read
+            // por (documento, template_id)
+            // ============================
+            $facturasMarcadas = 0;
+            $ingresosMarcados = 0;
+
+            try {
+                // Agrupar logs exitosos por factura + template_id
+                $logsFacturas = WhatsappMetaLog::query()
+                    ->whereIn('status', ['delivered', 'read'])
+                    ->whereNotNull('incoming_invoice_id')
+                    ->whereNotNull('template_id')
+                    ->select('incoming_invoice_id', 'template_id')
+                    ->distinct()
+                    ->get();
+
+                $idsFacturas = $logsFacturas->pluck('incoming_invoice_id')->unique()->values();
+
+                if ($idsFacturas->count() > 0) {
+                    $facturasMarcadas = DB::table('factura')
+                        ->whereIn('id', $idsFacturas)
+                        ->update(['whatsapp' => 1]);
+                }
+
+                // Agrupar logs exitosos por ingreso + template_id
+                $logsIngresos = WhatsappMetaLog::query()
+                    ->whereIn('status', ['delivered', 'read'])
+                    ->whereNotNull('incoming_payment_id')
+                    ->whereNotNull('template_id')
+                    ->select('incoming_payment_id', 'template_id')
+                    ->distinct()
+                    ->get();
+
+                $idsIngresos = $logsIngresos->pluck('incoming_payment_id')->unique()->values();
+
+                if ($idsIngresos->count() > 0) {
+                    $ingresosMarcados = DB::table('ingresos')
+                        ->whereIn('id', $idsIngresos)
+                        ->update(['whatsapp' => 1]);
+                }
+
+                Log::info('Marcado de whatsapp desde syncWhatsAppMetaLogs', [
+                    'facturas_marcadas' => $facturasMarcadas,
+                    'ingresos_marcados' => $ingresosMarcados,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error marcando whatsapp en facturas/ingresos desde syncWhatsAppMetaLogs', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+
             $mensaje = sprintf(
-                "Sincronización completada. Instancias: %d, Logs creados: %d, Logs actualizados: %d, Facturas actualizadas: %d, Ingresos actualizados: %d",
+                "Sincronización completada. Instancias: %d, Logs creados: %d, Logs actualizados: %d, Facturas actualizadas: %d, Ingresos actualizados: %d, Facturas marcadas whatsapp: %d, Ingresos marcados whatsapp: %d",
                 $instanciasProcesadas,
                 $totalLogsCreados,
                 $totalLogsActualizados,
                 $totalFacturasActualizadas,
-                $totalIngresosActualizados
+                $totalIngresosActualizados,
+                $facturasMarcadas,
+                $ingresosMarcados
             );
 
             Log::info('CronController::syncWhatsAppMetaLogs finalizado', [
@@ -5344,7 +5400,9 @@ class CronController extends Controller
                 'logs_creados' => $totalLogsCreados,
                 'logs_actualizados' => $totalLogsActualizados,
                 'facturas_actualizadas' => $totalFacturasActualizadas,
-                'ingresos_actualizados' => $totalIngresosActualizados
+                'ingresos_actualizados' => $totalIngresosActualizados,
+                'facturas_marcadas_whatsapp' => $facturasMarcadas,
+                'ingresos_marcados_whatsapp' => $ingresosMarcados,
             ]);
 
             return $mensaje;
