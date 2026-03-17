@@ -24,6 +24,18 @@
                                     <th>Estado:</th>
                                     <td>{!! $log->estadoFormateado() !!}</td>
                                 </tr>
+                                @if($log->remote_id)
+                                <tr>
+                                    <th>Meta ID (Remote):</th>
+                                    <td><small class="text-muted">{{ $log->remote_id }}</small></td>
+                                </tr>
+                                @endif
+                                @if($log->wamid)
+                                <tr>
+                                    <th>WAMID:</th>
+                                    <td><small class="text-muted">{{ $log->wamid }}</small></td>
+                                </tr>
+                                @endif
                                 <tr>
                                     <th>Fecha/Hora:</th>
                                     <td>{{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y H:i:s') }}</td>

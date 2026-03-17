@@ -179,6 +179,18 @@ class WhatsappMetaLogController extends Controller
             $logs->whereIn('log_meta.status', $request->estados);
         }
 
+        // Filtro por origen (Pestañas)
+        if ($request->has('origen')) {
+            if ($request->origen == 'integra') {
+                $logs->whereNull('log_meta.remote_id');
+            } elseif ($request->origen == 'meta') {
+                $logs->whereNotNull('log_meta.remote_id');
+            }
+        } else {
+            // Por defecto, mostrar los de integra
+            $logs->whereNull('log_meta.remote_id');
+        }
+
         return datatables()->eloquent($logs)
             ->editColumn('id', function ($log) {
                 return $log->id;

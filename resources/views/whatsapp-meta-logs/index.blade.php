@@ -70,6 +70,21 @@
                     </div>
                 </div>
 
+                <!-- Tabs para separar logs -->
+                <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="pills-integra-tab" data-toggle="pill" href="#pills-integra" role="tab" aria-controls="pills-integra" aria-selected="true" onclick="$('#origen_tab').val('integra'); aplicarFiltros();">
+                            <i class="fas fa-paper-plane mr-1"></i> Enviados por Integra
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="pills-meta-tab" data-toggle="pill" href="#pills-meta" role="tab" aria-controls="pills-meta" aria-selected="false" onclick="$('#origen_tab').val('meta'); aplicarFiltros();">
+                            <i class="fab fa-whatsapp mr-1"></i> Eventos de Meta
+                        </a>
+                    </li>
+                </ul>
+                <input type="hidden" id="origen_tab" value="integra">
+
                 <!-- Tabla DataTables -->
                 <div class="table-responsive">
                     <table id="tabla-logs" class="table table-striped table-bordered table-hover" style="width:100%">
@@ -145,6 +160,7 @@
                     d.fecha_hasta = $('#fecha_hasta').val();
                     d.factura_emitida = $('#factura_emitida').val();
                     d.estados = $('#estados').val(); // Array de estados seleccionados
+                    d.origen = $('#origen_tab').val(); // Filtro de pestañas
                 }
             },
             columns: [
