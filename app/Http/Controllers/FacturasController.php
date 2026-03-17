@@ -5998,7 +5998,8 @@ class FacturasController extends Controller{
                     $factura->id,
                     $contractId,
                     null,
-                    $companyNit
+                    $companyNit,
+                    $plantilla ? $plantilla->id : null
                 );
             }
 

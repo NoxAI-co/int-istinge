@@ -1811,7 +1811,8 @@ class IngresosController extends Controller
                     null,
                     null,
                     $ingreso->id,
-                    $companyNit
+                    $companyNit,
+                    $plantilla->id
                 );
             }
 

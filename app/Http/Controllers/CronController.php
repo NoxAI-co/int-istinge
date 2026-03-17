@@ -5130,7 +5130,8 @@ class CronController extends Controller
                             $factura->id,
                             $contractId,
                             null,
-                            $companyNit
+                            $companyNit,
+                            $plantilla->id
                         );
                     }
                 } else {

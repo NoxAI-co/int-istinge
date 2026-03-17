@@ -535,7 +535,8 @@ class AvisosController extends Controller
                                     $invoiceId,
                                     $contractId,
                                     null,
-                                    $companyNit
+                                    $companyNit,
+                                    $plantilla->id
                                 );
                             }
                         } else {
@@ -1016,7 +1017,8 @@ class AvisosController extends Controller
                         $invoiceId,
                         $contractId,
                         null,
-                        $companyNit
+                        $companyNit,
+                        $plantilla->id
                     );
                 }
 
