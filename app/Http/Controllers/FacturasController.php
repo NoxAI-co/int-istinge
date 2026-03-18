@@ -7546,22 +7546,23 @@ class FacturasController extends Controller{
     public function ejemploImportarSaldos()
     {
         $titulosColumnas = array(
-            'Identificacion', 'Tipo factura', 'Fecha factura', 'Fecha vencimiento', 'Fecha suspension', 'Saldo inicial'
+            'Identificacion', 'Cliente (Opcional)', 'Tipo factura', 'Fecha factura', 'Fecha vencimiento', 'Fecha suspension', 'Saldo inicial'
         );
 
         $comentarios = array(
-            'A' => 'NIT o Cédula del cliente (Obligatorio)',
-            'B' => 'Seleccione "Estandar" o "Electronica"',
-            'C' => 'Fecha factura (dd-mm-AAAA)',
-            'D' => 'Fecha de vencimiento (dd-mm-AAAA)',
-            'E' => 'Fecha de suspensión (dd-mm-AAAA)',
-            'F' => 'Saldo inicial (valor numérico)'
+            'A' => 'NIT o Cédula del cliente (Obligatorio si Cliente está vacío)',
+            'B' => 'Nombre completo del cliente (Opcional si Identificacion está vacío)',
+            'C' => 'Seleccione "Estandar" o "Electronica"',
+            'D' => 'Fecha factura (dd-mm-AAAA)',
+            'E' => 'Fecha de vencimiento (dd-mm-AAAA)',
+            'F' => 'Fecha de suspension (dd-mm-AAAA)',
+            'G' => 'Saldo inicial (valor numérico)'
         );
 
         $objPHPExcel = new \PHPExcel();
         $tituloReporte = "Importación Saldos Iniciales - " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
@@ -7604,9 +7605,9 @@ class FacturasController extends Controller{
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
         }
 
-        // Validación desplegable para Tipo de Factura (B)
+        // Validación desplegable para Tipo de Factura (C)
         for ($row = 4; $row <= 200; $row++) {
-            $validation = $objPHPExcel->getActiveSheet()->getCell('B' . $row)->getDataValidation();
+            $validation = $objPHPExcel->getActiveSheet()->getCell('C' . $row)->getDataValidation();
             $validation->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
             $validation->setAllowBlank(false);
             $validation->setShowDropDown(true);
@@ -7684,17 +7685,21 @@ class FacturasController extends Controller{
             return back()->withErrors($errores)->with('danger', 'Complete la configuración de numeración estándar');
         }
 
+        // Cargar todos los contactos en memoria para optimizar la búsqueda
+        $all_contactos = Contacto::where('empresa', Auth::user()->empresa)->get();
+
         for ($row = 4; $row <= $highestRow; $row++) {
             $identificacion = trim($sheet->getCell("A" . $row)->getValue());
-            if (empty($identificacion)) {
+            $cliente_nombre = trim($sheet->getCell("B" . $row)->getValue());
+            if (empty($identificacion) && empty($cliente_nombre)) {
                 break;
             }
 
-            $tipo_factura = strtoupper(trim($sheet->getCell("B" . $row)->getValue()));
-            $fecha_factura = $sheet->getCell("C" . $row)->getFormattedValue();
-            $fecha_vcto = $sheet->getCell("D" . $row)->getFormattedValue();
-            $fecha_suspension = $sheet->getCell("E" . $row)->getFormattedValue();
-            $saldo_inicial = trim($sheet->getCell("F" . $row)->getValue());
+            $tipo_factura = strtoupper(trim($sheet->getCell("C" . $row)->getValue()));
+            $fecha_factura = $sheet->getCell("D" . $row)->getFormattedValue();
+            $fecha_vcto = $sheet->getCell("E" . $row)->getFormattedValue();
+            $fecha_suspension = $sheet->getCell("F" . $row)->getFormattedValue();
+            $saldo_inicial = trim($sheet->getCell("G" . $row)->getValue());
 
             if (empty($tipo_factura) || $saldo_inicial === "" || $saldo_inicial === null) {
                 $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial)";
@@ -7706,9 +7711,22 @@ class FacturasController extends Controller{
                 continue;
             }
 
-            $contacto = Contacto::where('empresa', Auth::user()->empresa)->where('nit', $identificacion)->first();
+            $contacto = null;
+            if (!empty($identificacion)) {
+                $contacto = $all_contactos->firstWhere('nit', $identificacion);
+            } else if (!empty($cliente_nombre)) {
+                $contacto = $all_contactos->first(function($c) use ($cliente_nombre) {
+                    $fullName = trim(preg_replace('/\s+/', ' ', $c->nombre . ' ' . $c->apellido1 . ' ' . $c->apellido2));
+                    return mb_strtolower($fullName) === mb_strtolower($cliente_nombre);
+                });
+            }
+
             if (!$contacto) {
-                $errores[] = "Fila $row: No se encontró contacto asociado a la cédula/NIT: $identificacion";
+                if (!empty($identificacion)) {
+                    $errores[] = "Fila $row: No se encontró contacto asociado a la cédula/NIT: $identificacion";
+                } else {
+                    $errores[] = "Fila $row: No se encontró contacto con el nombre exacto: $cliente_nombre";
+                }
                 continue;
             }
 
