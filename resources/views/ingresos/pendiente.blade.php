@@ -75,7 +75,7 @@
         </td>
         <td class="monetario text-center" style="vertical-align: text-bottom;">
           <input type="hidden" id="editmonto{{$factura->id}}" value="1">
-          <input type="number" class="form-control form-control-sm" id="precio{{$factura->id}}" name="precio[]" placeholder="Valor" maxlength="24" onchange="totales_ingreso();" onkeyup="editmonto({{$factura->id}});" min="0" value="@if($count == 1){{$factura->total()->total - $factura->pagado()}}@endif">
+          <input type="number" class="form-control form-control-sm" id="precio{{$factura->id}}" name="precio[]" placeholder="Valor" maxlength="24" onchange="totales_ingreso();" onkeyup="editmonto({{$factura->id}});" min="0" value="@if($count == 1){{$factura->porpagar()}}@endif">
 
           <p id="p_error_{{$factura->id}}" class="text-danger"></p>
 
@@ -137,7 +137,7 @@
           <tr>
             <td width="75%">Subtotal</td>
               <input type="hidden" id="subtotal_facturas_js" value="0">
-            <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal">{{$factura->total()->total}}</span></td>
+            <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal">{{$factura->porpagar()}}</span></td>
           </tr>
         </table>
 
@@ -156,7 +156,7 @@
         <table class="text-right ingresos">
           <tr>
             <td width="75%">TOTAL</td>
-            <td>{{Auth::user()->empresa()->moneda}} <span id="total">@if($total>1){{$factura->total()->total+10000}} @else {{$factura->total()->total}} @endif</span></td>
+            <td>{{Auth::user()->empresa()->moneda}} <span id="total">@if($total>1){{$factura->porpagar()+10000}} @else {{$factura->porpagar()}} @endif</span></td>
           </tr>
         </table>
       </div>
