@@ -187,7 +187,7 @@
             @foreach($items as $item)
              @php $totalApagar=$totalApagar+$item->precio; @endphp
                 <tr>
-                    <td>{{$item->descripcion != null ? $item->descripcion : $item->producto()}}</td>
+                    <td>{{$item->descripcion != null ? $item->descripcion : $item->producto()->producto}}</td>
                     <td>{{$empresa->moneda}}{{App\Funcion::Parsear($item->precio)}}</td>
                 </tr>
             @endforeach
