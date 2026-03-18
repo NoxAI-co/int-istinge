@@ -185,9 +185,27 @@
             <tbody>
             @php $totalApagar = 0; @endphp
             @foreach($items as $item)
-             @php $totalApagar=$totalApagar+$item->precio; @endphp
+             @php 
+                $totalApagar=$totalApagar+$item->precio; 
+                $nombre_item = '';
+                if($item->descripcion != null) {
+                    $nombre_item = $item->descripcion;
+                } else {
+                    if(isset($item->tipo_inventario) && $item->tipo_inventario == 1) {
+                        $inv = App\Model\Inventario\Inventario::find($item->producto);
+                        $nombre_item = $inv ? $inv->producto : 'Producto '.$item->producto;
+                    } elseif(isset($item->tipo_inventario) && $item->tipo_inventario == 2) {
+                        $inv = DB::table('inventario_volatil')->where('id', $item->producto)->first();
+                        $nombre_item = $inv ? $inv->producto : 'Producto '.$item->producto;
+                    } elseif(isset($item->producto)) {
+                        $nombre_item = $item->producto;
+                    } elseif(method_exists($item, 'categoria')) {
+                        $nombre_item = $item->categoria(true);
+                    }
+                }
+             @endphp
                 <tr>
-                    <td>{{$item->descripcion != null ? $item->descripcion : $item->producto()->producto}}</td>
+                    <td>{{$nombre_item}}</td>
                     <td>{{$empresa->moneda}}{{App\Funcion::Parsear($item->precio)}}</td>
                 </tr>
             @endforeach
