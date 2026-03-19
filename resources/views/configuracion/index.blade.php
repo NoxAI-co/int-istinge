@@ -3,29 +3,178 @@
 @section('content')
 
     <style>
+        .configuracion {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            /* Overriding row margins from bootstrap if applied */
+            margin-left: 0;
+            margin-right: 0;
+            width: 100%;
+        }
+
+        .configuracion > div.enlaces {
+            background-color: #ffffff;
+            border: 1px solid #eef2f7;
+            border-radius: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            padding: 1.8rem 1.5rem;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* Overriding bootstrap col-sm-3 styles to let Grid handle it */
+            max-width: none !important;
+            flex: none !important;
+            width: auto !important;
+            margin-bottom: 0 !important;
+        }
+
+        .configuracion > div.enlaces::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 5px;
+            background: linear-gradient(90deg, #022454, #007bff);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .configuracion > div.enlaces:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+            border-color: #dce4ec;
+        }
+
+        .configuracion > div.enlaces:hover::before {
+            opacity: 1;
+        }
+
+        .configuracion > div.enlaces h4.card-title {
+            color: #022454;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+            letter-spacing: -0.3px;
+        }
+
+        .configuracion > div.enlaces p {
+            color: #6c757d;
+            font-size: 0.88rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
         .enlaces a {
-            margin-bottom: 1px;
-            /* Espacio entre cada enlace */
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-            /* Línea ligeramente transparente */
-            padding-bottom: 1px;
-            /* Espacio entre el enlace y la línea */
+            display: flex;
+            align-items: center;
+            padding: 0.65rem 0.5rem;
+            color: #495057;
+            text-decoration: none;
+            font-size: 0.92rem;
+            font-weight: 500;
+            border-bottom: 1px solid #f1f3f5;
+            transition: all 0.25s ease;
+            position: relative;
+            border-radius: 6px;
         }
 
-        .configuracion > div {
-            border: 2px solid #022454;
-            border-radius: 5px;
-            padding: 9px;
+        .enlaces a::before {
+            content: "\f105";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            margin-right: 12px;
+            color: #adb5bd;
+            font-size: 1rem;
+            transition: all 0.25s ease;
         }
 
-        .configuracion > div a::before {
-            content: "\f0da"; /* Código del icono (ejemplo: flecha derecha) */
-            font-family: "Font Awesome 5 Free"; /* O "Font Awesome 6 Free" si usas FA6 */
-            font-weight: 900; /* Para usar los iconos sólidos */
-            margin-right: 8px; /* Espacio entre el icono y el texto */
-            color: #022454; /* Color del icono */
+        .enlaces a:hover {
+            color: #007bff;
+            padding-left: 0.9rem;
+            background-color: #f4f8fb;
+            border-bottom-color: transparent;
         }
 
+        .enlaces a:hover::before {
+            color: #007bff;
+            transform: translateX(3px);
+        }
+        
+        .enlaces a:last-of-type {
+            border-bottom: none;
+        }
+
+        .enlaces hr.nomina {
+            width: 100%;
+            margin: 0.8rem 0;
+            border-top: 1px dashed #dee2e6;
+        }
+
+        .enlaces br {
+            display: none;
+        }
+
+        .enlaces input[type="hidden"] {
+            display: none;
+        }
+
+        /* --- Premium Search Bar Styles --- */
+        .buscador-premium {
+            position: relative;
+            max-width: 700px;
+            margin: 0 auto;
+            border-radius: 50px;
+        }
+
+        .buscador-premium input {
+            width: 100%;
+            padding: 1.2rem 1.5rem 1.2rem 3.5rem;
+            font-size: 1.05rem;
+            color: #333;
+            background-color: #ffffff;
+            border: 2px solid #eef2f7;
+            border-radius: 50px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .buscador-premium:focus-within input {
+            border-color: #007bff;
+            box-shadow: 0 10px 35px rgba(0, 123, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .buscador-premium input::placeholder {
+            color: #9ea8b5;
+        }
+
+        .buscador-premium i {
+            position: absolute;
+            top: 50%;
+            left: 1.5rem;
+            transform: translateY(-50%);
+            color: #aab3cc;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .buscador-premium:focus-within i {
+            color: #007bff;
+            transform: translateY(-50%) translateY(-2px);
+        }
+
+        .buscador-help {
+            text-align: center;
+            color: #8c98a4;
+            font-size: 0.88rem;
+            margin-top: 1rem;
+            font-weight: 500;
+        }
     </style>
     <div class="row card-description">
         @if(Session::has('success'))
@@ -91,8 +240,19 @@
                 representante legal. Adjunte su pago para reactivar su membresía</p>
         </div>
     @endif
+    <div class="row mb-5 mt-4">
+        <div class="col-md-12">
+            <div class="buscador-premium">
+                <i class="fas fa-search"></i>
+                <input type="text" id="buscador-configuracion" placeholder="Buscar secciones, permisos, configuraciones o palabras clave..." onkeyup="buscarConfiguracion()">
+            </div>
+            <div class="buscador-help">
+                <i class="far fa-lightbulb mr-1"></i> Filtra rápidamente cualquiera de las opciones de configuración disponibles en el sistema
+            </div>
+        </div>
+    </div>
 
-    <div class="row card-description configuracion">
+    <div class="row card-description configuracion" id="grid-configuracion">
         <div class="col-sm-3 enlaces">
             <h4 class="card-title">Empresa</h4>
             <p>Completa la información de tu empresa.</p>
@@ -1922,8 +2082,10 @@
                 var url = '/configuracion_queries_dhcp_smartolt';
             }
 
+            var textswal = '';
             if ($("#queries_dhcp_smartolt").val() == 0) {
                 $titleswal = "¿Desea habilitar Disable/Enable ONU para contratos DHCP?";
+                textswal = "Esta opción es para contratos DHCP que tienen ingresado su serial onu en los planes de internet y tienen una configuración de smart OLT habilitada.";
             }
 
             if ($("#queries_dhcp_smartolt").val() == 1) {
@@ -1932,6 +2094,7 @@
 
             Swal.fire({
                 title: $titleswal,
+                text: textswal,
                 type: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#3085d6',
@@ -3604,6 +3767,44 @@
                         title: 'Error',
                         text: errorMessage
                     });
+                }
+            });
+        }
+        function buscarConfiguracion() {
+            let input = document.getElementById('buscador-configuracion').value.toLowerCase().trim();
+            let cards = document.querySelectorAll('.configuracion > .enlaces');
+
+            cards.forEach(card => {
+                let title = card.querySelector('.card-title');
+                let textTitle = title ? title.innerText.toLowerCase() : '';
+                let description = card.querySelector('p');
+                let textDesc = description ? description.innerText.toLowerCase() : '';
+                
+                let links = card.querySelectorAll('a');
+                
+                let matchCard = textTitle.includes(input) || textDesc.includes(input);
+                let anyLinkMatched = false;
+
+                links.forEach(link => {
+                    let textLink = link.innerText.toLowerCase();
+                    let matchThisLink = textLink.includes(input);
+                    
+                    if (input === '') {
+                        link.style.display = 'flex'; // restore
+                    } else if (matchCard || matchThisLink) {
+                        link.style.display = 'flex';
+                        if (matchThisLink && !matchCard) {
+                            anyLinkMatched = true;
+                        }
+                    } else {
+                        link.style.display = 'none';
+                    }
+                });
+
+                if (input === '' || matchCard || anyLinkMatched) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
                 }
             });
         }
