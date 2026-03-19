@@ -3505,6 +3505,7 @@ class ConfiguracionController extends Controller
      */
     public function etiquetasAutomaticas()
     {
+        $this->getAllPermissions(Auth::user()->id);
         $empresa_id = auth()->user()->empresa;
         $modulo     = \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS;
 
