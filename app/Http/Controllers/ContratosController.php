@@ -2764,239 +2764,182 @@ class ContratosController extends Controller
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
     }
 
-    public function state($id){
-
+    public function state($id)
+    {
         $this->getAllPermissions(Auth::user()->id);
         $contrato = Contrato::find($id);
 
-        $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+        if (!$contrato) {
+            return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO SE HA ENCONTRADO');
+        }
+
         $empresa = Auth::user()->empresa();
-        $descripcion = "";
         $old_state = $contrato->state;
+        
+        // 1. Determinar el nuevo estado objetivo
+        // 1. Determinar el nuevo estado objetivo
+        $new_state = ($old_state == 'enabled') ? 'disabled' : 'enabled';
+        
+        $mikrotik_failed = false;
+        $olt_executed = false;
+        $descripcion = "";
+        $type = 'success';
+        $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' HA SIDO ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado');
 
-        //$API->debug = true;
-            if($contrato){
-                if($contrato->plan_id){
-                    $API = new RouterosAPI();
-                    $API->port = $mikrotik->puerto_api;
-                    if ($contrato) {
-                        if($empresa->consultas_mk == 1){
-                            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                $API->write('/ip/firewall/address-list/print', TRUE);
-                                $ARRAYS = $API->read();
+        // 2. Lógica de Mikrotik
+        if ($contrato->plan_id && $empresa->consultas_mk == 1 && $contrato->server_configuration_id) {
+            $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-                                if($contrato->state == 'enabled'){
+            if ($mikrotik) {
+                $API = new RouterosAPI();
+                $API->port = $mikrotik->puerto_api;
 
-                                    #AGREGAMOS A MOROSOS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "comment" => $contrato->servicio,
-                                        "list" => 'morosos'
-                                        )
-                                    );
-                                    #AGREGAMOS A MOROSOS#
+                if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                    $API->write('/ip/firewall/address-list/print', true);
+                    $ARRAYS = $API->read();
 
-                                    #ELIMINAMOS DE IP_AUTORIZADAS#
-                                    $API->write('/ip/firewall/address-list/print', false);
-                                    $API->write('?address='.$contrato->ip, false);
-                                    $API->write("?list=ips_autorizadas",false);
-                                    $API->write('=.proplist=.id');
+                    switch ($new_state) {
+                        case 'disabled':
+                            $API->comm("/ip/firewall/address-list/add", [
+                                "address" => $contrato->ip,
+                                "comment" => $contrato->servicio,
+                                "list" => 'morosos'
+                            ]);
+
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write("?list=ips_autorizadas", false);
+                            $API->write('=.proplist=.id');
+                            $ARRAYS = $API->read();
+                            if (count($ARRAYS) > 0) {
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                $API->read();
+                            }
+
+                            if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                    $API->write('/ppp/secret/print', false);
+                                    $API->write('?name=' . $contrato->usuario, true);
                                     $ARRAYS = $API->read();
-                                    if(count($ARRAYS)>0){
-                                        $API->write('/ip/firewall/address-list/remove', false);
-                                        $API->write('=.id='.$ARRAYS[0]['.id']);
-                                        $READ = $API->read();
-                                    }
-                                    #ELIMINAMOS DE IP_AUTORIZADAS#
-
-                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                        #DESHABILITACION DEL PPPoE#
-                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
-
-                                            // Buscar el ID interno del secret con ese nombre
-                                            $API->write('/ppp/secret/print', false);
-                                            $API->write('?name=' . $contrato->usuario, true);
-                                            $ARRAYS = $API->read();
-
-                                            if (count($ARRAYS) > 0) {
-                                                $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
-
-                                                // Deshabilitar el secret
-                                                $API->write('/ppp/secret/disable', false);
-                                                $API->write('=numbers=' . $id, true);
-                                                $response = $API->read();
-
-                                            }
-                                        }
-                                        #DESHABILITACION DEL PPPoE#
-
-                                        #SE SACA DE LA ACTIVE CONNECTIONS
-                                        if($contrato->conexion == 1 && $contrato->usuario != null){
-
-                                            $API->write('/ppp/active/print', false);
-                                            $API->write('?name=' . $contrato->usuario);
-                                            $response = $API->read();
-
-                                            if(isset($response['0']['.id'])){
-                                                $API->comm("/ppp/active/remove", [
-                                                    ".id" => $response['0']['.id']
-                                                ]);
-                                            }else{ //NUEVO CODIGO
-
-                                                //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
-                                                $API->write('/ppp/active/print', false);
-                                                $API->write('?name=' . $contrato->nro);
-                                                $response = $API->read();
-
-                                                if(isset($response['0']['.id'])){
-                                                    $API->comm("/ppp/active/remove", [
-                                                        ".id" => $response['0']['.id']
-                                                    ]);
-                                                }
-                                            }
-
-                                        }
-                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                    if (count($ARRAYS) > 0) {
+                                        $API->write('/ppp/secret/disable', false);
+                                        $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                        $API->read();
                                     }
 
-
-                                    $contrato->state = 'disabled';
-                                    $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Habilitado a Deshabilitado<br>';
-
-                                }else{
-
-                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                        #HABILITACION DEL SECRET#
-                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                                            // Buscar el ID interno del secret
-                                            $API->write('/ppp/secret/print', false);
-                                            $API->write('?name=' . $contrato->usuario, true);
-                                            $ARRAYS = $API->read();
-
-                                            if (count($ARRAYS) > 0) {
-                                                $id = $ARRAYS[0]['.id'];
-                                                // Habilitar el secret
-                                                $API->write('/ppp/secret/enable', false);
-                                                $API->write('=numbers=' . $id, true);
-                                                $response = $API->read();
-                                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
-                                            }
+                                    $API->write('/ppp/active/print', false);
+                                    $API->write('?name=' . $contrato->usuario);
+                                    $response = $API->read();
+                                    if (isset($response['0']['.id'])) {
+                                        $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
+                                    } else {
+                                        $API->write('/ppp/active/print', false);
+                                        $API->write('?name=' . $contrato->nro);
+                                        $response = $API->read();
+                                        if (isset($response['0']['.id'])) {
+                                            $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
                                         }
-                                        #HABILITACION DEL SECRET#
-
-                                    }else{
-
-                                        #ELIMINAMOS DE MOROSOS#
-                                        $API->write('/ip/firewall/address-list/print', false);
-                                        $API->write('?address='.$contrato->ip, false);
-                                        $API->write("?list=morosos",false);
-                                        $API->write('=.proplist=.id');
-                                        $ARRAYS = $API->read();
-                                        if(count($ARRAYS)>0){
-                                            $API->write('/ip/firewall/address-list/remove', false);
-                                            $API->write('=.id='.$ARRAYS[0]['.id']);
-                                            $READ = $API->read();
-                                        }
-                                        #ELIMINAMOS DE MOROSOS#
                                     }
-
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "list" => 'ips_autorizadas'
-                                        )
-                                    );
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-
-
-                                    $contrato->state = 'enabled';
-                                    $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Deshabilitado a Habilitado<br>';
                                 }
-                                $API->disconnect();
+                            }
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Deshabilitado<br>';
+                            break;
 
+                        case 'enabled':
+                            if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                    $API->write('/ppp/secret/print', false);
+                                    $API->write('?name=' . $contrato->usuario, true);
+                                    $ARRAYS = $API->read();
+                                    if (count($ARRAYS) > 0) {
+                                        $API->write('/ppp/secret/enable', false);
+                                        $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                        $API->read();
+                                    }
+                                }
                             } else {
-                                $mensaje='EL CONTRATO NRO. '.$contrato->nro.' NO HA PODIDO SER ACTUALIZADO';
-                                $type = 'danger';
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=morosos", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
                             }
-                        }else{
-                            if($contrato->state == 'disabled'){
-                                $contrato->state = 'enabled';
-                            }else{
-                                $contrato->state = 'disabled';
-                            }
-                        }
 
-                        $contrato->save();
-                        /*REGISTRO DEL LOG*/
-                        $movimiento = new MovimientoLOG;
-                        $movimiento->contrato    = $id;
-                        $movimiento->modulo      = 5;
-                        $movimiento->descripcion = $descripcion;
-                        $movimiento->created_by  = Auth::user()->id;
-                        $movimiento->empresa     = Auth::user()->empresa;
-                        $movimiento->save();
-                        //crm registro
-                        $crm = new CRM();
-                        $crm->cliente = $contrato->cliente()->id;
-                        $crm->servidor = isset($contrato->server_configuration_id) ? $contrato->server_configuration_id : '';
-                        $crm->grupo_corte = isset($contrato->grupo_corte) ? $contrato->grupo_corte : '';
-                        $crm->estado = 0;
-                        if($lastFact = $contrato->lastFactura()){
-                            $crm->factura = $lastFact->id;
-                        }
-                        $crm->save();
-                        if(!isset($type)){
-                            $mensaje='EL CONTRATO NRO. '.$contrato->nro.' HA SIDO '.$contrato->status();
-                            $type = 'success';
-                        }
-
-                        if ($old_state != $contrato->state && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                            $oltController = app('App\Http\Controllers\OltController');
-                            if ($contrato->state == 'enabled') {
-                                $oltController->enableOnu($contrato->serial_onu);
-                            } else {
-                                $oltController->disableOnu($contrato->serial_onu);
-                            }
-                        }
-
-                        return back()->with($type, $mensaje);
+                            $API->comm("/ip/firewall/address-list/add", [
+                                "address" => $contrato->ip,
+                                "list" => 'ips_autorizadas'
+                            ]);
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Habilitado<br>';
+                            break;
                     }
-                }else{
-
-                    if($contrato->state == 'enabled'){
-                        $contrato->state = 'disabled';
-                    }else{
-                        $contrato->state = 'enabled';
-                    }
-
-                    //crm registro
-                    $crm = new CRM();
-                    $crm->cliente = $contrato->cliente()->id;
-                    $crm->servidor = isset($contrato->server_configuration_id) ? $contrato->server_configuration_id : '';
-                    $crm->grupo_corte = isset($contrato->grupo_corte) ? $contrato->grupo_corte : '';
-                    $crm->estado = 0;
-                    if($lastFact = $contrato->lastFactura()){
-                        $crm->factura = $lastFact->id;
-                    }
-                    $crm->save();
-
-                    $contrato->update();
-
-                    if ($old_state != $contrato->state && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                        $oltController = app('App\Http\Controllers\OltController');
-                        if ($contrato->state == 'enabled') {
-                            $oltController->enableOnu($contrato->serial_onu);
-                        } else {
-                            $oltController->disableOnu($contrato->serial_onu);
-                        }
-                    }
-
-                    return back()->with('success', 'EL CONTRATO NRO. '.$contrato->nro.' HA SIDO '.$contrato->status());
+                    $API->disconnect();
+                } else {
+                    $mikrotik_failed = true;
                 }
             }
-        return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
+        }
+
+        // 3. Lógica de Smart OLT
+        if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            $olt_executed = true;
+            $oltController = app('App\Http\Controllers\OltController');
+            if ($new_state == 'enabled') {
+                $oltController->enableOnu($contrato->serial_onu);
+            } else {
+                $oltController->disableOnu($contrato->serial_onu);
+            }
+            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
+        }
+
+        // 4. Procesamiento final, decidir si actualizar estado en DB
+        if ($mikrotik_failed && !$olt_executed) {
+            // Si falló mikrotik y no había OLT de respaldo al cual aplicarle, abortamos.
+            $type = 'danger';
+            $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' NO HA PODIDO SER ACTUALIZADO EN MIKROTIK';
+            return back()->with($type, $mensaje);
+        }
+
+        // Si falló mikrotik pero SÍ había OLT, actualizamos el estado con una advertencia
+        if ($mikrotik_failed) {
+            $type = 'warning';
+            $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' ACTUALIZADO EN OLT, PERO FALLÓ MIKROTIK';
+        }
+
+        // Actualizamos estado en base de datos
+        $contrato->state = $new_state;
+        $contrato->save();
+
+        if ($descripcion == "") {
+            $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
+        }
+
+        // Registro en LOG de Movimientos
+        $movimiento = new MovimientoLOG;
+        $movimiento->contrato    = $id;
+        $movimiento->modulo      = 5;
+        $movimiento->descripcion = $descripcion;
+        $movimiento->created_by  = Auth::user()->id;
+        $movimiento->empresa     = Auth::user()->empresa;
+        $movimiento->save();
+
+        // Registro en CRM
+        $crm = new CRM();
+        $crm->cliente = $contrato->client_id;
+        $crm->servidor = $contrato->server_configuration_id ?? '';
+        $crm->grupo_corte = $contrato->grupo_corte ?? '';
+        $crm->estado = 0;
+        if ($lastFact = $contrato->lastFactura()) {
+            $crm->factura = $lastFact->id;
+        }
+        $crm->save();
+
+        return back()->with($type, $mensaje);
     }
 
     public function state_oltcatv($id)
@@ -4306,6 +4249,7 @@ class ContratosController extends Controller
     public function state_lote($contratos, $state)
     {
         $this->getAllPermissions(Auth::user()->id);
+        $empresa = Auth::user()->empresa();
 
         $succ = 0;
         $fail = 0;
@@ -4315,78 +4259,90 @@ class ContratosController extends Controller
         for ($i = 0; $i < count($contratos); $i++) {
             $contrato = Contrato::find($contratos[$i]);
 
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
-            //$API->debug = true;
+            if (!$contrato) {
+                $fail++;
+                continue;
+            }
 
-            if ($contrato) {
-                if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+            $mikrotik_ok = false;
+            $olt_ok = false;
 
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
+            // 1. Bloque Mikrotik
+            if ($contrato->server_configuration_id && $empresa->consultas_mk == 1) {
+                $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-                    if ($state == 'disabled') {
-                        #AGREGAMOS A MOROSOS#
-                        $API->comm(
-                            "/ip/firewall/address-list/add",
-                            array(
-                                "address" => $contrato->ip,
-                                "comment" => $contrato->servicio,
-                                "list" => 'morosos'
-                            )
-                        );
-                        #AGREGAMOS A MOROSOS#
+                if ($mikrotik) {
+                    $API = new RouterosAPI();
+                    $API->port = $mikrotik->puerto_api;
 
-                        #ELIMINAMOS DE IP_AUTORIZADAS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write("?list=ips_autorizadas", false);
-                        $API->write('=.proplist=.id');
+                    if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                        $API->write('/ip/firewall/address-list/print', true);
                         $ARRAYS = $API->read();
 
-                        if (count($ARRAYS) > 0) {
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id=' . $ARRAYS[0]['.id']);
-                            $READ = $API->read();
+                        switch ($state) {
+                            case 'disabled':
+                                $API->comm("/ip/firewall/address-list/add", [
+                                    "address" => $contrato->ip,
+                                    "comment" => $contrato->servicio,
+                                    "list" => 'morosos'
+                                ]);
+
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=ips_autorizadas", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
+                                break;
+
+                            case 'enabled':
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=morosos", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
+
+                                $API->comm("/ip/firewall/address-list/add", [
+                                    "address" => $contrato->ip,
+                                    "list" => 'ips_autorizadas'
+                                ]);
+                                break;
                         }
-                        #ELIMINAMOS DE IP_AUTORIZADAS#
 
-                        $contrato->state = $state;
-                    } else {
-                        #ELIMINAMOS DE MOROSOS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write("?list=morosos", false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-
-                        if (count($ARRAYS) > 0) {
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id=' . $ARRAYS[0]['.id']);
-                            $READ = $API->read();
-                        }
-                        #ELIMINAMOS DE MOROSOS#
-
-                        #AGREGAMOS A IP_AUTORIZADAS#
-                        $API->comm(
-                            "/ip/firewall/address-list/add",
-                            array(
-                                "address" => $contrato->ip,
-                                "list" => 'ips_autorizadas'
-                            )
-                        );
-                        #AGREGAMOS A IP_AUTORIZADAS#
-
-                        $contrato->state = $state;
+                        $API->disconnect();
+                        $mikrotik_ok = true;
                     }
-                    $API->disconnect();
-                    $contrato->save();
-
-                    $succ++;
-                } else {
-                    $fail++;
                 }
+            }
+
+            // 2. Bloque Smart OLT (independiente de Mikrotik)
+            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                if ($state == 'enabled') {
+                    $oltController->enableOnu($contrato->serial_onu);
+                } else {
+                    $oltController->disableOnu($contrato->serial_onu);
+                }
+                $olt_ok = true;
+            }
+
+            // 3. Guardar estado si al menos un sistema operó (o si no aplica ninguno, igual guardamos)
+            $contrato->state = $state;
+            $contrato->save();
+
+            if ($mikrotik_ok || $olt_ok || (!$contrato->server_configuration_id && !$olt_ok)) {
+                $succ++;
+            } else {
+                $fail++;
             }
         }
 

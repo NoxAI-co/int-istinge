@@ -1654,16 +1654,11 @@ class CronController extends Controller
                                 }
                                 }
 
-                                if ($contrato->state != 'disabled' && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                                    $oltController = app('App\Http\Controllers\OltController');
-                                    $oltController->disableOnu($contrato->serial_onu);
-                                }
-
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();
 
-                                $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte facturas<br>';
+                                $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                 $movimiento = new MovimientoLOG();
                                 $movimiento->contrato    = $contrato->id;
                                 $movimiento->modulo      = 5;
@@ -1671,6 +1666,20 @@ class CronController extends Controller
                                 $movimiento->created_by  = 1;
                                 $movimiento->empresa     = $contrato->empresa;
                                 $movimiento->save();
+
+                                // Bloque OLT independiente: DHCP Smart OLT
+                                if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    $oltController = app('App\Http\Controllers\OltController');
+                                    $oltController->disableOnu($contrato->serial_onu);
+
+                                    $movimiento = new MovimientoLOG();
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                    $movimiento->created_by  = 1;
+                                    $movimiento->empresa     = $contrato->empresa;
+                                    $movimiento->save();
+                                }
                             }
                         }
                         }
@@ -1913,53 +1922,72 @@ class CronController extends Controller
             $crm->grupo_corte = $contrato->grupo_corte;
             $crm->save();*/
 
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+            if (!$contrato) {
+                continue;
+            }
 
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
+            // 1. Bloque Mikrotik
+            if ($contrato->server_configuration_id && $empresa->consultas_mk == 1) {
+                $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-            if ($contrato) {
-                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
-                    if($contrato->state == 'enabled'){
-                        if($contrato->ip){
-                            $API->comm("/ip/firewall/address-list/add", array(
+                if ($mikrotik) {
+                    $API = new RouterosAPI();
+                    $API->port = $mikrotik->puerto_api;
+
+                    if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                        $API->write('/ip/firewall/address-list/print', true);
+                        $ARRAYS = $API->read();
+
+                        if ($contrato->state == 'enabled' && $contrato->ip) {
+                            $API->comm("/ip/firewall/address-list/add", [
                                 "address" => $contrato->ip,
                                 "comment" => $contrato->servicio,
                                 "list" => 'morosos'
-                                )
-                            );
+                            ]);
 
-                            #ELIMINAMOS DE IP_AUTORIZADAS#
                             $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address='.$contrato->ip, false);
-                            $API->write("?list=ips_autorizadas",false);
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write("?list=ips_autorizadas", false);
                             $API->write('=.proplist=.id');
                             $ARRAYS = $API->read();
-                            if(count($ARRAYS)>0){
+                            if (count($ARRAYS) > 0) {
                                 $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id='.$ARRAYS[0]['.id']);
-                                $READ = $API->read();
+                                $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                $API->read();
                             }
-                            #ELIMINAMOS DE IP_AUTORIZADAS#
                         }
-                        $contrato->state = 'disabled';
-                        $i++;
-
-                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte promesas<br>';
-                        $movimiento = new MovimientoLOG();
-                        $movimiento->contrato    = $contrato->id;
-                        $movimiento->modulo      = 5;
-                        $movimiento->descripcion = $descripcion;
-                        $movimiento->created_by  = 1;
-                        $movimiento->empresa     = $contrato->empresa;
-                        $movimiento->save();
-
+                        $API->disconnect();
                     }
-                    $API->disconnect();
-                    $contrato->save();
                 }
+            }
+
+            // 2. Bloque OLT independiente
+            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $oltController->disableOnu($contrato->serial_onu);
+
+                $movimiento = new MovimientoLOG();
+                $movimiento->contrato    = $contrato->id;
+                $movimiento->modulo      = 5;
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte promesas<br>';
+                $movimiento->created_by  = 1;
+                $movimiento->empresa     = $contrato->empresa;
+                $movimiento->save();
+            }
+
+            // 3. Actualizar estado en DB y generar log
+            if ($contrato->state == 'enabled') {
+                $contrato->state = 'disabled';
+                $contrato->save();
+                $i++;
+
+                $movimiento = new MovimientoLOG();
+                $movimiento->contrato    = $contrato->id;
+                $movimiento->modulo      = 5;
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte promesas<br>';
+                $movimiento->created_by  = 1;
+                $movimiento->empresa     = $contrato->empresa;
+                $movimiento->save();
             }
         }
 

@@ -1397,6 +1397,29 @@ class IngresosController extends Controller
             }
             /* * * API CATV * * */
 
+            /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
+            if ($contrato !== null && $contrato->conexion == 2 && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                try {
+                    $oltController = app('App\Http\Controllers\OltController');
+                    $oltController->enableOnu($contrato->serial_onu);
+
+                    DB::reconnect();
+                    $contrato->state = 'enabled';
+                    $contrato->save();
+
+                    $movimiento = new MovimientoLOG;
+                    $movimiento->contrato    = $contrato->id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a Habilitado por pago de factura<br>';
+                    $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                    $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                    $movimiento->save();
+                } catch (\Throwable $e) {
+                    Log::error('Error en bloque Smart OLT de funcionesPagoMK: ' . $e->getMessage());
+                }
+            }
+            /* * * Smart OLT - DHCP * * */
+
         } catch (\Throwable $th) {
             Log::error('Error en funcionesPagoMK: ' . $th->getMessage() . ' en la linea ' . $th->getLine() . ' del archivo ' . $th->getFile());
         }
