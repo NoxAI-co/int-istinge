@@ -755,6 +755,21 @@ class ContratosController extends Controller
         $oficinas = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Oficina::where('id', Auth::user()->oficina)->get() : Oficina::where('empresa', Auth::user()->empresa)->where('status', 1)->get();
         $cajasNaps = CajaNap::where('status', 1)->get();
 
+        $empresa_obj = Empresa::Find(Auth::user()->empresa);
+        $nro = Numeracion::where('empresa', 1)->first();
+        if (isset($empresa_obj->separar_numeracion) && $empresa_obj->separar_numeracion == 1) {
+            $numero_contrato = "Por definir (Según servidor)";
+        } else {
+            $numero_contrato = $nro->contrato;
+            while (true) {
+                $existe = Contrato::where('nro', $numero_contrato)->count();
+                if ($existe == 0) {
+                    break;
+                }
+                $numero_contrato++;
+            }
+        }
+
         view()->share(['icon' => 'fas fa-file-contract', 'title' => 'Nuevo Contrato']);
         return view('contratos.create')->with(compact(
             'clientes',
@@ -776,7 +791,8 @@ class ContratosController extends Controller
             'gmaps',
             'oficinas',
             'serviciosOtros',
-            'cajasNaps'
+            'cajasNaps',
+            'numero_contrato'
         ));
     }
 
