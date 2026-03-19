@@ -3520,7 +3520,7 @@ class ConfiguracionController extends Controller
             ->pluck('etiqueta_id', 'accion')
             ->toArray();
 
-        $etiquetas = \App\Etiqueta::where('empresa', $empresa_id)->get();
+        $etiquetas = \App\Etiqueta::where('empresa_id', $empresa_id)->get();
 
         return view('configuracion.contrato.etiquetas_automaticas', compact('acciones', 'configuraciones', 'etiquetas', 'modulo'));
     }
