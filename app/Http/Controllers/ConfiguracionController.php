@@ -3499,4 +3499,57 @@ class ConfiguracionController extends Controller
             return redirect()->back()->with('success', $mensaje);
         }
     }
+
+    /**
+     * Muestra la vista de configuración de etiquetas automáticas para contratos.
+     */
+    public function etiquetasAutomaticas()
+    {
+        $empresa_id = auth()->user()->empresa;
+        $modulo     = \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS;
+
+        $acciones = [
+            \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO    => 'Al deshabilitar un contrato automáticamente por falta de pago',
+            \App\EtiquetaAutomaticaContrato::CLIENTE_ELIMINADO   => 'Al deshabilitar un contrato porque se eliminó un cliente',
+            \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL => 'Al deshabilitar un contrato manualmente',
+            \App\EtiquetaAutomaticaContrato::PAGO_FACTURA        => 'Al habilitarse un contrato cuando se realiza el pago de una factura',
+        ];
+
+        $configuraciones = \App\EtiquetaAutomaticaContrato::where('empresa_id', $empresa_id)
+            ->where('modulo', $modulo)
+            ->pluck('etiqueta_id', 'accion')
+            ->toArray();
+
+        $etiquetas = \App\Etiqueta::where('empresa', $empresa_id)->get();
+
+        return view('configuracion.contrato.etiquetas_automaticas', compact('acciones', 'configuraciones', 'etiquetas', 'modulo'));
+    }
+
+    /**
+     * Guarda o actualiza la configuración de etiquetas automáticas para contratos.
+     */
+    public function etiquetasAutomaticasStore(\Illuminate\Http\Request $request)
+    {
+        $empresa_id = auth()->user()->empresa;
+        $modulo     = \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS;
+
+        $acciones = [
+            \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO,
+            \App\EtiquetaAutomaticaContrato::CLIENTE_ELIMINADO,
+            \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL,
+            \App\EtiquetaAutomaticaContrato::PAGO_FACTURA,
+        ];
+
+        foreach ($acciones as $accion) {
+            $etiqueta_id = $request->input('etiqueta_' . $accion);
+
+            \App\EtiquetaAutomaticaContrato::updateOrCreate(
+                ['empresa_id' => $empresa_id, 'modulo' => $modulo, 'accion' => $accion],
+                ['etiqueta_id' => ($etiqueta_id ?: null)]
+            );
+        }
+
+        return redirect()->route('configuracion.etiquetas_automaticas')
+            ->with('success', 'Etiquetas automáticas configuradas correctamente.');
+    }
 }

@@ -1337,6 +1337,14 @@ class IngresosController extends Controller
                                 $contrato->state = 'enabled';
                                 $contrato->save();
 
+                                // Etiqueta automática: contrato habilitado por pago de factura
+                                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                    $contrato->id,
+                                    $empresa->id,
+                                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                    \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                                );
+
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $contrato->id;
                                 $movimiento->modulo      = 5;

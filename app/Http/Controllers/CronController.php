@@ -1658,6 +1658,14 @@ class CronController extends Controller
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();
 
+                                // Etiqueta automática: corte automático por falta de pago
+                                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                    $contrato->id,
+                                    $contrato->empresa,
+                                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                    \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO
+                                );
+
                                 $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                 $movimiento = new MovimientoLOG();
                                 $movimiento->contrato    = $contrato->id;

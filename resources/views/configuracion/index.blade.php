@@ -363,6 +363,8 @@
                             consultas active connection y secret</a><br>
                         <input type="hidden" id="activeconn_secret" value="{{ Auth::user()->empresa()->activeconn_secret }}">
 
+                        <a href="{{ route('configuracion.etiquetas_automaticas') }}">Etiquetas automáticas</a><br>
+
                     @endif
                 </div>
             @endif

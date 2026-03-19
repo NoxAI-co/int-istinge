@@ -296,6 +296,8 @@ Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTir
 Route::post('configuracion_envio_wpp_ingreso', 'ConfiguracionController@envioWppIngreso');
 Route::post('configuracion_limpiarCache', 'ConfiguracionController@limpiarCache');
 Route::post('configuracion_olt', 'ConfiguracionController@configurarOLT');
+Route::get('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionController@etiquetasAutomaticas')->name('configuracion.etiquetas_automaticas');
+Route::post('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionController@etiquetasAutomaticasStore')->name('configuracion.etiquetas_automaticas.store');
 Route::post('configuracion/whatsapp-business-id', 'ConfiguracionController@guardarWhatsappBusinessId');
 Route::post('configuracion/obtener-plantillas-whatsapp', 'ConfiguracionController@obtenerPlantillasWhatsappMeta');
 Route::post('configuracion/registrar-numero-whatsapp-meta', 'ConfiguracionController@registrarNumeroWhatsappMeta');

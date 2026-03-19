@@ -2915,6 +2915,16 @@ class ContratosController extends Controller
         $contrato->state = $new_state;
         $contrato->save();
 
+        // Etiquetas automáticas: se aplica según el tipo de cambio de estado
+        if ($new_state == 'disabled') {
+            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                $contrato->id,
+                Auth::user()->empresa,
+                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL
+            );
+        }
+
         if ($descripcion == "") {
             $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
         }
@@ -4338,6 +4348,16 @@ class ContratosController extends Controller
             // 3. Guardar estado si al menos un sistema operó (o si no aplica ninguno, igual guardamos)
             $contrato->state = $state;
             $contrato->save();
+
+            // Etiquetas automáticas: se aplica según el tipo de cambio de estado masivo
+            if ($state == 'disabled') {
+                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                    $contrato->id,
+                    Auth::user()->empresa,
+                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                    \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL
+                );
+            }
 
             if ($mikrotik_ok || $olt_ok || (!$contrato->server_configuration_id && !$olt_ok)) {
                 $succ++;
