@@ -183,7 +183,8 @@
                         <a href="javascript:facturacionContratosOff()">{{ Auth::user()->empresa()->factura_contrato_off == 0 ? 'Habilitar':'Deshabilitar' }} facturas en contratos deshabilitados</a><br>
 			            <input type="hidden" id="factura_contrato_off" value="{{Auth::user()->empresa()->factura_contrato_off}}">
 
-
+                        <a href="javascript:queriesDhcpSmartolt()">{{ Auth::user()->empresa()->queries_dhcp_smartolt == 0 ? 'Habilitar':'Deshabilitar' }} Disable/Enable ONU para contratos DHCP</a><br>
+			            <input type="hidden" id="queries_dhcp_smartolt" value="{{Auth::user()->empresa()->queries_dhcp_smartolt}}">
 
                         <a href="javascript:separarNumeracionContrato()">{{ Auth::user()->empresa()->separar_numeracion == 0 ? 'Separar':'Unificar' }} Numeración por servidor</a><br>
 			            <input type="hidden" id="separar_numeracion" value="{{Auth::user()->empresa()->separar_numeracion}}">
@@ -1901,6 +1902,73 @@
                                     timer: 5000
                                 })
                                 $("#cronAbierta").val(0);
+                            }
+                            setTimeout(function() {
+                                var a = document.createElement("a");
+                                a.href = window.location.pathname;
+                                a.click();
+                            }, 1000);
+                        }
+                    });
+
+                }
+            })
+        }
+
+        function queriesDhcpSmartolt() {
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/configuracion_queries_dhcp_smartolt';
+            } else {
+                var url = '/configuracion_queries_dhcp_smartolt';
+            }
+
+            if ($("#queries_dhcp_smartolt").val() == 0) {
+                $titleswal = "¿Desea habilitar Disable/Enable ONU para contratos DHCP?";
+            }
+
+            if ($("#queries_dhcp_smartolt").val() == 1) {
+                $titleswal = "¿Desea Deshabilitar Disable/Enable ONU para contratos DHCP?";
+            }
+
+            Swal.fire({
+                title: $titleswal,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                cancelButtonText: 'Cancelar',
+                confirmButtonText: 'Aceptar',
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: url,
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        method: 'post',
+                        data: {
+                            status: $("#queries_dhcp_smartolt").val()
+                        },
+                        success: function(data) {
+                            if (data.success) {
+                                Swal.fire({
+                                    type: 'success',
+                                    title: data.message,
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                });
+                                if ($("#queries_dhcp_smartolt").val() == 0) {
+                                    $("#queries_dhcp_smartolt").val(1);
+                                } else {
+                                    $("#queries_dhcp_smartolt").val(0);
+                                }
+                            } else {
+                                Swal.fire({
+                                    type: 'error',
+                                    title: data.message,
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                });
                             }
                             setTimeout(function() {
                                 var a = document.createElement("a");

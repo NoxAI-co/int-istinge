@@ -1654,6 +1654,11 @@ class CronController extends Controller
                                 }
                                 }
 
+                                if ($contrato->state != 'disabled' && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    $oltController = app('App\Http\Controllers\OltController');
+                                    $oltController->disableOnu($contrato->serial_onu);
+                                }
+
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();

@@ -2020,6 +2020,62 @@ class ConfiguracionController extends Controller
     }
   }
 
+  public function queries_dhcp_smartolt(Request $request){
+    $empresa = Empresa::find(auth()->user()->empresa);
+    
+    if ($request->status == 0) {
+      // Trying to enable
+      if(empty($empresa->smartOLT) || empty($empresa->adminOLT)){
+        return response()->json([
+            'success' => false,
+            'message' => 'El sistema no tiene una configuracion de Smart olt ingresada o no fue posible realizar la conexión'
+        ]);
+      }
+
+      // Test API connection
+      $curl = curl_init();
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $empresa->adminOLT.'/api/system/get_olts',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'GET',
+        CURLOPT_HTTPHEADER => array(
+          'X-Token: ' . $empresa->smartOLT
+        ),
+      ));
+      $response = curl_exec($curl);
+      curl_close($curl);
+      $response = json_decode($response);
+
+      if(isset($response->status) && $response->status == true){
+        $empresa->queries_dhcp_smartolt = 1;
+        $empresa->save();
+        return response()->json([
+            'success' => true,
+            'message' => 'Disable/Enable ONU para contratos DHCP habilitado correctamente'
+        ]);
+      } else {
+        return response()->json([
+            'success' => false,
+            'message' => 'El sistema no tiene una configuracion de Smart olt ingresada o no fue posible realizar la conexión'
+        ]);
+      }
+    } else {
+      // Trying to disable
+      $empresa->queries_dhcp_smartolt = 0;
+      $empresa->save();
+      return response()->json([
+          'success' => true,
+          'message' => 'Disable/Enable ONU para contratos DHCP deshabilitado correctamente'
+      ]);
+    }
+  }
+
+
   public function activeconnectionSecret(Request $request){
     $empresa = Empresa::find(auth()->user()->empresa);
 

@@ -289,6 +289,7 @@ Route::post('configuracion_reconexiongenerica', 'ConfiguracionController@reconex
 Route::post('updatereconexiongenerica', 'ConfiguracionController@updateReconexionGenerica')->name('configuracion.updatereconexiongenerica');
 Route::post('configuracion_aplicacionsaldosfavor', 'ConfiguracionController@aplicacionSaldosFavor');
 Route::post('configuracion_factcronabiertas', 'ConfiguracionController@factCronAbiertas');
+Route::post('configuracion_queries_dhcp_smartolt', 'ConfiguracionController@queries_dhcp_smartolt');
 Route::post('configuracion_activeconnection_secret', 'ConfiguracionController@activeconnectionSecret');
 Route::post('configuracion_facturacionSmsAutomatica', 'ConfiguracionController@facturacionSmsAutomatica');
 Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTirilla');

@@ -2772,6 +2772,7 @@ class ContratosController extends Controller
         $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
         $empresa = Auth::user()->empresa();
         $descripcion = "";
+        $old_state = $contrato->state;
 
         //$API->debug = true;
             if($contrato){
@@ -2951,6 +2952,15 @@ class ContratosController extends Controller
                             $type = 'success';
                         }
 
+                        if ($old_state != $contrato->state && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                            $oltController = app('App\Http\Controllers\OltController');
+                            if ($contrato->state == 'enabled') {
+                                $oltController->enableOnu($contrato->serial_onu);
+                            } else {
+                                $oltController->disableOnu($contrato->serial_onu);
+                            }
+                        }
+
                         return back()->with($type, $mensaje);
                     }
                 }else{
@@ -2973,6 +2983,15 @@ class ContratosController extends Controller
                     $crm->save();
 
                     $contrato->update();
+
+                    if ($old_state != $contrato->state && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                        $oltController = app('App\Http\Controllers\OltController');
+                        if ($contrato->state == 'enabled') {
+                            $oltController->enableOnu($contrato->serial_onu);
+                        } else {
+                            $oltController->disableOnu($contrato->serial_onu);
+                        }
+                    }
 
                     return back()->with('success', 'EL CONTRATO NRO. '.$contrato->nro.' HA SIDO '.$contrato->status());
                 }
