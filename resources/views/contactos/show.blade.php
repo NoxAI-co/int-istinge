@@ -796,13 +796,19 @@
                                             </div>
                                         </div>
                                         
-                                        @if($contacto->documento)
+                                        @php
+                                            $digital = $contacto->contratoDigital;
+                                        @endphp
+                                        @if($contacto->documento || ($digital && $digital->documento))
+                                        @php
+                                            $doc_path = ($digital && $digital->documento) ? $digital->documento : $contacto->documento;
+                                        @endphp
                                         <div class="col-md-2 mb-2 text-center">
                                             <div class="card card-adj h-100">
                                                 <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                     <h6 class="card-title">Documento Asignación</h6>
                                                     <div class="mt-2">
-                                                        <a href="{{asset('/adjuntos/documentos/'.$contacto->documento)}}" target="_blank" class="btn btn-outline-success btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{asset('/adjuntos/documentos/'.$doc_path)}}" target="_blank" class="btn btn-outline-success btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -810,14 +816,19 @@
                                         @endif
 
                                         @foreach(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $letra)
-                                            @php $img_field = 'img'.$letra; $campo_field = 'campo_'.strtolower($letra); @endphp
-                                            @if($contacto->$img_field)
+                                            @php 
+                                                $img_field = 'img'.$letra; 
+                                                $campo_field = 'campo_'.strtolower($letra); 
+                                                $has_img = $contacto->$img_field || ($digital && $digital->$img_field);
+                                                $img_path = ($digital && $digital->$img_field) ? $digital->$img_field : $contacto->$img_field;
+                                            @endphp
+                                            @if($has_img)
                                             <div class="col-md-2 mb-2 text-center" id="div_{{$img_field}}">
                                                 <div class="card card-adj h-100">
                                                     <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                         <h6 class="card-title">{{ auth()->user()->empresa()->$campo_field }}</h6>
                                                         <div class="mt-2">
-                                                            <a href="{{asset('/adjuntos/documentos/'.$contacto->$img_field)}}" target="_blank" class="btn btn-outline-success btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                            <a href="{{asset('/adjuntos/documentos/'.$img_path)}}" target="_blank" class="btn btn-outline-success btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                             <a href="javascript:eliminar('contactos','{{$img_field}}','{{auth()->user()->empresa()->$campo_field}}','{{$id}}')" class="btn btn-outline-danger btn-sm btn-icons"><i class="fas fa-times"></i></a>
                                                         </div>
                                                     </div>
