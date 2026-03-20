@@ -94,6 +94,59 @@ class MetaWhatsAppService
     }
 
     /**
+     * Upload media file to Meta WhatsApp servers.
+     * Returns the media_id that can be used in templates instead of a link.
+     *
+     * @param string $phoneNumberId
+     * @param string $filePath  Absolute path to the file on disk
+     * @param string $mimeType  MIME type (e.g. 'application/pdf')
+     * @return string|null  The media ID, or null on failure
+     */
+    public function uploadMedia(string $phoneNumberId, string $filePath, string $mimeType = 'application/pdf'): ?string
+    {
+        try {
+            $url = "{$this->baseUri}/{$phoneNumberId}/media";
+
+            $response = Http::withToken($this->accessToken)
+                ->timeout(60)
+                ->attach(
+                    'file',
+                    file_get_contents($filePath),
+                    basename($filePath),
+                    ['Content-Type' => $mimeType]
+                )
+                ->post($url, [
+                    'messaging_product' => 'whatsapp',
+                    'type' => $mimeType,
+                ]);
+
+            $data = $response->json();
+
+            if ($response->successful() && isset($data['id'])) {
+                Log::info('Meta uploadMedia success', [
+                    'media_id' => $data['id'],
+                    'file'     => basename($filePath),
+                ]);
+                return $data['id'];
+            }
+
+            Log::error('Meta uploadMedia failed', [
+                'status'   => $response->status(),
+                'response' => $data,
+                'file'     => basename($filePath),
+            ]);
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Meta uploadMedia exception', [
+                'message' => $e->getMessage(),
+                'file'    => basename($filePath),
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Send an audio file
      */
     public function sendAudio(string $phoneNumberId, string $to, string $audioUrl)

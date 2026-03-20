@@ -5923,13 +5923,24 @@ class FacturasController extends Controller{
         // Construir componentes para Meta
         $components = [];
         if ($plantilla->body_header === 'DOCUMENT') {
+            // Subir PDF a Meta en vez de pasar un link
+            $mediaId = $metaService->uploadMedia(
+                $instance->phone_number_id,
+                $storagePath,
+                'application/pdf'
+            );
+
+            if (!$mediaId) {
+                return back()->with('danger', 'No se pudo subir el documento PDF a Meta.');
+            }
+
             $components[] = [
                 "type" => "header",
                 "parameters" => [
                     [
                         "type" => "document",
                         "document" => [
-                            "link" => $urlFactura,
+                            "id"       => $mediaId,
                             "filename" => "Factura_{$factura->codigo}.pdf"
                         ]
                     ]

@@ -1535,14 +1535,6 @@ class CronController extends Controller
                                         )
                                     );
                                     #AGREGAMOS A IP_AUTORIZADAS#
-
-                                    // #HABILITACION DEL PPOE#
-                                    // if($contrato->conexion == 1 && $contrato->usuario != null){
-                                    //     $API->write('/ppp/secret/enable', false);
-                                    //     $API->write('=numbers=' . $contrato->usuario);
-                                    //     $response = $API->read();
-                                    // }
-                                    // #HABILITACION DEL PPOE#
                                     $API->disconnect();
                                     }
                                 }
@@ -1569,89 +1561,102 @@ class CronController extends Controller
                                 $API->port = $mikrotik->puerto_api;
 
                                 if($empresa->consultas_mk ==1){
-                                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                    $API->write('/ip/firewall/address-list/print', TRUE);
-                                    $ARRAYS = $API->read();
-                                    if($contrato->state == 'enabled'){
-                                        if($contrato->ip){
-                                            $API->comm("/ip/firewall/address-list/add", array(
-                                                "address" => $contrato->ip,
-                                                "comment" => $contrato->servicio,
-                                                "list" => 'morosos'
-                                                )
-                                            );
+                                    $descripcion = "";
 
-                                            #ELIMINAMOS DE IP_AUTORIZADAS#
-                                            $API->write('/ip/firewall/address-list/print', false);
-                                            $API->write('?address='.$contrato->ip, false);
-                                            $API->write("?list=ips_autorizadas",false);
-                                            $API->write('=.proplist=.id');
-                                            $ARRAYS = $API->read();
-                                            if(count($ARRAYS)>0){
-                                                $API->write('/ip/firewall/address-list/remove', false);
-                                                $API->write('=.id='.$ARRAYS[0]['.id']);
-                                                $READ = $API->read();
-                                            }
-                                            #ELIMINAMOS DE IP_AUTORIZADAS#
-
-                                            if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                                #DESHABILITACION DEL PPPoE#
-                                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
-
-                                                    // Buscar el ID interno del secret con ese nombre
-                                                    $API->write('/ppp/secret/print', false);
-                                                    $API->write('?name=' . $contrato->usuario, true);
-                                                    $ARRAYS = $API->read();
-
-                                                    if (count($ARRAYS) > 0) {
-                                                        $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
-
-                                                        // Deshabilitar el secret
-                                                        $API->write('/ppp/secret/disable', false);
-                                                        $API->write('=numbers=' . $id, true);
-                                                        $response = $API->read();
-
-                                                    }
-                                                }
-                                                #DESHABILITACION DEL PPPoE#
-
-                                                #SE SACA DE LA ACTIVE CONNECTIONS
-                                                if($contrato->conexion == 1 && $contrato->usuario != null){
-
-                                                    $API->write('/ppp/active/print', false);
-                                                    $API->write('?name=' . $contrato->usuario);
-                                                    $response = $API->read();
-
-                                                    if(isset($response['0']['.id'])){
-                                                        $API->comm("/ppp/active/remove", [
-                                                            ".id" => $response['0']['.id']
-                                                        ]);
-                                                    }
-                                                    else{ //NUEVO CODIGO
-
-                                                        //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
-                                                        $API->write('/ppp/active/print', false);
-                                                        $API->write('?name=' . $contrato->nro);
-                                                        $response = $API->read();
-
-                                                        if(isset($response['0']['.id'])){
-                                                            $API->comm("/ppp/active/remove", [
-                                                                ".id" => $response['0']['.id']
-                                                            ]);
-                                                        }
-                                                    }
-
-                                                }
-                                                #SE SACA DE LA ACTIVE CONNECTIONS
-                                            }
-
-
+                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                        $oltController = app('App\Http\Controllers\OltController');
+                                        $oltController->disableOnu($contrato->serial_onu);
+                                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                        
+                                        if($contrato->state == 'enabled'){
+                                            $i++;
                                         }
-                                        $i++;
+                                    } else {
+                                        if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+                                            $API->write('/ip/firewall/address-list/print', TRUE);
+                                            $ARRAYS = $API->read();
+                                            if($contrato->state == 'enabled'){
+                                                if($contrato->ip){
+                                                    $API->comm("/ip/firewall/address-list/add", array(
+                                                        "address" => $contrato->ip,
+                                                        "comment" => $contrato->servicio,
+                                                        "list" => 'morosos'
+                                                        )
+                                                    );
+
+                                                    #ELIMINAMOS DE IP_AUTORIZADAS#
+                                                    $API->write('/ip/firewall/address-list/print', false);
+                                                    $API->write('?address='.$contrato->ip, false);
+                                                    $API->write("?list=ips_autorizadas",false);
+                                                    $API->write('=.proplist=.id');
+                                                    $ARRAYS = $API->read();
+                                                    if(count($ARRAYS)>0){
+                                                        $API->write('/ip/firewall/address-list/remove', false);
+                                                        $API->write('=.id='.$ARRAYS[0]['.id']);
+                                                        $READ = $API->read();
+                                                    }
+                                                    #ELIMINAMOS DE IP_AUTORIZADAS#
+
+                                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
+
+                                                        #DESHABILITACION DEL PPPoE#
+                                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+
+                                                            // Buscar el ID interno del secret con ese nombre
+                                                            $API->write('/ppp/secret/print', false);
+                                                            $API->write('?name=' . $contrato->usuario, true);
+                                                            $ARRAYS = $API->read();
+
+                                                            if (count($ARRAYS) > 0) {
+                                                                $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
+
+                                                                // Deshabilitar el secret
+                                                                $API->write('/ppp/secret/disable', false);
+                                                                $API->write('=numbers=' . $id, true);
+                                                                $response = $API->read();
+
+                                                            }
+                                                        }
+                                                        #DESHABILITACION DEL PPPoE#
+
+                                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                                        if($contrato->conexion == 1 && $contrato->usuario != null){
+
+                                                            $API->write('/ppp/active/print', false);
+                                                            $API->write('?name=' . $contrato->usuario);
+                                                            $response = $API->read();
+
+                                                            if(isset($response['0']['.id'])){
+                                                                $API->comm("/ppp/active/remove", [
+                                                                    ".id" => $response['0']['.id']
+                                                                ]);
+                                                            }
+                                                            else{ //NUEVO CODIGO
+
+                                                                //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
+                                                                $API->write('/ppp/active/print', false);
+                                                                $API->write('?name=' . $contrato->nro);
+                                                                $response = $API->read();
+
+                                                                if(isset($response['0']['.id'])){
+                                                                    $API->comm("/ppp/active/remove", [
+                                                                        ".id" => $response['0']['.id']
+                                                                    ]);
+                                                                }
+                                                            }
+
+                                                        }
+                                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                                    }
+
+
+                                                }
+                                                $i++;
+                                            }
+                                            $API->disconnect();
+                                        }
+                                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                     }
-                                    $API->disconnect();
-                                }
                                 }
 
                                 $contrato->state = 'disabled';
@@ -1666,24 +1671,11 @@ class CronController extends Controller
                                     \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO
                                 );
 
-                                $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
-                                $movimiento = new MovimientoLOG();
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = $descripcion;
-                                $movimiento->created_by  = 1;
-                                $movimiento->empresa     = $contrato->empresa;
-                                $movimiento->save();
-
-                                // Bloque OLT independiente: DHCP Smart OLT
-                                if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                                    $oltController = app('App\Http\Controllers\OltController');
-                                    $oltController->disableOnu($contrato->serial_onu);
-
+                                if (isset($descripcion) && $descripcion != '') {
                                     $movimiento = new MovimientoLOG();
                                     $movimiento->contrato    = $contrato->id;
                                     $movimiento->modulo      = 5;
-                                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                    $movimiento->descripcion = $descripcion;
                                     $movimiento->created_by  = 1;
                                     $movimiento->empresa     = $contrato->empresa;
                                     $movimiento->save();
@@ -5076,13 +5068,25 @@ class CronController extends Controller
                 $components = [];
 
                 if ($plantilla->body_header === 'DOCUMENT') {
+                    // Subir PDF a Meta en vez de pasar un link
+                    $mediaId = $metaService->uploadMedia(
+                        $instance->phone_number_id,
+                        $storagePath,
+                        'application/pdf'
+                    );
+
+                    if (!$mediaId) {
+                        Log::error("Factura {$factura->codigo}: No se pudo subir el PDF a Meta.");
+                        continue;
+                    }
+
                     $components[] = [
                         "type" => "header",
                         "parameters" => [
                             [
                                 "type" => "document",
                                 "document" => [
-                                    "link" => $urlFactura,
+                                    "id"       => $mediaId,
                                     "filename" => "Factura_{$factura->codigo}.pdf"
                                 ]
                             ]

@@ -441,19 +441,29 @@ class AvisosController extends Controller
                             }
 
                             if (file_exists($storagePath)) {
-                                $urlFactura = url("documentos_meta/{$fileName}");
-                                $components[] = [
-                                    "type" => "header",
-                                    "parameters" => [
-                                        [
-                                            "type" => "document",
-                                            "document" => [
-                                                "link" => $urlFactura,
-                                                "filename" => $fileName
+                                // Subir PDF a Meta en vez de pasar un link
+                                $mediaId = $metaService->uploadMedia(
+                                    $instance->phone_number_id,
+                                    $storagePath,
+                                    'application/pdf'
+                                );
+
+                                if ($mediaId) {
+                                    $components[] = [
+                                        "type" => "header",
+                                        "parameters" => [
+                                            [
+                                                "type" => "document",
+                                                "document" => [
+                                                    "id"       => $mediaId,
+                                                    "filename" => $fileName
+                                                ]
                                             ]
                                         ]
-                                    ]
-                                ];
+                                    ];
+                                } else {
+                                    \Log::warning("Factura {$factura->codigo}: No se pudo subir PDF a Meta. Enviando sin adjunto.");
+                                }
                             } else {
                                 \Log::warning("Factura {$factura->codigo}: PDF no generado. Enviando sin adjunto.");
                             }
@@ -918,19 +928,27 @@ class AvisosController extends Controller
                     }
 
                     if (file_exists($storagePath)) {
-                        $urlFactura = url("documentos_meta/{$fileName}");
-                        $components[] = [
-                            "type" => "header",
-                            "parameters" => [
-                                [
-                                    "type" => "document",
-                                    "document" => [
-                                        "link" => $urlFactura,
-                                        "filename" => $fileName
+                        // Subir PDF a Meta en vez de pasar un link
+                        $mediaId = $metaService->uploadMedia(
+                            $instance->phone_number_id,
+                            $storagePath,
+                            'application/pdf'
+                        );
+
+                        if ($mediaId) {
+                            $components[] = [
+                                "type" => "header",
+                                "parameters" => [
+                                    [
+                                        "type" => "document",
+                                        "document" => [
+                                            "id"       => $mediaId,
+                                            "filename" => $fileName
+                                        ]
                                     ]
                                 ]
-                            ]
-                        ];
+                            ];
+                        }
                     }
                 }
 

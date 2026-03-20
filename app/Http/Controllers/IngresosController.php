@@ -1757,13 +1757,24 @@ class IngresosController extends Controller
         ];
 
         if ($plantilla->body_header === 'DOCUMENT') {
+            // Subir PDF a Meta en vez de pasar un link
+            $mediaId = $metaService->uploadMedia(
+                $instance->phone_number_id,
+                $storagePath,
+                'application/pdf'
+            );
+
+            if (!$mediaId) {
+                return back()->with('error', 'No se pudo subir el documento PDF de la tirilla a Meta.');
+            }
+
             array_unshift($components, [
                 "type" => "header",
                 "parameters" => [
                     [
                         "type" => "document",
                         "document" => [
-                            "link" => $urlDoc,
+                            "id"       => $mediaId,
                             "filename" => "Recibo_Caja_{$ingreso->nro}.pdf"
                         ]
                     ]
