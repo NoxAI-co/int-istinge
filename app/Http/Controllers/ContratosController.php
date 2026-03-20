@@ -3069,6 +3069,8 @@ class ContratosController extends Controller
 
     public function exportar(Request $request)
     {
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
 
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
@@ -3431,25 +3433,157 @@ class ContratosController extends Controller
         // $contratos = $contratos->where('contracts.status', 1)->get();
         $contratos = $contratos->get();
 
+        // ===== BATCH PRE-LOADING (elimina N+1 queries) =====
+        $planIds = $contratos->pluck('plan_id')->filter()->unique()->values()->all();
+        $servicioTvIds = $contratos->pluck('servicio_tv')->filter()->unique()->values()->all();
+        $servicioOtroIds = $contratos->pluck('servicio_otro')->filter()->unique()->values()->all();
+        $servidorIds = $contratos->pluck('server_configuration_id')->filter()->unique()->values()->all();
+        $grupoCorteIds = $contratos->pluck('grupo_corte')->filter()->unique()->values()->all();
+        $contratoNros = $contratos->pluck('nro')->filter()->unique()->values()->all();
+        $contratoIds = $contratos->pluck('id')->filter()->unique()->values()->all();
+        $clientIds = $contratos->pluck('client_id')->filter()->unique()->values()->all();
+
+        // Planes de velocidad
+        $planesMap = PlanesVelocidad::whereIn('id', $planIds)->get()->keyBy('id');
+
+        // Inventario (items de planes + servicios TV + servicios otros)
+        $allItemIds = $planesMap->pluck('item')->filter()->unique()->values()->all();
+        $allItemIds = array_unique(array_merge($allItemIds, $servicioTvIds, $servicioOtroIds));
+        $inventarioMap = \App\Model\Inventario\Inventario::whereIn('id', $allItemIds)->get()->keyBy('id');
+
+        // Servidores (Mikrotik)
+        $servidoresMap = Mikrotik::whereIn('id', $servidorIds)->get()->keyBy('id');
+
+        // Grupos de corte
+        $gruposCorteMap = GrupoCorte::whereIn('id', $grupoCorteIds)->get()->keyBy('id');
+
+        // Deuda de facturas (query masiva)
+        $deudasMap = [];
+        if (count($contratoNros) > 0) {
+            $deudasRaw = DB::table('factura')
+                ->leftJoin('items_factura as itemsf', 'itemsf.factura', 'factura.id')
+                ->leftJoin('facturas_contratos as fc', 'fc.factura_id', 'factura.id')
+                ->leftJoin(DB::raw("(SELECT ing_fact.factura, COALESCE(SUM(ing_fact.pago), 0) as totalIngreso
+                    FROM ingresos_factura as ing_fact
+                    LEFT JOIN ingresos as i ON i.id = ing_fact.ingreso
+                    WHERE i.estatus = 1
+                    GROUP BY ing_fact.factura) as ingresos"), 'ingresos.factura', 'factura.id')
+                ->select('fc.contrato_nro')
+                ->selectRaw('SUM(
+                    (ROUND(itemsf.precio * itemsf.cant) - IF(itemsf.desc > 0, (itemsf.precio * itemsf.cant) * (itemsf.desc / 100), 0))
+                    * IF(itemsf.impuesto > 0, 1 + (itemsf.impuesto / 100), 1)
+                ) as totalFactura')
+                ->selectRaw('COALESCE(ingresos.totalIngreso, 0) as totalIngreso')
+                ->whereIn('fc.contrato_nro', $contratoNros)
+                ->where('factura.estatus', 1)
+                ->groupBy('fc.contrato_nro', 'factura.id', 'ingresos.totalIngreso')
+                ->get();
+
+            foreach ($deudasRaw as $d) {
+                if (!isset($deudasMap[$d->contrato_nro])) {
+                    $deudasMap[$d->contrato_nro] = 0;
+                }
+                $deudasMap[$d->contrato_nro] += ($d->totalFactura - $d->totalIngreso);
+            }
+        }
+
+        // Fecha de desconexión (última por contrato)
+        $desconexionesMap = [];
+        if (count($contratoIds) > 0) {
+            $desconexiones = DB::table('log_movimientos')
+                ->select('contrato', DB::raw('MAX(created_at) as ultima_desconexion'))
+                ->whereIn('contrato', $contratoIds)
+                ->whereRaw("LOWER(descripcion) LIKE '%de habilitado a deshabilitado%'")
+                ->groupBy('contrato')
+                ->get();
+            foreach ($desconexiones as $d) {
+                $desconexionesMap[$d->contrato] = Carbon::parse($d->ultima_desconexion)->format('Y-m-d H:i:s');
+            }
+        }
+
+        // Último pago por contrato
+        $ultimosPagosMap = [];
+        if (count($contratoNros) > 0) {
+            // Para contratos con facturas_contratos
+            $ultimosPagos = DB::table('facturas_contratos as fc')
+                ->join('factura as f', 'fc.factura_id', '=', 'f.id')
+                ->join('ingresos_factura as inf', 'inf.factura', '=', 'f.id')
+                ->join('ingresos as i', 'i.id', '=', 'inf.ingreso')
+                ->select('fc.contrato_nro', DB::raw('MAX(i.fecha) as ultimo_pago'))
+                ->where('i.estatus', 1)
+                ->where('i.tipo', 1)
+                ->whereIn('fc.contrato_nro', $contratoNros)
+                ->groupBy('fc.contrato_nro')
+                ->get();
+            foreach ($ultimosPagos as $p) {
+                $ultimosPagosMap[$p->contrato_nro] = $p->ultimo_pago;
+            }
+        }
+
+        // ===== GENERAR FILAS DEL EXCEL =====
         $totalPlan = 0;
         $totalServicio = 0;
         $totalServicioOtro = 0;
         foreach ($contratos as $contrato) {
 
-            $plan = $contrato->producto_exportar('plan_id');
-            $servicio = $contrato->producto_exportar('servicio_tv');
-            $servicio_otro = $contrato->producto_exportar('servicio_otro');
+            // Producto plan_id
+            $planObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->plan_id && isset($planesMap[$contrato->plan_id])) {
+                $planVel = $planesMap[$contrato->plan_id];
+                if (isset($planVel->item) && isset($inventarioMap[$planVel->item])) {
+                    $itemPlan = $inventarioMap[$planVel->item];
+                    $planObj->precio = $itemPlan->precio;
+                    $planObj->nombre = $planVel->name;
+                    $planObj->conIva = round($itemPlan->precio + ($itemPlan->precio * ($itemPlan->impuesto / 100)));
+                }
+            }
 
-            $sumaPlanes = 0;
-            isset($plan->precio) ? $totalPlan += $plan->precio : '';
-            isset($servicio->precio) ? $totalServicio += $servicio->precio : '';
-            isset($servicio_otro->precio) ? $totalServicioOtro += $servicio_otro->precio : '';
+            // Producto servicio_tv
+            $servicioObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->servicio_tv && isset($inventarioMap[$contrato->servicio_tv])) {
+                $itemTv = $inventarioMap[$contrato->servicio_tv];
+                $servicioObj->nombre = $itemTv->producto;
+                $servicioObj->precio = $itemTv->precio;
+                $servicioObj->conIva = round($itemTv->precio + ($itemTv->precio * ($itemTv->impuesto / 100)));
+            }
 
+            // Producto servicio_otro
+            $servicioOtroObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->servicio_otro && isset($inventarioMap[$contrato->servicio_otro])) {
+                $itemOtro = $inventarioMap[$contrato->servicio_otro];
+                $servicioOtroObj->nombre = $itemOtro->producto;
+                $servicioOtroObj->precio = $itemOtro->precio;
+                $servicioOtroObj->conIva = round($itemOtro->precio + ($itemOtro->precio * ($itemOtro->impuesto / 100)));
+            }
 
-            $sumaPlanes = (isset($plan->precio) ? $plan->conIva : 0) +
-                (isset($servicio->precio) ? $servicio->conIva : 0) +
-                (isset($servicio_otro->precio) ? $servicio_otro->conIva : 0);
-            // dd($plan->precio,$servicio->precio,$servicio_otro->precio,$sumaPlanes,$plan->conIva);
+            $sumaPlanes = $planObj->conIva + $servicioObj->conIva + $servicioOtroObj->conIva;
+
+            isset($planObj->precio) && $planObj->precio > 0 ? $totalPlan += $planObj->precio : '';
+            isset($servicioObj->precio) && $servicioObj->precio > 0 ? $totalServicio += $servicioObj->precio : '';
+            isset($servicioOtroObj->precio) && $servicioOtroObj->precio > 0 ? $totalServicioOtro += $servicioOtroObj->precio : '';
+
+            // Lookups optimizados
+            $planTvNombre = ($contrato->servicio_tv && isset($inventarioMap[$contrato->servicio_tv])) ? $inventarioMap[$contrato->servicio_tv]->producto : '';
+            $planInternetNombre = ($contrato->plan_id && isset($planesMap[$contrato->plan_id])) ? $planesMap[$contrato->plan_id]->name : '';
+            $servidorNombre = ($contrato->server_configuration_id && isset($servidoresMap[$contrato->server_configuration_id])) ? $servidoresMap[$contrato->server_configuration_id]->nombre : '';
+            $estadoTexto = $contrato->state == 'enabled' ? 'Habilitado' : 'Deshabilitado';
+
+            // Grupo de corte
+            $grupoCorteTexto = 'SIN GRUPO ASOCIADO';
+            if ($contrato->grupo_corte && isset($gruposCorteMap[$contrato->grupo_corte])) {
+                $gc = $gruposCorteMap[$contrato->grupo_corte];
+                $grupoCorteTexto = $gc->nombre . '(CORTE ' . $gc->fecha_corte . ' - SUSPENSIÓN ' . $gc->fecha_suspension . ')';
+            }
+
+            // Facturación
+            $facturacionTexto = 'N/A';
+            if ($contrato->facturacion == 1) { $facturacionTexto = 'Estándar'; }
+            elseif ($contrato->facturacion == 3) { $facturacionTexto = 'Electrónica'; }
+
+            // Deuda, desconexión, último pago desde mapas
+            $deudaFacturas = isset($deudasMap[$contrato->nro]) ? round($deudasMap[$contrato->nro]) : 0;
+            $fechaDesconexion = isset($desconexionesMap[$contrato->id]) ? $desconexionesMap[$contrato->id] : null;
+            $ultimoPago = isset($ultimosPagosMap[$contrato->nro]) ? $ultimosPagosMap[$contrato->nro] : '';
 
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0] . $i, $contrato->nro)
@@ -3463,42 +3597,44 @@ class ContratosController extends Controller
                 ->setCellValue($letras[8] . $i, $contrato->nombre_barrio)
                 ->setCellValue($letras[9] . $i, $contrato->c_vereda)
                 ->setCellValue($letras[10] . $i, $contrato->estrato)
-                ->setCellValue($letras[11] . $i, ($contrato->servicio_tv) ? $contrato->plan(true)->producto : '')
-                ->setCellValue($letras[12] . $i, ($contrato->plan_id) ? $contrato->plan()->name : '')
-                ->setCellValue($letras[13] . $i, ($contrato->server_configuration_id) ? $contrato->servidor()->nombre : '')
+                ->setCellValue($letras[11] . $i, $planTvNombre)
+                ->setCellValue($letras[12] . $i, $planInternetNombre)
+                ->setCellValue($letras[13] . $i, $servidorNombre)
                 ->setCellValue($letras[14] . $i, $contrato->ip)
                 ->setCellValue($letras[15] . $i, $contrato->mac_address)
                 ->setCellValue($letras[16] . $i, $contrato->interfaz)
                 ->setCellValue($letras[17] . $i, $contrato->serial_onu)
                 ->setCellValue($letras[18] . $i, $contrato->olt_sn_mac)
-                ->setCellValue($letras[19] . $i, $contrato->status())
+                ->setCellValue($letras[19] . $i, $estadoTexto)
                 ->setCellValue($letras[20] . $i, $contrato->state_olt_catv == 1 ? 'Activo' : 'Inactivo')
-                ->setCellValue($letras[21] . $i, $contrato->grupo_corte('true'))
-                ->setCellValue($letras[22] . $i, $contrato->facturacion())
+                ->setCellValue($letras[21] . $i, $grupoCorteTexto)
+                ->setCellValue($letras[22] . $i, $facturacionTexto)
                 ->setCellValue($letras[23] . $i, $contrato->costo_reconexion)
                 ->setCellValue($letras[24] . $i, $contrato->c_nombre_municipio)
                 ->setCellValue($letras[25] . $i, ucfirst($contrato->tipo_contrato))
                 ->setCellValue($letras[26] . $i, $contrato->iva_factura == null || $contrato->iva_factura == 0 ? 'No' : 'Si')
                 ->setCellValue($letras[27] . $i, $contrato->descuento != null ? $contrato->descuento . '%' : '0%')
-                ->setCellValue($letras[28] . $i, isset($plan->nombre) ? $plan->nombre : '')
-                ->setCellValue($letras[29] . $i, isset($plan->precio) ? $plan->precio : '')
-                ->setCellValue($letras[30] . $i, isset($servicio->nombre) && $servicio->nombre != "" ? $servicio->nombre . " - $" . number_format($servicio->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[31] . $i, isset($servicio_otro->nombre) && $servicio_otro->nombre != "" ? $servicio_otro->nombre . " - $" . number_format($servicio_otro->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[32] . $i, round($contrato->deudaFacturas()))
+                ->setCellValue($letras[28] . $i, isset($planObj->nombre) ? $planObj->nombre : '')
+                ->setCellValue($letras[29] . $i, isset($planObj->precio) ? $planObj->precio : '')
+                ->setCellValue($letras[30] . $i, isset($servicioObj->nombre) && $servicioObj->nombre != "" ? $servicioObj->nombre . " - $" . number_format($servicioObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[31] . $i, isset($servicioOtroObj->nombre) && $servicioOtroObj->nombre != "" ? $servicioOtroObj->nombre . " - $" . number_format($servicioOtroObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[32] . $i, $deudaFacturas)
                 ->setCellValue($letras[33] . $i, round($sumaPlanes))
                 ->setCellValue($letras[34] . $i, $contrato->c_etiqueta)
-                ->setCellValue($letras[35] . $i, $contrato->fechaDesconexion())
+                ->setCellValue($letras[35] . $i, $fechaDesconexion)
                 ->setCellValue($letras[36] . $i, $contrato->linea ? $contrato->linea : 0)
                 ->setCellValue($letras[37] . $i, $contrato->c_latitude)
                 ->setCellValue($letras[38] . $i, $contrato->c_longitude)
                 ->setCellValue($letras[39] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
                 ->setCellValue($letras[40] . $i, $contrato->creador)
-                ->setCellValue($letras[41] . $i, $contrato->fechaUltimoPago())
+                ->setCellValue($letras[41] . $i, $ultimoPago)
                 ->setCellValue($letras[42] . $i, $contrato->status ? 'No' : 'Si')
                 ->setCellValue($letras[43] . $i, $contrato->usuario)
                 ->setCellValue($letras[44] . $i, $contrato->password);
             $i++;
         }
+
+
 
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue($letras[28] . $i, $totalPlan)
