@@ -157,7 +157,7 @@
 @if($loop->iteration == 1)
 <script>
     var idNomina = 0;
-    var vJornadaSemana = 7.66;
+    var vJornadaSemana = {{ auth()->user()->empresaObj->valor_jornada_semanal ?? 7.33333333 }};
 
 
     function setValorJornadaSemana(value){
