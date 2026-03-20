@@ -3103,7 +3103,8 @@ class ContratosController extends Controller
             'Municipio',
             'Tipo Contrato',
             'Iva',
-            'Descuento',
+            'Descuento (%)',
+            'Descuento ($)',
             'Plan Internet',
             'Valor Plan Internet',
             'Plan TV',
@@ -3123,7 +3124,7 @@ class ContratosController extends Controller
             'Contrasena'
         );
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT');
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific171717
@@ -3134,13 +3135,13 @@ class ContratosController extends Controller
             ->setCategory("Reporte excel"); //Categorias
         // Se combinan las celdas A1 hasta D1, para colocar ah171717 el titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AS1');
+            ->mergeCells('A1:AT1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', $tituloReporte);
         // Titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AS1');
+            ->mergeCells('A1:AT1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', 'Reporte Contratos - Fecha ' . date('d-m-Y')); // Titulo del reporte
@@ -3148,12 +3149,12 @@ class ContratosController extends Controller
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'), 'alignment' => array(
             'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:AS1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AT1')->applyFromArray($estilo);
         $estilo = array('fill' => array(
             'type' => PHPExcel_Style_Fill::FILL_SOLID,
             'color' => array('rgb' => 'd08f50')
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AT2')->applyFromArray($estilo);
 
         $estilo = array(
             'fill' => array(
@@ -3172,7 +3173,7 @@ class ContratosController extends Controller
                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
             )
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AT2')->applyFromArray($estilo);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '2', utf8_decode($titulosColumnas[$i]));
@@ -3614,32 +3615,33 @@ class ContratosController extends Controller
                 ->setCellValue($letras[25] . $i, ucfirst($contrato->tipo_contrato))
                 ->setCellValue($letras[26] . $i, $contrato->iva_factura == null || $contrato->iva_factura == 0 ? 'No' : 'Si')
                 ->setCellValue($letras[27] . $i, $contrato->descuento != null ? $contrato->descuento . '%' : '0%')
-                ->setCellValue($letras[28] . $i, isset($planObj->nombre) ? $planObj->nombre : '')
-                ->setCellValue($letras[29] . $i, isset($planObj->precio) ? $planObj->precio : '')
-                ->setCellValue($letras[30] . $i, isset($servicioObj->nombre) && $servicioObj->nombre != "" ? $servicioObj->nombre . " - $" . number_format($servicioObj->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[31] . $i, isset($servicioOtroObj->nombre) && $servicioOtroObj->nombre != "" ? $servicioOtroObj->nombre . " - $" . number_format($servicioOtroObj->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[32] . $i, $deudaFacturas)
-                ->setCellValue($letras[33] . $i, round($sumaPlanes))
-                ->setCellValue($letras[34] . $i, $contrato->c_etiqueta)
-                ->setCellValue($letras[35] . $i, $fechaDesconexion)
-                ->setCellValue($letras[36] . $i, $contrato->linea ? $contrato->linea : 0)
-                ->setCellValue($letras[37] . $i, $contrato->c_latitude)
-                ->setCellValue($letras[38] . $i, $contrato->c_longitude)
-                ->setCellValue($letras[39] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
-                ->setCellValue($letras[40] . $i, $contrato->creador)
-                ->setCellValue($letras[41] . $i, $ultimoPago)
-                ->setCellValue($letras[42] . $i, $contrato->status ? 'No' : 'Si')
-                ->setCellValue($letras[43] . $i, $contrato->usuario)
-                ->setCellValue($letras[44] . $i, $contrato->password);
+                ->setCellValue($letras[28] . $i, $contrato->descuento_pesos != null ? '$' . number_format($contrato->descuento_pesos, 0, ',', '.') : '$0')
+                ->setCellValue($letras[29] . $i, isset($planObj->nombre) ? $planObj->nombre : '')
+                ->setCellValue($letras[30] . $i, isset($planObj->precio) ? $planObj->precio : '')
+                ->setCellValue($letras[31] . $i, isset($servicioObj->nombre) && $servicioObj->nombre != "" ? $servicioObj->nombre . " - $" . number_format($servicioObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[32] . $i, isset($servicioOtroObj->nombre) && $servicioOtroObj->nombre != "" ? $servicioOtroObj->nombre . " - $" . number_format($servicioOtroObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[33] . $i, $deudaFacturas)
+                ->setCellValue($letras[34] . $i, round($sumaPlanes))
+                ->setCellValue($letras[35] . $i, $contrato->c_etiqueta)
+                ->setCellValue($letras[36] . $i, $fechaDesconexion)
+                ->setCellValue($letras[37] . $i, $contrato->linea ? $contrato->linea : 0)
+                ->setCellValue($letras[38] . $i, $contrato->c_latitude)
+                ->setCellValue($letras[39] . $i, $contrato->c_longitude)
+                ->setCellValue($letras[40] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
+                ->setCellValue($letras[41] . $i, $contrato->creador)
+                ->setCellValue($letras[42] . $i, $ultimoPago)
+                ->setCellValue($letras[43] . $i, $contrato->status ? 'No' : 'Si')
+                ->setCellValue($letras[44] . $i, $contrato->usuario)
+                ->setCellValue($letras[45] . $i, $contrato->password);
             $i++;
         }
 
 
 
         $objPHPExcel->setActiveSheetIndex(0)
-            ->setCellValue($letras[28] . $i, $totalPlan)
-            ->setCellValue($letras[29] . $i, $totalServicio)
-            ->setCellValue($letras[30] . $i, $totalServicioOtro)
+            ->setCellValue($letras[29] . $i, $totalPlan)
+            ->setCellValue($letras[30] . $i, $totalServicio)
+            ->setCellValue($letras[31] . $i, $totalServicioOtro)
         ;
 
         $estilo = array(
@@ -3651,9 +3653,9 @@ class ContratosController extends Controller
             ),
             'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:AS' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AT' . $i)->applyFromArray($estilo);
 
-        for ($j = 'A'; $j <= $letras[44]; $j++) {
+        for ($j = 'A'; $j <= $letras[45]; $j++) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($j)->setAutoSize(TRUE);
         }
 
