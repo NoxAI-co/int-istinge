@@ -4629,6 +4629,13 @@ class ContratosController extends Controller
 
                     if ($contrato->mk == 1) {
                         $plan = PlanesVelocidad::where('id', $contrato->plan_id)->first();
+
+                        if (!$plan) {
+                            $fail++;
+                            $contracts_fallidos .= 'Nro ' . $contrato->nro . ' (Sin plan asignado)<br>';
+                            continue;
+                        }
+
                         $mikrotik = Mikrotik::where('id', $microtik)->first();
                         $mikrotik_plan = ($plan) ? Mikrotik::where('id', $plan->mikrotik)->first() : false;
 
