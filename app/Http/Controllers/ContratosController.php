@@ -3615,7 +3615,7 @@ class ContratosController extends Controller
                 ->setCellValue($letras[25] . $i, ucfirst($contrato->tipo_contrato))
                 ->setCellValue($letras[26] . $i, $contrato->iva_factura == null || $contrato->iva_factura == 0 ? 'No' : 'Si')
                 ->setCellValue($letras[27] . $i, $contrato->descuento != null ? $contrato->descuento . '%' : '0%')
-                ->setCellValue($letras[28] . $i, $contrato->descuento_pesos != null ? '$' . number_format($contrato->descuento_pesos, 0, ',', '.') : '$0')
+                ->setCellValue($letras[28] . $i, $contrato->descuento_pesos != null ? number_format($contrato->descuento_pesos, 0, ',', '.') : '0')
                 ->setCellValue($letras[29] . $i, isset($planObj->nombre) ? $planObj->nombre : '')
                 ->setCellValue($letras[30] . $i, isset($planObj->precio) ? $planObj->precio : '')
                 ->setCellValue($letras[31] . $i, isset($servicioObj->nombre) && $servicioObj->nombre != "" ? $servicioObj->nombre . " - $" . number_format($servicioObj->precio, 0, ',', '.') : '')
