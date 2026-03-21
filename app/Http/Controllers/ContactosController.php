@@ -747,6 +747,14 @@ class ContactosController extends Controller
                 $contrato->status = 0;
                 $contrato->state = 'disabled';
                 $contrato->save();
+
+                // Etiqueta automática: contrato deshabilitado por eliminación de cliente
+                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                    $contrato->id,
+                    Auth::user()->empresa,
+                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                    \App\EtiquetaAutomaticaContrato::CLIENTE_ELIMINADO
+                );
             }
             $mensaje = 'SE HA ELIMINADO EL CLIENTE Y SU CONTRATO RELACIONADO';
 

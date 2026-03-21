@@ -55,6 +55,9 @@
                                 <a href="#" class="btn btn-danger btn-sm disabled" title="Factura enviada por Correo"><i class="far fa-envelope"></i> Factura enviada por Correo</a>
                             @endif
                         @endif
+                        @if($factura->whatsapp==0)
+                            <a href="{{route('facturas.whatsapp',$factura->id)}}" class="btn btn-outline-success btn-sm" title="Enviar Vía WhatsApp"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</a>
+                        @endif
                         @if($factura->estatus==1)
                             <a href="{{route('ingresos.create_id', ['cliente'=>$factura->cliente()->id, 'factura'=>$factura->id])}}" class="btn btn-outline-primary btn-sm" title="Agregar Pago"><i class="fas fa-plus"></i> Agregar Pago</a>
                         @endif
@@ -108,6 +111,64 @@
                     </div>
             </div>
         @endif
+    @endif
+
+    {{-- Bloque de Logs de WhatsApp vinculados a esta factura --}}
+    @if(isset($whatsappLogs) && $whatsappLogs->count() > 0)
+        <div class="row mt-4 mx-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-white border-0">
+                        <div>
+                            <h5 class="mb-1">
+                                <i class="fab fa-whatsapp text-success mr-1"></i>
+                                Historial de WhatsApp de esta factura
+                            </h5>
+                            <small class="text-muted">
+                                Mensajes que el cliente <strong>recibió</strong> (<em>delivered</em>) o <strong>abrió y leyó</strong> (<em>read</em>).
+                            </small>
+                        </div>
+                        <span class="badge badge-pill badge-success">
+                            {{ $whatsappLogs->count() }} mensaje{{ $whatsappLogs->count() > 1 ? 's' : '' }}
+                        </span>
+                    </div>
+
+                    <div class="card-body pt-0 pb-3" style="max-height: 260px; overflow-y: auto;">
+                        <ul class="list-unstyled mb-0">
+                            @foreach($whatsappLogs as $log)
+                                <li class="media py-3 border-bottom">
+                                    <div class="mr-3 text-center" style="min-width: 70px;">
+                                        <div class="text-muted small mb-1">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y') }}
+                                        </div>
+                                        <div class="font-weight-bold small">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('H:i') }}
+                                        </div>
+                                    </div>
+                                    <div class="media-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <div>
+                                                {!! $log->estadoFormateado() !!}
+                                            </div>
+                                            @if($log->contacto)
+                                                <small class="text-muted">
+                                                    Para: {{ $log->contacto->nombre ?? '' }} {{ $log->contacto->apellido1 ?? '' }}
+                                                </small>
+                                            @endif
+                                        </div>
+                                        <div class="bg-light rounded px-3 py-2">
+                                            <span class="text-dark" style="white-space: pre-line;">
+                                                {{ $log->mensaje_enviado }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
     <!-- BANNER DE VALORES -->

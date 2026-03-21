@@ -2052,14 +2052,12 @@ class FacturasController extends Controller{
         //Ciclo para registrar los itemas de la factura
         for ($i=0; $i < count($request->ref) ; $i++) {
             $impuesto = Impuesto::where('id', $request->impuesto[$i])->first();
-            if($impuesto){
-                $impuesto->porcentaje = $impuesto->porcentaje;
-            }else{
-                $impuesto->porcentaje = '';
+            if(!$impuesto){
+                $impuesto = (object) ['porcentaje' => ''];
             }
             $producto = Inventario::where('id', $request->item[$i])->first();
             //Si el producto es inventariable y existe esa bodega, restará el valor registrado
-            if ($producto->tipo_producto==1) {
+            if ($producto && $producto->tipo_producto==1) {
                 $ajuste=ProductosBodega::where('empresa', Auth::user()->empresa)->where('bodega', $bodega->id)->where('producto', $producto->id)->first();
                 if ($ajuste) {
                     $ajuste->nro-=$request->cant[$i];
@@ -2436,13 +2434,16 @@ class FacturasController extends Controller{
                         $items = new ItemsFactura;
                     }
                     $impuesto = Impuesto::where('id', $request->impuesto[$i])->first();
+                    if(!$impuesto){
+                        $impuesto = (object) ['porcentaje' => ''];
+                    }
                     $producto = Inventario::where('id', $request->item[$i])->first();
                     //Si el producto es inventariable y existe esa bodega, restará el valor registrado
-                    if ($producto->tipo_producto==1) {
+                    if ($producto && $producto->tipo_producto==1) {
                         if($bodega){
-                            $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $item->producto)->first();
+                            $ajuste=ProductosBodega::where('empresa', $user->empresa)->where('bodega', $bodega->id)->where('producto', $producto->id)->first();
                            if ($ajuste) {
-                           $ajuste->nro+=$item->cant;
+                           $ajuste->nro-=$request->cant[$i];
                            $ajuste->save();
                            }
                        }
@@ -2557,6 +2558,23 @@ class FacturasController extends Controller{
         $contrato = Contrato::where('client_id',$factura->cliente)->first();
         $retenciones = FacturaRetencion::where('factura', $factura->id)->get();
 
+        // Logs de WhatsApp Meta asociados a esta factura (incoming_invoice_id)
+        // Solo se muestran registros con estados delivered o read.
+        // Agrupamos por wamid para que un mismo mensaje no aparezca duplicado
+        // cuando cambia de "delivered" a "read"; se muestra solo el estado más reciente.
+        $rawWhatsappLogs = WhatsappMetaLog::where('incoming_invoice_id', $factura->id)
+            ->whereIn('status', ['delivered', 'read'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $whatsappLogs = $rawWhatsappLogs
+            ->groupBy('wamid')
+            ->map(function ($group) {
+                // Tomar el registro más reciente por wamid
+                return $group->sortByDesc('created_at')->first();
+            })
+            ->values();
+
         $limitDate   = (Carbon::parse($factura->created_at))->addDay();
         $actualDate  = Carbon::now();
         $wait        = (( $limitDate->greaterThanOrEqualTo($actualDate) && $factura->modificado == 0)? false: true);
@@ -2579,7 +2597,7 @@ class FacturasController extends Controller{
             }
             $items = ItemsFactura::where('factura',$factura->id)->get();
 
-            return view('facturas.show')->with(compact('factura', 'items', 'retenciones', 'realStatus','contrato'));
+            return view('facturas.show')->with(compact('factura', 'items', 'retenciones', 'realStatus','contrato', 'whatsappLogs'));
         }
         return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
     }
@@ -5778,11 +5796,16 @@ class FacturasController extends Controller{
         $factura = Factura::findOrFail($id);
 
         // 3️⃣ Generar nombre y rutas relativas
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName; // se guarda en storage/app/public/temp/
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $folderPath = public_path('documentos_meta');
+        $storagePath = $folderPath . '/' . $fileName;
 
-        // 4️⃣ Si ya existe, devolver directamente
+        // 4️⃣ Crear carpeta si no existe
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0775, true);
+        }
+
+        // 5️⃣ Si ya existe, devolver directamente
         if (file_exists($storagePath)) {
             return response()->file($storagePath, [
                 'Content-Type' => 'application/pdf',
@@ -5790,16 +5813,11 @@ class FacturasController extends Controller{
             ]);
         }
 
-        // 5️⃣ Generar el PDF en binario
+        // 6️⃣ Generar el PDF en binario
         $facturaPDF = $this->getPdfFactura($id);
 
-        // 6️⃣ Crear carpeta si no existe
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        // 7️⃣ Guardar el archivo usando el Filesystem de Laravel
-        Storage::disk('public')->put($relativePath, $facturaPDF);
+        // 7️⃣ Guardar el archivo directamente
+        file_put_contents($storagePath, $facturaPDF);
 
         // 8️⃣ Retornar el archivo directamente
         return response()->file($storagePath, [
@@ -5843,9 +5861,8 @@ class FacturasController extends Controller{
         $token = config('app.key');
         $this->getFacturaTemp($id, $token);
 
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName;
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $storagePath = public_path('documentos_meta/' . $fileName);
 
         // Esperar hasta que el archivo exista (máx. 5 intentos)
         $attempts = 0;
@@ -5858,7 +5875,7 @@ class FacturasController extends Controller{
             return back()->with('danger', 'No se pudo generar el archivo PDF temporal.');
         }
 
-        $urlFactura = url('storage/temp/' . $fileName);
+        $urlFactura = url('documentos_meta/' . $fileName);
         $empresaObj = auth()->user()->empresa();
         $estadoCuenta = $factura->estadoCuenta();
         $total = $factura->total()->total;
@@ -5906,13 +5923,24 @@ class FacturasController extends Controller{
         // Construir componentes para Meta
         $components = [];
         if ($plantilla->body_header === 'DOCUMENT') {
+            // Subir PDF a Meta en vez de pasar un link
+            $mediaId = $metaService->uploadMedia(
+                $instance->phone_number_id,
+                $storagePath,
+                'application/pdf'
+            );
+
+            if (!$mediaId) {
+                return back()->with('danger', 'No se pudo subir el documento PDF a Meta.');
+            }
+
             $components[] = [
                 "type" => "header",
                 "parameters" => [
                     [
                         "type" => "document",
                         "document" => [
-                            "link" => $urlFactura,
+                            "id"       => $mediaId,
                             "filename" => "Factura_{$factura->codigo}.pdf"
                         ]
                     ]
@@ -5997,7 +6025,8 @@ class FacturasController extends Controller{
                     $factura->id,
                     $contractId,
                     null,
-                    $companyNit
+                    $companyNit,
+                    $plantilla ? $plantilla->id : null
                 );
             }
 
@@ -7528,22 +7557,23 @@ class FacturasController extends Controller{
     public function ejemploImportarSaldos()
     {
         $titulosColumnas = array(
-            'Identificacion', 'Tipo factura', 'Fecha factura', 'Fecha vencimiento', 'Fecha suspension', 'Saldo inicial'
+            'Identificacion', 'Cliente (Opcional)', 'Tipo factura', 'Fecha factura', 'Fecha vencimiento', 'Fecha suspension', 'Saldo inicial'
         );
 
         $comentarios = array(
-            'A' => 'NIT o Cédula del cliente (Obligatorio)',
-            'B' => 'Seleccione "Estandar" o "Electronica"',
-            'C' => 'Fecha factura (dd-mm-AAAA)',
-            'D' => 'Fecha de vencimiento (dd-mm-AAAA)',
-            'E' => 'Fecha de suspensión (dd-mm-AAAA)',
-            'F' => 'Saldo inicial (valor numérico)'
+            'A' => 'NIT o Cédula del cliente (Obligatorio si Cliente está vacío)',
+            'B' => 'Nombre completo del cliente (Opcional si Identificacion está vacío)',
+            'C' => 'Seleccione "Estandar" o "Electronica"',
+            'D' => 'Fecha factura (dd-mm-AAAA)',
+            'E' => 'Fecha de vencimiento (dd-mm-AAAA)',
+            'F' => 'Fecha de suspension (dd-mm-AAAA)',
+            'G' => 'Saldo inicial (valor numérico)'
         );
 
         $objPHPExcel = new \PHPExcel();
         $tituloReporte = "Importación Saldos Iniciales - " . Auth::user()->empresa()->nombre;
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G');
         $ultimaColumna = $letras[count($titulosColumnas) - 1];
 
         $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:' . $ultimaColumna . '1');
@@ -7586,9 +7616,9 @@ class FacturasController extends Controller{
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
         }
 
-        // Validación desplegable para Tipo de Factura (B)
+        // Validación desplegable para Tipo de Factura (C)
         for ($row = 4; $row <= 200; $row++) {
-            $validation = $objPHPExcel->getActiveSheet()->getCell('B' . $row)->getDataValidation();
+            $validation = $objPHPExcel->getActiveSheet()->getCell('C' . $row)->getDataValidation();
             $validation->setType(\PHPExcel_Cell_DataValidation::TYPE_LIST);
             $validation->setAllowBlank(false);
             $validation->setShowDropDown(true);
@@ -7666,17 +7696,21 @@ class FacturasController extends Controller{
             return back()->withErrors($errores)->with('danger', 'Complete la configuración de numeración estándar');
         }
 
+        // Cargar todos los contactos en memoria para optimizar la búsqueda
+        $all_contactos = Contacto::where('empresa', Auth::user()->empresa)->get();
+
         for ($row = 4; $row <= $highestRow; $row++) {
             $identificacion = trim($sheet->getCell("A" . $row)->getValue());
-            if (empty($identificacion)) {
+            $cliente_nombre = trim($sheet->getCell("B" . $row)->getValue());
+            if (empty($identificacion) && empty($cliente_nombre)) {
                 break;
             }
 
-            $tipo_factura = strtoupper(trim($sheet->getCell("B" . $row)->getValue()));
-            $fecha_factura = $sheet->getCell("C" . $row)->getFormattedValue();
-            $fecha_vcto = $sheet->getCell("D" . $row)->getFormattedValue();
-            $fecha_suspension = $sheet->getCell("E" . $row)->getFormattedValue();
-            $saldo_inicial = trim($sheet->getCell("F" . $row)->getValue());
+            $tipo_factura = strtoupper(trim($sheet->getCell("C" . $row)->getValue()));
+            $fecha_factura = $sheet->getCell("D" . $row)->getFormattedValue();
+            $fecha_vcto = $sheet->getCell("E" . $row)->getFormattedValue();
+            $fecha_suspension = $sheet->getCell("F" . $row)->getFormattedValue();
+            $saldo_inicial = trim($sheet->getCell("G" . $row)->getValue());
 
             if (empty($tipo_factura) || $saldo_inicial === "" || $saldo_inicial === null) {
                 $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial)";
@@ -7688,9 +7722,22 @@ class FacturasController extends Controller{
                 continue;
             }
 
-            $contacto = Contacto::where('empresa', Auth::user()->empresa)->where('nit', $identificacion)->first();
+            $contacto = null;
+            if (!empty($identificacion)) {
+                $contacto = $all_contactos->firstWhere('nit', $identificacion);
+            } else if (!empty($cliente_nombre)) {
+                $contacto = $all_contactos->first(function($c) use ($cliente_nombre) {
+                    $fullName = trim(preg_replace('/\s+/', ' ', $c->nombre . ' ' . $c->apellido1 . ' ' . $c->apellido2));
+                    return mb_strtolower($fullName) === mb_strtolower($cliente_nombre);
+                });
+            }
+
             if (!$contacto) {
-                $errores[] = "Fila $row: No se encontró contacto asociado a la cédula/NIT: $identificacion";
+                if (!empty($identificacion)) {
+                    $errores[] = "Fila $row: No se encontró contacto asociado a la cédula/NIT: $identificacion";
+                } else {
+                    $errores[] = "Fila $row: No se encontró contacto con el nombre exacto: $cliente_nombre";
+                }
                 continue;
             }
 

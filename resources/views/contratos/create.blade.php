@@ -102,7 +102,13 @@
         @csrf
 
         <div class="row card-description p-0">
-            <div class="col-md-12 mt-3">
+            <div class="col-md-12 mt-2 mb-2 text-right">
+                <span class="badge shadow-sm border" style="font-size: 0.95rem; background-color: #f9f9f9; color: #444; border-color: #ddd; padding: 10px 15px; border-radius: 8px;">
+                    <i class="fas fa-file-contract mr-1" style="color: {{ Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#007bff' }};"></i> 
+                    Siguiente Contrato Nro: <strong style="font-size: 1.05rem; color: {{ Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#007bff' }};">{{ $numero_contrato }}</strong>
+                </span>
+            </div>
+            <div class="col-md-12">
                 <ul class="nav nav-pills" id="myTab" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab"
@@ -119,8 +125,8 @@
                         </li>
                     @endif
                     <li class="nav-item">
-                        <a class="nav-link" id="television-tab" data-toggle="tab" href="#otrositems" role="tab"
-                            aria-controls="television" aria-selected="false">OTROS ITEMS A FACTURAR</a>
+                        <a class="nav-link" id="otrositems-tab" data-toggle="tab" href="#otrositems" role="tab"
+                            aria-controls="otrositems" aria-selected="false">OTROS ITEMS A FACTURAR</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" id="adicionales-tab" data-toggle="tab" href="#adicionales" role="tab"
@@ -131,8 +137,7 @@
                             aria-controls="adjuntos" aria-selected="false">ARCHIVOS ADJUNTOS</a>
                     </li>
                 </ul>
-                <hr
-                    style="border-top: 1px solid {{ Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '' }}; margin: .5rem 0rem 2rem;">
+                <hr style="border-top: 1px solid {{ Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '' }}; margin: .5rem 0rem 2rem;">
                 <div class="tab-content fact-table" id="myTabContent">
                     <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
                         <div class="row">

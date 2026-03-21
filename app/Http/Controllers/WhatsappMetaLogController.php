@@ -6,6 +6,10 @@ use App\WhatsappMetaLog;
 use App\Plantilla;
 use App\Contacto;
 use App\Model\Ingresos\Factura;
+use App\Model\Ingresos\Ingreso;
+use App\Contrato;
+use App\Instance;
+use App\Services\WhatsAppMessageSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -13,9 +17,14 @@ use Illuminate\Support\Facades\DB;
 
 class WhatsappMetaLogController extends Controller
 {
+    /**
+     * @var WhatsAppMessageSyncService
+     */
+    protected $syncService;
 
-    public function __construct(){
+    public function __construct(WhatsAppMessageSyncService $syncService){
         $this->middleware('auth');
+        $this->syncService = $syncService;
         view()->share(['seccion' => 'Meta', 'title' => 'Meta', 'icon' =>'fas fa-plus', 'subseccion' => 'logs']);
     }
 
@@ -53,6 +62,54 @@ class WhatsappMetaLogController extends Controller
         $this->getAllPermissions(Auth::user()->id);
 
         $empresaId = Auth::user()->empresa;
+        $empresa = Auth::user()->empresa();
+
+        // Obtener fechas del request
+        $fechaDesde = $request->get('fecha_desde') ?: Carbon::now()->startOfMonth()->format('Y-m-d');
+        $fechaHasta = $request->get('fecha_hasta') ?: Carbon::now()->endOfMonth()->format('Y-m-d');
+
+        // Sincronización inteligente: solo sincronizar si faltan datos locales para el rango de fechas
+        try {
+            // Verificar si existen datos locales para el rango de fechas solicitado
+            $existenDatos = WhatsappMetaLog::where('empresa', $empresaId)
+                ->whereDate('created_at', '>=', $fechaDesde)
+                ->whereDate('created_at', '<=', $fechaHasta)
+                ->where(function($query) {
+                    $query->whereNotNull('remote_id')
+                          ->orWhereNotNull('wamid');
+                })
+                ->exists();
+
+            // Si no hay datos locales o hay muy pocos, sincronizar con la API central
+            if (!$existenDatos) {
+                $countLocal = WhatsappMetaLog::where('empresa', $empresaId)
+                    ->whereDate('created_at', '>=', $fechaDesde)
+                    ->whereDate('created_at', '<=', $fechaHasta)
+                    ->count();
+
+                // Si hay menos de 5 registros locales, sincronizar
+                if ($countLocal < 5) {
+                    $instance = Instance::where('company_id', $empresaId)
+                        ->whereNotNull('phone_number_id')
+                        ->first();
+
+                    if ($instance && $empresa && $empresa->nit) {
+                        $this->syncService->syncForInstanceAndCompany(
+                            $instance,
+                            (int) $empresa->nit,
+                            $fechaDesde,
+                            $fechaHasta
+                        );
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // No interrumpir el datatable si falla la sincronización, solo loguear
+            \Log::error('Error sincronizando whatsapp_meta_logs desde datatable', [
+                'empresa_id' => $empresaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Construir query
         $logs = WhatsappMetaLog::select(
@@ -61,13 +118,18 @@ class WhatsappMetaLogController extends Controller
                 'contactos.apellido1 as contacto_apellido1',
                 'contactos.apellido2 as contacto_apellido2',
                 'plantillas.title as plantilla_title',
-                'factura.codigo as factura_codigo',
-                'factura.emitida as factura_emitida',
+                DB::raw('COALESCE(factura.codigo, factura_old.codigo) as factura_codigo'),
+                DB::raw('COALESCE(factura.emitida, factura_old.emitida) as factura_emitida'),
+                'ingresos.nro as ingreso_nro',
+                'contracts.nro as contrato_nro',
                 'usuarios.nombres as usuario_nombres'
             )
             ->leftJoin('contactos', 'log_meta.contacto_id', '=', 'contactos.id')
             ->leftJoin('plantillas', 'log_meta.plantilla_id', '=', 'plantillas.id')
-            ->leftJoin('factura', 'log_meta.factura_id', '=', 'factura.id')
+            ->leftJoin('factura', 'log_meta.incoming_invoice_id', '=', 'factura.id')
+            ->leftJoin('factura as factura_old', 'log_meta.factura_id', '=', 'factura_old.id')
+            ->leftJoin('ingresos', 'log_meta.incoming_payment_id', '=', 'ingresos.id')
+            ->leftJoin('contracts', 'log_meta.incoming_contract_id', '=', 'contracts.id')
             ->leftJoin('usuarios', 'log_meta.enviado_por', '=', 'usuarios.id')
             ->where('log_meta.empresa', $empresaId);
 
@@ -110,6 +172,40 @@ class WhatsappMetaLogController extends Controller
             }
         }
 
+        // Filtro por estados múltiples
+        if ($request->has('estados') && is_array($request->estados) && !empty($request->estados)) {
+            // Los valores ya vienen como: delivered, failed, read, sent, success
+            // No necesitamos mapear porque el frontend ya envía los valores correctos
+            $logs->whereIn('log_meta.status', $request->estados);
+        }
+
+        // Filtro por documento
+        if ($request->has('documento') && $request->documento != '') {
+            $doc = trim($request->documento);
+            // Limpiar prefijos si el usuario copió directamente la etiqueta
+            $docClean = str_ireplace(['Factura: ', 'Ingreso: ', 'Contrato: ', 'Factura:', 'Ingreso:', 'Contrato:'], '', $doc);
+            $docClean = trim($docClean);
+            
+            $logs->where(function($q) use ($docClean) {
+                $q->where('factura.codigo', 'like', "%{$docClean}%")
+                  ->orWhere('factura_old.codigo', 'like', "%{$docClean}%")
+                  ->orWhere('ingresos.nro', 'like', "%{$docClean}%")
+                  ->orWhere('contracts.nro', 'like', "%{$docClean}%");
+            });
+        }
+
+        // Filtro por origen (Pestañas)
+        if ($request->has('origen')) {
+            if ($request->origen == 'integra') {
+                $logs->whereNull('log_meta.remote_id');
+            } elseif ($request->origen == 'meta') {
+                $logs->whereNotNull('log_meta.remote_id');
+            }
+        } else {
+            // Por defecto, mostrar los de integra
+            $logs->whereNull('log_meta.remote_id');
+        }
+
         return datatables()->eloquent($logs)
             ->editColumn('id', function ($log) {
                 return $log->id;
@@ -128,8 +224,22 @@ class WhatsappMetaLogController extends Controller
                 return $log->plantilla_title ?? '-';
             })
             ->editColumn('factura', function ($log) {
-                if ($log->factura_id) {
-                    return '<a href="' . route('facturas.show', $log->factura_id) . '">' . ($log->factura_codigo ?? '-') . '</a>';
+                // Mostrar "Documento" con el número correspondiente según el tipo
+                if ($log->incoming_invoice_id && $log->factura_codigo) {
+                    $url = route('facturas.show', $log->incoming_invoice_id);
+                    return '<a href="' . $url . '">Factura: ' . htmlspecialchars($log->factura_codigo) . '</a>';
+                } elseif ($log->incoming_payment_id && $log->ingreso_nro) {
+                    // Usar la ruta correcta para ingresos (puede ser ingresos/{id} o similar)
+                    $url = url('/empresa/ingresos/' . $log->incoming_payment_id);
+                    return '<a href="' . $url . '">Ingreso: ' . htmlspecialchars($log->ingreso_nro) . '</a>';
+                } elseif ($log->incoming_contract_id && $log->contrato_nro) {
+                    // Usar la ruta correcta para contratos
+                    $url = url('/empresa/contratos/' . $log->incoming_contract_id);
+                    return '<a href="' . $url . '">Contrato: ' . htmlspecialchars($log->contrato_nro) . '</a>';
+                } elseif ($log->factura_id && $log->factura_codigo) {
+                    // Fallback para factura_id antiguo
+                    $url = route('facturas.show', $log->factura_id);
+                    return '<a href="' . $url . '">Factura: ' . htmlspecialchars($log->factura_codigo) . '</a>';
                 }
                 return '-';
             })
@@ -179,7 +289,8 @@ class WhatsappMetaLogController extends Controller
             'fecha_hasta' => Carbon::now()->endOfMonth()->format('Y-m-d'),
             'plantilla_id' => '',
             'contacto_id' => '',
-            'factura_emitida' => 'ambas'
+            'factura_emitida' => 'ambas',
+            'estados' => []
         ]);
     }
 

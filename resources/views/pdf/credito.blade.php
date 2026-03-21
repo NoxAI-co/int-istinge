@@ -283,7 +283,7 @@
         </table>
         
          @if(isset($codqr))
-    <p style="font-size:7px;margin-top:-20px;"><strong>cude: </strong>{{$CUDEvr}}</p> 
+    <p style="font-size:7px;margin-top:-20px;"><strong>CUDE: </strong>{{$CUDEvr}}</p> 
     @endif
     
     @if(isset($codqr))

@@ -427,8 +427,8 @@ class AvisosController extends Controller
                         // Header Document
                         if ($plantilla->body_header === 'DOCUMENT' && $factura) {
                             // Generar PDF
-                            $fileName = "Factura_{$factura->codigo}.pdf";
-                            $storagePath = storage_path("app/public/temp/{$fileName}");
+                            $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                            $storagePath = public_path("documentos_meta/{$fileName}");
 
                             if (!file_exists($storagePath)) {
                                 $cronController = new \App\Http\Controllers\CronController();
@@ -441,19 +441,29 @@ class AvisosController extends Controller
                             }
 
                             if (file_exists($storagePath)) {
-                                $urlFactura = url("storage/temp/{$fileName}");
-                                $components[] = [
-                                    "type" => "header",
-                                    "parameters" => [
-                                        [
-                                            "type" => "document",
-                                            "document" => [
-                                                "link" => $urlFactura,
-                                                "filename" => $fileName
+                                // Subir PDF a Meta en vez de pasar un link
+                                $mediaId = $metaService->uploadMedia(
+                                    $instance->phone_number_id,
+                                    $storagePath,
+                                    'application/pdf'
+                                );
+
+                                if ($mediaId) {
+                                    $components[] = [
+                                        "type" => "header",
+                                        "parameters" => [
+                                            [
+                                                "type" => "document",
+                                                "document" => [
+                                                    "id"       => $mediaId,
+                                                    "filename" => $fileName
+                                                ]
                                             ]
                                         ]
-                                    ]
-                                ];
+                                    ];
+                                } else {
+                                    \Log::warning("Factura {$factura->codigo}: No se pudo subir PDF a Meta. Enviando sin adjunto.");
+                                }
                             } else {
                                 \Log::warning("Factura {$factura->codigo}: PDF no generado. Enviando sin adjunto.");
                             }
@@ -535,7 +545,8 @@ class AvisosController extends Controller
                                     $invoiceId,
                                     $contractId,
                                     null,
-                                    $companyNit
+                                    $companyNit,
+                                    $plantilla->id
                                 );
                             }
                         } else {
@@ -903,8 +914,8 @@ class AvisosController extends Controller
 
                 // Header Document
                 if ($plantilla->body_header === 'DOCUMENT' && $factura) {
-                    $fileName = "Factura_{$factura->codigo}.pdf";
-                    $storagePath = storage_path("app/public/temp/{$fileName}");
+                    $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                    $storagePath = public_path("documentos_meta/{$fileName}");
 
                     if (!file_exists($storagePath)) {
                         $cronController = new \App\Http\Controllers\CronController();
@@ -917,19 +928,27 @@ class AvisosController extends Controller
                     }
 
                     if (file_exists($storagePath)) {
-                        $urlFactura = url("storage/temp/{$fileName}");
-                        $components[] = [
-                            "type" => "header",
-                            "parameters" => [
-                                [
-                                    "type" => "document",
-                                    "document" => [
-                                        "link" => $urlFactura,
-                                        "filename" => $fileName
+                        // Subir PDF a Meta en vez de pasar un link
+                        $mediaId = $metaService->uploadMedia(
+                            $instance->phone_number_id,
+                            $storagePath,
+                            'application/pdf'
+                        );
+
+                        if ($mediaId) {
+                            $components[] = [
+                                "type" => "header",
+                                "parameters" => [
+                                    [
+                                        "type" => "document",
+                                        "document" => [
+                                            "id"       => $mediaId,
+                                            "filename" => $fileName
+                                        ]
                                     ]
                                 ]
-                            ]
-                        ];
+                            ];
+                        }
                     }
                 }
 
@@ -1016,7 +1035,8 @@ class AvisosController extends Controller
                         $invoiceId,
                         $contractId,
                         null,
-                        $companyNit
+                        $companyNit,
+                        $plantilla->id
                     );
                 }
 

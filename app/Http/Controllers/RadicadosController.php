@@ -728,7 +728,7 @@ class RadicadosController extends Controller
                             ];
 
                             $response = (object) $wapiService->sendMessageMedia($instance->uuid, $instance->api_key, $body);
-                            Log::info($response);
+                            Log::info(json_encode($response));
                         }
 
                     }

@@ -9,6 +9,9 @@ use App\Instance;
 use App\WhatsAppConversation;
 use App\WhatsAppMessage;
 use App\Services\CentralizedWhatsAppService;
+use App\Model\Ingresos\Factura;
+use App\Model\Ingresos\Ingreso;
+use App\Contrato;
 use Auth;
 
 class ChatController extends Controller
@@ -28,7 +31,7 @@ class ChatController extends Controller
     {
         $this->getAllPermissions(Auth::user()->id);
         $user = auth()->user();
-        
+
         // Obtener instancias activas de Meta para esta empresa
         // type=1, meta=0 es la nueva configuración para Meta Direct
         $instances = Instance::where('company_id', $user->empresa)
@@ -40,7 +43,7 @@ class ChatController extends Controller
         if($instances->count() > 0 && $instances->first()->waba_id == "875445451477896"){
             return redirect()->route('home')->with('error', 'La instancia no tiene un portafolio personalizado');
         }
-            
+
         \Log::info('ChatController::index instances', ['count' => $instances->count(), 'sample' => $instances->first()]);
 
         return view('chat.index', compact('instances'))
@@ -105,7 +108,7 @@ class ChatController extends Controller
     /**
      * Obtener actualizaciones (para polling) - Ajustado para API centralizada o mantenido si el frontend lo requiere
      * NOTA: La API centralizada no parece tener un endpoint de 'updates' específico por timestamp.
-     * Podríamos re-consultar conversaciones o implementar algo similar. 
+     * Podríamos re-consultar conversaciones o implementar algo similar.
      * Por ahora devolvemos vacío o re-listamos conversaciones.
      */
     public function updates(Request $request)
@@ -211,6 +214,11 @@ class ChatController extends Controller
             ], $response['statusCode'] ?? 500);
         }
 
+        // Enriquecer mensajes con datos de facturas, contratos e ingresos
+        if (isset($response['data']) && is_array($response['data'])) {
+            $response['data'] = $this->enrichMessagesWithRelations($response['data']);
+        }
+
         return response()->json($response);
     }
 
@@ -258,7 +266,7 @@ class ChatController extends Controller
             ], $result['statusCode'] ?? 500);
         }
 
-        // Si el API devuelve success:true y data, lo usamos. 
+        // Si el API devuelve success:true y data, lo usamos.
         // Si no, asumimos que el resultado mismo es el objeto del mensaje.
         $data = $result;
         if (isset($result['success']) && $result['success'] && isset($result['data'])) {
@@ -340,5 +348,129 @@ class ChatController extends Controller
             'success' => true,
             'message' => 'Conversación cerrada'
         ]);
+    }
+
+    /**
+     * Enriquecer mensajes con datos de facturas, contratos e ingresos
+     */
+    private function enrichMessagesWithRelations(array $messages)
+    {
+        // 1. Calcular estado agregado por documento (factura / ingreso) a partir de TODOS los mensajes
+        $statusPriority = [
+            'failed'    => 0,
+            'error'     => 0,
+            'sent'      => 1,
+            'success'   => 1,
+            'delivered' => 2,
+            'read'      => 3,
+        ];
+
+        $facturasStatus = [];
+        $ingresosStatus = [];
+
+        foreach ($messages as $message) {
+            $status = $message['status'] ?? null;
+            if (!$status || !isset($statusPriority[$status])) {
+                continue;
+            }
+
+            $score = $statusPriority[$status];
+
+            if (isset($message['incoming_invoice_id']) && $message['incoming_invoice_id']) {
+                $id = $message['incoming_invoice_id'];
+                if (!isset($facturasStatus[$id]) || $score > $statusPriority[$facturasStatus[$id]]) {
+                    $facturasStatus[$id] = $status;
+                }
+            }
+
+            if (isset($message['incoming_payment_id']) && $message['incoming_payment_id']) {
+                $id = $message['incoming_payment_id'];
+                if (!isset($ingresosStatus[$id]) || $score > $statusPriority[$ingresosStatus[$id]]) {
+                    $ingresosStatus[$id] = $status;
+                }
+            }
+        }
+
+        foreach ($messages as &$message) {
+            // Agregar información de factura si existe
+            if (isset($message['incoming_invoice_id']) && $message['incoming_invoice_id']) {
+                $factura = Factura::find($message['incoming_invoice_id']);
+                if ($factura) {
+                    $status = $facturasStatus[$factura->id] ?? null;
+                    $statusLabel = 'Sin estado';
+                    $statusClass = 'error';
+
+                    if ($status === 'read') {
+                        $statusLabel = 'Leído';
+                        $statusClass = 'success';
+                    } elseif ($status === 'delivered') {
+                        $statusLabel = 'Entregado';
+                        $statusClass = 'success';
+                    } elseif (in_array($status, ['sent', 'success'], true)) {
+                        $statusLabel = 'Enviado';
+                        $statusClass = 'warning';
+                    } elseif ($status === 'failed' || $status === 'error') {
+                        $statusLabel = 'Fallido';
+                        $statusClass = 'error';
+                    }
+
+                    $message['factura'] = [
+                        'id'                     => $factura->id,
+                        'codigo'                 => $factura->codigo,
+                        'url'                    => route('facturas.show', $factura->id),
+                        'whatsapp_status'        => $status,
+                        'whatsapp_status_label'  => $statusLabel,
+                        'whatsapp_status_class'  => $statusClass,
+                    ];
+                }
+            }
+
+            // Agregar información de contrato si existe
+            if (isset($message['incoming_contract_id']) && $message['incoming_contract_id']) {
+                $contrato = Contrato::find($message['incoming_contract_id']);
+                if ($contrato) {
+                    $message['contrato'] = [
+                        'id' => $contrato->id,
+                        'nro' => $contrato->nro,
+                        'url' => route('contratos.show', $contrato->id)
+                    ];
+                }
+            }
+
+            // Agregar información de ingreso si existe
+            if (isset($message['incoming_payment_id']) && $message['incoming_payment_id']) {
+                $ingreso = Ingreso::find($message['incoming_payment_id']);
+                if ($ingreso) {
+                    $status = $ingresosStatus[$ingreso->id] ?? null;
+                    $statusLabel = 'Sin estado';
+                    $statusClass = 'error';
+
+                    if ($status === 'read') {
+                        $statusLabel = 'Leído';
+                        $statusClass = 'success';
+                    } elseif ($status === 'delivered') {
+                        $statusLabel = 'Entregado';
+                        $statusClass = 'success';
+                    } elseif (in_array($status, ['sent', 'success'], true)) {
+                        $statusLabel = 'Enviado';
+                        $statusClass = 'warning';
+                    } elseif ($status === 'failed' || $status === 'error') {
+                        $statusLabel = 'Fallido';
+                        $statusClass = 'error';
+                    }
+
+                    $message['ingreso'] = [
+                        'id'                     => $ingreso->id,
+                        'nro'                    => $ingreso->nro,
+                        'url'                    => route('ingresos.show', $ingreso->id),
+                        'whatsapp_status'        => $status,
+                        'whatsapp_status_label'  => $statusLabel,
+                        'whatsapp_status_class'  => $statusClass,
+                    ];
+                }
+            }
+        }
+
+        return $messages;
     }
 }

@@ -193,6 +193,7 @@ Route::get('/CortarCRM', 'CronController@CortarCRM')->name('CortarCRM');
 Route::get('disabledAndCRM/{ip}', 'CronController@disabledAndCRM')->name('disabledAndCRM');
 Route::get('sendInvoices/{fecha}', 'CronController@sendInvoices')->name('sendInvoices');
 Route::get('/enviofacturawpp', 'CronController@envioFacturaWpp');
+Route::get('/sync-whatsapp-meta-logs', 'CronController@syncWhatsAppMetaLogs');
 Route::get('/estatus-emision-dian', 'CronController@validateEmisionApi');
 Route::get('/validar-factura-doble', 'CronController@validarFacturasDobles');
 Route::get('/validate-codigo-emision', 'CronController@validateCodeEmision');
@@ -288,12 +289,15 @@ Route::post('configuracion_reconexiongenerica', 'ConfiguracionController@reconex
 Route::post('updatereconexiongenerica', 'ConfiguracionController@updateReconexionGenerica')->name('configuracion.updatereconexiongenerica');
 Route::post('configuracion_aplicacionsaldosfavor', 'ConfiguracionController@aplicacionSaldosFavor');
 Route::post('configuracion_factcronabiertas', 'ConfiguracionController@factCronAbiertas');
+Route::post('configuracion_queries_dhcp_smartolt', 'ConfiguracionController@queries_dhcp_smartolt');
 Route::post('configuracion_activeconnection_secret', 'ConfiguracionController@activeconnectionSecret');
 Route::post('configuracion_facturacionSmsAutomatica', 'ConfiguracionController@facturacionSmsAutomatica');
 Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTirilla');
 Route::post('configuracion_envio_wpp_ingreso', 'ConfiguracionController@envioWppIngreso');
 Route::post('configuracion_limpiarCache', 'ConfiguracionController@limpiarCache');
 Route::post('configuracion_olt', 'ConfiguracionController@configurarOLT');
+Route::get('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionController@etiquetasAutomaticas')->name('configuracion.etiquetas_automaticas');
+Route::post('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionController@etiquetasAutomaticasStore')->name('configuracion.etiquetas_automaticas.store');
 Route::post('configuracion/whatsapp-business-id', 'ConfiguracionController@guardarWhatsappBusinessId');
 Route::post('configuracion/obtener-plantillas-whatsapp', 'ConfiguracionController@obtenerPlantillasWhatsappMeta');
 Route::post('configuracion/registrar-numero-whatsapp-meta', 'ConfiguracionController@registrarNumeroWhatsappMeta');
@@ -420,13 +424,13 @@ Route::post('/webhooks/whatsapp', 'WhatsAppWebhookController@webhook')->name('wh
 // Chat interface (con auth)
 Route::middleware(['auth'])->group(function () {
     Route::get('/chat/whatsapp', 'ChatController@index')->name('chat.whatsapp');
-    
+
     // Chat API routes (Internal use for AJAX)
     Route::group(['prefix' => 'chat/whatsapp'], function () {
         Route::get('/conversations', 'ChatController@conversations')->name('chat.whatsapp.conversations');
         Route::get('/conversations/{id}/messages', 'ChatController@messages')->name('chat.whatsapp.messages');
         Route::get('/updates', 'ChatController@updates')->name('chat.whatsapp.updates');
-        
+
         Route::post('/conversations/{id}/send', 'ChatController@sendMessage')->name('chat.whatsapp.send');
         Route::post('/conversations/{id}/send-image', 'ChatController@sendImage')->name('chat.whatsapp.send_image');
         Route::post('/conversations/{id}/assign', 'ChatController@assign')->name('chat.whatsapp.assign');
@@ -541,7 +545,7 @@ Route::group(['prefix' => 'siigo'], function () {
 Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::resource('instances', 'InstanceController');
 	Route::get('instances/{id}/pair', 'InstanceController@pair')->name('instances.pair');
-	
+
 	Route::get('morosos', 'MorososController@index')->name('morosos.index');
 	Route::get('morosos/listar', 'MorososController@listar')->name('morosos.listar');
 	Route::post('morosos/sacar', 'MorososController@sacarMoroso')->name('morosos.sacar');
@@ -1129,7 +1133,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 
 		Route::get('/facturaasociada', 'NotascreditoController@facturaAsociada');
-        
+
         Route::get('empresa/nomina/periodos-eliminar/{id}', 'Nomina\NominaController@eliminarNominaPeriodo')->name('nomina.eliminar.periodo');
 	});
 	Route::resource('notascredito', 'NotascreditoController');

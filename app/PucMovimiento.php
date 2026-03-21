@@ -725,22 +725,24 @@ class PucMovimiento extends Model
             foreach($ingreso->ingresosFacturas() as $ingresoFactura){
                 $totalIngreso+=$ingresoFactura->pago;
 
-                $mov = new PucMovimiento;
-                $mov->nro = $siguienteNumero;
-                $mov->tipo_comprobante = "01";
-                $mov->consecutivo_comprobante = $ingreso->nro;
-                $mov->fecha_elaboracion = $ingreso->fecha;
-                $mov->documento_id = $ingreso->id;
-                $mov->codigo_cuenta = isset($ingresoFactura->factura()->formaPago()->codigo) ? $ingresoFactura->factura()->formaPago()->codigo : '';
-                $mov->cuenta_id = isset($ingresoFactura->factura()->formaPago()->id) ? $ingresoFactura->factura()->formaPago()->id : '';
-                $mov->identificacion_tercero = $ingreso->cliente()->nit;
-                $mov->cliente_id = $ingreso->cliente()->id;
-                $mov->consecutivo = $ingreso->nro;
-                $mov->descripcion = $ingreso->observaciones;
-                $mov->credito =  $ingresoFactura->factura()->total()->total;
-                $mov->enlace_a = 1;
-                $mov->empresa = $empresa;
-                $mov->save();
+                if ($ingresoFactura->factura()) {
+                    $mov = new PucMovimiento;
+                    $mov->nro = $siguienteNumero;
+                    $mov->tipo_comprobante = "01";
+                    $mov->consecutivo_comprobante = $ingreso->nro;
+                    $mov->fecha_elaboracion = $ingreso->fecha;
+                    $mov->documento_id = $ingreso->id;
+                    $mov->codigo_cuenta = isset($ingresoFactura->factura()->formaPago()->codigo) ? $ingresoFactura->factura()->formaPago()->codigo : '';
+                    $mov->cuenta_id = isset($ingresoFactura->factura()->formaPago()->id) ? $ingresoFactura->factura()->formaPago()->id : '';
+                    $mov->identificacion_tercero = $ingreso->cliente()->nit;
+                    $mov->cliente_id = $ingreso->cliente()->id;
+                    $mov->consecutivo = $ingreso->nro;
+                    $mov->descripcion = $ingreso->observaciones;
+                    $mov->credito =  $ingresoFactura->factura()->total()->total;
+                    $mov->enlace_a = 1;
+                    $mov->empresa = $empresa;
+                    $mov->save();
+                }
             }
 
             //1to. Registramos la forma de pago (caja o banco).
@@ -787,22 +789,24 @@ class PucMovimiento extends Model
             foreach($ingreso->ingresosFacturas() as $ingresoFactura){
                 $totalIngreso+=$ingresoFactura->pago;
 
-                $mov = new PucMovimiento;
-                $mov->nro = $siguienteNumero;
-                $mov->tipo_comprobante = "01";
-                $mov->consecutivo_comprobante = $ingreso->nro;
-                $mov->fecha_elaboracion = $ingreso->fecha;
-                $mov->documento_id = $ingreso->id;
-                $mov->codigo_cuenta = isset($ingresoFactura->factura()->formaPago()->codigo) ? $ingresoFactura->factura()->formaPago()->codigo : '';
-                $mov->cuenta_id = isset($ingresoFactura->factura()->formaPago()->id) ? $ingresoFactura->factura()->formaPago()->id : '';
-                $mov->identificacion_tercero = $ingreso->cliente()->nit;
-                $mov->cliente_id = $ingreso->cliente()->id;
-                $mov->consecutivo = $ingreso->nro;
-                $mov->descripcion = $ingreso->observaciones;
-                $mov->credito =  $ingresoFactura->factura()->total()->total;
-                $mov->enlace_a = 1;
-                $mov->empresa = $empresa;
-                $mov->save();
+                if ($ingresoFactura->factura()) {
+                    $mov = new PucMovimiento;
+                    $mov->nro = $siguienteNumero;
+                    $mov->tipo_comprobante = "01";
+                    $mov->consecutivo_comprobante = $ingreso->nro;
+                    $mov->fecha_elaboracion = $ingreso->fecha;
+                    $mov->documento_id = $ingreso->id;
+                    $mov->codigo_cuenta = isset($ingresoFactura->factura()->formaPago()->codigo) ? $ingresoFactura->factura()->formaPago()->codigo : '';
+                    $mov->cuenta_id = isset($ingresoFactura->factura()->formaPago()->id) ? $ingresoFactura->factura()->formaPago()->id : '';
+                    $mov->identificacion_tercero = $ingreso->cliente()->nit;
+                    $mov->cliente_id = $ingreso->cliente()->id;
+                    $mov->consecutivo = $ingreso->nro;
+                    $mov->descripcion = $ingreso->observaciones;
+                    $mov->credito =  $ingresoFactura->factura()->total()->total;
+                    $mov->enlace_a = 1;
+                    $mov->empresa = $empresa;
+                    $mov->save();
+                }
             }
 
             //1to. Registramos la forma de pago (caja o banco).

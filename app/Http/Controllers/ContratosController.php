@@ -755,6 +755,21 @@ class ContratosController extends Controller
         $oficinas = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Oficina::where('id', Auth::user()->oficina)->get() : Oficina::where('empresa', Auth::user()->empresa)->where('status', 1)->get();
         $cajasNaps = CajaNap::where('status', 1)->get();
 
+        $empresa_obj = Empresa::Find(Auth::user()->empresa);
+        $nro = Numeracion::where('empresa', 1)->first();
+        if (isset($empresa_obj->separar_numeracion) && $empresa_obj->separar_numeracion == 1) {
+            $numero_contrato = "Por definir (Según servidor)";
+        } else {
+            $numero_contrato = $nro->contrato;
+            while (true) {
+                $existe = Contrato::where('nro', $numero_contrato)->count();
+                if ($existe == 0) {
+                    break;
+                }
+                $numero_contrato++;
+            }
+        }
+
         view()->share(['icon' => 'fas fa-file-contract', 'title' => 'Nuevo Contrato']);
         return view('contratos.create')->with(compact(
             'clientes',
@@ -776,7 +791,8 @@ class ContratosController extends Controller
             'gmaps',
             'oficinas',
             'serviciosOtros',
-            'cajasNaps'
+            'cajasNaps',
+            'numero_contrato'
         ));
     }
 
@@ -2764,220 +2780,192 @@ class ContratosController extends Controller
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
     }
 
-    public function state($id){
-
+    public function state($id)
+    {
         $this->getAllPermissions(Auth::user()->id);
         $contrato = Contrato::find($id);
 
-        $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+        if (!$contrato) {
+            return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO SE HA ENCONTRADO');
+        }
+
         $empresa = Auth::user()->empresa();
+        $old_state = $contrato->state;
+        
+        // 1. Determinar el nuevo estado objetivo
+        // 1. Determinar el nuevo estado objetivo
+        $new_state = ($old_state == 'enabled') ? 'disabled' : 'enabled';
+        
+        $mikrotik_failed = false;
+        $olt_executed = false;
         $descripcion = "";
+        $type = 'success';
+        $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' HA SIDO ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado');
 
-        //$API->debug = true;
-            if($contrato){
-                if($contrato->plan_id){
-                    $API = new RouterosAPI();
-                    $API->port = $mikrotik->puerto_api;
-                    if ($contrato) {
-                        if($empresa->consultas_mk == 1){
-                            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                $API->write('/ip/firewall/address-list/print', TRUE);
-                                $ARRAYS = $API->read();
+        // 2. Lógica de Mikrotik
+        if ($contrato->plan_id && $empresa->consultas_mk == 1 && $contrato->server_configuration_id) {
+            $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-                                if($contrato->state == 'enabled'){
+            if ($mikrotik) {
+                $API = new RouterosAPI();
+                $API->port = $mikrotik->puerto_api;
 
-                                    #AGREGAMOS A MOROSOS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "comment" => $contrato->servicio,
-                                        "list" => 'morosos'
-                                        )
-                                    );
-                                    #AGREGAMOS A MOROSOS#
+                if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                    $API->write('/ip/firewall/address-list/print', true);
+                    $ARRAYS = $API->read();
 
-                                    #ELIMINAMOS DE IP_AUTORIZADAS#
-                                    $API->write('/ip/firewall/address-list/print', false);
-                                    $API->write('?address='.$contrato->ip, false);
-                                    $API->write("?list=ips_autorizadas",false);
-                                    $API->write('=.proplist=.id');
+                    switch ($new_state) {
+                        case 'disabled':
+                            $API->comm("/ip/firewall/address-list/add", [
+                                "address" => $contrato->ip,
+                                "comment" => $contrato->servicio,
+                                "list" => 'morosos'
+                            ]);
+
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write("?list=ips_autorizadas", false);
+                            $API->write('=.proplist=.id');
+                            $ARRAYS = $API->read();
+                            if (count($ARRAYS) > 0) {
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                $API->read();
+                            }
+
+                            if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                    $API->write('/ppp/secret/print', false);
+                                    $API->write('?name=' . $contrato->usuario, true);
                                     $ARRAYS = $API->read();
-                                    if(count($ARRAYS)>0){
-                                        $API->write('/ip/firewall/address-list/remove', false);
-                                        $API->write('=.id='.$ARRAYS[0]['.id']);
-                                        $READ = $API->read();
-                                    }
-                                    #ELIMINAMOS DE IP_AUTORIZADAS#
-
-                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                        #DESHABILITACION DEL PPPoE#
-                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
-
-                                            // Buscar el ID interno del secret con ese nombre
-                                            $API->write('/ppp/secret/print', false);
-                                            $API->write('?name=' . $contrato->usuario, true);
-                                            $ARRAYS = $API->read();
-
-                                            if (count($ARRAYS) > 0) {
-                                                $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
-
-                                                // Deshabilitar el secret
-                                                $API->write('/ppp/secret/disable', false);
-                                                $API->write('=numbers=' . $id, true);
-                                                $response = $API->read();
-
-                                            }
-                                        }
-                                        #DESHABILITACION DEL PPPoE#
-
-                                        #SE SACA DE LA ACTIVE CONNECTIONS
-                                        if($contrato->conexion == 1 && $contrato->usuario != null){
-
-                                            $API->write('/ppp/active/print', false);
-                                            $API->write('?name=' . $contrato->usuario);
-                                            $response = $API->read();
-
-                                            if(isset($response['0']['.id'])){
-                                                $API->comm("/ppp/active/remove", [
-                                                    ".id" => $response['0']['.id']
-                                                ]);
-                                            }else{ //NUEVO CODIGO
-
-                                                //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
-                                                $API->write('/ppp/active/print', false);
-                                                $API->write('?name=' . $contrato->nro);
-                                                $response = $API->read();
-
-                                                if(isset($response['0']['.id'])){
-                                                    $API->comm("/ppp/active/remove", [
-                                                        ".id" => $response['0']['.id']
-                                                    ]);
-                                                }
-                                            }
-
-                                        }
-                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                    if (count($ARRAYS) > 0) {
+                                        $API->write('/ppp/secret/disable', false);
+                                        $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                        $API->read();
                                     }
 
-
-                                    $contrato->state = 'disabled';
-                                    $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Habilitado a Deshabilitado<br>';
-
-                                }else{
-
-                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                        #HABILITACION DEL SECRET#
-                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                                            // Buscar el ID interno del secret
-                                            $API->write('/ppp/secret/print', false);
-                                            $API->write('?name=' . $contrato->usuario, true);
-                                            $ARRAYS = $API->read();
-
-                                            if (count($ARRAYS) > 0) {
-                                                $id = $ARRAYS[0]['.id'];
-                                                // Habilitar el secret
-                                                $API->write('/ppp/secret/enable', false);
-                                                $API->write('=numbers=' . $id, true);
-                                                $response = $API->read();
-                                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
-                                            }
+                                    $API->write('/ppp/active/print', false);
+                                    $API->write('?name=' . $contrato->usuario);
+                                    $response = $API->read();
+                                    if (isset($response['0']['.id'])) {
+                                        $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
+                                    } else {
+                                        $API->write('/ppp/active/print', false);
+                                        $API->write('?name=' . $contrato->nro);
+                                        $response = $API->read();
+                                        if (isset($response['0']['.id'])) {
+                                            $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
                                         }
-                                        #HABILITACION DEL SECRET#
-
-                                    }else{
-
-                                        #ELIMINAMOS DE MOROSOS#
-                                        $API->write('/ip/firewall/address-list/print', false);
-                                        $API->write('?address='.$contrato->ip, false);
-                                        $API->write("?list=morosos",false);
-                                        $API->write('=.proplist=.id');
-                                        $ARRAYS = $API->read();
-                                        if(count($ARRAYS)>0){
-                                            $API->write('/ip/firewall/address-list/remove', false);
-                                            $API->write('=.id='.$ARRAYS[0]['.id']);
-                                            $READ = $API->read();
-                                        }
-                                        #ELIMINAMOS DE MOROSOS#
                                     }
-
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "list" => 'ips_autorizadas'
-                                        )
-                                    );
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-
-
-                                    $contrato->state = 'enabled';
-                                    $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de Deshabilitado a Habilitado<br>';
                                 }
-                                $API->disconnect();
+                            }
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Deshabilitado<br>';
+                            break;
 
+                        case 'enabled':
+                            if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                    $API->write('/ppp/secret/print', false);
+                                    $API->write('?name=' . $contrato->usuario, true);
+                                    $ARRAYS = $API->read();
+                                    if (count($ARRAYS) > 0) {
+                                        $API->write('/ppp/secret/enable', false);
+                                        $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                        $API->read();
+                                    }
+                                }
                             } else {
-                                $mensaje='EL CONTRATO NRO. '.$contrato->nro.' NO HA PODIDO SER ACTUALIZADO';
-                                $type = 'danger';
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=morosos", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
                             }
-                        }else{
-                            if($contrato->state == 'disabled'){
-                                $contrato->state = 'enabled';
-                            }else{
-                                $contrato->state = 'disabled';
-                            }
-                        }
 
-                        $contrato->save();
-                        /*REGISTRO DEL LOG*/
-                        $movimiento = new MovimientoLOG;
-                        $movimiento->contrato    = $id;
-                        $movimiento->modulo      = 5;
-                        $movimiento->descripcion = $descripcion;
-                        $movimiento->created_by  = Auth::user()->id;
-                        $movimiento->empresa     = Auth::user()->empresa;
-                        $movimiento->save();
-                        //crm registro
-                        $crm = new CRM();
-                        $crm->cliente = $contrato->cliente()->id;
-                        $crm->servidor = isset($contrato->server_configuration_id) ? $contrato->server_configuration_id : '';
-                        $crm->grupo_corte = isset($contrato->grupo_corte) ? $contrato->grupo_corte : '';
-                        $crm->estado = 0;
-                        if($lastFact = $contrato->lastFactura()){
-                            $crm->factura = $lastFact->id;
-                        }
-                        $crm->save();
-                        if(!isset($type)){
-                            $mensaje='EL CONTRATO NRO. '.$contrato->nro.' HA SIDO '.$contrato->status();
-                            $type = 'success';
-                        }
-
-                        return back()->with($type, $mensaje);
+                            $API->comm("/ip/firewall/address-list/add", [
+                                "address" => $contrato->ip,
+                                "list" => 'ips_autorizadas'
+                            ]);
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Habilitado<br>';
+                            break;
                     }
-                }else{
-
-                    if($contrato->state == 'enabled'){
-                        $contrato->state = 'disabled';
-                    }else{
-                        $contrato->state = 'enabled';
-                    }
-
-                    //crm registro
-                    $crm = new CRM();
-                    $crm->cliente = $contrato->cliente()->id;
-                    $crm->servidor = isset($contrato->server_configuration_id) ? $contrato->server_configuration_id : '';
-                    $crm->grupo_corte = isset($contrato->grupo_corte) ? $contrato->grupo_corte : '';
-                    $crm->estado = 0;
-                    if($lastFact = $contrato->lastFactura()){
-                        $crm->factura = $lastFact->id;
-                    }
-                    $crm->save();
-
-                    $contrato->update();
-
-                    return back()->with('success', 'EL CONTRATO NRO. '.$contrato->nro.' HA SIDO '.$contrato->status());
+                    $API->disconnect();
+                } else {
+                    $mikrotik_failed = true;
                 }
             }
-        return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
+        }
+
+        // 3. Lógica de Smart OLT
+        if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            $olt_executed = true;
+            $oltController = app('App\Http\Controllers\OltController');
+            if ($new_state == 'enabled') {
+                $oltController->enableOnu($contrato->serial_onu);
+            } else {
+                $oltController->disableOnu($contrato->serial_onu);
+            }
+            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
+        }
+
+        // 4. Procesamiento final, decidir si actualizar estado en DB
+        if ($mikrotik_failed && !$olt_executed) {
+            // Si falló mikrotik y no había OLT de respaldo al cual aplicarle, abortamos.
+            $type = 'danger';
+            $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' NO HA PODIDO SER ACTUALIZADO EN MIKROTIK';
+            return back()->with($type, $mensaje);
+        }
+
+        // Si falló mikrotik pero SÍ había OLT, actualizamos el estado con una advertencia
+        if ($mikrotik_failed) {
+            $type = 'warning';
+            $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' ACTUALIZADO EN OLT, PERO FALLÓ MIKROTIK';
+        }
+
+        // Actualizamos estado en base de datos
+        $contrato->state = $new_state;
+        $contrato->save();
+
+        // Etiquetas automáticas: se aplica según el tipo de cambio de estado
+        if ($new_state == 'disabled') {
+            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                $contrato->id,
+                Auth::user()->empresa,
+                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL
+            );
+        }
+
+        if ($descripcion == "") {
+            $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
+        }
+
+        // Registro en LOG de Movimientos
+        $movimiento = new MovimientoLOG;
+        $movimiento->contrato    = $id;
+        $movimiento->modulo      = 5;
+        $movimiento->descripcion = $descripcion;
+        $movimiento->created_by  = Auth::user()->id;
+        $movimiento->empresa     = Auth::user()->empresa;
+        $movimiento->save();
+
+        // Registro en CRM
+        $crm = new CRM();
+        $crm->cliente = $contrato->client_id;
+        $crm->servidor = $contrato->server_configuration_id ?? '';
+        $crm->grupo_corte = $contrato->grupo_corte ?? '';
+        $crm->estado = 0;
+        if ($lastFact = $contrato->lastFactura()) {
+            $crm->factura = $lastFact->id;
+        }
+        $crm->save();
+
+        return back()->with($type, $mensaje);
     }
 
     public function state_oltcatv($id)
@@ -3081,6 +3069,8 @@ class ContratosController extends Controller
 
     public function exportar(Request $request)
     {
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
 
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
@@ -3113,7 +3103,8 @@ class ContratosController extends Controller
             'Municipio',
             'Tipo Contrato',
             'Iva',
-            'Descuento',
+            'Descuento (%)',
+            'Descuento ($)',
             'Plan Internet',
             'Valor Plan Internet',
             'Plan TV',
@@ -3133,7 +3124,7 @@ class ContratosController extends Controller
             'Contrasena'
         );
 
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT');
 
         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific171717
@@ -3144,13 +3135,13 @@ class ContratosController extends Controller
             ->setCategory("Reporte excel"); //Categorias
         // Se combinan las celdas A1 hasta D1, para colocar ah171717 el titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AS1');
+            ->mergeCells('A1:AT1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', $tituloReporte);
         // Titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:AS1');
+            ->mergeCells('A1:AT1');
         // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1', 'Reporte Contratos - Fecha ' . date('d-m-Y')); // Titulo del reporte
@@ -3158,12 +3149,12 @@ class ContratosController extends Controller
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman'), 'alignment' => array(
             'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:AS1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AT1')->applyFromArray($estilo);
         $estilo = array('fill' => array(
             'type' => PHPExcel_Style_Fill::FILL_SOLID,
             'color' => array('rgb' => 'd08f50')
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AT2')->applyFromArray($estilo);
 
         $estilo = array(
             'fill' => array(
@@ -3182,7 +3173,7 @@ class ContratosController extends Controller
                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER
             )
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A2:AS2')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A2:AT2')->applyFromArray($estilo);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '2', utf8_decode($titulosColumnas[$i]));
@@ -3443,25 +3434,157 @@ class ContratosController extends Controller
         // $contratos = $contratos->where('contracts.status', 1)->get();
         $contratos = $contratos->get();
 
+        // ===== BATCH PRE-LOADING (elimina N+1 queries) =====
+        $planIds = $contratos->pluck('plan_id')->filter()->unique()->values()->all();
+        $servicioTvIds = $contratos->pluck('servicio_tv')->filter()->unique()->values()->all();
+        $servicioOtroIds = $contratos->pluck('servicio_otro')->filter()->unique()->values()->all();
+        $servidorIds = $contratos->pluck('server_configuration_id')->filter()->unique()->values()->all();
+        $grupoCorteIds = $contratos->pluck('grupo_corte')->filter()->unique()->values()->all();
+        $contratoNros = $contratos->pluck('nro')->filter()->unique()->values()->all();
+        $contratoIds = $contratos->pluck('id')->filter()->unique()->values()->all();
+        $clientIds = $contratos->pluck('client_id')->filter()->unique()->values()->all();
+
+        // Planes de velocidad
+        $planesMap = PlanesVelocidad::whereIn('id', $planIds)->get()->keyBy('id');
+
+        // Inventario (items de planes + servicios TV + servicios otros)
+        $allItemIds = $planesMap->pluck('item')->filter()->unique()->values()->all();
+        $allItemIds = array_unique(array_merge($allItemIds, $servicioTvIds, $servicioOtroIds));
+        $inventarioMap = \App\Model\Inventario\Inventario::whereIn('id', $allItemIds)->get()->keyBy('id');
+
+        // Servidores (Mikrotik)
+        $servidoresMap = Mikrotik::whereIn('id', $servidorIds)->get()->keyBy('id');
+
+        // Grupos de corte
+        $gruposCorteMap = GrupoCorte::whereIn('id', $grupoCorteIds)->get()->keyBy('id');
+
+        // Deuda de facturas (query masiva)
+        $deudasMap = [];
+        if (count($contratoNros) > 0) {
+            $deudasRaw = DB::table('factura')
+                ->leftJoin('items_factura as itemsf', 'itemsf.factura', 'factura.id')
+                ->leftJoin('facturas_contratos as fc', 'fc.factura_id', 'factura.id')
+                ->leftJoin(DB::raw("(SELECT ing_fact.factura, COALESCE(SUM(ing_fact.pago), 0) as totalIngreso
+                    FROM ingresos_factura as ing_fact
+                    LEFT JOIN ingresos as i ON i.id = ing_fact.ingreso
+                    WHERE i.estatus = 1
+                    GROUP BY ing_fact.factura) as ingresos"), 'ingresos.factura', 'factura.id')
+                ->select('fc.contrato_nro')
+                ->selectRaw('SUM(
+                    (ROUND(itemsf.precio * itemsf.cant) - IF(itemsf.desc > 0, (itemsf.precio * itemsf.cant) * (itemsf.desc / 100), 0))
+                    * IF(itemsf.impuesto > 0, 1 + (itemsf.impuesto / 100), 1)
+                ) as totalFactura')
+                ->selectRaw('COALESCE(ingresos.totalIngreso, 0) as totalIngreso')
+                ->whereIn('fc.contrato_nro', $contratoNros)
+                ->where('factura.estatus', 1)
+                ->groupBy('fc.contrato_nro', 'factura.id', 'ingresos.totalIngreso')
+                ->get();
+
+            foreach ($deudasRaw as $d) {
+                if (!isset($deudasMap[$d->contrato_nro])) {
+                    $deudasMap[$d->contrato_nro] = 0;
+                }
+                $deudasMap[$d->contrato_nro] += ($d->totalFactura - $d->totalIngreso);
+            }
+        }
+
+        // Fecha de desconexión (última por contrato)
+        $desconexionesMap = [];
+        if (count($contratoIds) > 0) {
+            $desconexiones = DB::table('log_movimientos')
+                ->select('contrato', DB::raw('MAX(created_at) as ultima_desconexion'))
+                ->whereIn('contrato', $contratoIds)
+                ->whereRaw("LOWER(descripcion) LIKE '%de habilitado a deshabilitado%'")
+                ->groupBy('contrato')
+                ->get();
+            foreach ($desconexiones as $d) {
+                $desconexionesMap[$d->contrato] = Carbon::parse($d->ultima_desconexion)->format('Y-m-d H:i:s');
+            }
+        }
+
+        // Último pago por contrato
+        $ultimosPagosMap = [];
+        if (count($contratoNros) > 0) {
+            // Para contratos con facturas_contratos
+            $ultimosPagos = DB::table('facturas_contratos as fc')
+                ->join('factura as f', 'fc.factura_id', '=', 'f.id')
+                ->join('ingresos_factura as inf', 'inf.factura', '=', 'f.id')
+                ->join('ingresos as i', 'i.id', '=', 'inf.ingreso')
+                ->select('fc.contrato_nro', DB::raw('MAX(i.fecha) as ultimo_pago'))
+                ->where('i.estatus', 1)
+                ->where('i.tipo', 1)
+                ->whereIn('fc.contrato_nro', $contratoNros)
+                ->groupBy('fc.contrato_nro')
+                ->get();
+            foreach ($ultimosPagos as $p) {
+                $ultimosPagosMap[$p->contrato_nro] = $p->ultimo_pago;
+            }
+        }
+
+        // ===== GENERAR FILAS DEL EXCEL =====
         $totalPlan = 0;
         $totalServicio = 0;
         $totalServicioOtro = 0;
         foreach ($contratos as $contrato) {
 
-            $plan = $contrato->producto_exportar('plan_id');
-            $servicio = $contrato->producto_exportar('servicio_tv');
-            $servicio_otro = $contrato->producto_exportar('servicio_otro');
+            // Producto plan_id
+            $planObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->plan_id && isset($planesMap[$contrato->plan_id])) {
+                $planVel = $planesMap[$contrato->plan_id];
+                if (isset($planVel->item) && isset($inventarioMap[$planVel->item])) {
+                    $itemPlan = $inventarioMap[$planVel->item];
+                    $planObj->precio = $itemPlan->precio;
+                    $planObj->nombre = $planVel->name;
+                    $planObj->conIva = round($itemPlan->precio + ($itemPlan->precio * ($itemPlan->impuesto / 100)));
+                }
+            }
 
-            $sumaPlanes = 0;
-            isset($plan->precio) ? $totalPlan += $plan->precio : '';
-            isset($servicio->precio) ? $totalServicio += $servicio->precio : '';
-            isset($servicio_otro->precio) ? $totalServicioOtro += $servicio_otro->precio : '';
+            // Producto servicio_tv
+            $servicioObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->servicio_tv && isset($inventarioMap[$contrato->servicio_tv])) {
+                $itemTv = $inventarioMap[$contrato->servicio_tv];
+                $servicioObj->nombre = $itemTv->producto;
+                $servicioObj->precio = $itemTv->precio;
+                $servicioObj->conIva = round($itemTv->precio + ($itemTv->precio * ($itemTv->impuesto / 100)));
+            }
 
+            // Producto servicio_otro
+            $servicioOtroObj = (object)['precio' => 0, 'nombre' => '', 'conIva' => 0];
+            if ($contrato->servicio_otro && isset($inventarioMap[$contrato->servicio_otro])) {
+                $itemOtro = $inventarioMap[$contrato->servicio_otro];
+                $servicioOtroObj->nombre = $itemOtro->producto;
+                $servicioOtroObj->precio = $itemOtro->precio;
+                $servicioOtroObj->conIva = round($itemOtro->precio + ($itemOtro->precio * ($itemOtro->impuesto / 100)));
+            }
 
-            $sumaPlanes = (isset($plan->precio) ? $plan->conIva : 0) +
-                (isset($servicio->precio) ? $servicio->conIva : 0) +
-                (isset($servicio_otro->precio) ? $servicio_otro->conIva : 0);
-            // dd($plan->precio,$servicio->precio,$servicio_otro->precio,$sumaPlanes,$plan->conIva);
+            $sumaPlanes = $planObj->conIva + $servicioObj->conIva + $servicioOtroObj->conIva;
+
+            isset($planObj->precio) && $planObj->precio > 0 ? $totalPlan += $planObj->precio : '';
+            isset($servicioObj->precio) && $servicioObj->precio > 0 ? $totalServicio += $servicioObj->precio : '';
+            isset($servicioOtroObj->precio) && $servicioOtroObj->precio > 0 ? $totalServicioOtro += $servicioOtroObj->precio : '';
+
+            // Lookups optimizados
+            $planTvNombre = ($contrato->servicio_tv && isset($inventarioMap[$contrato->servicio_tv])) ? $inventarioMap[$contrato->servicio_tv]->producto : '';
+            $planInternetNombre = ($contrato->plan_id && isset($planesMap[$contrato->plan_id])) ? $planesMap[$contrato->plan_id]->name : '';
+            $servidorNombre = ($contrato->server_configuration_id && isset($servidoresMap[$contrato->server_configuration_id])) ? $servidoresMap[$contrato->server_configuration_id]->nombre : '';
+            $estadoTexto = $contrato->state == 'enabled' ? 'Habilitado' : 'Deshabilitado';
+
+            // Grupo de corte
+            $grupoCorteTexto = 'SIN GRUPO ASOCIADO';
+            if ($contrato->grupo_corte && isset($gruposCorteMap[$contrato->grupo_corte])) {
+                $gc = $gruposCorteMap[$contrato->grupo_corte];
+                $grupoCorteTexto = $gc->nombre . '(CORTE ' . $gc->fecha_corte . ' - SUSPENSIÓN ' . $gc->fecha_suspension . ')';
+            }
+
+            // Facturación
+            $facturacionTexto = 'N/A';
+            if ($contrato->facturacion == 1) { $facturacionTexto = 'Estándar'; }
+            elseif ($contrato->facturacion == 3) { $facturacionTexto = 'Electrónica'; }
+
+            // Deuda, desconexión, último pago desde mapas
+            $deudaFacturas = isset($deudasMap[$contrato->nro]) ? round($deudasMap[$contrato->nro]) : 0;
+            $fechaDesconexion = isset($desconexionesMap[$contrato->id]) ? $desconexionesMap[$contrato->id] : null;
+            $ultimoPago = isset($ultimosPagosMap[$contrato->nro]) ? $ultimosPagosMap[$contrato->nro] : '';
 
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0] . $i, $contrato->nro)
@@ -3475,47 +3598,50 @@ class ContratosController extends Controller
                 ->setCellValue($letras[8] . $i, $contrato->nombre_barrio)
                 ->setCellValue($letras[9] . $i, $contrato->c_vereda)
                 ->setCellValue($letras[10] . $i, $contrato->estrato)
-                ->setCellValue($letras[11] . $i, ($contrato->servicio_tv) ? $contrato->plan(true)->producto : '')
-                ->setCellValue($letras[12] . $i, ($contrato->plan_id) ? $contrato->plan()->name : '')
-                ->setCellValue($letras[13] . $i, ($contrato->server_configuration_id) ? $contrato->servidor()->nombre : '')
+                ->setCellValue($letras[11] . $i, $planTvNombre)
+                ->setCellValue($letras[12] . $i, $planInternetNombre)
+                ->setCellValue($letras[13] . $i, $servidorNombre)
                 ->setCellValue($letras[14] . $i, $contrato->ip)
                 ->setCellValue($letras[15] . $i, $contrato->mac_address)
                 ->setCellValue($letras[16] . $i, $contrato->interfaz)
                 ->setCellValue($letras[17] . $i, $contrato->serial_onu)
                 ->setCellValue($letras[18] . $i, $contrato->olt_sn_mac)
-                ->setCellValue($letras[19] . $i, $contrato->status())
+                ->setCellValue($letras[19] . $i, $estadoTexto)
                 ->setCellValue($letras[20] . $i, $contrato->state_olt_catv == 1 ? 'Activo' : 'Inactivo')
-                ->setCellValue($letras[21] . $i, $contrato->grupo_corte('true'))
-                ->setCellValue($letras[22] . $i, $contrato->facturacion())
+                ->setCellValue($letras[21] . $i, $grupoCorteTexto)
+                ->setCellValue($letras[22] . $i, $facturacionTexto)
                 ->setCellValue($letras[23] . $i, $contrato->costo_reconexion)
                 ->setCellValue($letras[24] . $i, $contrato->c_nombre_municipio)
                 ->setCellValue($letras[25] . $i, ucfirst($contrato->tipo_contrato))
                 ->setCellValue($letras[26] . $i, $contrato->iva_factura == null || $contrato->iva_factura == 0 ? 'No' : 'Si')
                 ->setCellValue($letras[27] . $i, $contrato->descuento != null ? $contrato->descuento . '%' : '0%')
-                ->setCellValue($letras[28] . $i, isset($plan->nombre) ? $plan->nombre : '')
-                ->setCellValue($letras[29] . $i, isset($plan->precio) ? $plan->precio : '')
-                ->setCellValue($letras[30] . $i, isset($servicio->nombre) && $servicio->nombre != "" ? $servicio->nombre . " - $" . number_format($servicio->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[31] . $i, isset($servicio_otro->nombre) && $servicio_otro->nombre != "" ? $servicio_otro->nombre . " - $" . number_format($servicio_otro->precio, 0, ',', '.') : '')
-                ->setCellValue($letras[32] . $i, round($contrato->deudaFacturas()))
-                ->setCellValue($letras[33] . $i, round($sumaPlanes))
-                ->setCellValue($letras[34] . $i, $contrato->c_etiqueta)
-                ->setCellValue($letras[35] . $i, $contrato->fechaDesconexion())
-                ->setCellValue($letras[36] . $i, $contrato->linea ? $contrato->linea : 0)
-                ->setCellValue($letras[37] . $i, $contrato->c_latitude)
-                ->setCellValue($letras[38] . $i, $contrato->c_longitude)
-                ->setCellValue($letras[39] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
-                ->setCellValue($letras[40] . $i, $contrato->creador)
-                ->setCellValue($letras[41] . $i, $contrato->fechaUltimoPago())
-                ->setCellValue($letras[42] . $i, $contrato->status ? 'No' : 'Si')
-                ->setCellValue($letras[43] . $i, $contrato->usuario)
-                ->setCellValue($letras[44] . $i, $contrato->password);
+                ->setCellValue($letras[28] . $i, $contrato->descuento_pesos != null ? $contrato->descuento_pesos : 0)
+                ->setCellValue($letras[29] . $i, isset($planObj->nombre) ? $planObj->nombre : '')
+                ->setCellValue($letras[30] . $i, isset($planObj->precio) ? $planObj->precio : '')
+                ->setCellValue($letras[31] . $i, isset($servicioObj->nombre) && $servicioObj->nombre != "" ? $servicioObj->nombre . " - $" . number_format($servicioObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[32] . $i, isset($servicioOtroObj->nombre) && $servicioOtroObj->nombre != "" ? $servicioOtroObj->nombre . " - $" . number_format($servicioOtroObj->precio, 0, ',', '.') : '')
+                ->setCellValue($letras[33] . $i, $deudaFacturas)
+                ->setCellValue($letras[34] . $i, round($sumaPlanes))
+                ->setCellValue($letras[35] . $i, $contrato->c_etiqueta)
+                ->setCellValue($letras[36] . $i, $fechaDesconexion)
+                ->setCellValue($letras[37] . $i, $contrato->linea ? $contrato->linea : 0)
+                ->setCellValue($letras[38] . $i, $contrato->c_latitude)
+                ->setCellValue($letras[39] . $i, $contrato->c_longitude)
+                ->setCellValue($letras[40] . $i, Carbon::parse($contrato->created_at)->format('Y-m-d'))
+                ->setCellValue($letras[41] . $i, $contrato->creador)
+                ->setCellValue($letras[42] . $i, $ultimoPago)
+                ->setCellValue($letras[43] . $i, $contrato->status ? 'No' : 'Si')
+                ->setCellValue($letras[44] . $i, $contrato->usuario)
+                ->setCellValue($letras[45] . $i, $contrato->password);
             $i++;
         }
 
+
+
         $objPHPExcel->setActiveSheetIndex(0)
-            ->setCellValue($letras[28] . $i, $totalPlan)
-            ->setCellValue($letras[29] . $i, $totalServicio)
-            ->setCellValue($letras[30] . $i, $totalServicioOtro)
+            ->setCellValue($letras[29] . $i, $totalPlan)
+            ->setCellValue($letras[30] . $i, $totalServicio)
+            ->setCellValue($letras[31] . $i, $totalServicioOtro)
         ;
 
         $estilo = array(
@@ -3527,9 +3653,9 @@ class ContratosController extends Controller
             ),
             'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:AS' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AT' . $i)->applyFromArray($estilo);
 
-        for ($j = 'A'; $j <= $letras[44]; $j++) {
+        for ($j = 'A'; $j <= $letras[45]; $j++) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($j)->setAutoSize(TRUE);
         }
 
@@ -4287,6 +4413,7 @@ class ContratosController extends Controller
     public function state_lote($contratos, $state)
     {
         $this->getAllPermissions(Auth::user()->id);
+        $empresa = Auth::user()->empresa();
 
         $succ = 0;
         $fail = 0;
@@ -4296,78 +4423,100 @@ class ContratosController extends Controller
         for ($i = 0; $i < count($contratos); $i++) {
             $contrato = Contrato::find($contratos[$i]);
 
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
-            //$API->debug = true;
+            if (!$contrato) {
+                $fail++;
+                continue;
+            }
 
-            if ($contrato) {
-                if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+            $mikrotik_ok = false;
+            $olt_ok = false;
 
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
+            // 1. Bloque Mikrotik
+            if ($contrato->server_configuration_id && $empresa->consultas_mk == 1) {
+                $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-                    if ($state == 'disabled') {
-                        #AGREGAMOS A MOROSOS#
-                        $API->comm(
-                            "/ip/firewall/address-list/add",
-                            array(
-                                "address" => $contrato->ip,
-                                "comment" => $contrato->servicio,
-                                "list" => 'morosos'
-                            )
-                        );
-                        #AGREGAMOS A MOROSOS#
+                if ($mikrotik) {
+                    $API = new RouterosAPI();
+                    $API->port = $mikrotik->puerto_api;
 
-                        #ELIMINAMOS DE IP_AUTORIZADAS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write("?list=ips_autorizadas", false);
-                        $API->write('=.proplist=.id');
+                    if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                        $API->write('/ip/firewall/address-list/print', true);
                         $ARRAYS = $API->read();
 
-                        if (count($ARRAYS) > 0) {
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id=' . $ARRAYS[0]['.id']);
-                            $READ = $API->read();
+                        switch ($state) {
+                            case 'disabled':
+                                $API->comm("/ip/firewall/address-list/add", [
+                                    "address" => $contrato->ip,
+                                    "comment" => $contrato->servicio,
+                                    "list" => 'morosos'
+                                ]);
+
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=ips_autorizadas", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
+                                break;
+
+                            case 'enabled':
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write("?list=morosos", false);
+                                $API->write('=.proplist=.id');
+                                $ARRAYS = $API->read();
+                                if (count($ARRAYS) > 0) {
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                    $API->read();
+                                }
+
+                                $API->comm("/ip/firewall/address-list/add", [
+                                    "address" => $contrato->ip,
+                                    "list" => 'ips_autorizadas'
+                                ]);
+                                break;
                         }
-                        #ELIMINAMOS DE IP_AUTORIZADAS#
 
-                        $contrato->state = $state;
-                    } else {
-                        #ELIMINAMOS DE MOROSOS#
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write("?list=morosos", false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-
-                        if (count($ARRAYS) > 0) {
-                            $API->write('/ip/firewall/address-list/remove', false);
-                            $API->write('=.id=' . $ARRAYS[0]['.id']);
-                            $READ = $API->read();
-                        }
-                        #ELIMINAMOS DE MOROSOS#
-
-                        #AGREGAMOS A IP_AUTORIZADAS#
-                        $API->comm(
-                            "/ip/firewall/address-list/add",
-                            array(
-                                "address" => $contrato->ip,
-                                "list" => 'ips_autorizadas'
-                            )
-                        );
-                        #AGREGAMOS A IP_AUTORIZADAS#
-
-                        $contrato->state = $state;
+                        $API->disconnect();
+                        $mikrotik_ok = true;
                     }
-                    $API->disconnect();
-                    $contrato->save();
-
-                    $succ++;
-                } else {
-                    $fail++;
                 }
+            }
+
+            // 2. Bloque Smart OLT (independiente de Mikrotik)
+            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                if ($state == 'enabled') {
+                    $oltController->enableOnu($contrato->serial_onu);
+                } else {
+                    $oltController->disableOnu($contrato->serial_onu);
+                }
+                $olt_ok = true;
+            }
+
+            // 3. Guardar estado si al menos un sistema operó (o si no aplica ninguno, igual guardamos)
+            $contrato->state = $state;
+            $contrato->save();
+
+            // Etiquetas automáticas: se aplica según el tipo de cambio de estado masivo
+            if ($state == 'disabled') {
+                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                    $contrato->id,
+                    Auth::user()->empresa,
+                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                    \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL
+                );
+            }
+
+            if ($mikrotik_ok || $olt_ok || (!$contrato->server_configuration_id && !$olt_ok)) {
+                $succ++;
+            } else {
+                $fail++;
             }
         }
 
@@ -4480,6 +4629,13 @@ class ContratosController extends Controller
 
                     if ($contrato->mk == 1) {
                         $plan = PlanesVelocidad::where('id', $contrato->plan_id)->first();
+
+                        if (!$plan) {
+                            $fail++;
+                            $contracts_fallidos .= 'Nro ' . $contrato->nro . ' (Sin plan asignado)<br>';
+                            continue;
+                        }
+
                         $mikrotik = Mikrotik::where('id', $microtik)->first();
                         $mikrotik_plan = ($plan) ? Mikrotik::where('id', $plan->mikrotik)->first() : false;
 

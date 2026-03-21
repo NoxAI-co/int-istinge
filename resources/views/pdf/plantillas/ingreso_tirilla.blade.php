@@ -127,7 +127,27 @@
     <div style="width: 100%;">
         <div style="width: 100%; text-align: center; display: inline-block;">
             Señor(es): {{$ingreso->cliente()->nombre}} {{$ingreso->cliente()->apellidos()}}<br>
-            @if($ingreso->cliente()->direccion) Dirección: {{$ingreso->cliente()->direccion}}<br>@endif
+            @php
+                $direcciones_contratos = [];
+                $facturas_del_ingreso = $ingreso->ingresosFacturas();
+                if ($facturas_del_ingreso) {
+                    foreach ($facturas_del_ingreso as $ingresoFactura) {
+                        $fact = $ingresoFactura->factura();
+                        if ($fact && $fact->relationContracts) {
+                            foreach ($fact->relationContracts as $contrato) {
+                                if (isset($contrato->address_street) && trim($contrato->address_street) !== '') {
+                                    if (!in_array($contrato->address_street, $direcciones_contratos)) {
+                                        $direcciones_contratos[] = $contrato->address_street;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                $direccion_mostrar = implode(", ", $direcciones_contratos);
+            @endphp
+            @if($direccion_mostrar != "") Dirección: {{$direccion_mostrar}}<br>
+            @elseif($ingreso->cliente()->direccion) Dirección: {{$ingreso->cliente()->direccion}}<br>@endif
             @if($ingreso->cliente()->ciudad) Ciudad: {{$ingreso->cliente()->ciudad}}<br>@endif
             @if($ingreso->cliente()->telefono1) Teléfono: {{$ingreso->cliente()->telefono1}}<br>@endif
             @if($ingreso->cliente()->nit) {{ $ingreso->cliente()->tip_iden('mini')}}: {{$ingreso->cliente()->nit}}<br>@endif<br>
@@ -165,9 +185,27 @@
             <tbody>
             @php $totalApagar = 0; @endphp
             @foreach($items as $item)
-             @php $totalApagar=$totalApagar+$item->precio; @endphp
+             @php 
+                $totalApagar=$totalApagar+$item->precio; 
+                $nombre_item = '';
+                if($item->descripcion != null) {
+                    $nombre_item = $item->descripcion;
+                } else {
+                    if(isset($item->tipo_inventario) && $item->tipo_inventario == 1) {
+                        $inv = App\Model\Inventario\Inventario::find($item->producto);
+                        $nombre_item = $inv ? $inv->producto : 'Producto '.$item->producto;
+                    } elseif(isset($item->tipo_inventario) && $item->tipo_inventario == 2) {
+                        $inv = DB::table('inventario_volatil')->where('id', $item->producto)->first();
+                        $nombre_item = $inv ? $inv->producto : 'Producto '.$item->producto;
+                    } elseif(isset($item->producto)) {
+                        $nombre_item = $item->producto;
+                    } elseif(method_exists($item, 'categoria')) {
+                        $nombre_item = $item->categoria(true);
+                    }
+                }
+             @endphp
                 <tr>
-                    <td>{{$item->descripcion}}</td>
+                    <td>{{$nombre_item}}</td>
                     <td>{{$empresa->moneda}}{{App\Funcion::Parsear($item->precio)}}</td>
                 </tr>
             @endforeach

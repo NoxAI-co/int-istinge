@@ -34,7 +34,8 @@ trait CentralizedWhatsApp
         ?int $incomingInvoiceId = null,
         ?int $incomingContractId = null,
         ?int $incomingPaymentId = null,
-        ?int $incomingCompanyNit = null
+        ?int $incomingCompanyNit = null,
+        ?int $templateId = null
     ) {
         try {
             $data = [
@@ -57,6 +58,9 @@ trait CentralizedWhatsApp
             }
             if ($incomingCompanyNit !== null) {
                 $data['incoming_company_nit'] = $incomingCompanyNit;
+            }
+            if ($templateId !== null) {
+                $data['template_id'] = $templateId;
             }
 
             Http::withHeaders([

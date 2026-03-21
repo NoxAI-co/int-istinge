@@ -45,7 +45,7 @@ class Factura extends Model
         'facnotas' , 'lista_precios', 'bodega','emitida','dian_response',
         'nonkey', 'statusdian', 'observacionesdian', 'modificado','fecha_expedicion',
         'tipo_fac','tipo_operacion', 'promesa_pago', 'contrato_id', 'created_by','prorrateo_aplicado',
-        'facturacion_automatica','ordenservicio', 'periodo_cobrado_text'
+        'facturacion_automatica','ordenservicio', 'periodo_cobrado_text', 'whatsapp'
     ];
 
     protected $appends = ['session'];

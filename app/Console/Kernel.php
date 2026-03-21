@@ -13,7 +13,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        \App\Console\Commands\SyncWhatsAppMetaLogs::class,
+        \App\Console\Commands\UpdateWhatsAppMessageStatus::class,
     ];
 
     /**
@@ -27,6 +28,12 @@ class Kernel extends ConsoleKernel
         //$schedule->command('facturas:end')->cron('0 */12 * * *');
         //$schedule->command('pagos:end')->cron('0 */12 * * *');
         //$schedule->command('check:invoices')->everyMinute();everyFiveMinutes
+
+        // Actualizar status de WhatsApp cada 5 minutos
+        $schedule->command('whatsapp:update-status')->everyFiveMinutes();
+
+        // Sincronizar logs de WhatsApp Meta (whatsapp_messages -> log_meta) cada 15 minutos para el día actual
+        $schedule->command('whatsapp:sync-meta-logs')->everyFifteenMinutes();
     }
 
     /**

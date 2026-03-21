@@ -38,6 +38,7 @@ use App\Model\Ingresos\Ingreso;
 use App\Model\Ingresos\IngresosFactura;
 use App\Banco;
 use App\Instance;
+use App\Services\WhatsAppMessageSyncService;
 use App\Model\Gastos\FacturaProveedores;
 use App\Model\Gastos\NotaDebito;
 use App\Model\Ingresos\NotaCredito;
@@ -51,6 +52,7 @@ use Illuminate\Support\Facades\Log;
 use App\WhatsappMetaLog;
 use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
+use Illuminate\Support\Facades\File;
 
 class CronController extends Controller
 {
@@ -259,7 +261,7 @@ class CronController extends Controller
             $numeros = [];
             $bulk = '';
             $query = GrupoCorte::query();
-            
+
             if ($idGrupo) {
                 $query->where('id', $idGrupo);
             } else {
@@ -267,7 +269,7 @@ class CronController extends Controller
                       ->whereRaw("STR_TO_DATE(hora_creacion_factura, '%H:%i') <= STR_TO_DATE(?, '%H:%i')", [$horaActual])
                       ->where('status', 1);
             }
-            
+
             $grupos_corte = $query->get();
 
 
@@ -283,7 +285,7 @@ class CronController extends Controller
                 'contracts.state', 'contracts.fecha_corte', 'contracts.fecha_suspension', 'contracts.facturacion',
                 'contracts.plan_id', 'contracts.descuento', 'c.nombre', 'c.nit', 'c.celular', 'c.telefono1',
                 'c.saldo_favor','contracts.created_at','contracts.fact_primer_mes',
-                'e.terminos_cond', 'e.notas_fact', 'contracts.servicio_tv', 
+                'e.terminos_cond', 'e.notas_fact', 'contracts.servicio_tv',
                 'contracts.factura_individual','contracts.nro','contracts.prorrateo')
                 ->where('contracts.grupo_corte',$grupo_corte->id)->
                 where('contracts.status',1)->
@@ -422,7 +424,7 @@ class CronController extends Controller
                             $ultimaFactura->factura_mes_manual = 0;
                             DB::table('factura')->where('id',$ultimaFactura->id)->update(['factura_mes_manual'=>0]);
                         }
-                        
+
                     }
 
                     /* ** Validacion: si la actual es dif a la ultima fac pasa o sino
@@ -1335,42 +1337,48 @@ class CronController extends Controller
             $whereOrder = implode(',', $grupos_corte_array);
 
             //Estamos tomando la ultima factura siempre del cliente con el orderby y el groupby, despues analizamos si esta ultima ya vencio
-            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-                leftJoin('facturas_contratos as fcs', 'fcs.factura_id', '=', 'f.id')
-                ->leftJoin('contracts as cs', function ($join) {
-                    $join->on('cs.nro', '=', 'fcs.contrato_nro');
-                })->
-                select('contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus',
-                 'f.suspension', 'cs.state', 'f.contrato_id','cs.grupo_corte')->
-                where('f.estatus',1)->
-                whereIn('f.tipo', [1,2])->
-                where('contactos.status',1)->
-                where('cs.state','enabled')->
-                whereIn('cs.grupo_corte',$grupos_corte_array)->
-                where(function($sub){
-                    $sub->whereNull('cs.fecha_suspension')
+            $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')
+            ->leftJoin('facturas_contratos as fcs', 'fcs.factura_id', '=', 'f.id')
+            ->leftJoin('contracts as cs', function ($join) {
+                $join->on('cs.nro', '=', 'fcs.contrato_nro');
+            })
+            ->select(
+                'contactos.id',
+                'contactos.nombre',
+                'contactos.nit',
+                'f.id as factura',
+                'f.estatus',
+                'f.suspension',
+                'cs.state',
+                'f.contrato_id',
+                'cs.grupo_corte'
+            )
+            ->where('f.estatus',1)
+            ->whereIn('f.tipo',[1,2])
+            ->where('contactos.status',1)
+            ->where('cs.state','enabled')
+            ->where('cs.server_configuration_id','!=',null)
+            ->whereIn('cs.grupo_corte',$grupos_corte_array)
+            ->where(function($sub){
+                $sub->whereNull('cs.fecha_suspension')
                     ->orWhere('cs.fecha_suspension',0);
-                })->
-                where('cs.server_configuration_id','!=',null)->
-                whereDate('f.vencimiento', '<=', now())->
-                where('f.id', function ($subquery) {
-                    $subquery->selectRaw('MAX(f2.id)')
-                        ->from('factura as f2')
-                        ->whereColumn('f2.cliente', 'contactos.id')
-                        ->where('f2.estatus', 1)
-                        ->whereIn('f2.tipo', [1, 2])
-                        ->whereDate('f2.vencimiento', '<=', now())
-                        ;
-                        //Habilitar cuando no se desee cortar por la ultima factura si no por otra fecha.
-                        // ->
-                        //     whereBetween('f2.created_at', [
-                        //         '2025-12-01 00:00:00',
-                        //         '2025-12-31 23:59:59'
-                        // ]);
-                })->
-                orderByRaw("FIELD(cs.grupo_corte, $whereOrder)")->
-                orderBy('contactos.updated_at', 'asc')->
-                get();
+            })
+            ->whereDate('f.vencimiento','<=',now())
+
+            ->whereIn('f.id', function ($subquery) {
+                $subquery->selectRaw('MAX(fc.factura_id)')
+                    ->from('facturas_contratos as fc')
+                    ->join('factura as f2','f2.id','=','fc.factura_id')
+                    ->whereColumn('f2.cliente','contactos.id')
+                    ->where('f2.estatus',1)
+                    ->whereIn('f2.tipo',[1,2])
+                    ->whereDate('f2.vencimiento','<=',now())
+                    ->groupBy('fc.contrato_nro');
+            })
+
+            ->orderByRaw("FIELD(cs.grupo_corte, $whereOrder)")
+            ->orderBy('contactos.updated_at','asc')
+            ->get();
 
         }else{
             $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
@@ -1426,7 +1434,7 @@ class CronController extends Controller
 
                     $contratoVerificar = Contrato::where('id',$factura->contrato_id)->first();
                     //Validando que si se trate de el contrato del verdadero cliente
-                    
+
                     if($contratoVerificar){
                         if($factura->cliente != $contratoVerificar->client_id){
                             $contrato = Contrato::where('client_id',$factura->cliente)->first();
@@ -1527,14 +1535,6 @@ class CronController extends Controller
                                         )
                                     );
                                     #AGREGAMOS A IP_AUTORIZADAS#
-
-                                    // #HABILITACION DEL PPOE#
-                                    // if($contrato->conexion == 1 && $contrato->usuario != null){
-                                    //     $API->write('/ppp/secret/enable', false);
-                                    //     $API->write('=numbers=' . $contrato->usuario);
-                                    //     $response = $API->read();
-                                    // }
-                                    // #HABILITACION DEL PPOE#
                                     $API->disconnect();
                                     }
                                 }
@@ -1561,103 +1561,125 @@ class CronController extends Controller
                                 $API->port = $mikrotik->puerto_api;
 
                                 if($empresa->consultas_mk ==1){
-                                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                    $API->write('/ip/firewall/address-list/print', TRUE);
-                                    $ARRAYS = $API->read();
-                                    if($contrato->state == 'enabled'){
-                                        if($contrato->ip){
-                                            $API->comm("/ip/firewall/address-list/add", array(
-                                                "address" => $contrato->ip,
-                                                "comment" => $contrato->servicio,
-                                                "list" => 'morosos'
-                                                )
-                                            );
+                                    $descripcion = "";
 
-                                            #ELIMINAMOS DE IP_AUTORIZADAS#
-                                            $API->write('/ip/firewall/address-list/print', false);
-                                            $API->write('?address='.$contrato->ip, false);
-                                            $API->write("?list=ips_autorizadas",false);
-                                            $API->write('=.proplist=.id');
-                                            $ARRAYS = $API->read();
-                                            if(count($ARRAYS)>0){
-                                                $API->write('/ip/firewall/address-list/remove', false);
-                                                $API->write('=.id='.$ARRAYS[0]['.id']);
-                                                $READ = $API->read();
-                                            }
-                                            #ELIMINAMOS DE IP_AUTORIZADAS#
-
-                                            if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
-                                                #DESHABILITACION DEL PPPoE#
-                                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
-
-                                                    // Buscar el ID interno del secret con ese nombre
-                                                    $API->write('/ppp/secret/print', false);
-                                                    $API->write('?name=' . $contrato->usuario, true);
-                                                    $ARRAYS = $API->read();
-
-                                                    if (count($ARRAYS) > 0) {
-                                                        $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
-
-                                                        // Deshabilitar el secret
-                                                        $API->write('/ppp/secret/disable', false);
-                                                        $API->write('=numbers=' . $id, true);
-                                                        $response = $API->read();
-
-                                                    }
-                                                }
-                                                #DESHABILITACION DEL PPPoE#
-
-                                                #SE SACA DE LA ACTIVE CONNECTIONS
-                                                if($contrato->conexion == 1 && $contrato->usuario != null){
-
-                                                    $API->write('/ppp/active/print', false);
-                                                    $API->write('?name=' . $contrato->usuario);
-                                                    $response = $API->read();
-
-                                                    if(isset($response['0']['.id'])){
-                                                        $API->comm("/ppp/active/remove", [
-                                                            ".id" => $response['0']['.id']
-                                                        ]);
-                                                    }
-                                                    else{ //NUEVO CODIGO
-
-                                                        //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
-                                                        $API->write('/ppp/active/print', false);
-                                                        $API->write('?name=' . $contrato->nro);
-                                                        $response = $API->read();
-
-                                                        if(isset($response['0']['.id'])){
-                                                            $API->comm("/ppp/active/remove", [
-                                                                ".id" => $response['0']['.id']
-                                                            ]);
-                                                        }
-                                                    }
-
-                                                }
-                                                #SE SACA DE LA ACTIVE CONNECTIONS
-                                            }
-
-
+                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                        $oltController = app('App\Http\Controllers\OltController');
+                                        $oltController->disableOnu($contrato->serial_onu);
+                                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                        
+                                        if($contrato->state == 'enabled'){
+                                            $i++;
                                         }
-                                        $i++;
+                                    } else {
+                                        if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+                                            $API->write('/ip/firewall/address-list/print', TRUE);
+                                            $ARRAYS = $API->read();
+                                            if($contrato->state == 'enabled'){
+                                                if($contrato->ip){
+                                                    $API->comm("/ip/firewall/address-list/add", array(
+                                                        "address" => $contrato->ip,
+                                                        "comment" => $contrato->servicio,
+                                                        "list" => 'morosos'
+                                                        )
+                                                    );
+
+                                                    #ELIMINAMOS DE IP_AUTORIZADAS#
+                                                    $API->write('/ip/firewall/address-list/print', false);
+                                                    $API->write('?address='.$contrato->ip, false);
+                                                    $API->write("?list=ips_autorizadas",false);
+                                                    $API->write('=.proplist=.id');
+                                                    $ARRAYS = $API->read();
+                                                    if(count($ARRAYS)>0){
+                                                        $API->write('/ip/firewall/address-list/remove', false);
+                                                        $API->write('=.id='.$ARRAYS[0]['.id']);
+                                                        $READ = $API->read();
+                                                    }
+                                                    #ELIMINAMOS DE IP_AUTORIZADAS#
+
+                                                    if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
+
+                                                        #DESHABILITACION DEL PPPoE#
+                                                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+
+                                                            // Buscar el ID interno del secret con ese nombre
+                                                            $API->write('/ppp/secret/print', false);
+                                                            $API->write('?name=' . $contrato->usuario, true);
+                                                            $ARRAYS = $API->read();
+
+                                                            if (count($ARRAYS) > 0) {
+                                                                $id = $ARRAYS[0]['.id']; // obtenemos el .id interno
+
+                                                                // Deshabilitar el secret
+                                                                $API->write('/ppp/secret/disable', false);
+                                                                $API->write('=numbers=' . $id, true);
+                                                                $response = $API->read();
+
+                                                            }
+                                                        }
+                                                        #DESHABILITACION DEL PPPoE#
+
+                                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                                        if($contrato->conexion == 1 && $contrato->usuario != null){
+
+                                                            $API->write('/ppp/active/print', false);
+                                                            $API->write('?name=' . $contrato->usuario);
+                                                            $response = $API->read();
+
+                                                            if(isset($response['0']['.id'])){
+                                                                $API->comm("/ppp/active/remove", [
+                                                                    ".id" => $response['0']['.id']
+                                                                ]);
+                                                            }
+                                                            else{ //NUEVO CODIGO
+
+                                                                //HACEMOS EL MISMO PROCESO PERO ENTONCES POR EL NRO CONTRARTO.
+                                                                $API->write('/ppp/active/print', false);
+                                                                $API->write('?name=' . $contrato->nro);
+                                                                $response = $API->read();
+
+                                                                if(isset($response['0']['.id'])){
+                                                                    $API->comm("/ppp/active/remove", [
+                                                                        ".id" => $response['0']['.id']
+                                                                    ]);
+                                                                }
+                                                            }
+
+                                                        }
+                                                        #SE SACA DE LA ACTIVE CONNECTIONS
+                                                    }
+
+
+                                                }
+                                                $i++;
+                                            }
+                                            $API->disconnect();
+                                        }
+                                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                     }
-                                    $API->disconnect();
-                                }
                                 }
 
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();
 
-                                $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte facturas<br>';
-                                $movimiento = new MovimientoLOG();
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = $descripcion;
-                                $movimiento->created_by  = 1;
-                                $movimiento->empresa     = $contrato->empresa;
-                                $movimiento->save();
+                                // Etiqueta automática: corte automático por falta de pago
+                                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                    $contrato->id,
+                                    $contrato->empresa,
+                                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                    \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO
+                                );
+
+                                if (isset($descripcion) && $descripcion != '') {
+                                    $movimiento = new MovimientoLOG();
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = $descripcion;
+                                    $movimiento->created_by  = 1;
+                                    $movimiento->empresa     = $contrato->empresa;
+                                    $movimiento->save();
+                                }
                             }
                         }
                         }
@@ -1900,53 +1922,72 @@ class CronController extends Controller
             $crm->grupo_corte = $contrato->grupo_corte;
             $crm->save();*/
 
-            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+            if (!$contrato) {
+                continue;
+            }
 
-            $API = new RouterosAPI();
-            $API->port = $mikrotik->puerto_api;
+            // 1. Bloque Mikrotik
+            if ($contrato->server_configuration_id && $empresa->consultas_mk == 1) {
+                $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
-            if ($contrato) {
-                if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
-                    if($contrato->state == 'enabled'){
-                        if($contrato->ip){
-                            $API->comm("/ip/firewall/address-list/add", array(
+                if ($mikrotik) {
+                    $API = new RouterosAPI();
+                    $API->port = $mikrotik->puerto_api;
+
+                    if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                        $API->write('/ip/firewall/address-list/print', true);
+                        $ARRAYS = $API->read();
+
+                        if ($contrato->state == 'enabled' && $contrato->ip) {
+                            $API->comm("/ip/firewall/address-list/add", [
                                 "address" => $contrato->ip,
                                 "comment" => $contrato->servicio,
                                 "list" => 'morosos'
-                                )
-                            );
+                            ]);
 
-                            #ELIMINAMOS DE IP_AUTORIZADAS#
                             $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address='.$contrato->ip, false);
-                            $API->write("?list=ips_autorizadas",false);
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write("?list=ips_autorizadas", false);
                             $API->write('=.proplist=.id');
                             $ARRAYS = $API->read();
-                            if(count($ARRAYS)>0){
+                            if (count($ARRAYS) > 0) {
                                 $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id='.$ARRAYS[0]['.id']);
-                                $READ = $API->read();
+                                $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                $API->read();
                             }
-                            #ELIMINAMOS DE IP_AUTORIZADAS#
                         }
-                        $contrato->state = 'disabled';
-                        $i++;
-
-                        $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte promesas<br>';
-                        $movimiento = new MovimientoLOG();
-                        $movimiento->contrato    = $contrato->id;
-                        $movimiento->modulo      = 5;
-                        $movimiento->descripcion = $descripcion;
-                        $movimiento->created_by  = 1;
-                        $movimiento->empresa     = $contrato->empresa;
-                        $movimiento->save();
-
+                        $API->disconnect();
                     }
-                    $API->disconnect();
-                    $contrato->save();
                 }
+            }
+
+            // 2. Bloque OLT independiente
+            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $oltController->disableOnu($contrato->serial_onu);
+
+                $movimiento = new MovimientoLOG();
+                $movimiento->contrato    = $contrato->id;
+                $movimiento->modulo      = 5;
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte promesas<br>';
+                $movimiento->created_by  = 1;
+                $movimiento->empresa     = $contrato->empresa;
+                $movimiento->save();
+            }
+
+            // 3. Actualizar estado en DB y generar log
+            if ($contrato->state == 'enabled') {
+                $contrato->state = 'disabled';
+                $contrato->save();
+                $i++;
+
+                $movimiento = new MovimientoLOG();
+                $movimiento->contrato    = $contrato->id;
+                $movimiento->modulo      = 5;
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte promesas<br>';
+                $movimiento->created_by  = 1;
+                $movimiento->empresa     = $contrato->empresa;
+                $movimiento->save();
             }
         }
 
@@ -2617,7 +2658,7 @@ class CronController extends Controller
 
         // Verificar que el evento sea payment.approved o invoice.paid
         if(isset($requestData['event']['type']) && in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
-            
+
             $factura = null;
             $paymentId = null;
             $montoPagado = 0;
@@ -2625,11 +2666,11 @@ class CronController extends Controller
             if ($requestData['event']['type'] == 'invoice.paid') {
                 $invoice = $requestData['invoice'] ?? [];
                 $payment = $invoice['payment'] ?? [];
-                
+
                 if(isset($invoice['provider_id'])){
                     $factura = Factura::where('codigo', $invoice['provider_id'])->first();
                 }
-                
+
                 if(!$factura && isset($invoice['metadata']['factura_id'])){
                     $factura = Factura::find($invoice['metadata']['factura_id']);
                 }
@@ -2637,7 +2678,7 @@ class CronController extends Controller
                 if(!$factura && isset($invoice['payment_id'])){
                     $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
                 }
-                
+
                 $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
                 // En invoice.paid el monto viene en valor normal
                 $montoPagado = $payment['amount'] ?? 0;
@@ -2647,7 +2688,7 @@ class CronController extends Controller
                 if(isset($payment['provider_id'])){
                     $factura = Factura::where('codigo', $payment['provider_id'])->first();
                 }
-                
+
                 if(!$factura && isset($payment['id'])){
                     $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
                 }
@@ -4483,13 +4524,13 @@ class CronController extends Controller
                     $q->orWhere('fc.contrato_nro', $contrato->nro);
                 }
             })
-            ->where('factura.estatus', 1) 
+            ->where('factura.estatus', 1)
             ->orderBy('factura.id', 'desc')
             ->first();
 
             if($ultimaFactura){
                 $deuda = $ultimaFactura->porpagar(); // Calcular deuda
-                
+
                 // Verificamos si la deuda es mayor a 0 y menor a 5 pesos
                 if($deuda > 0 && $deuda < 5){
                     $clienteNombre = $contrato->cliente() ? $contrato->cliente()->nombre : 'N/A';
@@ -4808,11 +4849,16 @@ class CronController extends Controller
         $factura = Factura::findOrFail($id);
 
         // 3️⃣ Generar nombre y rutas relativas
-        $fileName = 'Factura_' . $factura->codigo . '.pdf';
-        $relativePath = 'temp/' . $fileName; // se guarda en storage/app/public/temp/
-        $storagePath = storage_path('app/public/' . $relativePath);
+        $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+        $folderPath = public_path('documentos_meta');
+        $storagePath = $folderPath . '/' . $fileName;
 
-        // 4️⃣ Si ya existe, devolver directamente
+        // 4️⃣ Crear carpeta si no existe
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0775, true);
+        }
+
+        // 5️⃣ Si ya existe, devolver directamente
         if (file_exists($storagePath)) {
             return response()->file($storagePath, [
                 'Content-Type' => 'application/pdf',
@@ -4820,16 +4866,11 @@ class CronController extends Controller
             ]);
         }
 
-        // 5️⃣ Generar el PDF en binario
+        // 6️⃣ Generar el PDF en binario
         $facturaPDF = $this->getPdfFactura($id);
 
-        // 6️⃣ Crear carpeta si no existe
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        // 7️⃣ Guardar el archivo usando el Filesystem de Laravel
-        Storage::disk('public')->put($relativePath, $facturaPDF);
+        // 7️⃣ Guardar el archivo directamente
+        file_put_contents($storagePath, $facturaPDF);
 
         // 8️⃣ Retornar el archivo directamente
         return response()->file($storagePath, [
@@ -4958,8 +4999,8 @@ class CronController extends Controller
                 // 🧩 GENERAR PDF TEMPORAL
                 // ===================================
                 $this->getFacturaTemp($factura->id, config('app.key'));
-                $fileName = "Factura_{$factura->codigo}.pdf";
-                $storagePath = storage_path("app/public/temp/{$fileName}");
+                $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
+                $storagePath = public_path("documentos_meta/{$fileName}");
 
                 $attempts = 0;
                 while (!file_exists($storagePath) && $attempts < 5) {
@@ -4972,7 +5013,7 @@ class CronController extends Controller
                     continue;
                 }
 
-                $urlFactura = url("storage/temp/{$fileName}");
+                $urlFactura = url("documentos_meta/{$fileName}");
 
                 // ===================================
                 // 📦 PREPARAR DATOS PLANTILLA
@@ -5027,13 +5068,25 @@ class CronController extends Controller
                 $components = [];
 
                 if ($plantilla->body_header === 'DOCUMENT') {
+                    // Subir PDF a Meta en vez de pasar un link
+                    $mediaId = $metaService->uploadMedia(
+                        $instance->phone_number_id,
+                        $storagePath,
+                        'application/pdf'
+                    );
+
+                    if (!$mediaId) {
+                        Log::error("Factura {$factura->codigo}: No se pudo subir el PDF a Meta.");
+                        continue;
+                    }
+
                     $components[] = [
                         "type" => "header",
                         "parameters" => [
                             [
                                 "type" => "document",
                                 "document" => [
-                                    "link" => $urlFactura,
+                                    "id"       => $mediaId,
                                     "filename" => "Factura_{$factura->codigo}.pdf"
                                 ]
                             ]
@@ -5064,7 +5117,7 @@ class CronController extends Controller
                 // Validar Respuesta
                 $responseData = json_decode(json_encode($response), true);
                 $status = 'error';
-                
+
                 // El MetaWhatsAppService devuelve la respuesta de la API de Meta dentro de una llave 'data'
                 $metaData = $responseData['data'] ?? $responseData;
 
@@ -5090,7 +5143,7 @@ class CronController extends Controller
                     'empresa' => $empresa->id,
                     'mensaje_enviado' => $mensajeProcesado ?: ("Cron Meta: " . $plantilla->title),
                     'plantilla_id' => $plantilla->id,
-                    'enviado_por' => 0 
+                    'enviado_por' => 0
                 ]);
 
                 if ($status === 'success') {
@@ -5101,10 +5154,10 @@ class CronController extends Controller
                     // Sync con Chat System (Centralizado)
                     $phone = $prefijo . ltrim($celular, '0');
                     $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
-                    
+
                     if ($wamid) {
                         $companyNit = $empresa->nit ?? \App\Empresa::find(1)->nit;
-                        
+
                         $contractId = null;
                         $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                         if ($facturaContrato) {
@@ -5123,7 +5176,8 @@ class CronController extends Controller
                             $factura->id,
                             $contractId,
                             null,
-                            $companyNit
+                            $companyNit,
+                            $plantilla->id
                         );
                     }
                 } else {
@@ -5131,11 +5185,281 @@ class CronController extends Controller
                 }
             }
 
+            /**
+             * Limpieza de PDFs temporales generados en storage/app/public/temp.
+             * Solo se ejecuta entre las 00:00 y las 03:00 para evitar ejecuciones innecesarias.
+             */
+            $horaActual = Carbon::now()->format('H:i');
+            if ($horaActual >= '00:00' && $horaActual <= '03:00') {
+                $this->limpiarPdfsTemp();
+            }
+
         } catch (\Exception $e) {
             Log::error("Error general en envioFacturaWpp: " . $e->getMessage());
         }
     }
 
+    /**
+     * Elimina los archivos PDF temporales generados en public/documentos_meta
+     * que no correspondan al día actual (se basa en la fecha de modificación del archivo).
+     */
+    public function limpiarPdfsTemp()
+    {
+        try {
+            $tempPath = public_path('documentos_meta');
+
+            // Si no existe la carpeta, no hay nada que borrar
+            if (!File::exists($tempPath)) {
+                return;
+            }
+
+            $hoy = Carbon::today();
+
+            // Obtener todos los archivos de la carpeta temp
+            $files = File::files($tempPath);
+
+            foreach ($files as $file) {
+                // Fecha de modificación del archivo
+                $lastModified = Carbon::createFromTimestamp($file->getMTime());
+
+                // Si el archivo es de una fecha anterior a hoy, se elimina
+                if ($lastModified->lt($hoy)) {
+                    File::delete($file->getRealPath());
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error al limpiar PDFs temporales: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Sincronizar logs de WhatsApp Meta desde la API central
+     * Este método se ejecuta desde un cronjob externo (cPanel) cada 15 minutos
+     *
+     * @return string
+     */
+    public function syncWhatsAppMetaLogs()
+    {
+        try {
+            $syncService = app(WhatsAppMessageSyncService::class);
+            $fechaHoy = Carbon::now()->format('Y-m-d');
+
+            Log::info('CronController::syncWhatsAppMetaLogs iniciado', [
+                'fecha' => $fechaHoy
+            ]);
+
+            // Diagnosticar: contar instancias con diferentes criterios
+            $totalInstances = Instance::count();
+            $instancesActivas = Instance::where('activo', true)->orWhere('activo', 1)->count();
+            $instancesConPhone = Instance::whereNotNull('phone_number_id')->count();
+            $instancesConCompany = Instance::whereNotNull('company_id')->count();
+
+            Log::info('Diagnóstico de instancias', [
+                'total_instances' => $totalInstances,
+                'instances_activas' => $instancesActivas,
+                'instances_con_phone_number_id' => $instancesConPhone,
+                'instances_con_company_id' => $instancesConCompany,
+            ]);
+
+            // Obtener todas las instancias activas con phone_number_id
+            // Intentar con ambos formatos de activo (boolean true o integer 1)
+            $instances = Instance::where(function($query) {
+                    $query->where('activo', true)
+                          ->orWhere('activo', 1);
+                })
+                ->whereNotNull('phone_number_id')
+                ->whereNotNull('company_id')
+                ->get();
+
+            Log::info('Instancias encontradas para sincronizar', [
+                'count' => $instances->count(),
+                'instances' => $instances->map(function($i) {
+                    return [
+                        'id' => $i->id,
+                        'company_id' => $i->company_id,
+                        'phone_number_id' => $i->phone_number_id,
+                        'activo' => $i->activo,
+                    ];
+                })->toArray()
+            ]);
+
+            if ($instances->isEmpty()) {
+                // Si no hay instancias, intentar buscar todas las empresas con NIT y usar cualquier instancia disponible
+                Log::warning('No se encontraron instancias con los criterios estrictos, intentando método alternativo...');
+
+                // Buscar cualquier instancia con phone_number_id (sin importar activo)
+                $instances = Instance::whereNotNull('phone_number_id')
+                    ->whereNotNull('company_id')
+                    ->get();
+
+                if ($instances->isEmpty()) {
+                    $mensaje = sprintf(
+                        "No se encontraron instancias para sincronizar. Total: %d, Activas: %d, Con phone_number_id: %d, Con company_id: %d",
+                        $totalInstances,
+                        $instancesActivas,
+                        $instancesConPhone,
+                        $instancesConCompany
+                    );
+                    Log::warning($mensaje);
+                    return $mensaje;
+                }
+
+                Log::info('Usando método alternativo: instancias encontradas sin filtro de activo', [
+                    'count' => $instances->count()
+                ]);
+            }
+
+            $totalLogsCreados = 0;
+            $totalLogsActualizados = 0;
+            $totalFacturasActualizadas = 0;
+            $totalIngresosActualizados = 0;
+            $instanciasProcesadas = 0;
+
+            foreach ($instances as $instance) {
+                try {
+                    // Obtener la empresa asociada
+                    $empresa = Empresa::find($instance->company_id);
+                    if (!$empresa || !$empresa->nit) {
+                        Log::warning('Instancia sin empresa o sin NIT', [
+                            'instance_id' => $instance->id,
+                            'company_id' => $instance->company_id,
+                            'phone_number_id' => $instance->phone_number_id
+                        ]);
+                        continue;
+                    }
+
+                    Log::info('Procesando instancia', [
+                        'instance_id' => $instance->id,
+                        'company_id' => $instance->company_id,
+                        'company_nit' => $empresa->nit,
+                        'phone_number_id' => $instance->phone_number_id,
+                        'activo' => $instance->activo
+                    ]);
+
+                    // Sincronizar para el día actual
+                    $result = $syncService->syncForInstanceAndCompany(
+                        $instance,
+                        (int) $empresa->nit,
+                        $fechaHoy,
+                        $fechaHoy
+                    );
+
+                    $totalLogsCreados += $result['logsCreated'] ?? 0;
+                    $totalLogsActualizados += $result['logsUpdated'] ?? 0;
+                    $totalFacturasActualizadas += $result['facturasActualizadas'] ?? 0;
+                    $totalIngresosActualizados += $result['ingresosActualizados'] ?? 0;
+
+                    Log::debug('Resultado de sincronización', [
+                        'result' => $result,
+                        'logsCreated' => $result['logsCreated'] ?? 0,
+                        'logsUpdated' => $result['logsUpdated'] ?? 0,
+                        'facturasActualizadas' => $result['facturasActualizadas'] ?? 0,
+                        'ingresosActualizados' => $result['ingresosActualizados'] ?? 0,
+                    ]);
+                    $instanciasProcesadas++;
+
+                    Log::info('Instancia sincronizada exitosamente', [
+                        'instance_id' => $instance->id,
+                        'company_id' => $instance->company_id,
+                        'company_nit' => $empresa->nit,
+                        'logs_created' => $result['logsCreated'] ?? 0,
+                        'logs_updated' => $result['logsUpdated'] ?? 0,
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Error sincronizando instancia en syncWhatsAppMetaLogs', [
+                        'instance_id' => $instance->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            // ============================
+            // Marcar facturas/ingresos con whatsapp=1
+            // cuando exista al menos un log delivered/read
+            // por (documento, wamid)
+            // ============================
+            $facturasMarcadas = 0;
+            $ingresosMarcados = 0;
+
+            try {
+                // Agrupar logs exitosos por factura + wamid
+                $logsFacturas = WhatsappMetaLog::query()
+                    ->whereIn('status', ['delivered', 'read'])
+                    ->whereNotNull('incoming_invoice_id')
+                    ->whereNotNull('wamid')
+                    ->select('incoming_invoice_id', 'wamid')
+                    ->distinct()
+                    ->get();
+
+                $idsFacturas = $logsFacturas->pluck('incoming_invoice_id')->unique()->values();
+
+                if ($idsFacturas->count() > 0) {
+                    $facturasMarcadas = DB::table('factura')
+                        ->whereIn('id', $idsFacturas)
+                        ->update(['whatsapp' => 1]);
+                }
+
+                // Agrupar logs exitosos por ingreso + wamid
+                $logsIngresos = WhatsappMetaLog::query()
+                    ->whereIn('status', ['delivered', 'read'])
+                    ->whereNotNull('incoming_payment_id')
+                    ->whereNotNull('wamid')
+                    ->select('incoming_payment_id', 'wamid')
+                    ->distinct()
+                    ->get();
+
+                $idsIngresos = $logsIngresos->pluck('incoming_payment_id')->unique()->values();
+
+                if ($idsIngresos->count() > 0) {
+                    $ingresosMarcados = DB::table('ingresos')
+                        ->whereIn('id', $idsIngresos)
+                        ->update(['whatsapp' => 1]);
+                }
+
+                Log::info('Marcado de whatsapp desde syncWhatsAppMetaLogs', [
+                    'facturas_marcadas' => $facturasMarcadas,
+                    'ingresos_marcados' => $ingresosMarcados,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error marcando whatsapp en facturas/ingresos desde syncWhatsAppMetaLogs', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+
+            $mensaje = sprintf(
+                "Sincronización completada. Instancias: %d, Logs creados: %d, Logs actualizados: %d, Facturas actualizadas: %d, Ingresos actualizados: %d, Facturas marcadas whatsapp: %d, Ingresos marcados whatsapp: %d",
+                $instanciasProcesadas,
+                $totalLogsCreados,
+                $totalLogsActualizados,
+                $totalFacturasActualizadas,
+                $totalIngresosActualizados,
+                $facturasMarcadas,
+                $ingresosMarcados
+            );
+
+            Log::info('CronController::syncWhatsAppMetaLogs finalizado', [
+                'instancias_procesadas' => $instanciasProcesadas,
+                'logs_creados' => $totalLogsCreados,
+                'logs_actualizados' => $totalLogsActualizados,
+                'facturas_actualizadas' => $totalFacturasActualizadas,
+                'ingresos_actualizados' => $totalIngresosActualizados,
+                'facturas_marcadas_whatsapp' => $facturasMarcadas,
+                'ingresos_marcados_whatsapp' => $ingresosMarcados,
+            ]);
+
+            return $mensaje;
+
+        } catch (\Exception $e) {
+            $error = "Error general en syncWhatsAppMetaLogs: " . $e->getMessage();
+            Log::error($error, [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $error;
+        }
+    }
 
     public function aplicateProrrateo(){
 
@@ -5335,7 +5659,7 @@ class CronController extends Controller
 
         return $facturas;
     }
-    
+
     //Este metodo me permite validar que facturas se crearon con el mismo codigo y quedaron emitidas, la que tiene el
     //codigo 409 es la que no quedo emitida y debe cambiar de codigo.
     public function validarFacturasDobles(){

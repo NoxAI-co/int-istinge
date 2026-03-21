@@ -2020,6 +2020,62 @@ class ConfiguracionController extends Controller
     }
   }
 
+  public function queries_dhcp_smartolt(Request $request){
+    $empresa = Empresa::find(auth()->user()->empresa);
+    
+    if ($request->status == 0) {
+      // Trying to enable
+      if(empty($empresa->smartOLT) || empty($empresa->adminOLT)){
+        return response()->json([
+            'success' => false,
+            'message' => 'El sistema no tiene una configuracion de Smart olt ingresada o no fue posible realizar la conexión'
+        ]);
+      }
+
+      // Test API connection
+      $curl = curl_init();
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $empresa->adminOLT.'/api/system/get_olts',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'GET',
+        CURLOPT_HTTPHEADER => array(
+          'X-Token: ' . $empresa->smartOLT
+        ),
+      ));
+      $response = curl_exec($curl);
+      curl_close($curl);
+      $response = json_decode($response);
+
+      if(isset($response->status) && $response->status == true){
+        $empresa->queries_dhcp_smartolt = 1;
+        $empresa->save();
+        return response()->json([
+            'success' => true,
+            'message' => 'Disable/Enable ONU para contratos DHCP habilitado correctamente'
+        ]);
+      } else {
+        return response()->json([
+            'success' => false,
+            'message' => 'El sistema no tiene una configuracion de Smart olt ingresada o no fue posible realizar la conexión'
+        ]);
+      }
+    } else {
+      // Trying to disable
+      $empresa->queries_dhcp_smartolt = 0;
+      $empresa->save();
+      return response()->json([
+          'success' => true,
+          'message' => 'Disable/Enable ONU para contratos DHCP deshabilitado correctamente'
+      ]);
+    }
+  }
+
+
   public function activeconnectionSecret(Request $request){
     $empresa = Empresa::find(auth()->user()->empresa);
 
@@ -3442,5 +3498,59 @@ class ConfiguracionController extends Controller
             $mensaje = "El proceso finalizó. Se generaron 0 facturas. Verifica que los contratos en ese rango tengan el prorrateo activo o que no se haya facturado ya el prorrateo en el mismo mes.";
             return redirect()->back()->with('success', $mensaje);
         }
+    }
+
+    /**
+     * Muestra la vista de configuración de etiquetas automáticas para contratos.
+     */
+    public function etiquetasAutomaticas()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $empresa_id = auth()->user()->empresa;
+        $modulo     = \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS;
+
+        $acciones = [
+            \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO    => 'Al deshabilitar un contrato automáticamente por falta de pago',
+            \App\EtiquetaAutomaticaContrato::CLIENTE_ELIMINADO   => 'Al deshabilitar un contrato porque se eliminó un cliente',
+            \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL => 'Al deshabilitar un contrato manualmente',
+            \App\EtiquetaAutomaticaContrato::PAGO_FACTURA        => 'Al habilitarse un contrato cuando se realiza el pago de una factura',
+        ];
+
+        $configuraciones = \App\EtiquetaAutomaticaContrato::where('empresa_id', $empresa_id)
+            ->where('modulo', $modulo)
+            ->pluck('etiqueta_id', 'accion')
+            ->toArray();
+
+        $etiquetas = \App\Etiqueta::where('empresa_id', $empresa_id)->get();
+
+        return view('configuracion.contrato.etiquetas_automaticas', compact('acciones', 'configuraciones', 'etiquetas', 'modulo'));
+    }
+
+    /**
+     * Guarda o actualiza la configuración de etiquetas automáticas para contratos.
+     */
+    public function etiquetasAutomaticasStore(\Illuminate\Http\Request $request)
+    {
+        $empresa_id = auth()->user()->empresa;
+        $modulo     = \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS;
+
+        $acciones = [
+            \App\EtiquetaAutomaticaContrato::CORTE_AUTOMATICO,
+            \App\EtiquetaAutomaticaContrato::CLIENTE_ELIMINADO,
+            \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL,
+            \App\EtiquetaAutomaticaContrato::PAGO_FACTURA,
+        ];
+
+        foreach ($acciones as $accion) {
+            $etiqueta_id = $request->input('etiqueta_' . $accion);
+
+            \App\EtiquetaAutomaticaContrato::updateOrCreate(
+                ['empresa_id' => $empresa_id, 'modulo' => $modulo, 'accion' => $accion],
+                ['etiqueta_id' => ($etiqueta_id ?: null)]
+            );
+        }
+
+        return redirect()->route('configuracion.etiquetas_automaticas')
+            ->with('success', 'Etiquetas automáticas configuradas correctamente.');
     }
 }

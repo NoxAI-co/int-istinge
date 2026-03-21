@@ -43,8 +43,8 @@
 			</span>
 		</div>
 		<div class="form-group col-md-3">
-			<label class="control-label">Apellido 1 @if($contacto->tipo_contacto == 0) <span class="text-danger">*</span> @endif</label>
-			<input type="text" class="form-control" name="apellido1" id="apellido1" {{ $contacto->tipo_contacto == 0 ? 'required' : '' }} maxlength="200" value="{{$contacto->apellido1}}">
+			<label class="control-label">Apellido 1 <span class="text-danger" id="asterisco_apellido1" {!! ($contacto->tipo_contacto == 0 && $contacto->tip_iden != 6) ? '' : 'style="display: none;"' !!}>*</span></label>
+			<input type="text" class="form-control" name="apellido1" id="apellido1" {{ ($contacto->tipo_contacto == 0 && $contacto->tip_iden != 6) ? 'required' : '' }} maxlength="200" value="{{$contacto->apellido1}}">
 			<span class="help-block error">
 				<strong>{{ $errors->first('apellido1') }}</strong>
 			</span>
@@ -396,6 +396,28 @@
                 if (option == 6) {
                     searchDV($("#tip_iden").val());
                 }
+        });
+        
+        $('#tip_iden').on('change', function() {
+            if($(this).val() == 6) {
+                $("#apellido1").removeAttr('required');
+                $("#asterisco_apellido1").hide();
+            } else {
+                if($("input[name='tipo_contacto[]'][value='0']").is(":checked")) {
+                    $("#apellido1").attr('required', true);
+                    $("#asterisco_apellido1").show();
+                }
+            }
+        });
+
+        $("input[name='tipo_contacto[]'][value='0']").on('change', function() {
+            if($(this).is(":checked") && $("#tip_iden").val() != 6) {
+                $("#apellido1").attr('required', true);
+                $("#asterisco_apellido1").show();
+            } else {
+                $("#apellido1").removeAttr('required');
+                $("#asterisco_apellido1").hide();
+            }
         });
 
         function nameBarrio() {
