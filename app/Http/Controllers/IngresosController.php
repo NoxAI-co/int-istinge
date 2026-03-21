@@ -1756,6 +1756,8 @@ class IngresosController extends Controller
             ]
         ];
 
+        $metaService = new \App\Services\MetaWhatsAppService();
+
         if ($plantilla->body_header === 'DOCUMENT') {
             // Subir PDF a Meta en vez de pasar un link
             $mediaId = $metaService->uploadMedia(
@@ -1785,7 +1787,6 @@ class IngresosController extends Controller
         // ============================================================
         // 🚀 ENVIAR MENSAJE (MetaWhatsAppService)
         // ============================================================
-        $metaService = new \App\Services\MetaWhatsAppService();
 
         $response = (object) $metaService->sendTemplate(
             $instance->phone_number_id,
