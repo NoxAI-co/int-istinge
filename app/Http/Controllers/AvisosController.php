@@ -404,9 +404,9 @@ class AvisosController extends Controller
                         // Factura para campos dinámicos
                         $factura = Factura::where('contrato_id', $contrato->id)->latest()->first();
 
-                        if ($factura && $factura->cont_message_undeliverable >= 4) {
+                        if ($factura && $factura->cont_message_undeliverable >= 3) {
                             $enviadosFallidos++;
-                            \Log::warning('Contrato ' . $contrato->id . ': Factura con más de 4 intentos fallidos (Message undeliverable).');
+                            \Log::warning('Contrato ' . $contrato->id . ': Factura con más de 3 intentos fallidos (Message undeliverable).');
                             continue;
                         }
 

@@ -275,6 +275,35 @@ class ChatController extends Controller
             return response()->json(['error' => 'La instancia no tiene configurado un ID de WhatsApp (phone_number_id)'], 400);
         }
 
+        $phone = preg_replace('/[^0-9]/', '', $conversationId);
+        if ($phone) {
+            $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+                ->join('contactos as con', 'con.id', 'c.client_id')
+                ->where(function($q) use ($phone) {
+                    $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                      ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                })
+                ->where('factura.cont_message_undeliverable', '>=', 3)
+                ->exists();
+
+            if (!$hasWarning) {
+                $hasWarning = \App\Model\Ingresos\Ingreso::join('contactos as con', 'con.id', 'ingresos.cliente')
+                    ->where(function($q) use ($phone) {
+                        $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                          ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                    })
+                    ->where('ingresos.cont_message_undeliverable', '>=', 3)
+                    ->exists();
+            }
+
+            if ($hasWarning) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa'
+                ], 400);
+            }
+        }
+
         // Enviar mensaje vía API Centralizada
         $result = $this->centralizedService->sendMessage(
             $instance->phone_number_id,
