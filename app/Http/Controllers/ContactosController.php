@@ -164,6 +164,27 @@ class ContactosController extends Controller
         $contactos->where('contactos.status', 1);
 
         return datatables()->eloquent($contactos)
+            ->orderColumn('contrato', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT nro FROM contracts WHERE client_id = contactos.id AND status = 1 ORDER BY id DESC LIMIT 1) $keyword");
+            })
+            ->orderColumn('ip', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT ip FROM contracts WHERE client_id = contactos.id AND status = 1 ORDER BY id DESC LIMIT 1) $keyword");
+            })
+            ->orderColumn('state_olt_catv', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT state_olt_catv FROM contracts WHERE client_id = contactos.id AND status = 1 ORDER BY id DESC LIMIT 1) $keyword");
+            })
+            ->orderColumn('barrio', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT nombre FROM barrios WHERE barrios.id = contactos.barrio_id LIMIT 1) $keyword");
+            })
+            ->orderColumn('radicado', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT COUNT(*) FROM radicados WHERE radicados.identificacion = contactos.nit) $keyword");
+            })
+            ->orderColumn('etiqueta', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT nombre FROM etiquetas WHERE etiquetas.id = contactos.etiqueta_id LIMIT 1) $keyword");
+            })
+            ->orderColumn('fk_idmunicipio', function ($query, $keyword) {
+                 $query->orderByRaw("(SELECT nombre FROM municipios WHERE municipios.id = contactos.fk_idmunicipio LIMIT 1) $keyword");
+            })
              ->editColumn('serial_onu', function (Contacto $contacto) {
 
                  return $contacto->serial_onu;

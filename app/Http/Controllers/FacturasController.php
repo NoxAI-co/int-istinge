@@ -5842,8 +5842,13 @@ class FacturasController extends Controller{
         }
 
         $factura = Factura::findOrFail($id);
+
+        if ($factura->cont_message_undeliverable >= 4) {
+            return back()->with('danger', 'La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa');
+        }
+
         $contacto = $factura->cliente();
-        
+
         // Determinar prefijo telefónico
         $prefijo = '57'; 
         if (!empty($contacto->fk_idpais)) {

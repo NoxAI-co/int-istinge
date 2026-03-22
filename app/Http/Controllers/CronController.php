@@ -4940,6 +4940,7 @@ class CronController extends Controller
                 })
                 ->where('factura.fecha', $fecha)
                 ->where('factura.whatsapp', 0)
+                ->where('factura.cont_message_undeliverable', '<', 4)
                 ->whereIn('c.grupo_corte', $grupos_corte_array)
                 ->whereNotExists(function ($q) {
                     $q->select(DB::raw(1))

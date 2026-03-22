@@ -745,6 +745,15 @@
                     </div>
                 </div>
 
+                <!-- Cont. Message Undeliverable Alert -->
+                <div v-if="selectedConversation && selectedConversation.has_undeliverable_warning" class="whatsapp-error-alert error-critical" style="margin-bottom: 8px;">
+                    <span class="error-icon">🚫</span>
+                    <div class="error-body">
+                        <div class="error-title">Atención</div>
+                        <div class="error-detail">La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa.</div>
+                    </div>
+                </div>
+
                 <!-- Error Alert Banner -->
                 <div v-if="lastMessageError" class="whatsapp-error-alert" :class="{ 'error-critical': lastMessageError.critical }">
                     <span class="error-icon">@{{ lastMessageError.critical ? '🚫' : '⚠️' }}</span>

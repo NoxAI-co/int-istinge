@@ -1623,6 +1623,10 @@ class IngresosController extends Controller
             return back()->with('error', 'No se encontró el ingreso especificado.');
         }
 
+        if ($ingreso->cont_message_undeliverable >= 4) {
+            return back()->with('error', 'La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa');
+        }
+
         // 1️⃣ Buscar instancia activa
         $instance = Instance::where('company_id', auth()->user()->empresa)
                             ->where('activo', 1)

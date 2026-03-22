@@ -237,6 +237,16 @@ class WhatsAppMessageSyncService
                 }
             }
         } elseif ($status === 'failed') {
+            // Incrementar contador si falla por "Message undeliverable" y se recibe por primera vez
+            if ($created && $errorMessage && stripos($errorMessage, 'Message undeliverable') !== false) {
+                if ($incomingInvoiceId) {
+                    DB::table('factura')->where('id', $incomingInvoiceId)->increment('cont_message_undeliverable');
+                }
+                if ($incomingPaymentId) {
+                    DB::table('ingresos')->where('id', $incomingPaymentId)->increment('cont_message_undeliverable');
+                }
+            }
+
             // Marcar como no entregado (whatsapp = 0) solo si NO es el error de healthy ecosystem
             $isHealthyEcosystemError = $errorMessage && 
                 stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;

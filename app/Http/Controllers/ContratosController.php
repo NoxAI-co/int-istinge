@@ -1696,7 +1696,6 @@ class ContratosController extends Controller
             'facturacion' => 'required',
             'contrato_permanencia' => 'required',
             'nro' => 'required',
-            'tipo_contrato' => 'required'
         ]);
 
         if ($request->contrato_permanencia == 1) {
