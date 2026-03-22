@@ -97,33 +97,8 @@ class ChatController extends Controller
                 'data' => []
             ], $response['statusCode'] ?? 500);
         }
-
         if (isset($response['data']) && count($response['data']) > 0) {
-            foreach ($response['data'] as &$conv) {
-                $phone = preg_replace('/[^0-9]/', '', $conv['phone_number'] ?? '');
-                $hasWarning = false;
-                if ($phone) {
-                    $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
-                        ->join('contactos as con', 'con.id', 'c.client_id')
-                        ->where(function($q) use ($phone) {
-                            $q->where('con.celular', 'LIKE', '%' . $phone . '%')
-                              ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
-                        })
-                        ->where('factura.cont_message_undeliverable', '>=', 3)
-                        ->exists();
-
-                    if (!$hasWarning) {
-                        $hasWarning = \App\Model\Ingresos\Ingreso::join('contactos as con', 'con.id', 'ingresos.cliente')
-                            ->where(function($q) use ($phone) {
-                                $q->where('con.celular', 'LIKE', '%' . $phone . '%')
-                                  ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
-                            })
-                            ->where('ingresos.cont_message_undeliverable', '>=', 3)
-                            ->exists();
-                    }
-                }
-                $conv['has_undeliverable_warning'] = $hasWarning;
-            }
+            $response['data'] = $this->enrichConversationsWithWarning($response['data']);
             \Log::debug('ChatController::conversations sample item', ['item' => $response['data'][0]]);
         }
 
@@ -179,7 +154,7 @@ class ChatController extends Controller
         );
 
         if (isset($conversationsResponse['data'])) {
-            $updatedConversations = $conversationsResponse['data'];
+            $updatedConversations = $this->enrichConversationsWithWarning($conversationsResponse['data']);
         }
 
         return response()->json([
@@ -527,4 +502,40 @@ class ChatController extends Controller
 
         return $messages;
     }
+
+    /**
+     * Enriquecer listado de conversaciones flagueando a las inactivas (rebotes > 3).
+     */
+    private function enrichConversationsWithWarning(array $conversations)
+    {
+        foreach ($conversations as &$conv) {
+            $phone = preg_replace('/[^0-9]/', '', $conv['phone_number'] ?? '');
+            $hasWarning = false;
+            
+            if ($phone) {
+                $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+                    ->join('contactos as con', 'con.id', 'c.client_id')
+                    ->where(function($q) use ($phone) {
+                        $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                          ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                    })
+                    ->where('factura.cont_message_undeliverable', '>=', 3)
+                    ->exists();
+
+                if (!$hasWarning) {
+                    $hasWarning = \App\Model\Ingresos\Ingreso::join('contactos as con', 'con.id', 'ingresos.cliente')
+                        ->where(function($q) use ($phone) {
+                            $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                              ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                        })
+                        ->where('ingresos.cont_message_undeliverable', '>=', 3)
+                        ->exists();
+                }
+            }
+            $conv['has_undeliverable_warning'] = $hasWarning;
+        }
+
+        return $conversations;
+    }
 }
+
