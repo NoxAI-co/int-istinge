@@ -1024,7 +1024,7 @@ new Vue({
             if (this.selectedConversation && this.selectedConversation.has_undeliverable_warning) {
                 return {
                     title: 'Atención',
-                    detail: 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa.',
+                    detail: 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa.',
                     critical: true
                 };
             }
