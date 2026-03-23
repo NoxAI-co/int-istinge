@@ -1624,7 +1624,7 @@ class IngresosController extends Controller
         }
 
         if ($ingreso->cont_message_undeliverable >= 3) {
-            return back()->with('error', 'La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa');
+            return back()->with('error', 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa');
         }
 
         // 1️⃣ Buscar instancia activa

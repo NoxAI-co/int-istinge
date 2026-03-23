@@ -111,7 +111,6 @@
                     </div>
             </div>
         @endif
-        @endif
     @endif
 
     {{-- Alerta de rebotes WhatsApp --}}
@@ -120,7 +119,7 @@
             <div class="col-md-12">
                 <div class="alert alert-danger shadow-sm" role="alert" style="border-left: 5px solid #dc3545;">
                     <h5 class="alert-heading mb-1"><i class="fas fa-exclamation-circle"></i> Atención</h5>
-                    La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa.
+                    La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa.
                 </div>
             </div>
         </div>

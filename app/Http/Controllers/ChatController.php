@@ -275,7 +275,7 @@ class ChatController extends Controller
             if ($hasWarning) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'La siguiente linea telefonica segun nuestros analisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa'
+                    'error' => 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, intenta comunicarte enviar el documento con otra alternativa'
                 ], 400);
             }
         }
