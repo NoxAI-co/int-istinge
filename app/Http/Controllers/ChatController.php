@@ -250,8 +250,9 @@ class ChatController extends Controller
             return response()->json(['error' => 'La instancia no tiene configurado un ID de WhatsApp (phone_number_id)'], 400);
         }
 
-        $phone = preg_replace('/[^0-9]/', '', $conversationId);
-        if ($phone) {
+        $cleanPhone = preg_replace('/[^0-9]/', '', $conversationId);
+        $phone = substr($cleanPhone, -10);
+        if ($phone && strlen($phone) >= 7) {
             $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
                 ->join('contactos as con', 'con.id', 'c.client_id')
                 ->where(function($q) use ($phone) {
@@ -509,10 +510,11 @@ class ChatController extends Controller
     private function enrichConversationsWithWarning(array $conversations)
     {
         foreach ($conversations as &$conv) {
-            $phone = preg_replace('/[^0-9]/', '', $conv['phone_number'] ?? '');
+            $cleanPhone = preg_replace('/[^0-9]/', '', $conv['phone_number'] ?? '');
+            $phone = substr($cleanPhone, -10); // get the last 10 digits to match safely
             $hasWarning = false;
             
-            if ($phone) {
+            if ($phone && strlen($phone) >= 7) {
                 $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
                     ->join('contactos as con', 'con.id', 'c.client_id')
                     ->where(function($q) use ($phone) {
