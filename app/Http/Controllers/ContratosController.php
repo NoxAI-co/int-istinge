@@ -2801,7 +2801,19 @@ class ContratosController extends Controller
         $type = 'success';
         $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' HA SIDO ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado');
 
-        // 2. Lógica de Mikrotik
+        // 2. Lógica de Smart OLT
+        if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            $olt_executed = true;
+            $oltController = app('App\Http\Controllers\OltController');
+            if ($new_state == 'enabled') {
+                $oltController->enableOnu($contrato->serial_onu);
+            } else {
+                $oltController->disableOnu($contrato->serial_onu);
+            }
+            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
+        }else
+
+        // 3. Lógica de Mikrotik
         if ($contrato->plan_id && $empresa->consultas_mk == 1 && $contrato->server_configuration_id) {
             $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
@@ -2898,18 +2910,6 @@ class ContratosController extends Controller
                     $mikrotik_failed = true;
                 }
             }
-        }
-
-        // 3. Lógica de Smart OLT
-        if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-            $olt_executed = true;
-            $oltController = app('App\Http\Controllers\OltController');
-            if ($new_state == 'enabled') {
-                $oltController->enableOnu($contrato->serial_onu);
-            } else {
-                $oltController->disableOnu($contrato->serial_onu);
-            }
-            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
         }
 
         // 4. Procesamiento final, decidir si actualizar estado en DB
