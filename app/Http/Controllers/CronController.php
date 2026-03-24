@@ -1588,7 +1588,7 @@ class CronController extends Controller
                                         if($contrato->state == 'enabled'){
                                             $i++;
                                         }
-                                    }
+                                    }else
 
                                     // Lógica de Mikrotik
                                     if ($empresa->consultas_mk == 1 && isset($contrato->server_configuration_id)) {
