@@ -797,22 +797,19 @@ class CronController extends Controller
                                             /* Creacion de pagos automaticamente */
                                             if($contrato->saldo_favor >= $factura->totalAPI($empresa->id)->total && $empresa->aplicar_saldofavor == 1){
                                                 self::pagoFacturaAutomatico($factura);
-                                            }
-
-                                        }// fin de validacion factura doble.
-
-                                    } //Validacion facturas_contratos
-
-                                }
-                                }//validacion que no se creen dos el mismo dia
-                            }
-                        } //Comentando factura abierta del mes pasado
-
-                    } catch (\Exception $e) {
-                        Log::error("Error procesando contrato {$contrato->nro}: " . $e->getMessage() . " en línea " . $e->getLine());
-                    }
-                } // fin foreach contratos.
-            }
+                                            } // end if ($contrato->saldo_favor >= ...)
+                                        } // closes foreach ($contratos_multiples as $cm)
+                                    } // closes if (Factura::where...->count() <= 1)
+                                } // closes if (!DB::table facturas_contratos)
+                            } // closes else creation
+                        } // closes if (!$fac || ...)
+                    } // closes if (isset($fac->vencimiento))
+                } // closes if (isset($fac->estatus))
+            } // closes if ($mesActualFactura != ...)
+        } catch (\Exception $e) {
+            Log::error("Error procesando contrato {$contrato->nro}: " . $e->getMessage() . " en línea " . $e->getLine());
+        }
+    } // fin foreach contratos.
 
             if(isset($nro)){
                 $nro->inicio = $nro->inicio+1;
