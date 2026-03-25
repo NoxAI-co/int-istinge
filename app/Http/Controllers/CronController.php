@@ -907,6 +907,7 @@ class CronController extends Controller
             ## ENVIO SMS ##
         }
     }
+}
 
     //Pago automatico que se genera cuando el cliente tiene saldo a favor.
     public static function pagoFacturaAutomatico($factura){
