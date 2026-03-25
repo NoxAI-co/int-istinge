@@ -2598,12 +2598,11 @@ class Controller extends BaseController
         $inicio = $nro->inicio;
 
         // Validacion para que solo asigne numero consecutivo si no existe.
-        while (Factura::where('codigo',$nro->prefijo.$inicio)->first()) {
-            $nro = $nro->fresh();
-            $inicio=$nro->inicio;
+        while (Factura::where('codigo',$nro->prefijo.$nro->inicio)->first()) {
             $nro->inicio += 1;
             $nro->save();
         }
+        $inicio = $nro->inicio;
 
         $electronica = Factura::booleanFacturaElectronica($contrato->client_id);
         $tipo = 1; //1= normal, 2=Electrónica.

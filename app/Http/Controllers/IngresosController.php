@@ -3824,7 +3824,7 @@ class IngresosController extends Controller
             $vendedor = Vendedor::where('id', $contrato->vendedor)->where('empresa', $empresa->id)->first();
             if (!$vendedor) {
                 // Fallback a vendedor por defecto habilitado de la empresa
-                $vendedor = Vendedor::where('empresa', $empresa->id)->where('status', 1)->first();
+                $vendedor = Vendedor::where('empresa', $empresa->id)->where('estado', 1)->first();
                 if (!$vendedor) {
                     // Fallback a cualquier vendedor de la empresa
                     $vendedor = Vendedor::where('empresa', $empresa->id)->first();

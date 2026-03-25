@@ -510,7 +510,7 @@ class CronController extends Controller
                                         // Asignación de vendedor dinámica (Corrección integridad SQL)
                                         $vendedor = Vendedor::where('id', $contrato->vendedor)->where('empresa', 1)->first();
                                         if (!$vendedor) {
-                                            $vendedor = Vendedor::where('empresa', 1)->where('status', 1)->first();
+                                            $vendedor = Vendedor::where('empresa', 1)->where('estado', 1)->first();
                                             if (!$vendedor) {
                                                 $vendedor = Vendedor::where('empresa', 1)->first();
                                             }
