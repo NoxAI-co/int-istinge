@@ -2671,9 +2671,18 @@ class ReportesController extends Controller
                 'factura.vencimiento',
                 'factura.estatus',
                 'factura.empresa',
-                'factura.emitida'
+                'factura.emitida',
+                'last_pago.pago_fecha',
+                'last_pago.pago_nro'
             )
+            ->leftJoin(DB::raw('(SELECT if1.factura, i.fecha as pago_fecha, i.nro as pago_nro 
+                                 FROM ingresos_factura if1 
+                                 JOIN ingresos i ON if1.ingreso = i.id 
+                                 WHERE i.estatus <> 2 
+                                 AND if1.id = (SELECT MAX(if2.id) FROM ingresos_factura if2 JOIN ingresos i2 ON if2.ingreso = i2.id WHERE if2.factura = if1.factura AND i2.estatus <> 2)
+                                ) as last_pago'), 'factura.id', '=', 'last_pago.factura')
             ->where('factura.tipo', 2)
+
             ->where('factura.empresa', Auth::user()->empresa)
             ->groupBy('factura.id');
 
