@@ -451,7 +451,7 @@ class CronController extends Controller
                             ){
 
                                 if(!$fac || isset($fac) && $fecha != $fac->fecha){
-                                    $numero=round(floatval($numero));+1;
+                                    $numero = round(floatval($numero)) + 1;
 
                                     //Obtenemos el número depende del contrato que tenga asignado (con fact electrpinica o estandar).
                                     $nro = NumeracionFactura::tipoNumeracion($contrato);
@@ -542,82 +542,86 @@ class CronController extends Controller
                                             $fechaActual = Carbon::now()->format('Y-m-d');
 
                                             ## Se carga el item a la factura (Plan de Internet) ##
-                                            if($contrato->plan_id){
+                                            if ($contrato->plan_id) {
                                                 $plan = PlanesVelocidad::find($cm->plan_id);
-                                                $item = Inventario::find($plan->item);
-                                                $item_reg = new ItemsFactura;
-                                                $item_reg->factura     = $factura->id;
-                                                $item_reg->producto    = $item->id;
-                                                $item_reg->ref         = $item->ref;
-                                                $item_reg->precio      = $item->precio;
+                                                if ($plan) {
+                                                    $item = Inventario::find($plan->item);
+                                                    if ($item) {
+                                                        $item_reg = new ItemsFactura;
+                                                        $item_reg->factura     = $factura->id;
+                                                        $item_reg->producto    = $item->id;
+                                                        $item_reg->ref         = $item->ref;
+                                                        $item_reg->precio      = $item->precio;
 
-                                                // Precio personalizado internet
-                                                if(isset($cm->precio_personalizado_internet) && $cm->precio_personalizado_internet > 0){
-                                                    $item_reg->precio = $cm->precio_personalizado_internet;
-                                                }
+                                                        // Precio personalizado internet
+                                                        if (isset($cm->precio_personalizado_internet) && $cm->precio_personalizado_internet > 0) {
+                                                            $item_reg->precio = $cm->precio_personalizado_internet;
+                                                        }
 
-                                                $item_reg->descripcion = $plan->name;
-                                                $item_reg->id_impuesto = $item->id_impuesto;
-                                                $item_reg->impuesto    = $item->impuesto;
-                                                if($cm->iva_factura == 1){
-                                                    $item_reg->id_impuesto = 1;
-                                                    $item_reg->impuesto = 19;
-                                                }
-                                                $item_reg->cant        = 1;
+                                                        $item_reg->descripcion = $plan->name;
+                                                        $item_reg->id_impuesto = $item->id_impuesto;
+                                                        $item_reg->impuesto    = $item->impuesto;
+                                                        if ($cm->iva_factura == 1) {
+                                                            $item_reg->id_impuesto = 1;
+                                                            $item_reg->impuesto = 19;
+                                                        }
+                                                        $item_reg->cant        = 1;
 
-                                                if($descuentoHasta != null && $fechaActual <= $descuentoHasta){
-                                                    $item_reg->desc        = $cm->descuento;
+                                                        if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                                                            $item_reg->desc        = $cm->descuento;
 
-                                                    if($cm->descuento_pesos != null && $descuentoPesos == 0){
-                                                        $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
-                                                        $descuentoPesos = 1;
+                                                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                                                $descuentoPesos = 1;
+                                                            }
+                                                        } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                                                            $item_reg->desc        = $cm->descuento;
+
+                                                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                                                $descuentoPesos = 1;
+                                                            }
+                                                        }
+
+                                                        $item_reg->save();
                                                     }
-                                                }else if($descuentoHasta == null || $descuentoHasta == ""){
-                                                    $item_reg->desc        = $cm->descuento;
-
-                                                    if($cm->descuento_pesos != null && $descuentoPesos == 0){
-                                                        $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
-                                                        $descuentoPesos = 1;
-                                                    }
                                                 }
-
-                                                $item_reg->save();
                                             }
-
                                             ## Se carga el item a la factura (Plan de Televisión) ##
-                                            if($cm->servicio_tv){
+                                            if ($cm->servicio_tv) {
                                                 $item = Inventario::find($cm->servicio_tv);
-                                                $item_reg = new ItemsFactura;
-                                                $item_reg->factura     = $factura->id;
-                                                $item_reg->producto    = $item->id;
-                                                $item_reg->ref         = $item->ref;
-                                                $item_reg->precio      = $item->precio;
+                                                if ($item) {
+                                                    $item_reg = new ItemsFactura;
+                                                    $item_reg->factura     = $factura->id;
+                                                    $item_reg->producto    = $item->id;
+                                                    $item_reg->ref         = $item->ref;
+                                                    $item_reg->precio      = $item->precio;
 
-                                                // Precio personalizado TV
-                                                if(isset($cm->precio_personalizado_tv) && $cm->precio_personalizado_tv > 0){
-                                                    $item_reg->precio = $cm->precio_personalizado_tv;
-                                                }
-
-                                                $item_reg->descripcion = $item->producto;
-                                                $item_reg->id_impuesto = $item->id_impuesto;
-                                                $item_reg->impuesto    = $item->impuesto;
-                                                $item_reg->cant        = 1;
-
-                                                if($descuentoHasta != null && $fechaActual <= $descuentoHasta){
-                                                    $item_reg->desc        = $cm->descuento;
-                                                    if($cm->descuento_pesos != null && $descuentoPesos == 0){
-                                                        $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
-                                                        $descuentoPesos = 1;
+                                                    // Precio personalizado TV
+                                                    if (isset($cm->precio_personalizado_tv) && $cm->precio_personalizado_tv > 0) {
+                                                        $item_reg->precio = $cm->precio_personalizado_tv;
                                                     }
-                                                }elseif($descuentoHasta == null || $descuentoHasta == ""){
-                                                    $item_reg->desc        = $cm->descuento;
-                                                    if($cm->descuento_pesos != null && $descuentoPesos == 0){
-                                                        $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
-                                                        $descuentoPesos = 1;
-                                                    }
-                                                }
 
-                                                $item_reg->save();
+                                                    $item_reg->descripcion = $item->producto;
+                                                    $item_reg->id_impuesto = $item->id_impuesto;
+                                                    $item_reg->impuesto    = $item->impuesto;
+                                                    $item_reg->cant        = 1;
+                                                    $item_reg->desc        = $cm->descuento;
+
+                                                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                                                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                                            $descuentoPesos = 1;
+                                                        }
+                                                    } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                                                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                                            $descuentoPesos = 1;
+                                                        }
+                                                    }
+
+                                                    $item_reg->save();
+                                                }
                                             }
 
                                             ## Se carga el item de otro tipo de servicio ##
