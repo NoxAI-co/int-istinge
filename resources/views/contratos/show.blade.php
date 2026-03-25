@@ -153,97 +153,232 @@
 						</tr>
 						@endif
 						<tr>
+							<th width="30%">Nro. Contrato</th>
+							<td>{{ $contrato->nro }}</td>
+						</tr>
+						<tr>
 							<th>Estado Contrato</th>
 							<td>
 							    <strong class="text-{{$contrato->status('true')}}">{{$contrato->status()}}</strong>
 							</td>
 						</tr>
-						@if($contrato->tipo_contrato)
 						<tr>
 							<th>Tipo Contrato</th>
-							<td>
-							    {{ucfirst($contrato->tipo_contrato)}}
-							</td>
+							<td>{{ ucfirst($contrato->tipo_contrato) ?? 'N/A' }}</td>
 						</tr>
-						@endif
 						<tr>
 							<th>Dirección IP</th>
 							<td><a href="http://{{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }}" target="_blank">{{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }} <i class="fas fa-external-link-alt"></i></a></td>
 						</tr>
-						@if($contrato->address_street)
+						<tr>
+							<th>Dirección IP Secundaria</th>
+							<td>{{ $contrato->ip_new ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Tipo de Conexión</th>
+							<td>
+								@if($contrato->conexion == 1) PPPOE
+								@elseif($contrato->conexion == 2) DHCP
+								@elseif($contrato->conexion == 3) IP Estática
+								@elseif($contrato->conexion == 4) VLAN
+								@else N/A @endif
+							</td>
+						</tr>
+						<tr>
+							<th>Tecnología</th>
+							<td>
+								@if($contrato->tecnologia == 1) Fibra
+								@elseif($contrato->tecnologia == 2) Inalámbrica
+								@elseif($contrato->tecnologia == 3) Cableado UTP
+								@else N/A @endif
+							</td>
+						</tr>
+						<tr>
+							<th>Usuario PPPOE/Hotspot</th>
+							<td>{{ $contrato->usuario ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Contraseña PPPOE/Hotspot</th>
+							<td>{{ $contrato->password ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Segmento de IP / Local Address</th>
+							<td>{{ $contrato->local_address ?? $contrato->local_adress_pppoe ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Segmento de IP Secundario</th>
+							<td>{{ $contrato->local_address_new ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Segmento de IP Terciario</th>
+							<td>{{ $contrato->local_address_new_2 ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Profile</th>
+							<td>{{ $contrato->profile ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>ID VLAN</th>
+							<td>{{ $contrato->id_vlan ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Nombre VLAN</th>
+							<td>{{ $contrato->name_vlan ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Simple Queue</th>
+							<td>{{ ucfirst($contrato->simple_queue) ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Interfaz</th>
+							<td>{{ $contrato->interfaz ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Dirección MAC</th>
+							<td>{{ $contrato->mac_address ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Serial ONU</th>
+							<td>{{ $contrato->serial_onu ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Línea</th>
+							<td>{{ $contrato->linea ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Estrato</th>
+							<td>{{ $contrato->estrato ?? 'N/A' }}</td>
+						</tr>
 						<tr>
 							<th>Dirección de Instalación</th>
-							<td>{{ $contrato->address_street }}</td>
+							<td>{{ $contrato->address_street ?? 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->latitude && $contrato->longitude)
 						@php
-						    $url = 'https://www.google.com/maps/search/'.$contrato->latitude.','.$contrato->longitude.'?hl=es';
+						    $url = ($contrato->latitude && $contrato->longitude) ? 'https://www.google.com/maps/search/'.$contrato->latitude.','.$contrato->longitude.'?hl=es' : null;
 						 @endphp
 						<tr>
 							<th>Dirección GPS</th>
-							<td>({{$contrato->latitude}} {{$contrato->longitude}}) <a href="{{ $url }}" target="_blank">Ver en Google Maps <i class="fas fa-external-link-alt"></i></a></td>
+							<td>
+								@if($url)
+									({{$contrato->latitude}} {{$contrato->longitude}}) <a href="{{ $url }}" target="_blank">Ver en Google Maps <i class="fas fa-external-link-alt"></i></a>
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
-						@if($contrato->puerto_conexion)
+						<tr>
+							<th>Usuario WiFi</th>
+							<td>{{ $contrato->usuario_wifi ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Contraseña WiFi</th>
+							<td>{{ $contrato->contrasena_wifi ?? 'N/A' }}</td>
+						</tr>
 						<tr>
 							<th>Puerto de Conexión</th>
-							<td>{{ $contrato->puerto->nombre }}</td>
+							<td>{{ $contrato->puerto->nombre ?? 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->ip_new)
-						<tr>
-							<th>Dirección IP</th>
-							<td>{{ $contrato->ip_new }}</td>
-						</tr>
-						@endif
-						@if($contrato->mac_address)
-						<tr>
-							<th>Dirección MAC</th>
-							<td>{{ $contrato->mac_address }}</td>
-						</tr>
-						@endif
-						@if($contrato->interfaz)
-						<tr>
-							<th>Interfaz</th>
-							<td>{{ $contrato->interfaz }}</td>
-						</tr>
-						@endif
-						@if($contrato->marca_antena)
 						<tr>
 							<th>Antena</th>
-							<td>{{ $contrato->marca_antena()->nombre }} @if($contrato->modelo_antena) - {{$contrato->modelo_antena}} @endif</td>
+							<td>
+								@if($contrato->marca_antena)
+									{{ $contrato->marca_antena()->nombre }} @if($contrato->modelo_antena) - {{$contrato->modelo_antena}} @endif
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
-						@if($contrato->marca_router)
 						<tr>
 							<th>Router</th>
-							<td>{{ $contrato->marca_router()->nombre }} @if($contrato->modelo_router) - {{$contrato->modelo_router}} @endif</td>
+							<td>
+								@if($contrato->marca_router)
+									{{ $contrato->marca_router()->nombre }} @if($contrato->modelo_router) - {{$contrato->modelo_router}} @endif
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
-						@if($contrato->nodo)
+						<tr>
+							<th>Tipo Módem</th>
+							<td>{{ $contrato->tipo_moden ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Serial Módem</th>
+							<td>{{ $contrato->serial_moden ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>IP Receptora</th>
+							<td>{{ $contrato->ip_receptora ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Puerto Receptor</th>
+							<td>{{ $contrato->puerto_receptor ?? 'N/A' }}</td>
+						</tr>
 						<tr>
 							<th>Nodo Asociado</th>
-							@if($contrato->nodo())
-							<td><a href="{{ route('nodos.show',$contrato->nodo()->id )}}" target="_blank"><strong>{{ $contrato->nodo()->nombre }}</strong></a></td>
-						@endif
+							<td>
+								@if($contrato->nodo())
+									<a href="{{ route('nodos.show',$contrato->nodo()->id )}}" target="_blank"><strong>{{ $contrato->nodo()->nombre }}</strong></a>
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
-						@if($contrato->ap)
 						<tr>
 							<th>Access Point Asociado</th>
-							<td><a href="{{ route('access-point.show',$contrato->ap()->id )}}" target="_blank"><strong>{{ $contrato->ap()->nombre }}</strong></a></td>
+							<td>
+								@if($contrato->ap())
+									<a href="{{ route('access-point.show',$contrato->ap()->id )}}" target="_blank"><strong>{{ $contrato->ap()->nombre }}</strong></a>
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
-						@if($contrato->server_configuration_id)
 						<tr>
 							<th>Servidor Asociado</th>
-							<td><a href="{{ route('mikrotik.show',$contrato->server_configuration_id )}}" target="_blank"><strong>{{ $contrato->servidor()->nombre }}</strong></a></td>
+							<td>
+								@if($contrato->servidor())
+									<a href="{{ route('mikrotik.show',$contrato->server_configuration_id )}}" target="_blank"><strong>{{ $contrato->servidor()->nombre }}</strong></a>
+								@else
+									N/A
+								@endif
+							</td>
 						</tr>
-						@endif
+						<tr>
+							<th>Caja NAP</th>
+							<td>{{ $contrato->cajanap() ? $contrato->cajanap()->nombre : 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Puerto Caja NAP</th>
+							<td>{{ $contrato->cajanap_puerto ?? 'N/A' }}</td>
+						</tr>
 						<tr>
 							<th>Tipo de Facturación</th>
 							<td>{{ $contrato->facturacion() }}</td>
+						</tr>
+						<tr>
+							<th>Grupo de Corte</th>
+							<td>{{ $contrato->grupo_corte() ? $contrato->grupo_corte()->nombre : 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Facturación Individual</th>
+							<td>{{ $contrato->factura_individual == 1 ?'Si':'No' }}</td>
+						</tr>
+						<tr>
+							<th>Iva Aplicado</th>
+							<td>{{ $contrato->iva_factura == 1 ?'Si':'No' }}</td>
+						</tr>
+						<tr>
+							<th>Prorrateo</th>
+							<td>{{ $contrato->prorrateo == 1 ?'Si':'No' }}</td>
+						</tr>
+						<tr>
+							<th>Facturar Primer Mes</th>
+							<td>{{ $contrato->fact_primer_mes == 1 ?'Si':'No' }}</td>
+						</tr>
+						<tr>
+							<th>Sincronización Pagos Siigo</th>
+							<td>{{ $contrato->pago_siigo_contrato == 1 ?'Si':'No' }}</td>
 						</tr>
 						<tr>
 							<th>Plan Contratado</th>
@@ -270,29 +405,52 @@
 							<th>Valor otro servicio</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ number_format($servicio_otro->precio, 0, ',', '.') }}</td>
 						</tr>
+						@if($contrato->rd_item_vencimiento == 1)
+						<tr>
+							<th>Vencimiento Ítem Otro</th>
+							<td>{{ $contrato->dt_item_hasta ?? 'N/A' }}</td>
+						</tr>
 						@endif
-						@if($contrato->costo_reconexion>0)
+						@endif
 						<tr>
 							<th>Costo de Reconexión</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->costo_reconexion) }}</td>
 						</tr>
-						@endif
-						@if($contrato->descuento)
 						<tr>
 							<th>Descuento</th>
-							<td>{{ $contrato->descuento }}%</td>
+							<td>
+								@if($contrato->descuento) {{ $contrato->descuento }}% @endif
+								@if($contrato->descuento && $contrato->descuento_pesos) - @endif
+								@if($contrato->descuento_pesos) {{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->descuento_pesos) }} @endif
+								@if(!$contrato->descuento && !$contrato->descuento_pesos) N/A @endif
+							</td>
+						</tr>
+						@if($contrato->fecha_hasta_desc)
+						<tr>
+							<th>Descuento Válido Hasta</th>
+							<td>{{ date('d-m-Y', strtotime($contrato->fecha_hasta_desc)) }}</td>
 						</tr>
 						@endif
-						@if($contrato->contrato_permanencia)
 						<tr>
 							<th>Contrato de Permanencia</th>
-							<td>{{ $contrato->contrato_permanencia('completa') }}</td>
+							<td>{{ $contrato->contrato_permanencia == 1 ? 'Si' : 'No' }} @if($contrato->contrato_permanencia == 1 && $contrato->contrato_permanencia_meses) ({{ $contrato->contrato_permanencia_meses }} meses) @endif</td>
 						</tr>
-						@endif
-						@if($contrato->factura_individual)
 						<tr>
-							<th>Facturación Individual</th>
-							<td>{{ $contrato->factura_individual == 1 ?'Si':'No' }}</td>
+							<th>Fecha de Suspensión Personalizada</th>
+							<td>{{ $contrato->fecha_suspension ?? 'Ninguna' }}</td>
+						</tr>
+						<tr>
+							<th>No Suspensión Automática</th>
+							<td>{{ $contrato->tipo_nosuspension == 1 ? 'Habilitado' : 'Deshabilitado' }}</td>
+						</tr>
+						@if($contrato->tipo_nosuspension == 1)
+						<tr>
+							<th>Fecha Desde No Suspensión</th>
+							<td>{{ $contrato->fecha_desde_nosuspension ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Fecha Hasta No Suspensión</th>
+							<td>{{ $contrato->fecha_hasta_nosuspension ?? 'N/A' }}</td>
 						</tr>
 						@endif
 						@if($contrato->adjunto_a)
@@ -319,36 +477,26 @@
 							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_d)}}" target="_blank"><strong>Ver {{ $contrato->referencia_d }}</strong></a></td>
 						</tr>
 						@endif
-						@if($contrato->oficina())
 						<tr>
 							<th>Oficina Asociada</th>
-							<td>{{ $contrato->oficina()->nombre }}</td>
+							<td>{{ $contrato->oficina() ? $contrato->oficina()->nombre : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->vendedor)
 						<tr>
 							<th>Vendedor</th>
-							<td>{{ $contrato->vendedor()->nombre }}</td>
+							<td>{{ $contrato->vendedor() ? $contrato->vendedor()->nombre : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->canal)
 						<tr>
 							<th>Canal de Venta</th>
-							<td>{{ $contrato->canal()->nombre }}</td>
+							<td>{{ $contrato->canal() ? $contrato->canal()->nombre : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->observaciones)
 						<tr>
 							<th>Observaciones</th>
-							<td>{{ $contrato->observaciones }}</td>
+							<td>{{ $contrato->observaciones ?? 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->creador)
 						<tr>
 							<th>Contrato Registrado por</th>
-							<td>{{ $contrato->creador }}</td>
+							<td>{{ $contrato->creador ?? 'N/A' }}</td>
 						</tr>
-						@endif
 						<tr>
 							<th>Contrato Registrado el</th>
 							<td>
@@ -380,58 +528,50 @@
 						<tr>
 							<th class="bg-th text-center" colspan="2" style="font-size: 1em;"><strong>SERVICIO DE TELEVISIÓN</strong></th>
 						</tr>
-						@if($contrato->vendedor)
 						<tr>
 							<th>Vendedor</th>
-							<td>{{ $contrato->vendedor()->nombre }}</td>
+							<td>{{ $contrato->vendedor() ? $contrato->vendedor()->nombre : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->canal)
 						<tr>
 							<th>Canal de Venta</th>
-							<td>{{ $contrato->canal()->nombre }}</td>
+							<td>{{ $contrato->canal() ? $contrato->canal()->nombre : 'N/A' }}</td>
 						</tr>
-						@endif
 						<tr>
 							<th width="20%">Plan Contratado</th>
 							<td><a href="{{route('inventario.show',$contrato->servicio_tv)}}" target="_blank"><strong>{{ $inventario->producto }}</strong></a></td>
 						</tr>
 						<tr>
+							<th>SN / MAC</th>
+							<td>{{ $contrato->olt_sn_mac ?? 'N/A' }}</td>
+						</tr>
+						<tr>
+							<th>Estado CATV</th>
+							<td><strong class="text-{{ $contrato->state_olt_catv == 1 ? 'success' : 'danger' }}">{{ $contrato->state_olt_catv == 1 ? 'Habilitado' : 'Deshabilitado' }}</strong></td>
+						</tr>
+						<tr>
 							<th>Precio del Plan Contratado</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($inventario->precio) }}</td>
 						</tr>
-						@if($contrato->precio_personalizado_tv)
 						<tr>
 							<th>Precio Personalizado TV</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_tv) }}</td>
+							<td>{{ $contrato->precio_personalizado_tv ? Auth::user()->empresa()->moneda . ' ' . App\Funcion::Parsear($contrato->precio_personalizado_tv) : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->costo_reconexion>0)
 						<tr>
 							<th>Costo de Reconexión</th>
 							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->costo_reconexion) }}</td>
 						</tr>
-						@endif
-						@if($contrato->descuento)
 						<tr>
 							<th>Descuento</th>
-							<td>{{ $contrato->descuento }}%</td>
+							<td>{{ $contrato->descuento ? $contrato->descuento . '%' : 'N/A' }}</td>
 						</tr>
-						@endif
-						@if($contrato->contrato_permanencia)
 						<tr>
 							<th>Contrato de Permanencia</th>
-							<td>{{ $contrato->contrato_permanencia('completa') }}</td>
+							<td>{{ $contrato->contrato_permanencia == 1 ? 'Si' : 'No' }}</td>
 						</tr>
-						@endif
-						@if($contrato->tipo_contrato)
 						<tr>
 							<th>Tipo Contrato</th>
-							<td>
-							    {{ucfirst($contrato->tipo_contrato)}}
-							</td>
+							<td>{{ ucfirst($contrato->tipo_contrato) ?? 'N/A' }}</td>
 						</tr>
-						@endif
                         <tr>
 							<th>Contrato Registrado el</th>
 							<td>

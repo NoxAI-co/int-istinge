@@ -159,7 +159,7 @@
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Fecha <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control datepicker"  id="fecha"  name="fecha" disabled="" value="{{date('d-m-Y', strtotime($factura->fecha))}}"  >
+                            <input type="text" class="form-control datepicker"  id="fecha" value="{{date('d-m-Y', strtotime($factura->fecha))}}" name="fecha"  >
                         </div>
                     </div>
                     <div class="form-group row">
@@ -176,7 +176,13 @@
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Vencimiento <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control datepickerinput" id="vencimiento" value="{{date('d-m-Y', strtotime($factura->vencimiento))}}" name="vencimiento" disabled="">
+                            <input type="date" class="form-control" id="vencimiento_new" value="{{date('Y-m-d', strtotime($factura->vencimiento))}}" name="vencimiento">
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Pago Oportuno <span class="text-danger">*</span></label>
+                        <div class="col-sm-8">
+                            <input type="date" class="form-control" id="pago_oportuno" value="{{date('Y-m-d', strtotime($factura->pago_oportuno))}}" name="pago_oportuno" required="">
                         </div>
                     </div>
                     <div class="form-group row">
@@ -674,6 +680,57 @@
             var prefijo = $('#prefijo-codigo').val();
             var numero = $(this).val();
             $('#codigo-completo').val(prefijo + numero);
+        });
+
+        // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
+        $('#form-factura').on('submit', function() {
+            $('#vencimiento_new').removeAttr('disabled');
+            $('#fecha').removeAttr('disabled');
+        });
+
+        // Bloqueo de recalculo automático para Pago Oportuno en EDIT
+        var valorOriginalPagoOportuno = $('#pago_oportuno').val();
+        var valorOriginalVencimiento = $('#vencimiento_new').val();
+        
+        function restaurarOriginales() {
+            if ($('#editfactura').val() == 1) {
+                $('#pago_oportuno').val(valorOriginalPagoOportuno);
+                $('#vencimiento_new').val(valorOriginalVencimiento);
+            }
+        }
+
+        // Restaurar al inicio con un ligero retraso para asegurar que custom.js haya terminado
+        setTimeout(restaurarOriginales, 500);
+
+        // Cuando cambie el plazo, permitimos que se actualice el VENCIMIENTO pero NO el PAGO OPORTUNO
+        $('#plazo').on('change', function() {
+            var dias = $('#plazo option:selected').attr('dias');
+            if ($.isNumeric(dias)) {
+                // Para type="date", el valor debe estar en YYYY-MM-DD
+                var fechaBase = $('#fecha').val(); // Si fecha sigue siendo text d-m-Y
+                var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                if (!momentBase.isValid()) {
+                    momentBase = moment(fechaBase, "YYYY-MM-DD");
+                }
+                
+                var nuevaFecha = momentBase.add(dias, 'days');
+                $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
+                valorOriginalVencimiento = $('#vencimiento_new').val();
+            }
+            // Mantenemos el pago oportuno intacto
+            setTimeout(function() {
+                $('#pago_oportuno').val(valorOriginalPagoOportuno);
+            }, 100);
+        });
+
+        // Si el usuario cambia manualmente el pago oportuno, solo se actualiza ese campo
+        $('#pago_oportuno').on('change', function() {
+            valorOriginalPagoOportuno = $(this).val();
+        });
+
+        // Si cambia manualmente el vencimiento
+        $('#vencimiento_new').on('change', function() {
+            valorOriginalVencimiento = $(this).val();
         });
     });
 

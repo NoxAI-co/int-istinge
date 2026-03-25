@@ -178,7 +178,7 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Fecha <span class="text-danger">*</span> <a><i data-tippy-content="Fecha en la que se realiza la factura de venta" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<input type="text" class="form-control"  id="fecha" value="{{$fecha}}" name="fecha" disabled=""  >
+	  				<input type="text" class="form-control datepicker"  id="fecha" value="{{$fecha}}" name="fecha"  >
 	  			</div>
   			</div>
   			<div class="form-group row">
@@ -194,7 +194,13 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Vencimiento <span class="text-danger">*</span><a><i data-tippy-content="Fecha de vencimiento de la factura, se calcula automaticamente si se define el plazo" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<input type="text" class="form-control datepicker" id="vencimiento" value="{{$fecha}}" name="vencimiento" disabled="">
+	  				<input type="date" class="form-control" id="vencimiento_new" value="{{date('Y-m-d', strtotime($fecha))}}" name="vencimiento">
+	  			</div>
+  			</div>
+  			<div class="form-group row">
+  				<label class="col-sm-4 col-form-label">Pago Oportuno <span class="text-danger">*</span><a><i data-tippy-content="Fecha de pago oportuno de la factura" class="icono far fa-question-circle"></i></a></label>
+	  			<div class="col-sm-8">
+	  				<input type="date" class="form-control" id="pago_oportuno" value="{{date('Y-m-d', strtotime($fecha))}}" name="pago_oportuno" required="">
 	  			</div>
   			</div>
         <div class="form-group row">
@@ -798,4 +804,21 @@
     }
     </script>
 
+    <script>
+        $(document).ready(function() {
+            // Al cambiar el plazo, actualizar vencimiento pero dejar pago oportuno manual
+            $('#plazo').on('change', function() {
+                var dias = $('#plazo option:selected').attr('dias');
+                if ($.isNumeric(dias)) {
+                    var fechaBase = $('#fecha').val();
+                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                    if (!momentBase.isValid()) {
+                        momentBase = moment(fechaBase, "YYYY-MM-DD");
+                    }
+                    var nuevaFecha = momentBase.add(dias, 'days');
+                    $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
+                }
+            });
+        });
+    </script>
 @endsection

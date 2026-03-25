@@ -1983,7 +1983,7 @@ class FacturasController extends Controller{
         $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
         $factura->vencimiento= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->suspension= Carbon::parse($request->vencimiento)->format('Y-m-d');
-        $factura->pago_oportuno = date('Y-m-d', strtotime("+".($request->plazo-1)." days", strtotime($request->fecha)));
+        $factura->pago_oportuno = Carbon::parse($request->pago_oportuno)->format('Y-m-d');
         $factura->observaciones=mb_strtolower($request->observaciones);
         $factura->vendedor=$request->vendedor;
         $factura->lista_precios=$request->lista_precios;
@@ -2303,6 +2303,7 @@ class FacturasController extends Controller{
                 // Validación Anti-Duplicidad y Bloqueo DIAN
                 if ($request->has('codigo') && $request->codigo != $factura->codigo) {
                     // 1. Validar si ya tuvo intento en la DIAN
+                                    
                     if ($factura->emitida == 1 || $factura->uuid != null || $factura->dian_response != null) {
                         return back()->with('error', 'No se puede modificar el código de esta factura porque ya tiene un registro de emisión o intento de envío a la DIAN.');
                     }
@@ -2312,6 +2313,8 @@ class FacturasController extends Controller{
                         ->where('codigo', $request->codigo)
                         ->where('id', '!=', $id)
                         ->exists();
+
+                                
 
                     if ($existeCodigo) {
                         return back()->with('error', 'El código de factura ' . $request->codigo . ' ya está en uso por otra factura. Intente con otro número.');
@@ -2339,12 +2342,8 @@ class FacturasController extends Controller{
                 $factura->factura_mes_manual = isset($request->factura_mes_manual) ? $request->factura_mes_manual : 0;
                 $factura->periodo_cobrado_text = isset($request->periodo_cobrado_text) ? $request->periodo_cobrado_text : '';
 
-                if($request->plazo != "n"){
-                    $factura->pago_oportuno = date('Y-m-d', strtotime("+".($request->plazo-1)." days", strtotime($request->fecha)));
-                }else{
-                    $factura->pago_oportuno =$factura->vencimiento;
-                }
-
+                $factura->pago_oportuno = Carbon::parse($request->pago_oportuno)->format('Y-m-d');
+                
                 // Registrar log de cambio de fecha de vencimiento si hubo modificación
                 // El método registrarLogCambioFactura solo registra si los valores son diferentes
                 $this->registrarLogCambioFactura(
@@ -2542,9 +2541,13 @@ class FacturasController extends Controller{
                         ]);
                     }
                 }
-
+                
                 $mensaje='Se ha modificado satisfactoriamente la factura';
-                return redirect($request->page)->with('success', $mensaje)->with('codigo', $factura->id);
+
+                if($factura->tipo == 2){
+                    return redirect('empresa/facturas/facturas_electronica')->with('success', $mensaje)->with('codigo', $factura->id);
+                }
+                return redirect('empresa/factura-index')->with('success', $mensaje)->with('codigo', $factura->id);
             }
             return redirect('empresa/facturas/facturas_electronica')->with('success', 'La factura de venta '.$factura->codigo.' ya esta cerrada');
         }

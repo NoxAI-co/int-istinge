@@ -450,4 +450,8 @@ class Contrato extends Model
     public function contratoDigital(){
         return $this->hasOne(ContratoDigital::class, 'contrato_id');
     }
+
+    public function cajanap(){
+        return CajaNap::find($this->cajanap_id);
+    }
 }
