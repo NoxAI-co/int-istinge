@@ -760,7 +760,7 @@ class GruposCorteController extends Controller
                 'message' => 'Proceso de generación de facturas finalizado para el grupo ' . $grupo->nombre
             ]);
         } catch (\Exception $e) {
-            Log::error("Error en generación manual de facturas: " . $e->getMessage());
+            Log::error("Error en generación manual de facturas: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false, 
                 'message' => 'Ocurrió un error: ' . $e->getMessage()
