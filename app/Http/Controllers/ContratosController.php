@@ -1374,7 +1374,11 @@ class ContratosController extends Controller
 
             //Opcion de crear factrua con prorrateo
             if($contrato->prorrateo == 1){
-                $this->createFacturaProrrateo($contrato);
+                try {
+                    $this->createFacturaProrrateo($contrato);
+                } catch (\Exception $e) {
+                    return redirect('empresa/contratos/' . $contrato->id)->with('danger', 'CONTRATO CREADO PERO NO SE PUDO GENERAR LA FACTURA: ' . $e->getMessage());
+                }
             }
 
             if ($registro) {
@@ -1528,7 +1532,11 @@ class ContratosController extends Controller
 
             //Opcion de crear factrua con prorrateo
             if ($contrato->prorrateo == 1) {
-                $this->createFacturaProrrateo($contrato);
+                try {
+                    $this->createFacturaProrrateo($contrato);
+                } catch (\Exception $e) {
+                    return redirect('empresa/asignaciones/create')->with('cliente_id', $contrato->client_id)->with('danger', 'CONTRATO CREADO PERO NO SE PUDO GENERAR LA FACTURA: ' . $e->getMessage());
+                }
             }
 
             return redirect('empresa/asignaciones/create')->with('cliente_id', $contrato->client_id)->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');

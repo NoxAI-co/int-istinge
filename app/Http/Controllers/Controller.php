@@ -2631,7 +2631,23 @@ class Controller extends BaseController
             $factura->pago_oportuno = $date_pagooportuno;
             $factura->observaciones = 'Factura creada desde contrato - Corte '.$grupo_corte->fecha_corte;
             $factura->bodega        = 1;
-            $factura->vendedor      = 1;
+            // Asignar el vendedor del contrato si existe, si no, buscar uno válido para la empresa.
+            $vendedor_id = $contrato->vendedor;
+            
+            if (!$vendedor_id || !DB::table('vendedores')->where('id', $vendedor_id)->exists()) {
+                $vendedor_default = DB::table('vendedores')->where('empresa', $empresaId)->where('estado', 1)->first();
+                if ($vendedor_default) {
+                    $vendedor_id = $vendedor_default->id;
+                } else {
+                    $vendedor_cualquiera = DB::table('vendedores')->where('empresa', $empresaId)->first();
+                    if ($vendedor_cualquiera) {
+                        $vendedor_id = $vendedor_cualquiera->id;
+                    } else {
+                        throw new \Exception("No hay vendedores creados o activos para esta empresa. Por favor, asegúrese de tener al menos un vendedor creado.");
+                    }
+                }
+            }
+            $factura->vendedor      = $vendedor_id;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 1;
             $factura->factura_mes_manual = 0;

@@ -760,24 +760,22 @@ class CronDianController extends Controller
                 $operacionCodigo = "09";
             }
 
-            // Validación de dia 00 en vencimiento
-            if (substr($facturaLock->vencimiento, -2) == '00' || $facturaLock->vencimiento < Carbon::now()->format("Y-m-d")) {
-                $anoMes = substr($facturaLock->vencimiento, 0, 7);
-                $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
-                $facturaLock->vencimiento = $fecha->toDateString();
-                $facturaLock->save();
-            }
-
-            // Validación de dia 00 en suspension
-            if ($facturaLock->suspension && (substr($facturaLock->suspension, -2) == '00' || $facturaLock->suspension < Carbon::now()->format("Y-m-d"))) {
-                $anoMes = substr($facturaLock->suspension, 0, 7);
-                $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
-                $facturaLock->suspension = $fecha->toDateString();
-                $facturaLock->save();
-            }
+            $vencimientoOriginal = Carbon::parse($facturaLock->vencimiento);
+            $suspensionOriginal = $facturaLock->suspension ? Carbon::parse($facturaLock->suspension) : null;
 
             // Actualizar fecha de emisión
             $facturaLock->fecha = Carbon::now()->format('Y-m-d');
+
+            // LA MISMA REGLA: si hoy > vencimiento original, cambiar a hoy. O si tiene dia 00.
+            if (Carbon::parse($facturaLock->fecha)->gt($vencimientoOriginal) || substr($facturaLock->vencimiento, -2) == '00') {
+                $facturaLock->vencimiento = $facturaLock->fecha;
+            }
+
+            // Aplicar la misma lógica para la fecha de suspensión si existe
+            if ($suspensionOriginal && (Carbon::parse($facturaLock->fecha)->gt($suspensionOriginal) || substr($facturaLock->suspension, -2) == '00')) {
+                $facturaLock->suspension = $facturaLock->fecha;
+            }
+
             $facturaLock->save();
 
             // Construir JSON
