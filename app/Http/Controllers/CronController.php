@@ -798,18 +798,17 @@ class CronController extends Controller
                                             if($contrato->saldo_favor >= $factura->totalAPI($empresa->id)->total && $empresa->aplicar_saldofavor == 1){
                                                 self::pagoFacturaAutomatico($factura);
                                             } // end if ($contrato->saldo_favor >= ...)
-                                        } // closes foreach ($contratos_multiples as $cm)
-                                    } // closes if (Factura::where...->count() <= 1)
-                                } // closes if (!DB::table facturas_contratos)
-                            } // closes else creation
-                        } // closes if (!$fac || ...)
-                    } // closes if (isset($fac->vencimiento))
-                } // closes if (isset($fac->estatus))
-            } // closes if ($mesActualFactura != ...)
-        } catch (\Exception $e) {
-            Log::error("Error procesando contrato {$contrato->nro}: " . $e->getMessage() . " en línea " . $e->getLine());
-        }
-    } // fin foreach contratos.
+                                        } // closes if (Factura::where...->count() <= 1)
+                                    } // closes if (!DB::table facturas_contratos)
+                                } // closes else creation
+                            } // closes if (!$fac || ...)
+                        } // closes if (isset($fac->vencimiento))
+                    } // closes if (isset($fac->estatus))
+                } // closes if ($mesActualFactura != ...)
+            } catch (\Exception $e) {
+                Log::error("Error procesando contrato {$contrato->nro}: " . $e->getMessage() . " en línea " . $e->getLine());
+            }
+        } // fin foreach contratos.
 
             if(isset($nro)){
                 $nro->inicio = $nro->inicio+1;
