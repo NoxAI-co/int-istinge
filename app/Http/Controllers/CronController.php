@@ -286,7 +286,7 @@ class CronController extends Controller
                 'contracts.plan_id', 'contracts.descuento', 'c.nombre', 'c.nit', 'c.celular', 'c.telefono1',
                 'c.saldo_favor','contracts.created_at','contracts.fact_primer_mes',
                 'e.terminos_cond', 'e.notas_fact', 'contracts.servicio_tv',
-                'contracts.factura_individual','contracts.nro','contracts.prorrateo')
+                'contracts.factura_individual','contracts.nro','contracts.prorrateo', 'contracts.vendedor')
                 ->where('contracts.grupo_corte',$grupo_corte->id)->
                 where('contracts.status',1)->
                 // whereIn('contracts.client_id',[645])->
@@ -482,19 +482,16 @@ class CronController extends Controller
                                             $tipo = 2;
                                         }
 
-                                        $inicio = $nro->inicio;
-
                                         // Validacion para que solo asigne numero consecutivo si no existe.
-                                        while (Factura::where('codigo',$nro->prefijo.$inicio)->first()) {
-                                            $nro = $nro->fresh();
-                                            $inicio=$nro->inicio;
+                                        while (Factura::where('codigo',$nro->prefijo.$nro->inicio)->where('empresa', 1)->first()) {
                                             $nro->inicio += 1;
                                             $nro->save();
                                         }
+                                        $facturaCodigo = $nro->prefijo.$nro->inicio;
 
                                         $factura = new Factura;
                                         $factura->nro           = $numero;
-                                        $factura->codigo        = $nro->prefijo.$inicio;
+                                        $factura->codigo        = $facturaCodigo;
                                         $factura->numeracion    = $nro->id;
                                         $factura->plazo         = isset($plazo->id) ? $plazo->id : '';
                                         $factura->term_cond     = $contrato->terminos_cond;
@@ -508,7 +505,16 @@ class CronController extends Controller
                                         $factura->pago_oportuno = $date_pagooportuno;
                                         $factura->observaciones = 'Facturación Automática - Corte '.$grupo_corte->fecha_corte;
                                         $factura->bodega        = 1;
-                                        $factura->vendedor      = 1;
+
+                                        // Asignación de vendedor dinámica (Corrección integridad SQL)
+                                        $vendedor = Vendedor::where('id', $contrato->vendedor)->where('empresa', 1)->first();
+                                        if (!$vendedor) {
+                                            $vendedor = Vendedor::where('empresa', 1)->where('status', 1)->first();
+                                            if (!$vendedor) {
+                                                $vendedor = Vendedor::where('empresa', 1)->first();
+                                            }
+                                        }
+                                        $factura->vendedor      = $vendedor ? $vendedor->id : 1;
                                         $factura->prorrateo_aplicado = 0;
                                         $factura->facturacion_automatica = 1;
                                         $factura->factura_mes_manual = 1;

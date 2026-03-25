@@ -61,6 +61,7 @@ use App\TerminosPago;
 use App\WhatsappMetaLog;
 use App\Helpers\CamposDinamicosHelper;
 use App\PlanesVelocidad;
+use App\Vendedor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -1418,7 +1419,7 @@ class IngresosController extends Controller
                     $movimiento = new MovimientoLOG;
                     $movimiento->contrato    = $contrato->id;
                     $movimiento->modulo      = 5;
-                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a Habilitado por pago de factura<br>';
+                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT (automático)</b> a Habilitado por pago de factura<br>';
                     $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                     $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                     $movimiento->save();
@@ -3773,13 +3774,11 @@ class IngresosController extends Controller
             $numero = round(floatval($numero)) + 1;
 
             // Obtener código siguiente disponible
-            $inicio = $nro->inicio;
-            while (Factura::where('codigo', $nro->prefijo . $inicio)->first()) {
-                $nro = $nro->fresh();
-                $inicio = $nro->inicio;
+            while (Factura::where('codigo', $nro->prefijo . $nro->inicio)->where('empresa', $empresa->id)->first()) {
                 $nro->inicio += 1;
                 $nro->save();
             }
+            $facturaCodigo = $nro->prefijo . $nro->inicio;
 
             // Determinar tipo de factura
             $tipo = 1; // 1 = normal, 2 = Electrónica
@@ -3806,7 +3805,7 @@ class IngresosController extends Controller
             // Crear factura
             $factura = new Factura;
             $factura->nro = $numero;
-            $factura->codigo = $nro->prefijo . $inicio;
+            $factura->codigo = $facturaCodigo;
             $factura->numeracion = $nro->id;
             $factura->plazo = isset($plazo->id) ? $plazo->id : '';
             $factura->term_cond = $contrato->terminos_cond;
@@ -3820,7 +3819,18 @@ class IngresosController extends Controller
             $factura->pago_oportuno = $datePagoOportuno->format('Y-m-d');
             $factura->observaciones = 'Facturación Manual - Corte ' . $grupoCorte->fecha_corte;
             $factura->bodega = 1;
-            $factura->vendedor = 1;
+            
+            // Asignación dinámica del vendedor para evitar errores de integridad (FK)
+            $vendedor = Vendedor::where('id', $contrato->vendedor)->where('empresa', $empresa->id)->first();
+            if (!$vendedor) {
+                // Fallback a vendedor por defecto habilitado de la empresa
+                $vendedor = Vendedor::where('empresa', $empresa->id)->where('status', 1)->first();
+                if (!$vendedor) {
+                    // Fallback a cualquier vendedor de la empresa
+                    $vendedor = Vendedor::where('empresa', $empresa->id)->first();
+                }
+            }
+            $factura->vendedor = $vendedor ? $vendedor->id : 1;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 0;
             $factura->factura_mes_manual = 1;
