@@ -28,6 +28,7 @@ use App\Model\Ingresos\FacturaRetencion;
 use App\Producto;
 use App\Plantilla;
 use Auth;
+use App\Vendedor;
 use App\Services\EmisionesService;
 
 include_once(app_path() .'/../public/routeros_api.class.php');
