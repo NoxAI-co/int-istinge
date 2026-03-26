@@ -168,14 +168,14 @@ class Contrato extends Model
         if($this->nodo){
             return Nodo::find($this->nodo);
         }
-        return 'N/A';
+        return null;
     }
 
     public function ap(){
         if($this->ap){
             return AP::find($this->ap);
         }
-        return 'N/A';
+        return null;
     }
 
     public function marca_antena(){
