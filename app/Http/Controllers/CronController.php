@@ -252,7 +252,7 @@ class CronController extends Controller
         ini_set('max_execution_time', 500);
         setlocale(LC_TIME, 'es_ES.UTF-8', 'es_ES', 'spanish');
         self::limpiarDuplicadosFacturaContratos();
-        self::validateFacturasDuplicadas($fecha);
+        // self::validateFacturasDuplicadas($fecha);
 
         $empresa = Empresa::find(1);
 
