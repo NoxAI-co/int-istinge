@@ -44,9 +44,11 @@ class BillingCycleAnalyzer
             $fechaCiclo = $this->calcularFechaCiclo($grupoCorte, $periodo);
             $empresaId = $grupoCorte->empresa;
 
-            // Total real de contratos del grupo (sin filtro de fecha, solo activos)
-            $totalContratosGrupo = Contrato::where('grupo_corte', $grupoCorteId)
-                ->where('status', 1)
+            // Total real de contratos del grupo (con join para consistencia y filtro de empresa)
+            $totalContratosGrupo = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                ->where('contracts.grupo_corte', $grupoCorteId)
+                ->where('contracts.status', 1)
+                ->where('contracts.empresa', $empresaId)
                 ->count();
             
             // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
@@ -195,6 +197,7 @@ class BillingCycleAnalyzer
         $contratos = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
+            ->where('contracts.empresa', $grupoCorte->empresa)
             // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
             ->where('contracts.created_at', '<=', $fechaFinMes)
             ->where('contracts.status', 1) // REQ: Solo contratos activos (status=1)
