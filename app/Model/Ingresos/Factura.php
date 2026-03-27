@@ -1686,9 +1686,9 @@ public function forma_pago()
                 if($diaContrato > $grupo->fecha_corte){
 
                     if(($mesContrato+1) == 13){
-                        $fechaFin = (intval($yearContrato) + 1) . "-" . "01" . "-" . $grupo->fecha_corte;
+                        $fechaFin = Carbon::create((intval($yearContrato) + 1), 1, $grupo->fecha_corte, 0, 0, 0);
                     }else{
-                        $fechaFin = $yearContrato . "-" . ($mesContrato+1) . "-" .  $grupo->fecha_corte;
+                        $fechaFin = Carbon::create($yearContrato, ($mesContrato+1), $grupo->fecha_corte, 0, 0, 0);
                     }
 
                 }else{
@@ -1707,7 +1707,7 @@ public function forma_pago()
                     if($mesContrato != Carbon::parse($fechaFactura)->format('m') && Carbon::parse($fechaFacturaGrupoCorte) < Carbon::parse($contrato->created_at)){
                         $diasdeMas = 30;
                     }
-                    $fechaFin = $yearContrato . "-" . $mesContrato . "-" .  $grupo->fecha_corte;
+                    $fechaFin = Carbon::create($yearContrato, $mesContrato, $grupo->fecha_corte, 0, 0, 0);
                 }
 
                 /*
