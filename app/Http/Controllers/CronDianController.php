@@ -779,17 +779,17 @@ class CronDianController extends Controller
             $vencimientoOriginal = Carbon::parse($facturaLock->vencimiento);
             $suspensionOriginal = $facturaLock->suspension ? Carbon::parse($facturaLock->suspension) : null;
 
-            // Actualizar fecha de emisión
+            // Actualizar fecha de emisión (Regla: Siempre hoy)
             $facturaLock->fecha = Carbon::now()->format('Y-m-d');
 
-            // LA MISMA REGLA: si hoy > vencimiento original, cambiar a hoy. O si tiene dia 00.
-            if (Carbon::parse($facturaLock->fecha)->gt($vencimientoOriginal) || substr($facturaLock->vencimiento, -2) == '00') {
-                $facturaLock->vencimiento = $facturaLock->fecha;
+            // Regla de Vencimiento: Si está en el pasado o tiene día 00, cambiar al fin de mes actual (alineado con FacturasController)
+            if (substr($facturaLock->vencimiento, -2) == '00' || $facturaLock->vencimiento < $facturaLock->fecha) {
+                $facturaLock->vencimiento = Carbon::parse($facturaLock->fecha)->endOfMonth()->toDateString();
             }
 
             // Aplicar la misma lógica para la fecha de suspensión si existe
-            if ($suspensionOriginal && (Carbon::parse($facturaLock->fecha)->gt($suspensionOriginal) || substr($facturaLock->suspension, -2) == '00')) {
-                $facturaLock->suspension = $facturaLock->fecha;
+            if ($suspensionOriginal && (substr($facturaLock->suspension, -2) == '00' || $facturaLock->suspension < $facturaLock->fecha)) {
+                $facturaLock->suspension = Carbon::parse($facturaLock->fecha)->endOfMonth()->toDateString();
             }
 
             $facturaLock->save();
@@ -816,12 +816,23 @@ class CronDianController extends Controller
             $btw = new BTWService();
             $response = (object) $btw->sendInvoiceBTW($fullJson);
 
+            // Reconectar para evitar "Server has gone away" debido a la latencia de la API
+            DB::reconnect();
+
             // Evaluar respuesta
             if (isset($response->status) && $response->status == 'success') {
                 return [
                     'success'  => true,
                     'cufe'     => $response->cufe ?? null,
                     'response' => $response,
+                ];
+            }
+
+            // Evaluar error 422 (Validación DIAN/BTW)
+            if (isset($response->statusCode) && $response->statusCode == 422) {
+                return [
+                    'success' => false,
+                    'mensaje' => $response->th['message'] ?? $response->message ?? 'Validación DIAN fallida (422)',
                 ];
             }
 
