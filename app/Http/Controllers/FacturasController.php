@@ -7446,9 +7446,11 @@ class FacturasController extends Controller{
         $prefijo = $numeracion->prefijo;
 
         // 2. Consultar facturas NO emitidas con esta numeración, aplicando filtros de la tabla
+        // Solo facturas con emitida=0 Y sin intentos de emisión (dian_response IS NULL)
         $facturas = Factura::where('factura.empresa', $empresaId)
             ->where('factura.tipo', 2)
             ->where('factura.emitida', 0)
+            ->whereNull('factura.dian_response')
             ->where('factura.numeracion', $numeracion->id);
 
         // Aplicar los mismos filtros que usa facturas_electronica()
@@ -7529,9 +7531,11 @@ class FacturasController extends Controller{
             ], 200);
         }
 
-        // 3. Obtener los códigos ya usados por cualquier factura con esta numeración (excluyendo las que vamos a renumerar)
-        $codigosUsados = Factura::where('numeracion', $numeracion->id)
+        // 3. Obtener los códigos ya usados por CUALQUIER factura de la empresa (excluyendo las que vamos a renumerar)
+        // La restricción UNIQUE es sobre (codigo, empresa), no sobre (codigo, numeracion)
+        $codigosUsados = Factura::where('empresa', $empresaId)
             ->whereNotIn('id', $facturasIds)
+            ->where('codigo', 'like', $prefijo . '%')
             ->pluck('codigo')
             ->map(function ($codigo) use ($prefijo) {
                 return (int) str_replace($prefijo, '', $codigo);

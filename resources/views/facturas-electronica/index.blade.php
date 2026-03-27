@@ -322,7 +322,7 @@
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        Se renumerarán las facturas <strong>no emitidas</strong> (emitida = 0) que coincidan con los filtros actuales de la tabla.
+                        Se renumerarán las facturas <strong>no emitidas</strong> (emitida = 0) y <strong>sin intentos de emisión DIAN</strong> que coincidan con los filtros actuales de la tabla.
                         Las facturas <strong>emitidas</strong> nunca serán modificadas.
                     </div>
                     <div class="form-group">
