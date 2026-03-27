@@ -810,12 +810,12 @@ class FacturasController extends Controller{
             if($request->emision != null){
                 $facturas->where(function ($query) use ($request) {
                     if($request->emision == 1){
-                        $query->orWhere('factura.emitida', $request->emision);
+                        $query->orWhere('factura.emitida', 1);
                     }else if($request->emision == 0){
-                        $query->orWhere('factura.emitida', 0)->where('factura.dian_response',null);
+                        $query->orWhere('factura.emitida', 0);
                     }
                     else{
-                        $query->orWhere('factura.emitida', 0)->whereIn('factura.dian_response',[409,504,401]);
+                        $query->orWhere('factura.emitida', 0)->whereNotNull('factura.dian_response')->where('factura.dian_response', '!=', '');
                     }
                 });
             }
