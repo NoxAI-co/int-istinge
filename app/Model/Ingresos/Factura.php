@@ -1619,6 +1619,7 @@ public function forma_pago()
         $diasdeMas = 0;
 
         $fechaInicio = Carbon::parse($fechaInicio);
+        $fechaInicioOrg = $fechaInicio->copy();
         //sumamos un dia ya que el corte es un 30, empezaria desde el siguiente dia
         $inicioCorte = $fechaInicio->addDay();
 
@@ -1649,17 +1650,27 @@ public function forma_pago()
             los primeros dias de uso dependiendo de la creacion del contrato
             también debemos tener la opción de prorrateo activa en el menú de configuración.
             */
-            if($factura->id == $this->id && $empresa->prorrateo == 1 ||
-                $factura->id == $this->id && $forzar_prorrateo == 1){
+            //Buscamos el contrato al que esta asociada la factura
+            $contrato = Contrato::find($this->contrato_id);
 
-
-                //Buscamos el contrato al que esta asociada la factura
-                $contrato = Contrato::find($this->contrato_id);
-
+            // Validamos que la fecha del contrato sea del mismo periodo o posterior a la factura, de lo contrario no aplicamos prorrateo de inicio.
+            // Esto sucede cuando se emiten facturas posteriores y el sistema detecta que es la "primera" factura del contrato (porque las anteriores fueron borradas o no existen).
+            $esMismoPeriodo = true;
+            if($contrato){
                 if($contrato->created_at == "0000-00-00 00:00:00"){
                     $contrato->created_at = $contrato->updated_at;
                     $contrato->save();
                 }
+                $fechaC = Carbon::parse($contrato->created_at);
+                if($fechaC->lt($fechaInicioOrg)){
+                    $esMismoPeriodo = false;
+                }
+            }
+
+            if((($factura->id == $this->id && $empresa->prorrateo == 1) ||
+                ($factura->id == $this->id && $forzar_prorrateo == 1)) && $esMismoPeriodo){
+
+
 
                 $yearContrato = Carbon::parse($contrato->created_at)->format('Y');
                 $mesContrato = Carbon::parse($contrato->created_at)->format('m');
