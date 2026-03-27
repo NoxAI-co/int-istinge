@@ -483,12 +483,13 @@ class CronController extends Controller
                                                 $tipo = 2;
                                             }
 
-                                            // Validacion para que solo asigne numero consecutivo si no existe.
-                                            while (Factura::where('codigo',$nro->prefijo.$nro->inicio)->where('empresa', 1)->first()) {
-                                                $nro->inicio += 1;
-                                                $nro->save();
+                                            // Reservar consecutivo atómicamente: buscar el próximo código libre
+                                            // y guardarlo SOLO cuando confirmemos que la factura se va a crear
+                                            $nroRefrescado = NumeracionFactura::lockForUpdate()->find($nro->id);
+                                            while (Factura::where('codigo', $nroRefrescado->prefijo . $nroRefrescado->inicio)->where('empresa', 1)->exists()) {
+                                                $nroRefrescado->inicio += 1;
                                             }
-                                            $facturaCodigo = $nro->prefijo.$nro->inicio;
+                                            $facturaCodigo = $nroRefrescado->prefijo . $nroRefrescado->inicio;
 
                                             $factura = new Factura;
                                             $factura->nro           = $numero;
@@ -524,9 +525,13 @@ class CronController extends Controller
                                                 $factura->contrato_id = $contrato->id;
                                             }
 
-                                            //validacion extra antes de guardar que no haya ningun mismo codigo.
-                                            if(Factura::where('codigo',$factura->codigo)->count() <= 1){
+                                            //validacion extra antes de guardar que no exista el mismo codigo.
+                                            if(!Factura::where('codigo', $factura->codigo)->where('empresa', 1)->exists()){
                                                 $factura->save();
+
+                                                // Solo avanzar el consecutivo DESPUÉS de guardar exitosamente
+                                                $nroRefrescado->inicio += 1;
+                                                $nroRefrescado->save();
 
                                             // *** Actualizacion importante contratos multiples en una sola factura **** //
                                             if($contrato->factura_individual == 0){
@@ -719,7 +724,6 @@ class CronController extends Controller
                                             }
                                         }
 
-                                            $nro->save();
                                             $i++;
 
                                             $numero = str_replace('+','',$factura->cliente()->celular);
@@ -810,10 +814,6 @@ class CronController extends Controller
             }
         } // fin foreach contratos.
 
-            if(isset($nro)){
-                $nro->inicio = $nro->inicio+1;
-                $nro->save();
-            }
 
              /* Enviar correo funcional y Limpiar Caché (Re-aplicado) */
              $periodoCache = date('Y-m', strtotime($fecha));
