@@ -34,7 +34,7 @@ class BillingCycleAnalyzer
         // v28: Optimización profunda - rangos fecha, batch preload, agregar histórico
         $cacheKey = "cycle_stats_v28_{$grupoCorteId}_{$periodo}";
         
-        return Cache::remember($cacheKey, 3600, function () use ($grupoCorteId, $periodo) {
+        return Cache::remember($cacheKey, 300, function () use ($grupoCorteId, $periodo) {
             $grupoCorte = GrupoCorte::find($grupoCorteId);
             if (!$grupoCorte) {
                 return null;
@@ -576,6 +576,51 @@ class BillingCycleAnalyzer
             ];
         }
         
+        // 9. Verificación final en tiempo real: buscar factura del mes directamente en BD
+        // Esto atrapa casos donde la factura existe pero el preload/caché no la detectó
+        $facturaRealTimeDirecta = DB::table('factura')
+            ->where('contrato_id', $contrato->id)
+            ->where('estatus', '!=', 2)
+            ->where('factura_mes_manual', 1)
+            ->where(function($q) use ($fechaCiclo) {
+                $q->whereYear('fecha', date('Y', strtotime($fechaCiclo)))
+                  ->whereMonth('fecha', date('m', strtotime($fechaCiclo)));
+            })
+            ->first();
+
+        if ($facturaRealTimeDirecta) {
+            return [
+                'code' => 'invoice_month_exists',
+                'title' => 'Factura del mes ya existe',
+                'description' => 'Ya tiene una factura generada para este mes (detectada por verificación directa)',
+                'color' => 'warning',
+                'factura_id' => $facturaRealTimeDirecta->id,
+                'factura_nro' => $facturaRealTimeDirecta->nro
+            ];
+        }
+
+        $facturaRealTimePivot = DB::table('factura')
+            ->join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
+            ->where('fc.contrato_nro', $contrato->nro)
+            ->where('factura.estatus', '!=', 2)
+            ->where('factura.factura_mes_manual', 1)
+            ->where(function($q) use ($fechaCiclo) {
+                $q->whereYear('factura.fecha', date('Y', strtotime($fechaCiclo)))
+                  ->whereMonth('factura.fecha', date('m', strtotime($fechaCiclo)));
+            })
+            ->first();
+
+        if ($facturaRealTimePivot) {
+            return [
+                'code' => 'invoice_month_exists',
+                'title' => 'Factura del mes ya existe',
+                'description' => 'Ya tiene una factura generada para este mes (detectada vía pivot)',
+                'color' => 'warning',
+                'factura_id' => $facturaRealTimePivot->id,
+                'factura_nro' => $facturaRealTimePivot->nro
+            ];
+        }
+
         // Si llegamos aquí, problema no identificado
         return [
             'code' => 'unidentified_issue',
