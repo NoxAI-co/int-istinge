@@ -2768,18 +2768,30 @@ class FacturasController extends Controller{
          * * datos debemos hacer la misma consulta
          * **/
 
-        $empresa = Auth::user()->empresaObj;
+        $empresa = Auth::user() ? Auth::user()->empresaObj : null;
 
         $factura = ($especialFe) ? Factura::where('nonkey', $id)->first()
-        : Factura::where('empresa',$empresa->id)->where('id', $id)->first();
+        : ($empresa ? Factura::where('empresa',$empresa->id)->where('id', $id)->first() : null);
 
         if(!$factura)
         {
-            $factura = Factura::where('empresa', Auth::user()->empresa)->where('id', $id)->first();
+            if ($empresa) {
+                $factura = Factura::where('empresa', $empresa->id)->where('id', $id)->first();
+            } else if ($especialFe) {
+                // Ya se buscó por nonkey arriba, pero por si acaso intentamos por id directo si es numérico
+                if (is_numeric($id)) {
+                    $factura = Factura::find($id);
+                }
+            }
         }
 
         if (!$factura) {
-            return back()->with('error', 'No se ha encontrado la factura');
+            return $save ? null : back()->with('error', 'No se ha encontrado la factura');
+        }
+
+        // Si no tenemos empresa (por ser cronjob), cargarla desde la factura
+        if (!$empresa) {
+            $empresa = Empresa::find($factura->empresa);
         }
 
         if($factura->tipo == 1){

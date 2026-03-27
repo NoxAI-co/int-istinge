@@ -794,7 +794,12 @@ class Factura extends Model
         $technicalKey = "";
 
         if ($factura->technicalkey == null) {
-            $technicalKey = Auth::user()->empresaObj->technicalkey;
+            // Soporte para contexto sin usuario autenticado (cron jobs)
+            $empresaObj = Auth::user() ? Auth::user()->empresaObj : null;
+            if (!$empresaObj) {
+                $empresaObj = Empresa::find($factura->empresa);
+            }
+            $technicalKey = $empresaObj ? $empresaObj->technicalkey : '';
         } else {
             $technicalKey = $factura->technicalkey;
         }
@@ -844,6 +849,13 @@ class Factura extends Model
         }
 
 
+        // Soporte para contexto sin usuario autenticado (cron jobs)
+        $empresaCufe = Auth::user() ? Auth::user()->empresaObj : null;
+        if (!$empresaCufe) {
+            $empresaCufe = Empresa::find($factura->empresa);
+        }
+        $nitFE = $empresaCufe ? $empresaCufe->nit : '';
+
         $infoCufe = [
             'Numfac' => $factura->codigo,
             'FecFac' => Carbon::parse($factura->fecha)->format('Y-m-d'),
@@ -856,7 +868,7 @@ class Factura extends Model
             'CodImp3' => '03',
             'ValImp3' => '0.00',
             'ValTot' => number_format($factura->total()->subtotal + $factura->impuestos_totales() - $factura->total()->descuento, 2, '.', ''),
-            'NitFE'  => Auth::user()->empresaObj->nit,
+            'NitFE'  => $nitFE,
             'NumAdq' => $factura->cliente()->nit,
             'ClvTec' => $technicalKey,
             'TipoAmb' => 1,
