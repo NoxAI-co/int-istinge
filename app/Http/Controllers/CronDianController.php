@@ -62,9 +62,6 @@ class CronDianController extends Controller
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
             })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
-            })
             ->count();
 
         view()->share([
@@ -100,9 +97,6 @@ class CronDianController extends Controller
             ->where('emitida', 0)
             ->when($empresa && $empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
             })
             ->count();
 
@@ -439,9 +433,6 @@ class CronDianController extends Controller
             ->where('emitida', 0)
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
             })
             ->orderBy('id', 'asc')
             ->limit(50)
