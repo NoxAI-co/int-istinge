@@ -337,8 +337,17 @@ class CronDianController extends Controller
             return response()->json(['status' => 'error', 'mensaje' => 'Empresa no autorizada en DIAN']);
         }
 
-        // ─── PASO 3: CREAR LOG DE EJECUCIÓN ───
+        // ─── PASO 3: LIMPIAR EJECUCIONES HÚERFANAS Y CREAR LOG ───
         $lockToken = (string) Str::uuid();
+
+        // Marcamos como "Finalizado - Incompleto" las ejecuciones anteriores que quedaron colgadas
+        DB::table('cron_dian_logs')
+            ->where('estado', 'ejecutando')
+            ->update([
+                'estado' => 'finalizado_incompleto',
+                'updated_at' => Carbon::now()
+            ]);
+
         $logId = DB::table('cron_dian_logs')->insertGetId([
             'empresa_id'       => 1,
             'inicio_ejecucion' => Carbon::now(),
@@ -860,17 +869,20 @@ class CronDianController extends Controller
                 ];
             }
 
-            // Error genérico
+            // Error genérico o error retornado por BTW como 'error'
             $mensajeError = 'Error desconocido';
-            if (isset($response->success) && $response->success == false) {
-                if (isset($response->result) && isset($response->result->descResponseDian)) {
-                    $mensajeError = $response->result->descResponseDian;
-                } elseif (isset($response->message)) {
-                    $mensajeError = $response->message;
-                }
+            if (isset($response->status) && $response->status == 'error') {
+                $mensajeError = $response->message ?? 'Error retornado por BTW sin mensaje';
+            } elseif (isset($response->success) && $response->success == false) {
+                $mensajeError = $response->message ?? 'Error success=false en BTW';
             } elseif (isset($response->errorMessage)) {
                 $mensajeError = $response->errorMessage;
+            } elseif (isset($response->statusCode)) {
+                $mensajeError = "Error HTTP " . $response->statusCode . (isset($response->th['message']) ? ": " . $response->th['message'] : "");
             }
+
+            // Registrar log detallado de la falla para depuración
+            $this->dianLog->error("Rechazo BTW para factura {$facturaLock->codigo}: " . json_encode($response));
 
             // Guardar respuesta DIAN en la factura para debugging
             try {
