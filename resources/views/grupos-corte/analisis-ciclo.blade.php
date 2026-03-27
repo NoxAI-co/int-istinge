@@ -1429,7 +1429,7 @@ function eliminarTodasDuplicadas() {
 function eliminarCiclo() {
     swal({
         title: '¿Eliminar facturación del ciclo?',
-        html: 'Esta acción <strong>eliminará todas las facturas</strong> marcadas como "Factura del Mes" generadas para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
+        html: 'Esta acción <strong>eliminará todas las facturas del mes que fueron creadas de manera automática</strong> para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
         type: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',

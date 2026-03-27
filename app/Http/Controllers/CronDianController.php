@@ -85,7 +85,7 @@ class CronDianController extends Controller
         // Ejecución activa
         $logActual = DB::table('cron_dian_logs')
             ->where('estado', 'ejecutando')
-            ->where('inicio_ejecucion', '>=', Carbon::now()->subMinutes(20))
+            ->where('updated_at', '>=', Carbon::now()->subMinutes(12))
             ->orderBy('id', 'desc')
             ->first();
 
@@ -132,6 +132,24 @@ class CronDianController extends Controller
                 ->orderBy('id', 'desc')
                 ->limit(20)
                 ->get();
+
+            // Sincronizar estados 'pendiente' con la realidad de la tabla factura
+            foreach ($detallesActuales as $detalle) {
+                if ($detalle->estado == 'pendiente') {
+                    $facturaReal = Factura::find($detalle->factura_id);
+                    if ($facturaReal && $facturaReal->emitida == 1) {
+                        DB::table('cron_dian_detalle')->where('id', $detalle->id)->update([
+                            'estado'  => 'emitida',
+                            'cufe'    => $facturaReal->uuid,
+                            'mensaje' => 'Detectada emisión externa/manual',
+                            'updated_at' => now()
+                        ]);
+                        $detalle->estado = 'emitida';
+                        $detalle->mensaje = 'Detectada emisión externa/manual';
+                        $detalle->cufe = $facturaReal->uuid;
+                    }
+                }
+            }
         }
 
         return response()->json([
@@ -275,6 +293,7 @@ class CronDianController extends Controller
     public function ejecutar(Request $request = null)
     {
         set_time_limit(0);
+        ignore_user_abort(true);
 
         if (!$request) {
             $request = request();
@@ -288,7 +307,7 @@ class CronDianController extends Controller
         // ─── PASO 1: VERIFICAR LOCK (MUTEX) ───
         $lockActivo = DB::table('cron_dian_logs')
             ->where('estado', 'ejecutando')
-            ->where('inicio_ejecucion', '>=', Carbon::now()->subMinutes(20))
+            ->where('updated_at', '>=', Carbon::now()->subMinutes(12))
             ->first();
 
         if ($lockActivo) {
@@ -673,15 +692,13 @@ class CronDianController extends Controller
                 $this->dianLog->error("FALLIDA: id={$factura->id}, codigo={$factura->codigo}, mensaje={$mensajeDetalle}");
             }
 
-            // ── 6h: Flush parcial cada 5 facturas ──
-            if (($index + 1) % 5 === 0) {
-                DB::table('cron_dian_logs')->where('id', $logId)->update([
-                    'total_emitidas'           => $totalEmitidas,
-                    'total_fallidas'           => $totalFallidas,
-                    'total_alertas_numeracion'  => $totalAlertasNum,
-                    'updated_at'               => Carbon::now(),
-                ]);
-            }
+            // ── 6h: Flush parcial en cada factura para monitorización precisa ──
+            DB::table('cron_dian_logs')->where('id', $logId)->update([
+                'total_emitidas'           => $totalEmitidas,
+                'total_fallidas'           => $totalFallidas,
+                'total_alertas_numeracion'  => $totalAlertasNum,
+                'updated_at'               => Carbon::now(),
+            ]);
 
             // ── 6g: Sleep entre facturas ──
             if ($index < $totalAEmitir - 1) {
