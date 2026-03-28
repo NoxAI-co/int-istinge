@@ -63,10 +63,54 @@
 			border-radius: 0%;
 		}
 		.bg-th{
-	        background: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color:''}} !important;
-	        border-color: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color:''}} !important;
+	        background: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}} !important;
+	        border-color: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}} !important;
 	        color: #fff !important;
 	    }
+        .card-premium {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: #fff;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        .card-header-premium {
+            background: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}};
+            color: white;
+            padding: 1.25rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .table-premium {
+            margin-bottom: 0;
+        }
+        .table-premium th {
+            width: 35%;
+            background-color: #fcfcfc;
+            color: #444;
+            font-weight: 600;
+            padding: 12px 20px !important;
+            border-bottom: 1px solid #f0f0f0 !important;
+            border-right: 1px solid #f0f0f0 !important;
+        }
+        .table-premium td {
+            padding: 12px 20px !important;
+            color: #555;
+            border-bottom: 1px solid #f0f0f0 !important;
+        }
+        .table-premium tr:last-child th, .table-premium tr:last-child td {
+            border-bottom: none !important;
+        }
+        .badge-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
 	</style>
 
     @if(Session::has('success'))
@@ -96,562 +140,193 @@
 	@endif
 
 	<div class="row card-description">
-		@if($contrato->ip && $contrato->plan_id)
-		<div class="col-md-12">
-			<div class="table-responsive">
-				<table class="table table-striped table-bordered table-sm info">
-					<tbody>
-						<tr>
-							<th class="bg-th text-center" colspan="2" style="font-size: 1em;"><strong>SERVICIO DE INTERNET</strong></th>
-						</tr>
-						<tr>
-							<th width="20%">Nro. Contrato</th>
-							<td>{{ $contrato->nro }}</td>
-						</tr>
-						<tr>
-							<th>Nombre Servicio</th>
-							<td>{{ $contrato->servicio }}</td>
-						</tr>
-						@if($contrato->serial_onu)
-						<tr>
-							<th>Serial ONU</th>
-							<td>{{ $contrato->serial_onu }}</td>
-						</tr>
-						@endif
-						@if($contrato->linea)
-						<tr>
-							<th>Línea</th>
-							<td>{{ $contrato->linea }}</td>
-						</tr>
-						@endif
-						<tr>
-							<th>Estrato</th>
-							<td>{{ $contrato->estrato ?? 'N/A' }}</td>
-						</tr>
-						@if($contrato->tecnologia)
-						<tr>
-							<th>Tecnología</th>
-							<td>{{ $contrato->tecnologia() }}</td>
-						</tr>
-						@endif
-						@if($contrato->conexion)
-						<tr>
-							<th>Tipo de Conexión</th>
-							<td><strong>{{ $contrato->conexion() }}</strong></td>
-						</tr>
-						@endif
-						@if($contrato->grupo_corte)
-						<tr>
-							<th>Grupo de Corte</th>
-							<td><a href="{{ route('grupos-corte.show',$contrato->grupo_corte()->id )}}" target="_blank"><strong>{{ $contrato->grupo_corte()->nombre }}</strong></a> (CORTE {{ $contrato->grupo_corte()->fecha_corte }} - SUSPENSIÓN {{ $contrato->grupo_corte()->fecha_suspension }})</td>
-						</tr>
-						@endif
-						@if($contrato->fecha_suspension)
-						<tr>
-							<th>Fecha de Suspensión</th>
-							<td>El día <strong>{{ $contrato->fecha_suspension }}</strong> del mes</td>
-						</tr>
-						@endif
-						<tr>
-							<th width="30%">Nro. Contrato</th>
-							<td>{{ $contrato->nro }}</td>
-						</tr>
-						<tr>
-							<th>Estado Contrato</th>
-							<td>
-							    <strong class="text-{{$contrato->status('true')}}">{{$contrato->status()}}</strong>
-							</td>
-						</tr>
-						<tr>
-							<th>Tipo Contrato</th>
-							<td>{{ ucfirst($contrato->tipo_contrato) ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Dirección IP</th>
-							<td><a href="http://{{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }}" target="_blank">{{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }} <i class="fas fa-external-link-alt"></i></a></td>
-						</tr>
-						<tr>
-							<th>Dirección IP Secundaria</th>
-							<td>{{ $contrato->ip_new ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Tipo de Conexión</th>
-							<td>
-								@if($contrato->conexion == 1) PPPOE
-								@elseif($contrato->conexion == 2) DHCP
-								@elseif($contrato->conexion == 3) IP Estática
-								@elseif($contrato->conexion == 4) VLAN
-								@else N/A @endif
-							</td>
-						</tr>
-						<tr>
-							<th>Tecnología</th>
-							<td>
-								@if($contrato->tecnologia == 1) Fibra
-								@elseif($contrato->tecnologia == 2) Inalámbrica
-								@elseif($contrato->tecnologia == 3) Cableado UTP
-								@else N/A @endif
-							</td>
-						</tr>
-						<tr>
-							<th>Usuario PPPOE/Hotspot</th>
-							<td>{{ $contrato->usuario ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Contraseña PPPOE/Hotspot</th>
-							<td>{{ $contrato->password ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Segmento de IP / Local Address</th>
-							<td>{{ $contrato->local_address ?? $contrato->local_adress_pppoe ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Segmento de IP Secundario</th>
-							<td>{{ $contrato->local_address_new ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Segmento de IP Terciario</th>
-							<td>{{ $contrato->local_address_new_2 ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Profile</th>
-							<td>{{ $contrato->profile ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>ID VLAN</th>
-							<td>{{ $contrato->id_vlan ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Nombre VLAN</th>
-							<td>{{ $contrato->name_vlan ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Simple Queue</th>
-							<td>{{ ucfirst($contrato->simple_queue) ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Interfaz</th>
-							<td>{{ $contrato->interfaz ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Dirección MAC</th>
-							<td>{{ $contrato->mac_address ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Serial ONU</th>
-							<td>{{ $contrato->serial_onu ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Línea</th>
-							<td>{{ $contrato->linea ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Estrato</th>
-							<td>{{ $contrato->estrato ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Dirección de Instalación</th>
-							<td>{{ $contrato->address_street ?? 'N/A' }}</td>
-						</tr>
-						@php
-						    $url = ($contrato->latitude && $contrato->longitude) ? 'https://www.google.com/maps/search/'.$contrato->latitude.','.$contrato->longitude.'?hl=es' : null;
-						 @endphp
-						<tr>
-							<th>Dirección GPS</th>
-							<td>
-								@if($url)
-									({{$contrato->latitude}} {{$contrato->longitude}}) <a href="{{ $url }}" target="_blank">Ver en Google Maps <i class="fas fa-external-link-alt"></i></a>
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Usuario WiFi</th>
-							<td>{{ $contrato->usuario_wifi ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Contraseña WiFi</th>
-							<td>{{ $contrato->contrasena_wifi ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Puerto de Conexión</th>
-							<td>{{ $contrato->puerto->nombre ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Antena</th>
-							<td>
-								@if($contrato->marca_antena)
-									{{ $contrato->marca_antena()->nombre }} @if($contrato->modelo_antena) - {{$contrato->modelo_antena}} @endif
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Router</th>
-							<td>
-								@if($contrato->marca_router)
-									{{ $contrato->marca_router()->nombre }} @if($contrato->modelo_router) - {{$contrato->modelo_router}} @endif
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Tipo Módem</th>
-							<td>{{ $contrato->tipo_moden ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Serial Módem</th>
-							<td>{{ $contrato->serial_moden ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>IP Receptora</th>
-							<td>{{ $contrato->ip_receptora ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Puerto Receptor</th>
-							<td>{{ $contrato->puerto_receptor ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Nodo Asociado</th>
-							<td>
-								@if($contrato->nodo())
-									<a href="{{ route('nodos.show',$contrato->nodo()->id )}}" target="_blank"><strong>{{ $contrato->nodo()->nombre }}</strong></a>
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Access Point Asociado</th>
-							<td>
-								@if($contrato->ap())
-									<a href="{{ route('access-point.show',$contrato->ap()->id )}}" target="_blank"><strong>{{ $contrato->ap()->nombre }}</strong></a>
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Servidor Asociado</th>
-							<td>
-								@if($contrato->servidor())
-									<a href="{{ route('mikrotik.show',$contrato->server_configuration_id )}}" target="_blank"><strong>{{ $contrato->servidor()->nombre }}</strong></a>
-								@else
-									N/A
-								@endif
-							</td>
-						</tr>
-						<tr>
-							<th>Caja NAP</th>
-							<td>{{ $contrato->cajanap() ? $contrato->cajanap()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Puerto Caja NAP</th>
-							<td>{{ $contrato->cajanap_puerto ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Tipo de Facturación</th>
-							<td>{{ $contrato->facturacion() }}</td>
-						</tr>
-						<tr>
-							<th>Grupo de Corte</th>
-							<td>{{ $contrato->grupo_corte() ? $contrato->grupo_corte()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Facturación Individual</th>
-							<td>{{ $contrato->factura_individual == 1 ?'Si':'No' }}</td>
-						</tr>
-						<tr>
-							<th>Iva Aplicado</th>
-							<td>{{ $contrato->iva_factura == 1 ?'Si':'No' }}</td>
-						</tr>
-						<tr>
-							<th>Prorrateo</th>
-							<td>{{ $contrato->prorrateo == 1 ?'Si':'No' }}</td>
-						</tr>
-						<tr>
-							<th>Facturar Primer Mes</th>
-							<td>{{ $contrato->fact_primer_mes == 1 ?'Si':'No' }}</td>
-						</tr>
-						<tr>
-							<th>Sincronización Pagos Siigo</th>
-							<td>{{ $contrato->pago_siigo_contrato == 1 ?'Si':'No' }}</td>
-						</tr>
-						<tr>
-							<th>Plan Contratado</th>
-							<td><a href="{{route('planes-velocidad.show',$contrato->plan_id)}}" target="_blank"><strong>{{ $contrato->plan()->name }}</strong></a></td>
-						</tr>
-						@if(!$contrato->precio_personalizado_internet)
-						<tr>
-							<th>Precio Plan</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->plan()->price) }}</td>
-						</tr>
-						@endif
-						@if($contrato->precio_personalizado_internet)
-						<tr>
-							<th>Precio Personalizado Internet</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_internet) }}</td>
-						</tr>
-						@endif
-						@if($servicio_otro)
-						<tr>
-							<th>Otro servicio</th>
-							<td><a href="{{route('inventario.show', $servicio_otro->id)}}" target="_blank"><strong>{{ $servicio_otro->producto }}</strong></a></td>
-						</tr>
-						<tr>
-							<th>Valor otro servicio</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ number_format($servicio_otro->precio, 0, ',', '.') }}</td>
-						</tr>
-						@if($contrato->rd_item_vencimiento == 1)
-						<tr>
-							<th>Vencimiento Ítem Otro</th>
-							<td>{{ $contrato->dt_item_hasta ?? 'N/A' }}</td>
-						</tr>
-						@endif
-						@endif
-						<tr>
-							<th>Costo de Reconexión</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->costo_reconexion) }}</td>
-						</tr>
-						<tr>
-							<th>Descuento</th>
-							<td>
-								@if($contrato->descuento) {{ $contrato->descuento }}% @endif
-								@if($contrato->descuento && $contrato->descuento_pesos) - @endif
-								@if($contrato->descuento_pesos) {{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->descuento_pesos) }} @endif
-								@if(!$contrato->descuento && !$contrato->descuento_pesos) N/A @endif
-							</td>
-						</tr>
-						@if($contrato->fecha_hasta_desc)
-						<tr>
-							<th>Descuento Válido Hasta</th>
-							<td>{{ date('d-m-Y', strtotime($contrato->fecha_hasta_desc)) }}</td>
-						</tr>
-						@endif
-						<tr>
-							<th>Contrato de Permanencia</th>
-							<td>{{ $contrato->contrato_permanencia == 1 ? 'Si' : 'No' }} @if($contrato->contrato_permanencia == 1 && $contrato->contrato_permanencia_meses) ({{ $contrato->contrato_permanencia_meses }} meses) @endif</td>
-						</tr>
-						<tr>
-							<th>Fecha de Suspensión Personalizada</th>
-							<td>{{ $contrato->fecha_suspension ?? 'Ninguna' }}</td>
-						</tr>
-						<tr>
-							<th>No Suspensión Automática</th>
-							<td>{{ $contrato->tipo_nosuspension == 1 ? 'Habilitado' : 'Deshabilitado' }}</td>
-						</tr>
-						@if($contrato->tipo_nosuspension == 1)
-						<tr>
-							<th>Fecha Desde No Suspensión</th>
-							<td>{{ $contrato->fecha_desde_nosuspension ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Fecha Hasta No Suspensión</th>
-							<td>{{ $contrato->fecha_hasta_nosuspension ?? 'N/A' }}</td>
-						</tr>
-						@endif
-						@if($contrato->adjunto_a)
-						<tr>
-							<th>{{ $contrato->referencia_a }}</th>
-							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_a)}}" target="_blank"><strong>Ver {{ $contrato->referencia_a }}</strong></a></td>
-						</tr>
-						@endif
-						@if($contrato->adjunto_b)
-						<tr>
-							<th>{{ $contrato->referencia_b }}</th>
-							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_b)}}" target="_blank"><strong>Ver {{ $contrato->referencia_b }}</strong></a></td>
-						</tr>
-						@endif
-						@if($contrato->adjunto_c)
-						<tr>
-							<th>{{ $contrato->referencia_c }}</th>
-							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_c)}}" target="_blank"><strong>Ver {{ $contrato->referencia_c }}</strong></a></td>
-						</tr>
-						@endif
-						@if($contrato->adjunto_d)
-						<tr>
-							<th>{{ $contrato->referencia_d }}</th>
-							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_d)}}" target="_blank"><strong>Ver {{ $contrato->referencia_d }}</strong></a></td>
-						</tr>
-						@endif
-						<tr>
-							<th>Oficina Asociada</th>
-							<td>{{ $contrato->oficina() ? $contrato->oficina()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Vendedor</th>
-							<td>{{ $contrato->vendedor() ? $contrato->vendedor()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Canal de Venta</th>
-							<td>{{ $contrato->canal() ? $contrato->canal()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Observaciones</th>
-							<td>{{ $contrato->observaciones ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Contrato Registrado por</th>
-							<td>{{ $contrato->creador ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Contrato Registrado el</th>
-							<td>
-								<span id="fecha-registro-display">{{date('d-m-Y g:i:s A', strtotime($contrato->created_at))}}</span>
-								@if(isset($_SESSION['permisos']['406']))
-									<a href="javascript:abrirModalEditarFecha({{$contrato->id}}, '{{date('d-m-Y H:i:s', strtotime($contrato->created_at))}}')" style="font-size: 0.8em;margin-left: 10px;" title="Editar fecha">
-										<i class="fas fa-pencil-alt"></i>
-									</a>
-								@endif
-							</td>
-						</tr>
-                        @if($contrato->fechaDesconexion() != null)
-                        <tr>
-							<th>Fecha desconexión contrato</th>
-							<td>{{$contrato->fechaDesconexion()}}</td>
-						</tr>
-                        @endif
-					</tbody>
-				</table>
-			</div>
-		</div>
-		@endif
-
-		@if($contrato->servicio_tv)
-		<div class="col-md-12">
-			<div class="table-responsive">
-				<table class="table table-striped table-bordered table-sm info">
-					<tbody>
-						<tr>
-							<th class="bg-th text-center" colspan="2" style="font-size: 1em;"><strong>SERVICIO DE TELEVISIÓN</strong></th>
-						</tr>
-						<tr>
-							<th>Vendedor</th>
-							<td>{{ $contrato->vendedor() ? $contrato->vendedor()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Canal de Venta</th>
-							<td>{{ $contrato->canal() ? $contrato->canal()->nombre : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th width="20%">Plan Contratado</th>
-							<td><a href="{{route('inventario.show',$contrato->servicio_tv)}}" target="_blank"><strong>{{ $inventario->producto }}</strong></a></td>
-						</tr>
-						<tr>
-							<th>SN / MAC</th>
-							<td>{{ $contrato->olt_sn_mac ?? 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Estado CATV</th>
-							<td><strong class="text-{{ $contrato->state_olt_catv == 1 ? 'success' : 'danger' }}">{{ $contrato->state_olt_catv == 1 ? 'Habilitado' : 'Deshabilitado' }}</strong></td>
-						</tr>
-						<tr>
-							<th>Precio del Plan Contratado</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($inventario->precio) }}</td>
-						</tr>
-						<tr>
-							<th>Precio Personalizado TV</th>
-							<td>{{ $contrato->precio_personalizado_tv ? Auth::user()->empresa()->moneda . ' ' . App\Funcion::Parsear($contrato->precio_personalizado_tv) : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Costo de Reconexión</th>
-							<td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->costo_reconexion) }}</td>
-						</tr>
-						<tr>
-							<th>Descuento</th>
-							<td>{{ $contrato->descuento ? $contrato->descuento . '%' : 'N/A' }}</td>
-						</tr>
-						<tr>
-							<th>Contrato de Permanencia</th>
-							<td>{{ $contrato->contrato_permanencia == 1 ? 'Si' : 'No' }}</td>
-						</tr>
-						<tr>
-							<th>Tipo Contrato</th>
-							<td>{{ ucfirst($contrato->tipo_contrato) ?? 'N/A' }}</td>
-						</tr>
-                        <tr>
-							<th>Contrato Registrado el</th>
-							<td>
-								<span id="fecha-registro-display-tv">{{date('d-m-Y g:i:s A', strtotime($contrato->created_at))}}</span>
-								@if(isset($_SESSION['permisos']['406']))
-									<a href="javascript:abrirModalEditarFecha({{$contrato->id}}, '{{date('d-m-Y H:i:s', strtotime($contrato->created_at))}}')" style="font-size: 0.8em;margin-left: 10px;" title="Editar fecha">
-										<i class="fas fa-pencil-alt"></i>
-									</a>
-								@endif
-							</td>
-						</tr>
-                        @if($contrato->fechaDesconexion() != null)
-                        <tr>
-							<th>Fecha desconexión contrato</th>
-							<td>{{$contrato->fechaDesconexion()}}</td>
-						</tr>
-                        @endif
-					</tbody>
-				</table>
-			</div>
-		</div>
-		@endif
-
-		<div class="col-md-12">
-			<div class="table-responsive">
-				<table class="table table-striped table-bordered table-sm info mt-2">
-					<tbody>
-						<tr>
-							<th class="bg-th text-center" colspan="2" style="font-size: 1em;"><strong>CLIENTE ASOCIADO AL CONTRATO</strong></th>
-						</tr>
-						<tr>
-							<th width="20%">Nombre Cliente</th>
-							<td><a href="{{ route('contactos.show',$contrato->id_cliente )}}" target="_blank"><strong>{{ $contrato->nombre }} {{ $contrato->apellido1 }} {{ $contrato->apellido2 }}</strong></a></td></td>
-						</tr>
-						@if($contrato->nit)
-						<tr>
-							<th>Cédula Cliente</th>
-							<td>{{ $contrato->nit }}</td>
-						</tr>
-						@endif
-						@if($contrato->celular || $contrato->telefono1)
-						<tr>
-							<th>Nro Teléfono</th>
-							<td>@if($contrato->celular) {{ $contrato->celular }} @else {{ $contrato->telefono1 }} @endif</td>
-						</tr>
-						@endif
-						@if($contrato->email)
-						<tr>
-							<th>Correo Electrónico</th>
-							<td>{{ $contrato->email }}</td>
-						</tr>
-						@endif
-						@if($contrato->barrio)
-						<tr>
-							<th>Barrio</th>
-							<td>{{ $contrato->barrio }}</td>
-						</tr>
-						@endif
-						@if($contrato->direccion)
-						<tr>
-							<th>Dirección</th>
-							<td>{{ $contrato->direccion }}</td>
-						</tr>
-						@endif
-						<tr>
-								<th>Contrato Registrado el</th>
-							<td>
-								<span id="fecha-registro-display">{{date('d-m-Y g:i:s A', strtotime($contrato->created_at))}}</span>
-								@if(isset($_SESSION['permisos']['406']))
-									<a href="javascript:abrirModalEditarFecha({{$contrato->id}}, '{{date('d-m-Y H:i:s', strtotime($contrato->created_at))}}')" style="font-size: 0.8em;margin-left: 10px;" title="Editar fecha">
-										<i class="fas fa-pencil-alt"></i>
-									</a>
-								@endif
-							</td>
-						</tr>
-						
-					</tbody>
-				</table>
-			</div>
-		</div>
+        <div class="col-md-10 offset-md-1">
+            <div class="card card-premium">
+                <div class="card-header-premium">
+                    <span><i class="fas fa-info-circle mr-2"></i> Información Detallada del Contrato</span>
+                    <span class="badge badge-light" style="color: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}}"> #{{ $contrato->nro }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-premium">
+                            <tbody>
+                                <tr>
+                                    <th>Nro. Contrato</th>
+                                    <td><strong>{{ $contrato->nro }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Nombre Servicio</th>
+                                    <td>{{ $contrato->servicio }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Estrato</th>
+                                    <td>{{ $contrato->estrato ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Tecnología</th>
+                                    <td>{{ $contrato->tecnologia() }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Tipo de Conexión</th>
+                                    <td><strong>{{ $contrato->conexion() }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Grupo de Corte</th>
+                                    <td>
+                                        @if($contrato->grupo_corte())
+                                            <a href="{{ route('grupos-corte.show',$contrato->grupo_corte()->id )}}" target="_blank">
+                                                <strong>{{ $contrato->grupo_corte()->nombre }}</strong>
+                                            </a> 
+                                            <span class="text-muted ml-1">(CORTE {{ $contrato->grupo_corte()->fecha_corte }} - SUSPENSIÓN {{ $contrato->grupo_corte()->fecha_suspension }})</span>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Estado Contrato</th>
+                                    <td>
+                                        <span class="badge-status bg-{{$contrato->status('true')}} text-white">
+                                            {{$contrato->status()}}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Tipo Contrato</th>
+                                    <td>{{ ucfirst($contrato->tipo_contrato) ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Dirección IP</th>
+                                    <td>
+                                        <a href="http://{{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }}" target="_blank">
+                                            {{ $contrato->ip }}{{ $contrato->puerto ? ':'.$contrato->puerto->nombre : '' }} 
+                                            <i class="fas fa-external-link-alt ml-1" style="font-size: 0.8em;"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Dirección de Instalación</th>
+                                    <td>{{ $contrato->address_street ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Dirección GPS</th>
+                                    <td>
+                                        @php
+                                            $url_gps = ($contrato->latitude && $contrato->longitude) ? 'https://www.google.com/maps/search/'.$contrato->latitude.','.$contrato->longitude.'?hl=es' : null;
+                                        @endphp
+                                        @if($url_gps)
+                                            <span class="text-muted">({{$contrato->latitude}}, {{$contrato->longitude}})</span>
+                                            <a href="{{ $url_gps }}" target="_blank" class="ml-2">
+                                                Ver en Google Maps <i class="fas fa-map-marker-alt"></i>
+                                            </a>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Servidor Asociado</th>
+                                    <td>
+                                        @if($contrato->servidor())
+                                            <a href="{{ route('mikrotik.show',$contrato->server_configuration_id )}}" target="_blank">
+                                                <strong>{{ $contrato->servidor()->nombre }}</strong>
+                                            </a>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Tipo de Facturación</th>
+                                    <td>{{ $contrato->facturacion() }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Plan Contratado</th>
+                                    <td>
+                                        @if($contrato->plan_id)
+                                            <a href="{{route('planes-velocidad.show',$contrato->plan_id)}}" target="_blank">
+                                                <strong>{{ $contrato->plan()->name }}</strong>
+                                            </a>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Precio Plan</th>
+                                    <td>
+                                        @if($contrato->precio_personalizado_internet)
+                                            <span class="text-primary font-weight-bold" title="Precio Personalizado">
+                                                {{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_internet) }}
+                                            </span>
+                                        @else
+                                            {{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->plan()->price) }}
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Otro servicio</th>
+                                    <td>
+                                        @if($servicio_otro)
+                                            <a href="{{route('inventario.show', $servicio_otro->id)}}" target="_blank">
+                                                <strong>{{ $servicio_otro->producto }}</strong>
+                                            </a>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Valor otro servicio</th>
+                                    <td>
+                                        @if($servicio_otro)
+                                            {{ Auth::user()->empresa()->moneda }} {{ number_format($servicio_otro->precio, 0, ',', '.') }}
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Contrato de Permanencia</th>
+                                    <td>
+                                        {{ $contrato->contrato_permanencia == 1 ? 'Si' : 'No' }} 
+                                        @if($contrato->contrato_permanencia == 1 && $contrato->contrato_permanencia_meses) 
+                                            <span class="text-muted ml-1">({{ $contrato->contrato_permanencia_meses }} meses)</span> 
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Facturación Individual</th>
+                                    <td>
+                                        <span class="badge badge-{{ $contrato->factura_individual == 1 ? 'info' : 'secondary' }}">
+                                            {{ $contrato->factura_individual == 1 ? 'Si' : 'No' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Contrato Registrado por</th>
+                                    <td>{{ $contrato->creador ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Contrato Registrado el</th>
+                                    <td>
+                                        <span id="fecha-registro-display" class="font-weight-bold">
+                                            {{date('d-m-Y g:i:s A', strtotime($contrato->created_at))}}
+                                        </span>
+                                        @if(isset($_SESSION['permisos']['406']))
+                                            <a href="javascript:abrirModalEditarFecha({{$contrato->id}}, '{{date('d-m-Y H:i:s', strtotime($contrato->created_at))}}')" 
+                                               class="ml-2 text-primary" title="Editar fecha">
+                                                <i class="fas fa-pencil-alt"></i>
+                                            </a>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 	</div>
 
 	{{-- Modal para editar fecha de registro --}}
