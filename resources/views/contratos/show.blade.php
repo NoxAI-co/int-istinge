@@ -69,17 +69,18 @@
 	    }
         .card-premium {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
             background: #fff;
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
             overflow: hidden;
+            border: 1px solid #f0f0f0;
         }
         .card-header-premium {
             background: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}};
             color: white;
-            padding: 1.25rem 1.5rem;
-            font-size: 1.1rem;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -87,29 +88,39 @@
         }
         .table-premium {
             margin-bottom: 0;
+            width: 100%;
         }
         .table-premium th {
-            width: 35%;
-            background-color: #fcfcfc;
-            color: #444;
+            width: 30%;
+            background-color: #fafafa;
+            color: #333;
             font-weight: 600;
-            padding: 12px 20px !important;
+            padding: 10px 15px !important;
             border-bottom: 1px solid #f0f0f0 !important;
             border-right: 1px solid #f0f0f0 !important;
+            font-size: 0.95rem;
         }
         .table-premium td {
-            padding: 12px 20px !important;
+            padding: 10px 15px !important;
             color: #555;
             border-bottom: 1px solid #f0f0f0 !important;
+            font-size: 0.95rem;
         }
         .table-premium tr:last-child th, .table-premium tr:last-child td {
             border-bottom: none !important;
         }
         .badge-status {
-            padding: 5px 12px;
-            border-radius: 20px;
+            padding: 4px 10px;
+            border-radius: 4px;
             font-size: 0.85em;
             font-weight: 600;
+            text-transform: uppercase;
+        }
+        .row.card-description {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
         }
 	</style>
 
@@ -139,11 +150,11 @@
 		</script>
 	@endif
 
-	<div class="row card-description">
-        <div class="col-md-10 offset-md-1">
+	<div class="row card-description m-0 p-0">
+        <div class="col-md-12 p-0">
             <div class="card card-premium">
                 <div class="card-header-premium">
-                    <span><i class="fas fa-info-circle mr-2"></i> Información Detallada del Contrato</span>
+                    <span><i class="fas fa-info-circle mr-1"></i> Información Detallada del Contrato</span>
                     <span class="badge badge-light" style="color: {{Auth::user()->rol > 1 ? Auth::user()->empresa()->color : '#0d47a1'}}"> #{{ $contrato->nro }}</span>
                 </div>
                 <div class="card-body p-0">
@@ -321,6 +332,104 @@
                                         @endif
                                     </td>
                                 </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            @if($contrato->servicio_tv)
+            <div class="card card-premium">
+                <div class="card-header-premium">
+                    <span><i class="fas fa-tv mr-1"></i> Servicio de Televisión</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-premium">
+                            <tbody>
+                                <tr>
+                                    <th width="35%">Plan Contratado</th>
+                                    <td>
+                                        <a href="{{route('inventario.show',$contrato->servicio_tv)}}" target="_blank">
+                                            <strong>{{ $inventario->producto }}</strong>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>SN / MAC</th>
+                                    <td>{{ $contrato->olt_sn_mac ?? 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Estado CATV</th>
+                                    <td>
+                                        <span class="badge-status bg-{{ $contrato->state_olt_catv == 1 ? 'success' : 'danger' }} text-white">
+                                            {{ $contrato->state_olt_catv == 1 ? 'Habilitado' : 'Deshabilitado' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Precio Plan</th>
+                                    <td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($inventario->precio) }}</td>
+                                </tr>
+                                @if($contrato->precio_personalizado_tv)
+                                <tr>
+                                    <th>Precio Personalizado TV</th>
+                                    <td>{{ Auth::user()->empresa()->moneda }} {{ App\Funcion::Parsear($contrato->precio_personalizado_tv) }}</td>
+                                </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <div class="card card-premium">
+                <div class="card-header-premium">
+                    <span><i class="fas fa-users mr-1"></i> Cliente Asociado al Contrato</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-premium">
+                            <tbody>
+                                <tr>
+                                    <th>Nombre Cliente</th>
+                                    <td>
+                                        <a href="{{ route('contactos.show',$contrato->id_cliente )}}" target="_blank">
+                                            <strong>{{ $contrato->nombre }} {{ $contrato->apellido1 }} {{ $contrato->apellido2 }}</strong>
+                                        </a>
+                                    </td>
+                                </tr>
+                                @if($contrato->nit)
+                                <tr>
+                                    <th>Cédula Cliente</th>
+                                    <td>{{ $contrato->nit }}</td>
+                                </tr>
+                                @endif
+                                @if($contrato->celular || $contrato->telefono1)
+                                <tr>
+                                    <th>Nro Teléfono</th>
+                                    <td>@if($contrato->celular) {{ $contrato->celular }} @else {{ $contrato->telefono1 }} @endif</td>
+                                </tr>
+                                @endif
+                                @if($contrato->email)
+                                <tr>
+                                    <th>Correo Electrónico</th>
+                                    <td>{{ $contrato->email }}</td>
+                                </tr>
+                                @endif
+                                @if($contrato->barrio)
+                                <tr>
+                                    <th>Barrio</th>
+                                    <td>{{ $contrato->barrio }}</td>
+                                </tr>
+                                @endif
+                                @if($contrato->direccion)
+                                <tr>
+                                    <th>Dirección</th>
+                                    <td>{{ $contrato->direccion }}</td>
+                                </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
