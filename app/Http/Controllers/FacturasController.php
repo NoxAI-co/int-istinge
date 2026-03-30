@@ -3075,9 +3075,6 @@ class FacturasController extends Controller{
 
             //-----------------------------------------------//
 
-            $data = array(
-                'email'=> 'info@istingenieria.online',
-            );
             $total = Funcion::Parsear($factura->total()->total);
             $empresa = Empresa::find($factura->empresa);
             $key = Hash::make(date("H:i:s"));
@@ -3089,62 +3086,111 @@ class FacturasController extends Controller{
             $palabra = ($factura->tipo == 1) ? 'COBRO' : 'Factura';
             $tituloCorreo = $empresa->nombre.": $palabra N° $factura->codigo";
             $xmlPath = 'xml/empresa'.auth()->user()->empresa.'/FV/FV-'.$factura->codigo.'.xml';
-            //return $xmlPath;
-
-            $host = ServidorCorreo::where('estado', 1)->where('empresa', $empresa->id)->first();
-            if($host){
-                $existing = config('mail');
-                $new =array_merge(
-                    $existing, [
-                        'host' => $host->servidor,
-                        'port' => $host->puerto,
-                        'encryption' => $host->seguridad,
-                        'username' => $host->usuario,
-                        'password' => $host->password,
-                        'from' => [
-                            'address' => $host->address,
-                            'name' => $host->name
-                        ],
-                    ]
-                );
-                config(['mail'=>$new]);
-            }
-
 
             if($factura->emitida == 1){
                 $statusJson = $this->validateStatusDian(auth()->user()->empresaObj->nit, $factura->codigo, "01", $resolucion->prefijo);
                 $statusJson = json_decode($statusJson, true);
 
-                if ($statusJson["statusCode"] == 200) {
-                    $this->generateXmlPdfEmail($statusJson['document'], $factura, $emails, $dataFactura, $CUFEvr, $items, $resolucion, $tituloCorreo);
-                }
-            }elseif($factura->emitida == 0){
-                // Delegar al helper modular (Brevo o SMTP según proveedor)
-                $resultado = $this->sendCorreoFacturaNoEmitida($factura, $empresa, $emails);
-
-                if (!$resultado['success']) {
-                    if ($redireccionar) {
-                        return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: ' . $resultado['message']);
+                if (isset($statusJson["statusCode"]) && $statusJson["statusCode"] == 200 && isset($statusJson['document'])) {
+                    $document = base64_decode($statusJson['document']);
+                    $pathDir = public_path() . '/xml/empresa' . auth()->user()->empresa . '/FV';
+                    if (!File::exists($pathDir)) {
+                        File::makeDirectory($pathDir, 0777, true, true);
                     }
-                    return;
+                    $ruta_xmlresponse = $pathDir . '/FV-' . $factura->codigo . '.xml';
+                    $file = fopen($ruta_xmlresponse, "w");
+                    fwrite($file, $document . PHP_EOL);
+                    fclose($file);
+
+                    $xmlPath = $ruta_xmlresponse;
                 }
-            }else{
-                if ($redireccionar) {
-                    return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo: Estado de emisión desconocido');
-                }
-                return;
             }
 
-            // correo=1 ya lo gestiona sendCorreoFacturaNoEmitida para no emitidas.
-            // Para emitidas, se marca explícitamente aquí.
-            if ($factura->emitida == 1) {
-                $factura->correo = 1;
-            }
-            $factura->observaciones = ' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
-            $factura->save();
-            if ($redireccionar) {
-            return redirect('empresa/facturas/'.$factura->id)->with('success', 'Se ha enviado satisfactoriamente la factura por correo electrónico');
-            //return back()->with('success', 'Se ha enviado satisfactoriamente la factura por correo electrónico');
+            try {
+                $host = ServidorCorreo::where('estado', 1)->where('empresa', $empresa->id)->first();
+
+                if ($host && $host->proveedor == 1) {
+                    // ── Envío vía Brevo API transaccional ──────────────────────
+                    $adjuntos = [[
+                        'name'    => 'factura_' . $factura->codigo . '.pdf',
+                        'content' => base64_encode($pdf),
+                    ]];
+
+                    if (file_exists($xmlPath)) {
+                        $adjuntos[] = [
+                            'name'    => 'factura_' . $factura->codigo . '.xml',
+                            'content' => base64_encode(file_get_contents($xmlPath)),
+                        ];
+                    } else if (file_exists(public_path($xmlPath))) {
+                        $adjuntos[] = [
+                            'name'    => 'factura_' . $factura->codigo . '.xml',
+                            'content' => base64_encode(file_get_contents(public_path($xmlPath))),
+                        ];
+                    }
+
+                    $html      = view('emails.email', compact('factura', 'total', 'cliente'))->render();
+                    $brevo     = new BrevoMailService($host->password);
+                    $resultado = $brevo->send($emails, $tituloCorreo, $html, $host->name, $host->address, $adjuntos);
+
+                    if ($resultado['success']) {
+                        $factura->correo = 1;
+                        $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
+                        $factura->save();
+                    } else {
+                        \Log::error('Error Brevo en enviar', [
+                            'factura' => $factura->codigo,
+                            'error'   => $resultado['message'],
+                        ]);
+                        if ($redireccionar) {
+                            return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo (Brevo): ' . $resultado['message']);
+                        }
+                        return;
+                    }
+
+                } else {
+                    // ── Envío vía SMTP legacy ───────────────────────────────────────
+                    if ($host) {
+                        $existing = config('mail');
+                        config(['mail' => array_merge($existing, [
+                            'host'       => $host->servidor,
+                            'port'       => $host->puerto,
+                            'encryption' => $host->seguridad,
+                            'username'   => $host->usuario,
+                            'password'   => $host->password,
+                            'from'       => ['address' => $host->address, 'name' => $host->name],
+                        ])]);
+                    }
+
+                    self::sendMail(
+                        'emails.email',
+                        compact('factura', 'total', 'cliente'),
+                        compact('pdf', 'emails', 'tituloCorreo', 'xmlPath'),
+                        function ($message) use ($pdf, $emails, $tituloCorreo, $xmlPath) {
+                            $message->attachData($pdf, 'factura.pdf', ['mime' => 'application/pdf']);
+                            if (file_exists($xmlPath)) {
+                                $message->attach($xmlPath, ['as' => 'factura.xml', 'mime' => 'text/plain']);
+                            } else if (file_exists(public_path($xmlPath))) {
+                                $message->attach(public_path($xmlPath), ['as' => 'factura.xml', 'mime' => 'text/plain']);
+                            }
+                            $message->to($emails)->subject($tituloCorreo);
+                        }
+                    );
+
+                    $factura->correo = 1;
+                    $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
+                    $factura->save();
+                }
+
+                if ($redireccionar) {
+                    return redirect('empresa/facturas/'.$factura->id)->with('success', 'Se ha enviado satisfactoriamente la factura por correo electrónico');
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error en enviar: ' . $e->getMessage(), [
+                    'factura' => $factura->codigo ?? null,
+                ]);
+                if ($redireccionar) {
+                    return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar: ' . $e->getMessage());
+                }
             }
         }
     }
