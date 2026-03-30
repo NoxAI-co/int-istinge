@@ -6838,6 +6838,7 @@ class FacturasController extends Controller{
 
             // Validar correos de los clientes antes de procesar
             $erroresValidacion = [];
+            $facturasAEmitir = [];
             foreach ($facturas as $idFactura) {
                 $factura = Factura::where('empresa', $empresa->id)->where('id', $idFactura)->first();
                 if ($factura && $factura->cliente) {
@@ -6846,22 +6847,18 @@ class FacturasController extends Controller{
                         $factura->dian_response = 401;
                         $factura->save();
                         $erroresValidacion[] = "La factura #{$factura->codigo} no se puede emitir porque el cliente " . ($cliente && isset($cliente->nombre) ? $cliente->nombre : 'Desconocido') . " no tiene correo electrónico configurado.";
+                    } else {
+                        $facturasAEmitir[] = $idFactura;
                     }
+                } else {
+                    $facturasAEmitir[] = $idFactura;
                 }
             }
 
-            if (count($erroresValidacion) > 0) {
-                return response()->json([
-                    'success' => false,
-                    'text' => 'Se encontraron errores de validación:',
-                    'errores' => count($erroresValidacion),
-                    'detalles_errores' => $erroresValidacion
-                ]);
-            }
-
             $exitosas = 0;
-            $errores = [];
+            $errores = $erroresValidacion;
             $totalFacturas = count($facturas);
+            $facturas = $facturasAEmitir; // Procesamos sólo las válidas
 
             for ($i=0; $i < count($facturas) ; $i++) {
                 try {
