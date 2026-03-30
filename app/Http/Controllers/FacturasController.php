@@ -6865,6 +6865,9 @@ class FacturasController extends Controller{
 
             for ($i=0; $i < count($facturas) ; $i++) {
                 try {
+                    // Evitar el error 2006 Server has gone away tras emisiones largas
+                    \DB::reconnect();
+
                     $factura = Factura::where('empresa', $empresa->id)->where('emitida', 0)->where('tipo',2)->where('id', $facturas[$i])->first();
 
                     if(isset($factura)){
