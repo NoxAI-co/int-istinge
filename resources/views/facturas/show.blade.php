@@ -275,7 +275,7 @@
 <!-- FIN BANNER DE VALORES -->
 @endif
 
-@if(Session::has('success') || Session::has('error'))
+@if(Session::has('success') || Session::has('error') || Session::has('danger'))
   @if(Session::has('success'))
   <div class="alert alert-success alert-view-show">
     {{Session::get('success')}}
@@ -287,11 +287,22 @@
     {{Session::get('error')}}
   </div>
   @endif
+
+  @if(Session::has('danger'))
+  <div class="alert alert-danger alert-view-show">
+    @if(is_array(Session::get('danger')))
+      {{ Session::get('danger')['message'] ?? json_encode(Session::get('danger')) }}
+    @else
+      {{ Session::get('danger') }}
+    @endif
+  </div>
+  @endif
+  
   <script type="text/javascript">
     setTimeout(function(){
         $('.alert').hide();
         $('.active_table').attr('class', ' ');
-    }, 5000);
+    }, 8000);
   </script>
 @endif
 

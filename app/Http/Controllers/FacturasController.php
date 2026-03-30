@@ -6100,6 +6100,260 @@ class FacturasController extends Controller{
             return back()->with('danger', 'Error al enviar mensaje Meta: ' . json_encode($responseData));
         }
     }
+
+    public function whatsapp_lote(Request $request)
+    {
+        $facturasIds = $request->input('facturas', []);
+        $resultados = [];
+        $exitos = 0;
+        $fallos = 0;
+
+        if (empty($facturasIds)) {
+            return response()->json(['success' => false, 'message' => 'No se recibieron facturas para procesar']);
+        }
+
+        // 1. Buscar instancia de Meta Direct activa
+        $instance = Instance::where('company_id', auth()->user()->empresa)
+                            ->where('activo', 1)
+                            ->where('type', 1) // 1 = Meta Direct
+                            ->where('meta', 0) // 0 = Integración directa
+                            ->whereNotNull('phone_number_id')
+                            ->first();
+
+        if (!$instance || empty($instance->phone_number_id)) {
+            return response()->json(['success' => false, 'message' => 'No se encontró una instancia de WhatsApp Meta activa o falta el ID de número de teléfono.']);
+        }
+
+        // Buscar plantilla preferida para facturas
+        $plantilla = Plantilla::where('preferida_cron_factura', 1)
+            ->where('tipo', 3)
+            ->where('status', 1)
+            ->where('empresa', auth()->user()->empresa)
+            ->first();
+
+        if (!$plantilla) {
+            return response()->json(['success' => false, 'message' => 'No tiene seleccionada una plantilla para facturas por defecto.']);
+        }
+
+        $metaService = new \App\Services\MetaWhatsAppService();
+        $token = config('app.key');
+        $empresaObj = auth()->user()->empresa();
+
+        foreach ($facturasIds as $id) {
+            try {
+                $factura = Factura::find($id);
+                if (!$factura) {
+                    $fallos++;
+                    $resultados[] = ['id' => $id, 'codigo' => 'N/A', 'estado' => 'error', 'mensaje' => 'Factura no encontrada'];
+                    continue;
+                }
+
+                if ($factura->cont_message_undeliverable >= 3) {
+                    $fallos++;
+                    $resultados[] = ['id' => $id, 'codigo' => $factura->codigo, 'estado' => 'error', 'mensaje' => 'La línea telefónica probablemente no tiene un WhatsApp activo.'];
+                    continue;
+                }
+
+                $contacto = $factura->cliente();
+                $prefijo = '57'; 
+                if (!empty($contacto->fk_idpais)) {
+                    $prefijoData = \DB::table('prefijos_telefonicos')
+                        ->where('iso2', strtoupper($contacto->fk_idpais))
+                        ->first();
+                    if ($prefijoData && !empty($prefijoData->phone_code)) {
+                        $prefijo = $prefijoData->phone_code;
+                    }
+                }
+
+                $estadoCuenta = $factura->estadoCuenta();
+                $total = $factura->total()->total;
+                $saldo = $estadoCuenta->saldoMesAnterior > 0 ? $estadoCuenta->saldoMesAnterior + $total : $total;
+
+                // PDF
+                try {
+                    $this->getFacturaTemp($id, $token);
+                } catch (\Exception $e) {
+                    // Ignorar excepciones al generar PDF temporal ya que puede reintentar
+                }
+                
+                $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
+                $storagePath = public_path('documentos_meta/' . $fileName);
+
+                $attempts = 0;
+                while (!file_exists($storagePath) && $attempts < 5) {
+                    usleep(300000); 
+                    $attempts++;
+                }
+
+                if (!file_exists($storagePath)) {
+                    $fallos++;
+                    $resultados[] = ['id' => $id, 'codigo' => $factura->codigo, 'estado' => 'error', 'mensaje' => 'No se pudo generar el archivo PDF temporal.'];
+                    continue;
+                }
+
+                // Parámetros
+                $bodyTextParams = [];
+                if ($plantilla->body_dinamic) {
+                    $bodyDinamicArray = json_decode($plantilla->body_dinamic, true);
+                    if (is_array($bodyDinamicArray) && isset($bodyDinamicArray[0]) && is_array($bodyDinamicArray[0])) {
+                        $bodyDinamicArray = $bodyDinamicArray[0];
+                    }
+
+                    if (is_array($bodyDinamicArray)) {
+                        foreach ($bodyDinamicArray as $paramTemplate) {
+                            $paramValue = is_string($paramTemplate) ? $paramTemplate : '';
+                            $paramValue = CamposDinamicosHelper::procesarCamposDinamicos($paramValue, $contacto, $factura, $empresaObj);
+                            $bodyTextParams[] = $paramValue;
+                        }
+                    }
+                } else {
+                    $bodyTextArray = json_decode($plantilla->body_text, true);
+                    if (is_array($bodyTextArray) && isset($bodyTextArray[0]) && is_array($bodyTextArray[0])) {
+                        $bodyTextParams = $bodyTextArray[0];
+                    } else {
+                        $bodyTextParams = [
+                            $contacto->nombre . " " . $contacto->apellido1,
+                            $empresaObj->nombre,
+                            number_format($saldo, 0, ',', '.')
+                        ];
+                    }
+                }
+
+                $components = [];
+                if ($plantilla->body_header === 'DOCUMENT') {
+                    $mediaId = $metaService->uploadMedia(
+                        $instance->phone_number_id,
+                        $storagePath,
+                        'application/pdf'
+                    );
+
+                    if (!$mediaId) {
+                        $fallos++;
+                        $resultados[] = ['id' => $id, 'codigo' => $factura->codigo, 'estado' => 'error', 'mensaje' => 'No se pudo subir el PDF a Meta.'];
+                        continue;
+                    }
+
+                    $components[] = [
+                        "type" => "header",
+                        "parameters" => [
+                            [
+                                "type" => "document",
+                                "document" => [
+                                    "id"       => $mediaId,
+                                    "filename" => "Factura_{$factura->codigo}.pdf"
+                                ]
+                            ]
+                        ]
+                    ];
+                }
+
+                $parameters = [];
+                foreach ($bodyTextParams as $paramValue) {
+                    $parameters[] = ["type" => "text", "text" => strval($paramValue)];
+                }
+                $components[] = [
+                    "type" => "body",
+                    "parameters" => $parameters
+                ];
+
+                $languageCode = $plantilla->language ?? 'es';
+                if (is_array($languageCode)) {
+                    $languageCode = $languageCode['code'] ?? ($languageCode[0] ?? 'es');
+                }
+                
+                $response = (object) $metaService->sendTemplate(
+                    $instance->phone_number_id,
+                    $prefijo . ltrim($contacto->celular, '0'),
+                    $plantilla->title,
+                    (string) $languageCode,
+                    $components
+                );
+                
+                $responseData = json_decode(json_encode($response), true);
+                
+                $status = 'error';
+                if (isset($responseData['success']) && $responseData['success']) {
+                    $status = 'success';
+                } elseif (isset($responseData['messages'])) {
+                    $status = 'success';
+                }
+
+                $mensajeProcesado = $plantilla->contenido ?? '';
+                foreach ($bodyTextParams as $index => $paramValue) {
+                    $mensajeProcesado = str_replace('{{' . ($index + 1) . '}}', $paramValue, $mensajeProcesado);
+                }
+
+                WhatsappMetaLog::create([
+                    'status' => $status,
+                    'response' => json_encode($response),
+                    'factura_id' => $factura->id,
+                    'contacto_id' => $contacto->id,
+                    'empresa' => Auth::user()->empresa,
+                    'mensaje_enviado' => $mensajeProcesado ?: ("Meta Template: " . ($plantilla->title ?? 'Text')),
+                    'plantilla_id' => $plantilla ? $plantilla->id : null,
+                    'enviado_por' => Auth::user()->id
+                ]);
+
+                if ($status === 'success') {
+                    $factura->whatsapp = 1;
+                    $factura->save();
+
+                    // Sync con Chat System (Centralizado)
+                    $phone = $prefijo . ltrim($contacto->celular, '0');
+                    $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
+                    
+                    if ($wamid) {
+                        $companyNit = $empresaObj->nit ?? \App\Empresa::find(1)->nit;
+                        
+                        $contractId = null;
+                        $facturaContrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        if ($facturaContrato) {
+                            $contract = \App\Contrato::where('nro', $facturaContrato->contrato_nro)->first();
+                            $contractId = $contract ? $contract->id : null;
+                        }
+
+                        $this->registerCentralizedBatch(
+                            $instance->phone_number_id,
+                            $phone,
+                            $wamid,
+                            $mensajeProcesado,
+                            $contacto->nombre . ' ' . $contacto->apellido1,
+                            'template',
+                            'sent',
+                            $factura->id,
+                            $contractId,
+                            null,
+                            $companyNit,
+                            $plantilla ? $plantilla->id : null
+                        );
+                    }
+
+                    $exitos++;
+                    $resultados[] = ['id' => $id, 'codigo' => $factura->codigo, 'estado' => 'enviado', 'mensaje' => 'Mensaje enviado correctamente'];
+                } else {
+                    $fallos++;
+                    $msjError = 'Error al enviar mensaje Meta';
+                    if (isset($responseData['error']['error']['message'])) {
+                        $msjError = $responseData['error']['error']['message'];
+                    } elseif (isset($responseData['error']['message'])) {
+                        $msjError = $responseData['error']['message'];
+                    }
+                    $resultados[] = ['id' => $id, 'codigo' => $factura->codigo, 'estado' => 'error', 'mensaje' => $msjError];
+                }
+            } catch (\Exception $e) {
+                $fallos++;
+                $resultados[] = ['id' => $id, 'codigo' => 'N/A', 'estado' => 'error', 'mensaje' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'success' => true, 
+            'enviados' => $exitos,
+            'errores' => $fallos, 
+            'omitidos' => 0, 
+            'detalle' => $resultados
+        ]);
+    }
     
     public function whatsapp2($id,Request $request )
     {

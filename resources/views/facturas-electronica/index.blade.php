@@ -275,6 +275,7 @@
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_siigo"><i class="fas fa-server"></i> Enviar a Siigo en lote</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_imp_fac"><i class="fas fa-file-excel"></i> Imprimir facturas</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_enviar_correo"><i class="fas fa-envelope"></i> Enviar al correo</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_enviar_whatsapp_lote"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp en lote</a>
                         @if(isset($_SESSION['permisos']['855']))
                         <a class="dropdown-item text-danger" href="javascript:void(0)" id="btn_eliminar"><i class="fas fa-trash"></i> Eliminar facturas en lote</a>
                         @endif
@@ -1058,6 +1059,244 @@
                             });
                         }
                     });
+                }
+            });
+        });
+
+        $('#btn_enviar_whatsapp_lote').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if(nro <= 0){
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura.',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (var i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas por WhatsApp Meta?',
+                text: 'El proceso se ejecutará en pequeños lotes para no saturar el servidor.',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    let chunkSize = 5;
+                    let arrayChunks = [];
+                    for (let i = 0; i < facturas.length; i += chunkSize) {
+                        arrayChunks.push(facturas.slice(i, i + chunkSize));
+                    }
+                    
+                    let totalChunks = arrayChunks.length;
+                    let currentChunk = 0;
+                    
+                    let acumulado = {
+                        enviados: 0,
+                        errores: 0,
+                        omitidos: 0,
+                        detalle: []
+                    };
+                    
+                    var baseUrl = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/whatsapp_lote` :
+                        `/empresa/facturas/whatsapp_lote`;
+
+                    function processNextChunk() {
+                        if (currentChunk >= totalChunks) {
+                            cargando(false);
+                            let html = `<p><strong>Enviados:</strong> ${acumulado.enviados} | <strong>Errores:</strong> ${acumulado.errores}</p>`;
+                            if (acumulado.detalle && acumulado.detalle.length > 0) {
+                                html += '<ul style="max-height: 200px; overflow-y: auto; text-align: left; font-size: 13px;">';
+                                acumulado.detalle.forEach(function(res) {
+                                    let color = res.estado === 'enviado' ? 'green' : (res.estado === 'omitido' ? 'orange' : 'red');
+                                    html += `<li style="color:${color};"><strong>${res.codigo}:</strong> ${res.mensaje}</li>`;
+                                });
+                                html += '</ul>';
+                            }
+
+                            swal({
+                                title: 'PROCESO DE WHATSAPP FINALIZADO',
+                                html: html,
+                                type: 'success',
+                                confirmButtonColor: '#1A59A1',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                            getDataTable();
+                            return;
+                        }
+
+                        cargando(true);
+                        swal({
+                            title: 'PROCESANDO...',
+                            text: `Enviando lote ${currentChunk + 1} de ${totalChunks}... por favor no cierre esta ventana.`,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            onOpen: () => {
+                                swal.showLoading();
+                            }
+                        });
+
+
+                        $.ajax({
+                            url: baseUrl,
+                            method: 'POST',
+                            data: { facturas: arrayChunks[currentChunk] },
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                            success: function(data) {
+                                if (data.success) {
+                                    acumulado.enviados += (data.enviados || 0);
+                                    acumulado.errores += (data.errores || 0);
+                                    acumulado.omitidos += (data.omitidos || 0);
+                                    if(data.detalle) {
+                                        acumulado.detalle = acumulado.detalle.concat(data.detalle);
+                                    }
+                                } else {
+                                    acumulado.errores += arrayChunks[currentChunk].length;
+                                    acumulado.detalle.push({codigo: 'Lote', estado: 'error', mensaje: (data.message || 'Error en respuesta del servidor')});
+                                }
+                                currentChunk++;
+                                processNextChunk();
+                            },
+                            error: function(xhr) {
+                                acumulado.errores += arrayChunks[currentChunk].length;
+                                acumulado.detalle.push({codigo: 'Lote', estado: 'error', mensaje: 'Error HTTP procesando lote'});
+                                currentChunk++;
+                                processNextChunk();
+                            }
+                        });
+                    }
+                    
+                    processNextChunk();
+                }
+            });
+        });
+
+        $('#btn_enviar_whatsapp_lote').on('click', function(e) {
+            var table = $('#tabla-facturas').DataTable();
+            var nro = table.rows('.selected').data().length;
+
+            if(nro <= 0){
+                swal({
+                    title: 'ERROR',
+                    html: 'Para ejecutar esta acción, debe al menos seleccionar una factura.',
+                    type: 'error',
+                });
+                return false;
+            }
+
+            var facturas = [];
+            for (var i = 0; i < nro; i++) {
+                facturas.push(table.rows('.selected').data()[i]['id']);
+            }
+
+            swal({
+                title: '¿Desea enviar ' + nro + ' facturas por WhatsApp Meta?',
+                text: 'El proceso se ejecutará en pequeños lotes para no saturar el servidor.',
+                type: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#00ce68',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Aceptar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.value) {
+                    let chunkSize = 5;
+                    let arrayChunks = [];
+                    for (let i = 0; i < facturas.length; i += chunkSize) {
+                        arrayChunks.push(facturas.slice(i, i + chunkSize));
+                    }
+                    
+                    let totalChunks = arrayChunks.length;
+                    let currentChunk = 0;
+                    
+                    let acumulado = {
+                        enviados: 0,
+                        errores: 0,
+                        omitidos: 0,
+                        detalle: []
+                    };
+                    
+                    var baseUrl = window.location.pathname.split("/")[1] === "software" ?
+                        `/software/empresa/facturas/whatsapp_lote` :
+                        `/empresa/facturas/whatsapp_lote`;
+
+                    function processNextChunk() {
+                        if (currentChunk >= totalChunks) {
+                            cargando(false);
+                            let html = `<p><strong>Enviados:</strong> ${acumulado.enviados} | <strong>Errores:</strong> ${acumulado.errores}</p>`;
+                            if (acumulado.detalle && acumulado.detalle.length > 0) {
+                                html += '<ul style="max-height: 200px; overflow-y: auto; text-align: left; font-size: 13px;">';
+                                acumulado.detalle.forEach(function(res) {
+                                    let color = res.estado === 'enviado' ? 'green' : (res.estado === 'omitido' ? 'orange' : 'red');
+                                    html += `<li style="color:${color};"><strong>${res.codigo}:</strong> ${res.mensaje}</li>`;
+                                });
+                                html += '</ul>';
+                            }
+
+                            swal({
+                                title: 'PROCESO DE WHATSAPP FINALIZADO',
+                                html: html,
+                                type: 'success',
+                                confirmButtonColor: '#1A59A1',
+                                confirmButtonText: 'ACEPTAR',
+                            });
+                            getDataTable();
+                            return;
+                        }
+
+                        cargando(true);
+                        swal({
+                            title: 'PROCESANDO...',
+                            text: `Enviando lote ${currentChunk + 1} de ${totalChunks}... por favor no cierre esta ventana.`,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            onOpen: () => {
+                                swal.showLoading();
+                            }
+                        });
+
+
+                        $.ajax({
+                            url: baseUrl,
+                            method: 'POST',
+                            data: { facturas: arrayChunks[currentChunk] },
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                            success: function(data) {
+                                if (data.success) {
+                                    acumulado.enviados += (data.enviados || 0);
+                                    acumulado.errores += (data.errores || 0);
+                                    acumulado.omitidos += (data.omitidos || 0);
+                                    if(data.detalle) {
+                                        acumulado.detalle = acumulado.detalle.concat(data.detalle);
+                                    }
+                                } else {
+                                    acumulado.errores += arrayChunks[currentChunk].length;
+                                    acumulado.detalle.push({codigo: 'Lote', estado: 'error', mensaje: (data.message || 'Error en respuesta del servidor')});
+                                }
+                                currentChunk++;
+                                processNextChunk();
+                            },
+                            error: function(xhr) {
+                                acumulado.errores += arrayChunks[currentChunk].length;
+                                acumulado.detalle.push({codigo: 'Lote', estado: 'error', mensaje: 'Error HTTP procesando lote'});
+                                currentChunk++;
+                                processNextChunk();
+                            }
+                        });
+                    }
+                    
+                    processNextChunk();
                 }
             });
         });
