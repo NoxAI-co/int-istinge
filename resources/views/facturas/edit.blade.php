@@ -136,7 +136,17 @@
                 </span>
             </div>
 
-            <div class="form-group row @if($factura->factura_mes_manual == null) { 'd-none' } @endif" id='div-fact-mes'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
+                <div class="col-sm-8">
+                    <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
+                        <option value="1" @if($factura->periodo_facturacion == 1) {{'selected'}} @endif>Mes anticipado</option>
+                        <option value="2" @if($factura->periodo_facturacion == 2) {{'selected'}} @endif>Mes vencido</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group row" id='div-fact-mes'>
                 <label class="col-sm-4 col-form-label">Factura del mes?
                     <span class="text-danger">*</span>
                     <a><i data-tippy-content="Si quieres que la factura pertenezca a la del mes para que NO se cree automaticamente una nueva en el mes elige si"
@@ -216,14 +226,7 @@
                         </div>
                     </div>
 
-                    @if(auth()->user()->empresa()->estado_dian == 1)
-                        <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="{{$factura->ordencompra}}">
-                        </div>
-                        </div>
-                    @endif
+
                 </div>
             </div>
 
@@ -245,19 +248,24 @@
                       </div>
                   </div>
 
+                    @if(auth()->user()->empresa()->estado_dian == 1)
+                        <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="{{$factura->ordencompra}}">
+                        </div>
+                        </div>
+                    @endif
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                        <div class="col-sm-8">
+                          <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="{{$factura->ordenservicio}}">
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="col-md-5 offset-md-2">
-
-                    <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
-                        <div class="col-sm-8">
-                            <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
-                                <option value="1" @if($factura->periodo_facturacion == 1) {{'selected'}} @endif>Mes anticipado</option>
-                                <option value="2" @if($factura->periodo_facturacion == 2) {{'selected'}} @endif>Mes vencido</option>
-                            </select>
-                        </div>
-                    </div>
 
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Lista de Precios</label>

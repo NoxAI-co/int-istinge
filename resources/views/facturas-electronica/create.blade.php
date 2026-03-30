@@ -146,27 +146,27 @@
                 </div>
             </div>
             <div class="form-group row">
-              <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
-              <div class="col-sm-8">
-                  <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
-                      <option value="1" {{$empresa->periodo_facturacion==1 ? 'selected' : ''}}>Mes anticipado</option>
-                      <option value="2" {{$empresa->periodo_facturacion==2 ? 'selected' : ''}}>Mes vencido</option>
-                  </select>
-              </div>
-          </div>
-
-            <div class="form-group row d-none" id='div-fact-mes'>
-            <label class="col-sm-4 col-form-label">Factura del mes?
-                <span class="text-danger">*</span>
-                <a><i data-tippy-content="Si quieres que la factura pertenezca a la del mes para que NO se cree automaticamente una nueva en el mes elige si"
-                        class="icono far fa-question-circle"></i></a>
-            </label>
-            <div class="col-sm-8">
-                <select name="factura_mes_manual" id="factura_mes_manual" class="form-control selectpicker" title="Seleccione" data-live-search="false" data-size="5" required>
-                    <option value="1">Si</option>
-                    <option value="0">No</option>
-                </select>
+                <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
+                <div class="col-sm-8">
+                    <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
+                        <option value="1" {{$empresa->periodo_facturacion==1 ? 'selected' : ''}}>Mes anticipado</option>
+                        <option value="2" {{$empresa->periodo_facturacion==2 ? 'selected' : ''}}>Mes vencido</option>
+                    </select>
+                </div>
             </div>
+
+            <div class="form-group row" id='div-fact-mes'>
+                <label class="col-sm-4 col-form-label">Factura del mes?
+                    <span class="text-danger">*</span>
+                    <a><i data-tippy-content="Si quieres que la factura pertenezca a la del mes para que NO se cree automaticamente una nueva en el mes elige si"
+                            class="icono far fa-question-circle"></i></a>
+                </label>
+                <div class="col-sm-8">
+                    <select name="factura_mes_manual" id="factura_mes_manual" class="form-control selectpicker" title="Seleccione" data-live-search="false" data-size="5" required>
+                        <option value="1">Si</option>
+                        <option value="0" selected>No</option>
+                    </select>
+                </div>
             </div>
 
         <div class="form-group row">
@@ -232,20 +232,7 @@
               </div>
           </div>
 
-        @if(auth()->user()->empresa()->estado_dian == 1)
-            <div class="form-group row">
-              <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-              <div class="col-sm-8">
-                <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="">
-              </div>
-            </div>
-        @endif
-        <div class="form-group row">
-            <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="">
-            </div>
-          </div>
+
 
   		</div>
     </div>
@@ -261,6 +248,31 @@
     				<textarea  class="form-control form-control-sm min_max_100" name="observaciones"></textarea>
     			</div>
 		    </div>
+
+				<div class="form-group row">
+                    <label class="col-sm-4  col-form-label">Periodo Cobrado
+                        <a><i data-tippy-content="Si no quieres que aparezca el periodo cobrado por defecto del sistema en la factura, agrega tu periodo cobrado textualmente" class="icono far fa-question-circle"></i></a>
+                    </label>
+                    <div class="col-sm-8">
+                        <textarea  class="form-control form-control-sm min_max_100" rows="2" name="periodo_cobrado_text"></textarea>
+                    </div>
+		        </div>
+
+                @if(auth()->user()->empresa()->estado_dian == 1)
+                    <div class="form-group row">
+                      <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                      <div class="col-sm-8">
+                        <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="">
+                      </div>
+                    </div>
+                @endif
+                <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                    <div class="col-sm-8">
+                      <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="">
+                    </div>
+                </div>
+
 			</div>
       <div class="col-md-4 offset-md-3">
         <div class="form-group row">

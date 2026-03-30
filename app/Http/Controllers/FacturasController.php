@@ -1880,13 +1880,6 @@ class FacturasController extends Controller{
 
             if($request->contratos_json != ''){
                 $contrato = Contrato::where('id', $request->contratos_json)->first();
-            }else{
-                // Verificar si el cliente tiene factura_est_elec = 1 para permitir crear sin contrato
-                $cliente = Contacto::where('id', $request->cliente)->where('empresa', $user->empresa)->first();
-                if(!$cliente || $cliente->factura_est_elec != 1){
-                    $mensaje='Debes seleccionar un contrato para el tipo de facturacion estandar.';
-                    return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
-                }
             }
 
         }else{
@@ -2157,7 +2150,7 @@ class FacturasController extends Controller{
         //Se redirecciona a la vista Nuevo Factura, si se selecciono la opcion "Crear una nueva"
         else if ($request->new) {
             return redirect('empresa/facturas/create')->with('success', $mensaje)->with('print', $print);
-        }else if($tipo == 2){
+        }else if($tipo == 2 && isset($request->electronica)){
             return redirect('empresa/facturas/facturas_electronica')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
         }
         return redirect('empresa/factura-index')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
@@ -2338,6 +2331,7 @@ class FacturasController extends Controller{
                 $factura->facnotas=$request->notas;
                 $factura->tipo_operacion = $request->tipo_operacion;
                 $factura->ordencompra    = $request->ordencompra;
+                $factura->ordenservicio  = $request->ordenservicio;
                 $factura->periodo_facturacion = $request->periodo_facturacion;
                 $factura->factura_mes_manual = isset($request->factura_mes_manual) ? $request->factura_mes_manual : 0;
                 $factura->periodo_cobrado_text = isset($request->periodo_cobrado_text) ? $request->periodo_cobrado_text : '';
