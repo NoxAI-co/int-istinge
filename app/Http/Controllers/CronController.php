@@ -2522,8 +2522,9 @@ class CronController extends Controller
                     if($factura->estatus == 0){
                         # EJECUTAMOS COMANDOS EN MIKROTIK
                         $cliente = Contacto::where('id', $factura->cliente)->first();
-                        $contrato = Contrato::where('client_id', $cliente->id)->first();
-                        $res = DB::table('contracts')->where('client_id', $cliente->id)->update(["state" => 'enabled']);
+                        $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
+                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
@@ -2816,10 +2817,11 @@ class CronController extends Controller
                 if($factura->estatus == 0){
                     # EJECUTAMOS COMANDOS EN MIKROTIK
                     $cliente = Contacto::where('id', $factura->cliente)->first();
-                    $contrato = Contrato::where('client_id', $cliente->id)->first();
+                    $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                    $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
 
                     if($contrato){
-                        $res = DB::table('contracts')->where('client_id', $cliente->id)->update(["state" => 'enabled']);
+                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
@@ -3058,8 +3060,9 @@ class CronController extends Controller
                     if($factura->estatus == 0){
                         # EJECUTAMOS COMANDOS EN MIKROTIK
                         $cliente = Contacto::where('id', $factura->cliente)->first();
-                        $contrato = Contrato::where('client_id', $cliente->id)->first();
-                        $res = DB::table('contracts')->where('client_id', $cliente->id)->update(["state" => 'enabled']);
+                        $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
+                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
@@ -3297,8 +3300,9 @@ class CronController extends Controller
                     if($factura->estatus == 0){
                         # EJECUTAMOS COMANDOS EN MIKROTIK
                         $cliente = Contacto::where('id', $factura->cliente)->first();
-                        $contrato = Contrato::where('client_id', $cliente->id)->first();
-                        $res = DB::table('contracts')->where('client_id', $cliente->id)->update(["state" => 'enabled']);
+                        $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                        $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
+                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
@@ -3533,8 +3537,9 @@ class CronController extends Controller
                 if($factura->estatus == 0){
                     # EJECUTAMOS COMANDOS EN MIKROTIK
                     $cliente = Contacto::where('id', $factura->cliente)->first();
-                    $contrato = Contrato::where('client_id', $cliente->id)->first();
-                    $res = DB::table('contracts')->where('client_id', $cliente->id)->update(["state" => 'enabled']);
+                    $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
+                    $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
+                    $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
                     $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
