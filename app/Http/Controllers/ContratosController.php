@@ -1160,6 +1160,20 @@ class ContratosController extends Controller
                         $ip_autorizada = 1;
                     }
 
+                    /*ACTIVE CONNECTION*/
+                    if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                            $API->write('/ppp/secret/print', false);
+                            $API->write('?name=' . $contrato->usuario, true);
+                            $ARRAYS = $API->read();
+                            if (count($ARRAYS) > 0) {
+                                $API->write('/ppp/secret/enable', false);
+                                $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                $API->read();
+                            }
+                        }
+                    } 
+
                     $API->disconnect();
 
                 }else {
