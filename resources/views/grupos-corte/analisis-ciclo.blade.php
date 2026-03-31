@@ -114,7 +114,7 @@
                     <div class="col-md-4">
                         <div class="form-group mb-0">
                             <label for="periodoSelector" class="small font-weight-bold">Seleccionar Período:</label>
-                            <input type="month" id="periodoSelector" class="form-control" value="{{ $periodo }}" max="{{ Carbon\Carbon::now()->format('Y-m') }}">
+                            <input type="month" id="periodoSelector" class="form-control" value="{{ $periodo }}" max="{{ Carbon\Carbon::now()->addMonth()->format('Y-m') }}">
                         </div>
                     </div>
                 </div>

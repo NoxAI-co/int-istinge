@@ -744,7 +744,7 @@ class BillingCycleAnalyzer
         }
         
         $fechaInicio = Carbon::parse($primerContrato->created_at)->startOfMonth();
-        $fechaActual = Carbon::now()->endOfMonth();
+        $fechaActual = Carbon::now()->addMonth()->endOfMonth();
         
         $ciclos = [];
         $fecha = $fechaInicio->copy();
