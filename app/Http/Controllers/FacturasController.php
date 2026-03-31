@@ -6476,13 +6476,26 @@ class FacturasController extends Controller{
 
             if (!$factura) {
                 $mensaje = 'Factura no encontrada con ID: ' . $facturaId;
-                if (!$masivo) {
+                if ($masivo) {
                     return back()->with('danger', $mensaje);
                 }
                 return [
                     'success' => false,
                     'message' => $mensaje,
                     'factura_id' => $facturaId,
+                ];
+            }
+
+            if ($factura->tipo == 2) {
+                $mensaje = 'La factura ya es electrónica, no se reasignará el número.';
+                if (!$masivo) {
+                    return back()->with('success', $mensaje);
+                }
+                return [
+                    'success' => true,
+                    'message' => $mensaje,
+                    'factura_id' => $facturaId,
+                    'codigo' => $factura->codigo,
                 ];
             }
 
