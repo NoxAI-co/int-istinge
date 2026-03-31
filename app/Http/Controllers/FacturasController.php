@@ -3721,9 +3721,17 @@ class FacturasController extends Controller{
             $btw = new BTWService;
             $response = (object)$btw->sendInvoiceBTW($fullJson);
 
-            //Validacion de que no existe la resolucion.
+            //Validacion de que no existe la resolucion o error de validación DIAN (422).
             if(isset($response->statusCode) && $response->statusCode == 422){
-                return redirect('/empresa/facturas/facturas_electronica')->with('message_denied_btw', $response->th['message']);
+                $mensaje_error = isset($response->th['message']) ? $response->th['message'] : (isset($response->errorMessage) ? $response->errorMessage : 'Error al realizar la petición');
+                if(request()->ajax()){
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => $mensaje_error,
+                        'th' => isset($response->th) ? $response->th : null
+                    ], 422);
+                }
+                return redirect('/empresa/facturas/facturas_electronica')->with('message_denied_btw', $mensaje_error);
             }
 
             if(isset($response->status) && $response->status == 'success'){
