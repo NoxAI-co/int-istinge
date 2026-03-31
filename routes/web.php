@@ -586,6 +586,11 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/historialsaldo/{contactoid}', 'ContactosController@historialSaldo');
 		Route::post('/storesaldo', 'ContactosController@storeSaldo');
 		Route::post('/asociarbarrio', 'ContactosController@asociarBarrio');
+
+        // Importación de saldos a favor
+		Route::get('importacion-saldos', 'ContactosController@importarSaldos')->name('saldos_favor.importar');
+		Route::post('importacion-saldos/cargando', 'ContactosController@cargandoSaldos')->name('saldos_favor.cargando');
+		Route::get('importacion-saldos/ejemplo', 'ContactosController@ejemploSaldos')->name('saldos_favor.ejemplo');
 	});
 	Route::resource('contactos', 'ContactosController');
 

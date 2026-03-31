@@ -317,6 +317,7 @@
                 <p>Registra aqui referencias para tus contactos.</p>
                 <a href="{{ route('tiposempresa.index') }}">Tipos de Contactos</a> <br>
                 <a href="{{ route('barrios.index') }}">Barrios</a> <br>
+                <a href="{{ route('saldos_favor.importar') }}">Importación de saldos a favor</a> <br>
             </div>
 
             {{-- Agregando campos adicionales a contactos --}}
