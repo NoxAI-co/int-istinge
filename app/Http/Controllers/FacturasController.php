@@ -8173,14 +8173,32 @@ class FacturasController extends Controller{
                         
                         // Si Excel lo detecta como fecha numérica
                         if (\PHPExcel_Shared_Date::isDateTime($cell)) {
-                            return gmdate('Y-m-d', \PHPExcel_Shared_Date::ExcelToPHP($value));
+                            // PHPExcel_Shared_Date::ExcelToPHPObject devuelve un objeto DateTime directo
+                            return \PHPExcel_Shared_Date::ExcelToPHPObject($value)->format('Y-m-d');
                         }
                         
-                        // Si es string, limpiamos y parseamos con Carbon
+                        // Si es string, limpiamos y parseamos manualmente para evitar desfases de zona horaria
                         $formatted = trim($cell->getFormattedValue());
                         if (empty($formatted)) return null;
                         
-                        return Carbon::parse(str_replace('/', '-', $formatted))->format('Y-m-d');
+                        // Intentar parsear manual DD-MM-YYYY o DD/MM/YYYY
+                        if (preg_match('/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/', $formatted, $matches)) {
+                            $d = (int)$matches[1];
+                            $m = (int)$matches[2];
+                            $y = (int)$matches[3];
+                            if ($y < 100) $y += 2000;
+                            return sprintf('%04d-%02d-%02d', $y, $m, $d);
+                        }
+
+                        // Si no coincide con lo anterior, intentar Carbon pero forzando d/m/Y si tiene diagonales
+                        try {
+                            if (strpos($formatted, '/') !== false) {
+                                return Carbon::createFromFormat('d/m/Y', $formatted)->format('Y-m-d');
+                            }
+                            return Carbon::parse(str_replace('/', '-', $formatted))->format('Y-m-d');
+                        } catch (\Exception $ex) {
+                            return null;
+                        }
                     };
 
                     // Ajustar letras de columnas si hay desplazamiento
