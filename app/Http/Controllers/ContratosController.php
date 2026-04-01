@@ -1017,7 +1017,16 @@ class ContratosController extends Controller
 
                                 if ($name) {
                                     $registro = true;
-                                    $API->comm(
+                                    
+                                    // Limpieza preventiva por nombre
+                                    $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                                    if (count($existe_queue) > 0) {
+                                        foreach ($existe_queue as $q) {
+                                            $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                                        }
+                                    }
+
+                                    $result = $API->comm(
                                         "/queue/simple/add",
                                         array(
                                             "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1030,6 +1039,7 @@ class ContratosController extends Controller
                                             "limit-at"        => $limit_at
                                         )
                                     );
+                                    Log::info($result);
                                 }
                             }
                         } else {
@@ -1065,7 +1075,15 @@ class ContratosController extends Controller
                             $queue = "default-small/default-small";
                         }
 
-                        $API->comm(
+                        // Limpieza preventiva por nombre
+                        $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                        if (count($existe_queue) > 0) {
+                            foreach ($existe_queue as $q) {
+                                $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                            }
+                        }
+
+                        $result = $API->comm(
                             "/queue/simple/add",
                             array(
                                 "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1080,6 +1098,7 @@ class ContratosController extends Controller
                                 "queue"           => $queue
                             )
                         );
+                        Log::info($result);
 
                         $name = $API->comm(
                             "/queue/simple/getall",
@@ -1105,7 +1124,15 @@ class ContratosController extends Controller
                                 );
                             }
 
-                            $API->comm(
+                            // Limpieza preventiva por nombre
+                            $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                            if (count($existe_queue) > 0) {
+                                foreach ($existe_queue as $q) {
+                                    $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                                }
+                            }
+
+                            $result = $API->comm(
                                 "/queue/simple/add",
                                 array(
                                     "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1118,6 +1145,7 @@ class ContratosController extends Controller
                                     "limit-at"        => $limit_at
                                 )
                             );
+                            Log::info($result);
                         }
                     }
 
@@ -1132,6 +1160,14 @@ class ContratosController extends Controller
                             )
                         );
 
+                        // Limpieza preventiva por nombre
+                        $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                        if (count($existe_queue) > 0) {
+                            foreach ($existe_queue as $q) {
+                                $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                            }
+                        }
+
                         $API->comm(
                             "/ip/address/add",
                             array(
@@ -1140,7 +1176,7 @@ class ContratosController extends Controller
                             )
                         );
 
-                        $API->comm(
+                        $result = $API->comm(
                             "/queue/simple/add",
                             array(
                                 "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1153,6 +1189,7 @@ class ContratosController extends Controller
                                 "limit-at"        => $limit_at
                             )
                         );
+                        Log::info($result);
                     }
 
                     if ($mikrotik->regla_ips_autorizadas == 1) {
@@ -2039,7 +2076,15 @@ class ContratosController extends Controller
                             ));
                         }
 
-                        $response = $API->comm(
+                        // Limpieza preventiva por nombre
+                        $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $request->nro));
+                        if (count($existe_queue) > 0) {
+                            foreach ($existe_queue as $q) {
+                                $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                            }
+                        }
+
+                        $result = $response = $API->comm(
                             "/queue/simple/add",
                             array(
                                 "name"            => $this->normaliza($servicio) . '-' . $request->nro,
@@ -2053,6 +2098,7 @@ class ContratosController extends Controller
                                 "queue"           => $queue_edit
                             )
                         );
+                        Log::info($result);
                     }
 
                     /*VLAN*/
