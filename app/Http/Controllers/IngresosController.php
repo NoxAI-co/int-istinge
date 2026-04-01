@@ -1297,7 +1297,7 @@ class IngresosController extends Controller
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $contrato->id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')';
+                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')' . ' | Ingreso: ' . $ingreso->nro;
                                 $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                                 $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                                 $movimiento->save();
