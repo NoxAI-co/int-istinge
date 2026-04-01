@@ -1643,7 +1643,11 @@ public function forma_pago()
         //Primero analizamos si es la primer factura del contrato que vamos a generar
         if($this->contrato_id != null){
 
-            $factura = Factura::where('empresa',$this->empresa)->where('contrato_id',$this->contrato_id)->orderBy('id','ASC')->first();
+            $factura = Factura::where('empresa', $this->empresa)
+                ->where('contrato_id', $this->contrato_id)
+                ->where('estatus', '!=', 2) // Excluir facturas anuladas
+                ->orderBy('id', 'ASC')
+                ->first();
 
             /*
             De esta manera nos aseguramos que se esté hablando de la misma y primer factura y entonces cobraremos
@@ -1667,8 +1671,8 @@ public function forma_pago()
                 }
             }
 
-            if((($factura->id == $this->id && $empresa->prorrateo == 1) ||
-                ($factura->id == $this->id && $forzar_prorrateo == 1)) && $esMismoPeriodo){
+            if((($factura->id == $this->id && $empresa->prorrateo == 1 && $contrato->prorrateo == 1) ||
+                ($factura->id == $this->id && $forzar_prorrateo == 1 && $contrato->prorrateo == 1)) && $esMismoPeriodo){
 
 
 

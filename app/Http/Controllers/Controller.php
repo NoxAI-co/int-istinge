@@ -2501,7 +2501,7 @@ class Controller extends BaseController
 
     public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false, $desdeConfig = false){
 
-        if ($contrato->prorrateo == 0 && !$desdeOnu) {
+        if ($contrato->prorrateo == 0 && $contrato->fact_primer_mes == 0 && !$desdeOnu) {
             return false;
         }
 
