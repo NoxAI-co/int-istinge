@@ -31,6 +31,11 @@ use Illuminate\Support\Facades\DB;
 
 class Factura extends Model
 {
+    // CONFIGURACIÓN DE PRORRATEO:
+    // true: Cobra (días pendientes del mes anterior + mes actual completo).
+    // false: Cobra únicamente los días proporcionales de servicio del mes anterior.
+    public static $acumular_prorrateo_mes_siguiente = false;
+
     protected $table = "factura";
     protected $primaryKey = 'id';
     /**
@@ -1666,7 +1671,7 @@ public function forma_pago()
                     $contrato->save();
                 }
                 $fechaC = Carbon::parse($contrato->created_at);
-                if($fechaC->lt($fechaInicioOrg)){
+                if($fechaC->lt($fechaInicioOrg) && $factura->id != $this->id){
                     $esMismoPeriodo = false;
                 }
             }
@@ -1763,8 +1768,15 @@ public function forma_pago()
                     return 1; // Mínimo 1 día facturable
                 }
                 
-                // Si excede 30 días y no hay días extra por ciclo anterior, limitar a 30
-                if($diasCobrados > 30 && $diasdeMas==0){$diasCobrados=30;}
+                // Si la facturación es acumulada, cobramos los días extra (ej: 14 de marzo + 30 de abril = 44 días).
+                // De lo contrario, respetamos el comportamiento original o lo limitamos según la configuración.
+                if ($diasCobrados > 30 && $diasdeMas == 0) {
+                    if (self::$acumular_prorrateo_mes_siguiente === false) {
+                        // Si no acumulamos, restamos el mes actual para quedarnos solo con el proporcional pendiente.
+                        $diasProporcionalesPendientes = $diasCobrados - 30;
+                        $diasCobrados = $diasProporcionalesPendientes > 0 ? $diasProporcionalesPendientes : 30;
+                    }
+                }
                 // $diasCobrados=$diasCobrados; // Redundante
             }else{
 
