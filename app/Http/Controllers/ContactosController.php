@@ -1754,4 +1754,181 @@ class ContactosController extends Controller
         return redirect()->back()->with('success','Se ha generado un registro crm correctamente.');
 
     }
+
+    public function importarSaldos()
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['title' => 'Importar Saldos a Favor', 'subseccion' => 'clientes']);
+        return view('contactos.importar_saldos');
+    }
+
+    public function ejemploSaldos()
+    {
+        $objPHPExcel = new PHPExcel();
+        $empresa = Auth::user()->empresa();
+        $tituloReporte = 'PLANTILLA DE IMPORTACIÓN: SALDOS A FAVOR';
+        $subTitulo = 'Empresa: ' . $empresa->nombre;
+
+        // Propiedades del documento
+        $objPHPExcel->getProperties()
+            ->setCreator('NetworkSoft')
+            ->setTitle('Plantilla Importación Saldos');
+
+        // Configuración de la hoja
+        $sheet = $objPHPExcel->setActiveSheetIndex(0);
+        $sheet->setTitle('Saldos a Favor');
+
+        // Estilos
+        $estiloTitulo = [
+            'font' => ['bold' => true, 'size' => 12, 'name' => 'Arial'],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER]
+        ];
+
+        $estiloSubtitulo = [
+            'font' => ['bold' => false, 'size' => 11, 'name' => 'Arial'],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER]
+        ];
+
+        $estiloEncabezado = [
+            'fill' => [
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => ['rgb' => substr($empresa->color, 1) ?: '007bff'],
+            ],
+            'font' => [
+                'bold' => true,
+                'size' => 12,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'alignment' => [
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
+            ],
+        ];
+
+        $estiloDatos = [
+            'font' => ['size' => 11, 'name' => 'Arial'],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
+            'borders' => [
+                'allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']],
+            ],
+        ];
+
+        // Títulos
+        $sheet->mergeCells('A1:B1');
+        $sheet->setCellValue('A1', $tituloReporte);
+        $sheet->getStyle('A1')->applyFromArray($estiloTitulo);
+
+        $sheet->mergeCells('A2:B2');
+        $sheet->setCellValue('A2', $subTitulo . ' - Fecha: ' . date('d-m-Y'));
+        $sheet->getStyle('A2')->applyFromArray($estiloSubtitulo);
+
+        // Encabezados de Columnas
+        $sheet->setCellValue('A3', 'Nro Identificación');
+        $sheet->setCellValue('B3', 'Saldo a Favor');
+        $sheet->getStyle('A3:B3')->applyFromArray($estiloEncabezado);
+        $sheet->getRowDimension('3')->setRowHeight(25);
+
+        // Ejemplo de datos (Fila 4)
+        $sheet->setCellValue('A4', '123456789');
+        $sheet->setCellValue('B4', '50000');
+        $sheet->getStyle('A4:B4')->applyFromArray($estiloDatos);
+
+        // Ajuste de columnas fija para legibilidad
+        $sheet->getColumnDimension('A')->setWidth(35);
+        $sheet->getColumnDimension('B')->setWidth(35);
+
+        // Bloqueo de paneles (congelar encabezado)
+        $sheet->freezePane('A4');
+
+        header('Pragma: no-cache');
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Disposition: attachment;filename="Plantilla_Importacion_Saldos.xlsx"');
+        header('Cache-Control: max-age=0');
+
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
+    public function cargandoSaldos(Request $request)
+    {
+        try {
+            if (!$request->hasFile('archivo')) {
+                return back()->with('error', 'Debe seleccionar un archivo para importar');
+            }
+
+            $imagen = $request->file('archivo');
+            $nombre_imagen = 'saldos_' . time() . '.' . $imagen->getClientOriginalExtension();
+            $path = public_path() . '/images/Empresas/Empresa' . Auth::user()->empresa;
+            $imagen->move($path, $nombre_imagen);
+
+            ini_set('max_execution_time', 500);
+
+            $fileWithPath = $path . '/' . $nombre_imagen;
+            $inputFileType = PHPExcel_IOFactory::identify($fileWithPath);
+            $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+            $objPHPExcel = $objReader->load($fileWithPath);
+            $sheet = $objPHPExcel->getSheet(0);
+            $highestRow = $sheet->getHighestRow();
+
+            $procesados = 0;
+            $errores = [];
+
+            DB::beginTransaction();
+
+            for ($row = 4; $row <= $highestRow; $row++) {
+                $nit = $sheet->getCell('A' . $row)->getValue();
+                $nuevo_saldo = $sheet->getCell('B' . $row)->getValue();
+
+                if (empty($nit)) continue;
+
+                $contacto = Contacto::where('nit', $nit)
+                    ->where('empresa', Auth::user()->empresa)
+                    ->first();
+
+                if ($contacto) {
+                    $saldo_anterior = $contacto->saldo_favor;
+                    
+                    // Registro en log_saldos
+                    DB::table('log_saldos')->insert([
+                        'id_contacto' => $contacto->id,
+                        'accion' => 'modificó el saldo anterior: ' . Funcion::Parsear($saldo_anterior) . ' al actual: ' . $nuevo_saldo,
+                        'created_by' => Auth::user()->id,
+                        'fecha' => Carbon::now()->format('Y-m-d'),
+                        'created_at' => Carbon::now(),
+                        'updated_at' => Carbon::now(),
+                    ]);
+
+                    $contacto->saldo_favor = $nuevo_saldo;
+                    $contacto->save();
+                    $procesados++;
+                } else {
+                    $errores[] = "Fila $row: Contacto con NIT $nit no encontrado.";
+                }
+            }
+
+            DB::commit();
+            
+            // Eliminar archivo temporal
+            if (file_exists($fileWithPath)) unlink($fileWithPath);
+
+            if ($procesados > 0) {
+                $msg = "Se han actualizado $procesados saldos correctamente.";
+                if (count($errores) > 0) {
+                    return redirect('empresa/configuracion')->with('success', $msg)->withErrors($errores);
+                }
+                return redirect('empresa/configuracion')->with('success', $msg);
+            } else {
+                return back()->withErrors($errores)->with('error', 'No se procesó ningún registro.');
+            }
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error en importación de saldos: ' . $e->getMessage());
+            return back()->with('error', 'Ocurrió un error al procesar el archivo: ' . $e->getMessage());
+        }
+    }
 }
