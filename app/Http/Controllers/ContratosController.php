@@ -912,7 +912,7 @@ class ContratosController extends Controller
                 if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
 
                     $rate_limit = '';
-                    $priority        = $plan->prioridad;
+                    $priority        = (isset($plan->prioridad) && !empty($plan->prioridad)) ? $plan->prioridad : 8;
                     $burst_limit     = (strlen($plan->burst_limit_subida) > 1) ? $plan->burst_limit_subida . '/' . $plan->burst_limit_bajada : 0;
                     $burst_threshold = (strlen($plan->burst_threshold_subida) > 1) ? $plan->burst_threshold_subida . '/' . $plan->burst_threshold_bajada : 0;
                     $burst_time      = ($plan->burst_time_subida) ? $plan->burst_time_subida . '/' . $plan->burst_time_bajada : 0;
@@ -1901,7 +1901,7 @@ class ContratosController extends Controller
                     ## ELIMINAMOS DE MK ##
 
                     $rate_limit      = '';
-                    $priority        = $plan->prioridad;
+                    $priority        = (isset($plan->prioridad) && !empty($plan->prioridad)) ? $plan->prioridad : 8;
                     $burst_limit     = (strlen($plan->burst_limit_subida) > 1) ? $plan->burst_limit_subida . '/' . $plan->burst_limit_bajada : 0;
                     $burst_threshold = (strlen($plan->burst_threshold_subida) > 1) ? $plan->burst_threshold_subida . '/' . $plan->burst_threshold_bajada : 0;
                     $burst_time      = ($plan->burst_time_subida) ? $plan->burst_time_subida . '/' . $plan->burst_time_bajada : 0;
