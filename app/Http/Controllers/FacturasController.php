@@ -8146,13 +8146,38 @@ class FacturasController extends Controller{
             }
 
             if (!$fecha) {
-                // Usar Fechas Excel  si no se calculó arriba o form value = off
+                // Usar Fechas Excel si no se calculó arriba o form value = off
+                // Intentamos parsear cada fecha de forma robusta e identificar cuál falla
                 try {
-                    $fecha = Carbon::parse(str_replace('/', '-', $fecha_factura))->format('Y-m-d');
-                    $vencimiento = Carbon::parse(str_replace('/', '-', $fecha_vcto))->format('Y-m-d');
-                    $suspensionDate = Carbon::parse(str_replace('/', '-', $fecha_suspension))->format('Y-m-d');
+                    // Función interna para parsear de forma robusta
+                    $parseDate = function($cell) {
+                        $value = $cell->getValue();
+                        if (empty($value)) return null;
+                        
+                        // Si Excel lo detecta como fecha numérica
+                        if (\PHPExcel_Shared_Date::isDateTime($cell)) {
+                            return date('Y-m-d', \PHPExcel_Shared_Date::ExcelToPHP($value));
+                        }
+                        
+                        // Si es string, limpiamos y parseamos con Carbon
+                        $formatted = trim($cell->getFormattedValue());
+                        if (empty($formatted)) return null;
+                        
+                        return Carbon::parse(str_replace('/', '-', $formatted))->format('Y-m-d');
+                    };
+
+                    $fecha = $parseDate($sheet->getCell("D" . $row));
+                    if (!$fecha) throw new \Exception("Fecha Factura vacía");
+                    
+                    $vencimiento = $parseDate($sheet->getCell("E" . $row));
+                    if (!$vencimiento) $vencimiento = $fecha; // Por defecto misma fecha si está vacío
+                    
+                    $suspensionDate = $parseDate($sheet->getCell("F" . $row));
+                    if (!$suspensionDate) $suspensionDate = $vencimiento;
+
                 } catch (\Exception $e) {
-                    $errores[] = "Fila $row: Error en el formato de fechas ($fecha_factura) - Use MM-DD-YYYY o DD-MM-YYYY válido";
+                    $valFailing = $sheet->getCell("D" . $row)->getFormattedValue();
+                    $errores[] = "Fila $row: Error en el formato de fechas ($valFailing) - Use DD-MM-YYYY válido o asegúrese de no haber saltado columnas.";
                     continue;
                 }
             }
