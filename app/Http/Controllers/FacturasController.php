@@ -8074,11 +8074,27 @@ class FacturasController extends Controller{
                 break;
             }
 
+            // Leemos los valores base para detectar posibles desplazamientos
             $tipo_factura = strtoupper(trim($sheet->getCell("C" . $row)->getValue()));
-            $fecha_factura = $sheet->getCell("D" . $row)->getFormattedValue();
-            $fecha_vcto = $sheet->getCell("E" . $row)->getFormattedValue();
-            $fecha_suspension = $sheet->getCell("F" . $row)->getFormattedValue();
+            $fecha_factura_raw = $sheet->getCell("D" . $row)->getFormattedValue();
+            $fecha_vcto_raw = $sheet->getCell("E" . $row)->getFormattedValue();
+            $fecha_suspension_raw = $sheet->getCell("F" . $row)->getFormattedValue();
             $saldo_inicial = trim($sheet->getCell("G" . $row)->getValue());
+
+            // AUTO-DETECCIÓN DE DESPLAZAMIENTO:
+            // Si en la columna D (donde esperamos la fecha) viene "ESTANDAR" o "ELECTRONICA",
+            // significa que el usuario tiene las columnas corridas un lugar a la derecha.
+            $desplazado = false;
+            if (($tipo_factura != 'ESTANDAR' && $tipo_factura != 'ELECTRONICA') && 
+                (strtoupper($fecha_factura_raw) == 'ESTANDAR' || strtoupper($fecha_factura_raw) == 'ELECTRONICA')) {
+                $desplazado = true;
+                $tipo_factura = strtoupper(trim($fecha_factura_raw));
+                // Los raw se desplazan
+                $fecha_factura_raw = $fecha_vcto_raw;
+                $fecha_vcto_raw = $fecha_suspension_raw;
+                $fecha_suspension_raw = $sheet->getCell("G" . $row)->getFormattedValue();
+                $saldo_inicial = trim($sheet->getCell("H" . $row)->getValue());
+            }
 
             if (empty($tipo_factura) || $saldo_inicial === "" || $saldo_inicial === null) {
                 $errores[] = "Fila $row: Faltan datos (Tipo factura y Saldo inicial)";
@@ -8150,7 +8166,8 @@ class FacturasController extends Controller{
                 // Intentamos parsear cada fecha de forma robusta e identificar cuál falla
                 try {
                     // Función interna para parsear de forma robusta
-                    $parseDate = function($cell) {
+                    $parseDate = function($cell_letter, $row) use ($sheet) {
+                        $cell = $sheet->getCell($cell_letter . $row);
                         $value = $cell->getValue();
                         if (empty($value)) return null;
                         
@@ -8166,18 +8183,23 @@ class FacturasController extends Controller{
                         return Carbon::parse(str_replace('/', '-', $formatted))->format('Y-m-d');
                     };
 
-                    $fecha = $parseDate($sheet->getCell("D" . $row));
+                    // Ajustar letras de columnas si hay desplazamiento
+                    $colFecha = $desplazado ? "E" : "D";
+                    $colVcto  = $desplazado ? "F" : "E";
+                    $colSusp  = $desplazado ? "G" : "F";
+
+                    $fecha = $parseDate($colFecha, $row);
                     if (!$fecha) throw new \Exception("Fecha Factura vacía");
                     
-                    $vencimiento = $parseDate($sheet->getCell("E" . $row));
-                    if (!$vencimiento) $vencimiento = $fecha; // Por defecto misma fecha si está vacío
+                    $vencimiento = $parseDate($colVcto, $row);
+                    if (!$vencimiento) $vencimiento = $fecha; 
                     
-                    $suspensionDate = $parseDate($sheet->getCell("F" . $row));
+                    $suspensionDate = $parseDate($colSusp, $row);
                     if (!$suspensionDate) $suspensionDate = $vencimiento;
 
                 } catch (\Exception $e) {
-                    $valFailing = $sheet->getCell("D" . $row)->getFormattedValue();
-                    $errores[] = "Fila $row: Error en el formato de fechas ($valFailing) - Use DD-MM-YYYY válido o asegúrese de no haber saltado columnas.";
+                    $valFailing = $sheet->getCell($desplazado ? "E" : "D", $row)->getFormattedValue();
+                    $errores[] = "Fila $row: Error en el formato de fechas ($valFailing) - Use DD-MM-YYYY válido o verifique si agregó columnas extras.";
                     continue;
                 }
             }
