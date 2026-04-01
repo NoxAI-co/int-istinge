@@ -8173,7 +8173,7 @@ class FacturasController extends Controller{
                         
                         // Si Excel lo detecta como fecha numérica
                         if (\PHPExcel_Shared_Date::isDateTime($cell)) {
-                            return date('Y-m-d', \PHPExcel_Shared_Date::ExcelToPHP($value));
+                            return gmdate('Y-m-d', \PHPExcel_Shared_Date::ExcelToPHP($value));
                         }
                         
                         // Si es string, limpiamos y parseamos con Carbon
