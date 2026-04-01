@@ -226,16 +226,19 @@ class GruposCorteController extends Controller
                 $mesActual = date('m');
                 $yearActual = date('Y');
 
-                $facturasGrupo = Factura::join('contracts as c', 'c.id', '=' ,'factura.contrato_id')
+                $facturasGrupo = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                ->join('contracts as c', 'c.nro', '=' ,'fc.contrato_nro')
                 ->join('grupos_corte as gc','gc.id','=','c.grupo_corte')
                 ->select('factura.*','gc.id as grupo_id')
                 ->whereRaw("DATE_FORMAT(factura.vencimiento, '%m')=" .$mesActual)
                 ->whereRaw("DATE_FORMAT(factura.vencimiento, '%Y')=" .$yearActual)
                 ->where('gc.id',$grupo->id)
+                ->groupBy('factura.id')
                 ->get();
 
                 foreach($facturasGrupo as $fg){
                     $fg->vencimiento = $yearActual . "-" . $mesActual . "-" . $request->fecha_suspension;
+                    $fg->suspension = $yearActual . "-" . $mesActual . "-" . $request->fecha_suspension;
                     $fg->save();
                 }
             }
@@ -455,9 +458,10 @@ class GruposCorteController extends Controller
             }
 
             $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-                join('contracts as cs','cs.client_id','=','contactos.id')->
+                 join('facturas_contratos as fc','fc.factura_id','=','f.id')->
+                 join('contracts as cs' ,'cs.nro','=','fc.contrato_nro')->
                 join('grupos_corte as gp', 'gp.id', '=', 'cs.grupo_corte')->
-                select('gp.nombre as grupo', 'gp.id as idGrupo', 'contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.codigo', 'f.estatus', 'f.suspension', 'cs.state', 'f.contrato_id')->
+                select('gp.nombre as grupo', 'gp.id as idGrupo', 'contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.codigo', 'f.estatus', 'f.suspension', 'cs.state', 'cs.id as contrato_id')->
                 where('f.estatus',1)->
                 whereIn('f.tipo', [1,2])->
                 where('f.vencimiento', $fecha)->
@@ -474,9 +478,10 @@ class GruposCorteController extends Controller
                 $swGrupo = 1; //masivo
         }else{
             $contactos = Contacto::join('factura as f','f.cliente','=','contactos.id')->
-            join('contracts as cs','cs.client_id','=','contactos.id')->
+            join('facturas_contratos as fc','fc.factura_id','=','f.id')->
+            join('contracts as cs' ,'cs.nro','=','fc.contrato_nro')->
             join('grupos_corte as gp', 'gp.id', '=', 'cs.grupo_corte')->
-            select('gp.nombre as grupo', 'gp.id as idGrupo', 'contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'f.codigo', 'cs.state', 'f.contrato_id')->
+            select('gp.nombre as grupo', 'gp.id as idGrupo', 'contactos.id', 'contactos.nombre', 'contactos.nit', 'f.id as factura', 'f.estatus', 'f.suspension', 'f.codigo', 'cs.state', 'cs.id as contrato_id')->
             where('f.estatus',1)->
             whereIn('f.tipo', [1,2])->
             where('f.vencimiento', $fecha)->
@@ -514,7 +519,8 @@ class GruposCorteController extends Controller
 
         $facturasCortadas = Factura::select('factura.*', 'contactos.nombre as nombreCliente', 'gp.nombre as nombreGrupo', 'gp.hora_suspension', 'gp.id as idGrupo')->
                                      join('contactos', 'contactos.id', '=', 'factura.cliente')->
-                                     join('contracts as cs','cs.client_id','=','contactos.id')->
+                                     join('facturas_contratos as fc','fc.factura_id','=','factura.id') ->
+                                     join('contracts as cs' ,'cs.nro','=','fc.contrato_nro')->
                                      join('grupos_corte as gp', 'gp.id', '=', 'cs.grupo_corte')->
                                      where('vencimiento', $fecha)->
                                      where('estatus', 1)->
@@ -534,7 +540,8 @@ class GruposCorteController extends Controller
 
         $facturasGeneradas = Factura::select('factura.*', 'contactos.nombre as nombreCliente', 'gp.nombre as nombreGrupo', 'gp.hora_suspension', 'gp.id as idGrupo')->
                                      join('contactos', 'contactos.id', '=', 'factura.cliente')->
-                                     join('contracts as cs','cs.client_id','=','contactos.id')->
+                                     join('facturas_contratos as fc','fc.factura_id','=','factura.id') ->
+                                     join('contracts as cs','cs.nro','=','fc.contrato_nro')->
                                      join('grupos_corte as gp', 'gp.id', '=', 'cs.grupo_corte')->
                                      where('vencimiento', $fecha)->
                                      whereIn('tipo', [1,2])->
@@ -1215,7 +1222,8 @@ class GruposCorteController extends Controller
             // Obtener IDs de facturas a actualizar
             // Buscamos por fecha de factura en el mes, O por fecha de suspensión en el mes
             // Esto cubre facturas generadas a finales del mes anterior para el ciclo actual
-            $ids = Factura::join('contracts', 'contracts.id', '=', 'factura.contrato_id')
+            $ids = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                ->join('contracts', 'contracts.nro', '=', 'fc.contrato_nro')
                 ->where('contracts.grupo_corte', $idGrupo)
                 ->where(function($query) use ($fecha) {
                     $query->where(function($q) use ($fecha) {
@@ -1229,6 +1237,7 @@ class GruposCorteController extends Controller
                 })
                 ->where('factura.facturacion_automatica', 1)
                 ->whereNull('factura.factura_mes_manual')
+                ->groupBy('factura.id')
                 ->pluck('factura.id');
             
             if ($ids->count() > 0) {
