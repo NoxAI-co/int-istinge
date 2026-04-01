@@ -1565,6 +1565,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 		Route::get('/contratoperiodo', 'ReportesController@contratoPeriodo')->name('reportes.contratoperiodo');
 		Route::get('/personassincontrato', 'ReportesController@personaSinContrato')->name('reportes.personasincontrato');
+		Route::get('/nomina_resumen', 'ReportesController@nominaResumen')->name('reportes.nomina_resumen');
+		Route::post('/nomina_resumen_export', 'ReportesController@nominaResumenBulkExport')->name('reportes.nomina_resumen_export');
 	});
 	//Exportar
 	Route::group(['prefix' => 'exportar'], function () {

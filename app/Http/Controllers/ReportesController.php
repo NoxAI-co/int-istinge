@@ -40,6 +40,10 @@ use App\Servidor;
 use App\FormaPago;
 use App\Contrato;
 use App\Empresa;
+use App\Model\Nomina\Nomina;
+use App\Model\Nomina\NominaPeriodos;
+use App\Model\Nomina\NominaPreferenciaPago;
+use App\Funcion;
 use Illuminate\Support\Facades\Auth as Auth;
 use Illuminate\Support\Facades\DB as DB;
 
@@ -3506,4 +3510,187 @@ class ReportesController extends Controller
         return view('reportes.sincontrato.index')->with(compact('clientesSinContrato', 'request','saldoTotal'));
     }
 
+
+
+    public function nominaResumen(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $usuario = auth()->user();
+        
+        view()->share(['seccion' => 'reportes', 'title' => 'Resumen de Nómina', 'icon' => 'fas fa-users-cog']);
+        
+        $periodos = Nomina::with('nominaperiodos', 'persona')
+            ->where('fk_idempresa', $usuario->empresa)
+            ->groupBy('periodo', 'year')
+            ->latest()
+            ->get();
+            
+        return view('reportes.nomina.resumen', compact('periodos', 'request'));
+    }
+
+    public function nominaResumenBulkExport(Request $request)
+    {
+        if (!$request->periodos || count($request->periodos) == 0) {
+            return back()->with('error', 'Debe seleccionar al menos un periodo para exportar.');
+        }
+
+        $objPHPExcel = new \PHPExcel();
+        $preferencia = NominaPreferenciaPago::where('empresa', auth()->user()->empresa)->first();
+
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Resumen Nomina Masivo")
+            ->setSubject("Resumen Nomina")
+            ->setDescription("Resumen Nomina Masivo")
+            ->setKeywords("resumen nomina masivo")
+            ->setCategory("reporte excel");
+
+        $titulosColumnas = array('Periodo', 'Nombre', 'Apellido', 'Numero de identificacion', 'Sede', 'Area', 'Cargo', 'Centro de Costos', 'Salario Base', 'Horas Extras y recargos', 'Vacaciones, Incap y Lic', 'Ingresos adicionales', 'Deducc, prest y ReteFuen', 'Pago empleado', 'Prima', 'Cesantias', 'Intereses Cesantias', 'Total');
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+
+        $objPHPExcel->setActiveSheetIndex(0);
+        $sheet = $objPHPExcel->getActiveSheet();
+
+        $tituloReporte = "Resumen de Nómina - Selección de Periodos";
+        $sheet->mergeCells('A1:R1');
+        $sheet->setCellValue('A1', $tituloReporte);
+
+        $estiloA = array(
+            'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+        );
+        $sheet->getStyle('A1:R1')->applyFromArray($estiloA);
+
+        $estiloB = array(
+            'fill' => array(
+                'type' => \PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => array('rgb' => 'c6c8cc')
+            ),
+            'font' => array('bold' => true)
+        );
+        $sheet->getStyle('A3:R3')->applyFromArray($estiloB);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $sheet->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        $rowIdx = 4;
+        $startRow = 4;
+        $empresaId = Auth::user()->empresa;
+
+        foreach ($request->periodos as $periodoStr) {
+            $parts = explode('-', $periodoStr);
+            if (count($parts) < 3) continue;
+            
+            $year = $parts[0];
+            $month = $parts[1];
+            $tipo = $parts[2];
+
+            $nominas = Nomina::with([
+                'persona.nomina_tipo_contrato',
+                'prestacionesSociales',
+                'nominaperiodos' => function ($query) use ($tipo) {
+                    $query->where('periodo', $tipo);
+                }
+            ])
+            ->where('ne_nomina.year', $year)
+            ->where('ne_nomina.periodo', $month)
+            ->where('fk_idempresa', $empresaId)
+            ->where('estado_nomina', 1)
+            ->where('emitida', '<>', 3)
+            ->get();
+
+            $periodoNombre = $preferencia->periodo($month, $year, $tipo);
+
+            foreach ($nominas as $nomina) {
+                $interesCesantiaValor = $cesantiaValor = $primaValor = 0;
+
+                foreach ($nomina->prestacionesSociales as $prestacion) {
+                    switch ($prestacion->nombre) {
+                        case 'prima':
+                            $primaValor = (float) $prestacion->valor_pagar;
+                            break;
+                        case 'cesantia':
+                            $cesantiaValor = (float) $prestacion->valor_pagar;
+                            break;
+                        case 'intereses_cesantia':
+                            $interesCesantiaValor = (float) $prestacion->valor_pagar;
+                            break;
+                    }
+                }
+
+                foreach ($nomina->nominaperiodos as $nominaPeriodo) {
+                    $salarioBase = (float) ($nominaPeriodo->pago_empleado ? $nominaPeriodo->pago_empleado : $nominaPeriodo->valor_total);
+                    $extras = (float) $nominaPeriodo->extras();
+                    $vacaciones = (float) $nominaPeriodo->vacaciones();
+                    $ingresos = (float) $nominaPeriodo->ingresos();
+                    $deducciones = (float) $nominaPeriodo->deducciones();
+                    $pagoEmpleado = (float) ($nominaPeriodo->valor_total ? $nominaPeriodo->valor_total : 0);
+                    
+                    // Total por persona: Pago Empleado + Prestaciones
+                    $totalPersona = $pagoEmpleado + $primaValor + $cesantiaValor + $interesCesantiaValor;
+
+                    $sheet->setCellValue($letras[0] . $rowIdx, $periodoNombre)
+                        ->setCellValue($letras[1] . $rowIdx, $nomina->persona->nombre)
+                        ->setCellValue($letras[2] . $rowIdx, $nomina->persona->apellido)
+                        ->setCellValue($letras[3] . $rowIdx, $nomina->persona->nro_documento)
+                        ->setCellValue($letras[4] . $rowIdx, $nomina->persona->sede()->nombre)
+                        ->setCellValue($letras[5] . $rowIdx, $nomina->persona->area()->nombre)
+                        ->setCellValue($letras[6] . $rowIdx, $nomina->persona->cargo()->nombre)
+                        ->setCellValue($letras[7] . $rowIdx, $nomina->persona->centro_costo()->nombre)
+                        ->setCellValue($letras[8] . $rowIdx, $salarioBase)
+                        ->setCellValue($letras[9] . $rowIdx, $extras)
+                        ->setCellValue($letras[10] . $rowIdx, $vacaciones)
+                        ->setCellValue($letras[11] . $rowIdx, $ingresos)
+                        ->setCellValue($letras[12] . $rowIdx, $deducciones)
+                        ->setCellValue($letras[13] . $rowIdx, $pagoEmpleado)
+                        ->setCellValue($letras[14] . $rowIdx, $primaValor)
+                        ->setCellValue($letras[15] . $rowIdx, $cesantiaValor)
+                        ->setCellValue($letras[16] . $rowIdx, $interesCesantiaValor)
+                        ->setCellValue($letras[17] . $rowIdx, $totalPersona);
+                    
+                    // Aplicar formato numérico a las columnas de dinero (I a R)
+                    $sheet->getStyle('I' . $rowIdx . ':R' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
+                    
+                    $rowIdx++;
+                }
+            }
+        }
+
+        // Fila de Totales
+        $sheet->setCellValue($letras[7] . $rowIdx, 'TOTALES');
+        $sheet->getStyle($letras[7] . $rowIdx)->getFont()->setBold(true);
+        for ($col = 8; $col <= 17; $col++) {
+            $colLetra = $letras[$col];
+            $sheet->setCellValue($colLetra . $rowIdx, "=SUM({$colLetra}{$startRow}:{$colLetra}" . ($rowIdx - 1) . ")");
+            $sheet->getStyle($colLetra . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle($colLetra . $rowIdx)->getFont()->setBold(true);
+        }
+
+        $estiloC = array(
+            'font' => array('size' => 12, 'name' => 'Times New Roman'),
+            'borders' => array(
+                'allborders' => array(
+                    'style' => \PHPExcel_Style_Border::BORDER_THIN
+                )
+            ),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
+        );
+        $sheet->getStyle('A3:R' . $rowIdx)->applyFromArray($estiloC);
+
+        foreach (range(0, 17) as $colIdx) {
+            $sheet->getColumnDimension($letras[$colIdx])->setAutoSize(true);
+        }
+
+        $sheet->setTitle('Resumen Nomina');
+        $objPHPExcel->setActiveSheetIndex(0);
+
+        header("Pragma: no-cache");
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Resumen_Nomina_Masivo.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
 }

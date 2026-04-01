@@ -82,6 +82,12 @@
                 </ul>
             </div>
 
+            <div class="col-md-5 offset-md-1 reportes">
+                <h3><i class="fas fa-users-cog"></i> Nómina</h3>
+                <ul class="list-report">
+                    <li><a href="{{route('reportes.nomina_resumen')}}">Resumen de nómina</a></li>
+                </ul>
+            </div>
         </div>
 
     </div>

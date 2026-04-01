@@ -484,7 +484,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
             @endif
             @if(isset($_SESSION['permisos']['710']))
             <li class="nav-item" id="envio-automatico">
-                <a class="nav-link" href="{{route('avisos.automaticos')}}">Envío automático <span class="badge badge-info ml-1">Nuevo</span></a>
+                <a class="nav-link" href="{{route('avisos.automaticos')}}">Envío automático </a>
             </li>
             @endif
         </ul>
@@ -497,7 +497,6 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
     <a class="nav-link" data-toggle="collapse" href="#ui-nomina" aria-expanded="false" aria-controls="ui-nomina">
         <i class="menu-icon far fa-money-bill-alt"></i>
         <span class="menu-title">Nómina
-            <span class="badge badge-info ml-1">Nuevo</span>
         </span>
         <i class="menu-arrow"></i>
     </a>
