@@ -1657,6 +1657,7 @@ class ContratosController extends Controller
             'contracts.longitude',
             'contracts.servicio_tv',
             'contracts.servicio_otro',
+            'contracts.servicio',
             'contracts.contrato_permanencia',
             'contracts.contrato_permanencia_meses',
             'contracts.serial_onu',
@@ -2233,7 +2234,18 @@ class ContratosController extends Controller
                     $contrato->serial_onu              = $request->serial_onu;
                     $contrato->linea                   = $request->linea;
                     $contrato->estrato                  = $request->estrato;
-                    $contrato->servicio                = $this->normaliza($servicio) . '-' . $request->nro;
+
+                    if($request->change_cliente == 1 && $request->new_contacto_contrato){
+                        $cliente_new = Contacto::find($request->new_contacto_contrato);
+                        $servicio = $cliente_new->nombre . ' ' . $cliente_new->apellido1 . ' ' . $cliente_new->apellido2;
+                    }
+
+                    $descripcion .= ($contrato->servicio == $request->servicio) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio de Servicio</b> de ' . $contrato->servicio . ' a ' . $request->servicio . '<br>';
+                    if ($request->change_cliente != 1 && $request->servicio) {
+                        $contrato->servicio = $request->servicio;
+                    } else {
+                        $contrato->servicio = $this->normaliza($servicio) . '-' . $request->nro;
+                    }
                     $contrato->server_configuration_id = $mikrotik->id;
                     $contrato->descuento               = $request->descuento;
                     $contrato->vendedor                = $request->vendedor;
@@ -2436,7 +2448,16 @@ class ContratosController extends Controller
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA SIDO ACTUALIZADO');
                 }
             } else {
-                $contrato->servicio             = $this->normaliza($servicio) . '-' . $request->nro;
+                if($request->change_cliente == 1 && $request->new_contacto_contrato){
+                    $cliente_new = Contacto::find($request->new_contacto_contrato);
+                    $servicio = $cliente_new->nombre . ' ' . $cliente_new->apellido1 . ' ' . $cliente_new->apellido2;
+                }
+                
+                if ($request->change_cliente != 1 && $request->servicio) {
+                    $contrato->servicio = $request->servicio;
+                } else {
+                    $contrato->servicio = $this->normaliza($servicio) . '-' . $request->nro;
+                }
                 $contrato->grupo_corte          = $request->grupo_corte;
                 $contrato->facturacion          = $request->facturacion;
                 $contrato->latitude             = $request->latitude;

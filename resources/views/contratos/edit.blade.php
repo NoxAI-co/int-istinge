@@ -274,7 +274,15 @@
                                     <strong>{{ $errors->first('estrato') }}</strong>
                                 </span>
                             </div>
-
+                            <div class="col-md-4 form-group">
+                                <label class="control-label font-weight-bold">Servicio</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="servicio" id="servicio" value="{{$contrato->servicio}}">
+                                    <span class="help-block error">
+                                        <strong>{{ $errors->first('servicio') }}</strong>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="internet" role="tabpanel" aria-labelledby="internet-tab">
@@ -1232,8 +1240,12 @@
                 // Show/hide new contact field
                 if(isChecked) {
                     $('.divnew_contacto').removeClass('d-none');
+                    $('#servicio').prop('readonly', true);
+                    $('#servicio').addClass('readonly');
                 } else {
                     $('.divnew_contacto').addClass('d-none');
+                    $('#servicio').prop('readonly', false);
+                    $('#servicio').removeClass('readonly');
                 }
             });
 
