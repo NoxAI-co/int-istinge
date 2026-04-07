@@ -1214,9 +1214,9 @@ class ContratosController extends Controller
 
                     /*ACTIVE CONNECTION*/
                     if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
-                        if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                        if ($request->conexion == 1 && $request->usuario != null) {
                             $API->write('/ppp/secret/print', false);
-                            $API->write('?name=' . $contrato->usuario, true);
+                            $API->write('?name=' . $request->usuario, true);
                             $ARRAYS = $API->read();
                             if (count($ARRAYS) > 0) {
                                 $API->write('/ppp/secret/enable', false);
