@@ -125,7 +125,11 @@ class ContratosController extends Controller
         $clientes = (Auth::user()->oficina && $user->empresa()->oficina) ? Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', $user->empresa)->where('oficina', $user->oficina)->orderBy('nombre', 'ASC')->get() : Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', $user->empresa)->orderBy('nombre', 'ASC')->get();
         $planes = PlanesVelocidad::where('status', 1)->where('empresa', $user->empresa)->get();
         $planestv = Inventario::where('type', 'like', '%TV%')->get();
-        $servidores = Mikrotik::where('status', 1)->where('empresa', $user->empresa)->whereIn('id', $userServer)->get();
+        $servidores = Mikrotik::where('status', 1)->where('empresa', $user->empresa);
+        if (count($userServer) > 0) {
+            $servidores->whereIn('id', $userServer);
+        }
+        $servidores = $servidores->get();
         $grupos = GrupoCorte::where('status', 1)->where('empresa', $user->empresa)->get();
         view()->share(['title' => 'Contratos', 'invert' => true]);
         $tipo = false;
@@ -149,7 +153,12 @@ class ContratosController extends Controller
         $this->getAllPermissions(Auth::user()->id);
         $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre', 'ASC')->get() : Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre', 'ASC')->get();
         $planes = PlanesVelocidad::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
-        $servidores = Mikrotik::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
+        $userServer = Auth::user()->servidores->pluck('id')->toArray();
+        $servidores = Mikrotik::where('status', 1)->where('empresa', Auth::user()->empresa);
+        if (count($userServer) > 0) {
+            $servidores->whereIn('id', $userServer);
+        }
+        $servidores = $servidores->get();
         $grupos = GrupoCorte::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
         view()->share(['title' => 'Contratos', 'invert' => true]);
         $tipo = 'disabled';
@@ -168,7 +177,12 @@ class ContratosController extends Controller
         $this->getAllPermissions(Auth::user()->id);
         $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre', 'ASC')->get() : Contacto::whereIn('tipo_contacto', [0, 2])->where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre', 'ASC')->get();
         $planes = PlanesVelocidad::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
-        $servidores = Mikrotik::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
+        $userServer = Auth::user()->servidores->pluck('id')->toArray();
+        $servidores = Mikrotik::where('status', 1)->where('empresa', Auth::user()->empresa);
+        if (count($userServer) > 0) {
+            $servidores->whereIn('id', $userServer);
+        }
+        $servidores = $servidores->get();
         $grupos = GrupoCorte::where('status', 1)->where('empresa', Auth::user()->empresa)->get();
         view()->share(['title' => 'Contratos', 'invert' => true]);
         $tipo = 'enabled';
@@ -224,8 +238,9 @@ class ContratosController extends Controller
 
             $contratos->where(function ($query) use ($servers) {
                 $query->whereIn('server_configuration_id', $servers)
-                    ->orWhere(function ($subQuery) use ($servers) {
-                        $subQuery->whereNotNull('servicio_tv');
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->whereNull('server_configuration_id')
+                            ->whereNotNull('servicio_tv');
                     });
             });
         }
@@ -3307,6 +3322,18 @@ class ContratosController extends Controller
             ->where('contracts.empresa', Auth::user()->empresa)
             ->where('contracts.status', '!=', 0)
             ->orderBy('nro', 'desc');
+
+        $user = auth()->user();
+        if ($user->servidores->count() > 0) {
+            $servers = $user->servidores->pluck('id')->toArray();
+            $contratos->where(function ($query) use ($servers) {
+                $query->whereIn('server_configuration_id', $servers)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->whereNull('server_configuration_id')
+                            ->whereNotNull('servicio_tv');
+                    });
+            });
+        }
 
         if ($request->client_id != null) {
             $contratos->where(function ($query) use ($request) {
