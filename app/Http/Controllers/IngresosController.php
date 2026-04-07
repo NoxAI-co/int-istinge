@@ -1277,110 +1277,100 @@ class IngresosController extends Controller
                     // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
                     DB::reconnect();
 
+                        // OPTIMIZADO: Una sola consulta para obtener IDs directamente (elimina el print doble)
                         $API->write('/ip/firewall/address-list/print', false);
                         $API->write('?address=' . $contrato->ip, false);
-                        $API->write('?list=morosos', true);
-                        $result = $API->read();
+                        $API->write('?list=morosos', false);
+                        $API->write('=.proplist=.id');
+                        $ARRAYS = $API->read();
 
-                        if (!empty($result)) {
+                        if (!empty($ARRAYS)) {
                             #ELIMINAMOS DE MOROSOS#
+                            // Recopilar TODOS los IDs (puede haber duplicados de la misma IP)
+                            $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                            // Registro MovimientoLOG intentando remove
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
+                            // OPTIMIZADO: Un solo remove en batch con todos los IDs (=numbers= acepta lista separada por coma)
+                            $READ = $API->comm('/ip/firewall/address-list/remove', [
+                                'numbers' => implode(',', $idsToRemove)
+                            ]);
+
+                            // Registro MovimientoLOG respuesta remove
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
+                            // Verificar si realmente se eliminaron todas las entradas
                             $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address='.$contrato->ip, false);
-                            $API->write("?list=morosos",false);
-                            $API->write('=.proplist=.id');
-                            $ARRAYS = $API->read();
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write('?list=morosos', true);
+                            $verificacion = $API->read();
 
-                            if(count($ARRAYS)>0){
-                                $idToRemove = $ARRAYS[0]['.id'];
-                                
-                                // Registro MovimientoLOG intentando remove
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')' . ' | Ingreso: ' . $ingreso->nro;
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            $descVerif = empty($verificacion)
+                                ? '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                : '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
 
-                                $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id=' . $idToRemove, true);
-                                $READ = $API->read();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = $descVerif;
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
 
-                                // Registro MovimientoLOG respuesta remove
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Respuesta comando remove: ' . json_encode($READ);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            #AGREGAMOS A IP_AUTORIZADAS#
+                            $resultAdd = $API->comm('/ip/firewall/address-list/add', [
+                                'address' => $contrato->ip,
+                                'list'    => 'ips_autorizadas'
+                            ]);
 
-                                // Verificar si realmente se eliminó de morosos
-                                $API->write('/ip/firewall/address-list/print', false);
-                                $API->write('?address=' . $contrato->ip, false);
-                                $API->write('?list=morosos', true);
-                                $verificacion = $API->read();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+                            #AGREGAMOS A IP_AUTORIZADAS#
 
-                                if (empty($verificacion)) {
-                                    $descVerif = '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no se encuentra en la lista de morosos.';
-                                } else {
-                                    $descVerif = '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue apareciendo en la lista de morosos después del comando remove.';
-                                }
+                            $mensaje = "- Se ha sacado la ip de morosos.";
 
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = $descVerif;
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            DB::reconnect();
 
-                                #AGREGAMOS A IP_AUTORIZADAS#
-                                $resultAdd = $API->comm("/ip/firewall/address-list/add", array(
-                                    "address" => $contrato->ip,
-                                    "list" => 'ips_autorizadas'
-                                    )
-                                );
+                            $ingreso->revalidacion_enable_internet = 1;
+                            $ingreso->save();
 
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
-                                #AGREGAMOS A IP_AUTORIZADAS#
+                            $contrato->state = 'enabled';
+                            $contrato->save();
 
-                                $mensaje = "- Se ha sacado la ip de morosos.";
+                            // Etiqueta automática: contrato habilitado por pago de factura
+                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                $contrato->id,
+                                $empresa->id,
+                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                            );
 
-                                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                                DB::reconnect();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
 
-                                $ingreso->revalidacion_enable_internet = 1;
-                                $ingreso->save();
-
-                                $contrato->state = 'enabled';
-                                $contrato->save();
-
-                                // Etiqueta automática: contrato habilitado por pago de factura
-                                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
-                                    $contrato->id,
-                                    $empresa->id,
-                                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
-                                    \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
-                                );
-
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
-
-                            }else{
-                                Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
-                            }
                             #ELIMINAMOS DE MOROSOS#
                         }else{
                             $contrato->state = 'enabled';
