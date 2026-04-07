@@ -1383,6 +1383,8 @@ class IngresosController extends Controller
                             }
                             #ELIMINAMOS DE MOROSOS#
                         }else{
+                            $contrato->state = 'enabled';
+                            $contrato->save();
                             Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
                         }
                     }

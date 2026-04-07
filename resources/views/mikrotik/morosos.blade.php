@@ -147,9 +147,9 @@
 			]
 		});
 
-        $('#mikrotik_id').on('change', function() {
+        /*$('#mikrotik_id').on('change', function() {
             tabla.ajax.reload();
-        });
+        });*/
 
 		$(document).on('click', '.btn-sacar', function() {
 			var ip = $(this).data('ip');
@@ -254,45 +254,67 @@
 
 		});
 
-        // Check for Disabled Discrepancies
-        function checkDisabledDiscrepancy() {
-            var mikrotikId = $('#mikrotik_id').val();
-            var mikrotikNombre = $('#mikrotik_id option:selected').text();
-            
-            if (!mikrotikId) {
-                $('#div-alert-disabled').remove();
-                return;
-            }
-
-            $.ajax({
-                url: '{{ route("morosos.check.disabled") }}',
-                type: 'GET',
-                data: { mikrotik_id: mikrotikId },
-                success: function(response) {
-                    $('#div-alert-disabled').remove();
-                    
-                    if (response.success && response.count > 0) {
-                        var html = `
-                            <div class="alert alert-warning mt-3" id="div-alert-disabled" role="alert">
-                                <strong><i class="fas fa-exclamation-circle"></i> Atención:</strong> 
-                                Hay <strong>${response.count}</strong> contratos deshabilitados del servidor <strong>${mikrotikNombre}</strong> que NO aparecen en la lista de morosos (IPs no bloqueadas).
-                                <br><br>
-                                <a href="{{ route('morosos.discrepancias.disabled') }}?mikrotik_id=${mikrotikId}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-eye"></i> Ver y Corregir estos ${response.count} contratos
-                                </a>
-                            </div>
-                        `;
-                        // Insert after the existing info alert
-                        $('.alert-info').after(html);
-                    }
-                }
-            });
+    // Check for Disabled Discrepancies
+    function checkDisabledDiscrepancy(callback = null) {
+        var mikrotikId = $('#mikrotik_id').val();
+        var mikrotikNombre = $('#mikrotik_id option:selected').text();
+        
+        if (!mikrotikId) {
+            $('#div-alert-disabled').remove();
+            if (callback) callback();
+            return;
         }
+
+        $.ajax({
+            url: '{{ route("morosos.check.disabled") }}',
+            type: 'GET',
+            data: { mikrotik_id: mikrotikId },
+            success: function(response) {
+                $('#div-alert-disabled').remove();
+                
+                if (response.success && response.count > 0) {
+                    var html = `
+                        <div class="alert alert-warning mt-3" id="div-alert-disabled" role="alert">
+                            <strong><i class="fas fa-exclamation-circle"></i> Atención:</strong> 
+                            Hay <strong>${response.count}</strong> contratos deshabilitados del servidor <strong>${mikrotikNombre}</strong> que NO aparecen en la lista de morosos (IPs no bloqueadas).
+                            <br><br>
+                            <a href="{{ route('morosos.discrepancias.disabled') }}?mikrotik_id=${mikrotikId}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-eye"></i> Ver y Corregir estos ${response.count} contratos
+                            </a>
+                        </div>
+                    `;
+                    // Insert after the existing info alert
+                    $('.alert-info').after(html);
+                }
+                if (callback) callback();
+            },
+            error: function() {
+                if (callback) callback();
+            }
+        });
+    }
 
         // Call check when Mikrotik changes
         $('#mikrotik_id').on('change', function() {
-            tabla.ajax.reload();
-            checkDisabledDiscrepancy();
+            cargando(true);
+            var reloaded = false;
+            var checked = false;
+
+            function checkFinish() {
+                if (reloaded && checked) {
+                    cargando(false);
+                }
+            }
+
+            tabla.ajax.reload(function() {
+                reloaded = true;
+                checkFinish();
+            });
+
+            checkDisabledDiscrepancy(function() {
+                checked = true;
+                checkFinish();
+            });
         });
 
         // Initial check if one is selected
