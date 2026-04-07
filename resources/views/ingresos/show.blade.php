@@ -14,7 +14,7 @@
 	            @php $nombre = $ingreso->tipo ==1  ? "Factura No. ".$ingreso->ingresofactura()->factura()->id.".pdf" : "Ingreso Nro." . $ingreso->nro . ".pdf" @endphp
 
 	            <a href="{{route('ingresos.tirilla', ['id' => $ingreso->nro, 'name' => $nombre])}}" class="btn btn-outline-warning @if(Auth::user()->rol==47) btn-xl @else btn-xs @endif" title="Tirilla" target="_blank" id="btn_tirilla"><i class="fas fa-print"></i>Imprimir tirilla</a>
-	        @if($ingreso->ingresofactura())
+	        @if($ingreso->ingresofactura() && $ingreso->whatsapp == 0)
 	            <a href="{{ route('ingresos.tirillawpp', ['id' => $ingreso->nro]) }}" class="btn btn-success @if(Auth::user()->rol==47) btn-xl @else btn-xs @endif" title="Tirilla" id="btn_tirilla"><i class="fab fa-whatsapp"></i>Enviar tirilla por Whatsapp</a>
 	        @endif
 	    @endif
@@ -57,6 +57,76 @@
 @endsection
 
 @section('content')
+    {{-- Alerta de rebotes WhatsApp --}}
+    @if($ingreso->cont_message_undeliverable >= 3)
+        <div class="row mt-3 mx-3">
+            <div class="col-md-12">
+                <div class="alert alert-danger shadow-sm" role="alert" style="border-left: 5px solid #dc3545;">
+                    <h5 class="alert-heading mb-1"><i class="fas fa-exclamation-circle"></i> Atención</h5>
+                    La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa.
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Bloque de Logs de WhatsApp vinculados a este ingreso --}}
+    @if(isset($whatsappLogs) && $whatsappLogs->count() > 0)
+        <div class="row mt-4 mx-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-white border-0">
+                        <div>
+                            <h5 class="mb-1">
+                                <i class="fab fa-whatsapp text-success mr-1"></i>
+                                Historial de WhatsApp de este ingreso
+                            </h5>
+                            <small class="text-muted">
+                                Mensajes que el cliente <strong>recibió</strong> (<em>delivered</em>) o <strong>abrió y leyó</strong> (<em>read</em>).
+                            </small>
+                        </div>
+                        <span class="badge badge-pill badge-success">
+                            {{ $whatsappLogs->count() }} mensaje{{ $whatsappLogs->count() > 1 ? 's' : '' }}
+                        </span>
+                    </div>
+
+                    <div class="card-body pt-0 pb-3" style="max-height: 260px; overflow-y: auto;">
+                        <ul class="list-unstyled mb-0">
+                            @foreach($whatsappLogs as $log)
+                                <li class="media py-3 border-bottom">
+                                    <div class="mr-3 text-center" style="min-width: 70px;">
+                                        <div class="text-muted small mb-1">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('d/m/Y') }}
+                                        </div>
+                                        <div class="font-weight-bold small">
+                                            {{ \Carbon\Carbon::parse($log->created_at)->format('H:i') }}
+                                        </div>
+                                    </div>
+                                    <div class="media-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <div>
+                                                {!! $log->estadoFormateado() !!}
+                                            </div>
+                                            @if($log->contacto)
+                                                <small class="text-muted">
+                                                    Para: {{ $log->contacto->nombre ?? '' }} {{ $log->contacto->apellido1 ?? '' }}
+                                                </small>
+                                            @endif
+                                        </div>
+                                        <div class="bg-light rounded px-3 py-2">
+                                            <span class="text-dark" style="white-space: pre-line;">
+                                                {{ $log->mensaje_enviado }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="row card-description">
     	<div class="col-md-12">
     		@if(Session::has('success') || Session::has('error'))

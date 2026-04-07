@@ -1626,6 +1626,10 @@ class IngresosController extends Controller
             return back()->with('error', 'No se encontró el ingreso especificado.');
         }
 
+        if ($ingreso->whatsapp == 1) {
+            return back()->with('error', 'Esta tirilla ya ha sido enviada por WhatsApp.');
+        }
+
         if ($ingreso->cont_message_undeliverable >= 3) {
             return back()->with('error', 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa');
         }
@@ -1830,7 +1834,8 @@ class IngresosController extends Controller
         WhatsappMetaLog::create([
             'status' => $status,
             'response' => json_encode($response),
-            'factura_id' => $ingreso->nro, // Es un ingreso, no factura directa
+            'factura_id' => $ingreso->nro, 
+            'incoming_payment_id' => $ingreso->id, // Identificador del ingreso para historial
             'contacto_id' => $cliente->id,
             'empresa' => Auth::user()->empresa,
             'mensaje_enviado' => $mensajeEnviado,
@@ -1839,6 +1844,8 @@ class IngresosController extends Controller
         ]);
 
         if ($status === 'success') {
+            $ingreso->whatsapp = 1;
+            $ingreso->save();
             // Sync con Chat System (Centralizado)
             $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
             
@@ -1952,6 +1959,23 @@ class IngresosController extends Controller
         $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('id', $id)->first();
 
         if ($ingreso) {
+            // Logs de WhatsApp Meta asociados a este ingreso (incoming_payment_id)
+            // Solo se muestran registros con estados delivered o read.
+            // Agrupamos por wamid para que un mismo mensaje no aparezca duplicado
+            // cuando cambia de "delivered" a "read"; se muestra solo el estado más reciente.
+            $rawWhatsappLogs = \App\WhatsappMetaLog::where('incoming_payment_id', $ingreso->id)
+                ->whereIn('status', ['delivered', 'read'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $whatsappLogs = $rawWhatsappLogs
+                ->groupBy('wamid')
+                ->map(function ($group) {
+                    // Tomar el registro más reciente por wamid
+                    return $group->sortByDesc('created_at')->first();
+                })
+                ->values();
+
             if ($ingreso->tipo==1) {
                 $titulo='Pago a facturas de venta';
                 $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
@@ -1964,7 +1988,7 @@ class IngresosController extends Controller
             view()->share(['icon' =>'', 'title' => $titulo, 'middel'=>true]);
             $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
             $print = false;
-            return view('ingresos.show')->with(compact('ingreso', 'items', 'retenciones', 'print'));
+            return view('ingresos.show')->with(compact('ingreso', 'items', 'retenciones', 'print', 'whatsappLogs'));
         }
         return redirect('empresa/ingresos')->with('error', 'No existe un registro con ese id');
     }
