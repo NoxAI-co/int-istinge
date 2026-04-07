@@ -3989,11 +3989,11 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
                                         confirmButtonColor: '#1A59A1',
                                         confirmButtonText: 'ACEPTAR',
                                     }).then(() => {
-                                       if(typeof getDataTable === 'function'){
-                                           getDataTable();
-                                       }else{
-                                           location.reload();
-                                       }
+                                        if (typeof getDataTable === 'function') {
+                                            getDataTable();
+                                        } else {
+                                            location.reload();
+                                        }
                                     });
                                 } else {
                                     Swal.fire({
@@ -4010,7 +4010,7 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
                                 var msg = 'Error al emitir la factura a la DIAN';
                                 if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
                                 else if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
-                                
+
                                 Swal.fire({
                                     title: 'ERROR DE EMISIÓN',
                                     html: msg,
