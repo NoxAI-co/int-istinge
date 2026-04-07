@@ -645,9 +645,10 @@ class FacturasController extends Controller{
         ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
         ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
+        ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
         ->select(
             'barrio.nombre as barrio',
-            'mk.nombre as servidor',
+            DB::raw('COALESCE(mk.nombre, mk2.nombre) as servidor'),
             'cs1.server_configuration_id',
             'cs1.opciones_dian',
             'cs1.address_street as direccion',
@@ -739,7 +740,8 @@ class FacturasController extends Controller{
             }
             if($request->corte){
                 $facturas->where(function ($query) use ($request) {
-                    $query->orWhere('cs1.fecha_corte', $request->corte);
+                    $query->where('cs1.fecha_corte', $request->corte)
+                          ->orWhere('cs2.fecha_corte', $request->corte);
                 });
             }
             if($request->fact_siigo){
@@ -799,12 +801,14 @@ class FacturasController extends Controller{
             }
             if($request->servidor){
                 $facturas->where(function ($query) use ($request) {
-                    $query->orWhere('cs1.server_configuration_id', $request->servidor);
-            });
+                    $query->where('cs1.server_configuration_id', $request->servidor)
+                          ->orWhere('cs2.server_configuration_id', $request->servidor);
+                });
             }
             if($request->grupos_corte){
                 $facturas->where(function ($query) use ($request) {
-                    $query->orWhereIn('cs1.grupo_corte', $request->grupos_corte);
+                    $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
+                          ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
             if($request->emision != null){
@@ -932,6 +936,10 @@ class FacturasController extends Controller{
             return "{$moneda} {$factura->parsear($factura->porpagar())}";
         })
         ->addColumn('contrato', function (Factura $factura)  {
+            if($factura->contrato_id){
+                $c = $factura->contrato();
+                if($c) return $c->nro;
+            }
             if($factura->contratos() != false){
                 return $factura->contratos()->first()->contrato_nro;
             }else return "n/a";
@@ -1037,13 +1045,14 @@ class FacturasController extends Controller{
         ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
         ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
+        ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
         // Optimización: Agregaciones más eficientes usando COALESCE directamente
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_pago FROM ingresos_factura GROUP BY factura) as ing_fact'), 'ing_fact.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(valor), 0) as total_retencion FROM ingresos_retenciones GROUP BY factura) as ing_ret'), 'ing_ret.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_nota FROM notas_factura GROUP BY factura) as notas_fact'), 'notas_fact.factura', '=', 'factura.id')
         ->select(
             'barrio.nombre as barrio',
-            'mk.nombre as servidor',
+            DB::raw('COALESCE(mk.nombre, mk2.nombre) as servidor'),
             'cs1.server_configuration_id',
             'cs1.opciones_dian',
             'cs1.servicio_tv',
@@ -1146,7 +1155,10 @@ class FacturasController extends Controller{
                 }
             }
             if($request->corte){
-                $facturas->where('cs1.fecha_corte', $request->corte);
+                $facturas->where(function ($query) use ($request) {
+                    $query->where('cs1.fecha_corte', $request->corte)
+                          ->orWhere('cs2.fecha_corte', $request->corte);
+                });
             }
             if($request->creacion){
                 $facturas->where('factura.fecha', $request->creacion);
@@ -1174,13 +1186,22 @@ class FacturasController extends Controller{
                 $facturas->where('factura.correo', $correo);
             }
             if($request->servidor){
-                $facturas->where('cs1.server_configuration_id', $request->servidor);
+                $facturas->where(function ($query) use ($request) {
+                    $query->where('cs1.server_configuration_id', $request->servidor)
+                          ->orWhere('cs2.server_configuration_id', $request->servidor);
+                });
             }
             if($request->state_contrato){
-                $facturas->where('cs1.state', $request->state_contrato);
+                $facturas->where(function ($query) use ($request) {
+                    $query->where('cs1.state', $request->state_contrato)
+                          ->orWhere('cs2.state', $request->state_contrato);
+                });
             }
             if($request->grupos_corte){
-                $facturas->whereIn('cs1.grupo_corte', $request->grupos_corte);
+                $facturas->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
+                          ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+                });
             }
             if($request->municipio){
                 $facturas->where('c.fk_idmunicipio', $request->municipio);
@@ -1311,7 +1332,10 @@ class FacturasController extends Controller{
                 ) as fc'),
                 'factura.id', '=', 'fc.factura_id'
             )
-            ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
+            ->leftJoin('contracts as cs1', function($join) use ($identificadorEmpresa) {
+                $join->on('cs1.nro', '=', 'fc.contrato_nro')
+                     ->where('cs1.empresa', $identificadorEmpresa);
+            })
             ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
             ->where('factura.empresa', $identificadorEmpresa)
             ->where('factura.tipo', '!=', 2)
@@ -1370,7 +1394,10 @@ class FacturasController extends Controller{
                 }
             }
             if($request->corte){
-                $countQuery->where('cs1.fecha_corte', $request->corte);
+                $countQuery->where(function ($query) use ($request) {
+                    $query->where('cs1.fecha_corte', $request->corte)
+                          ->orWhere('cs2.fecha_corte', $request->corte);
+                });
             }
             if($request->creacion){
                 $countQuery->where('factura.fecha', $request->creacion);
@@ -1398,13 +1425,22 @@ class FacturasController extends Controller{
                 $countQuery->where('factura.correo', $correo);
             }
             if($request->servidor){
-                $countQuery->where('cs1.server_configuration_id', $request->servidor);
+                $countQuery->where(function ($query) use ($request) {
+                    $query->where('cs1.server_configuration_id', $request->servidor)
+                          ->orWhere('cs2.server_configuration_id', $request->servidor);
+                });
             }
             if($request->state_contrato){
-                $countQuery->where('cs1.state', $request->state_contrato);
+                $countQuery->where(function ($query) use ($request) {
+                    $query->where('cs1.state', $request->state_contrato)
+                          ->orWhere('cs2.state', $request->state_contrato);
+                });
             }
             if($request->grupos_corte){
-                $countQuery->whereIn('cs1.grupo_corte', $request->grupos_corte);
+                $countQuery->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
+                          ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+                });
             }
             if($request->municipio){
                 $countQuery->where('c.fk_idmunicipio', $request->municipio);
