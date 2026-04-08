@@ -84,6 +84,7 @@
             border-top: 2px solid #fff;
             border-bottom: 2px solid #fff;
             border-right: 2px solid #ccc;
+            font-size: 11px;
         }
         .foot td{
             padding-top: 3px;
@@ -93,6 +94,7 @@
         .foot th{
             padding: 2px;
             border-radius: unset;
+            font-size: 11px;
         }
         .border_left{
             border-left: 3px solid #ccc !important;
@@ -116,7 +118,8 @@
             background-color:#fff;
             border-radius:5px;
             justify-content:center;
-            padding-top: 15px;
+            padding-top: 5px;
+            padding-bottom: 5px;
             margin-bottom: 2px;
             color:{{$empresa->color}};
         }
@@ -306,10 +309,10 @@
                     <img src="{{ asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo) }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
                 @endif
             </div>
-            <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: .5%;">
-                <br><br>
+            <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%;">
+                <br>
                 <h4>{{$empresa->nombre}}</h4>
-                <p style="line-height: 12px;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
+                <p style="line-height: 12px; margin-bottom: 0;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
                     {{$empresa->direccion}} <br>
                     {{$empresa->telefono}}
                     @if($empresa->web)
