@@ -1861,6 +1861,15 @@ class ContratosController extends Controller
             $cliente = $contrato->cliente();
             $servicio = $cliente->nombre . ' ' . $cliente->apellido1 . ' ' . $cliente->apellido2;
 
+            // Fetch relations before API calls to avoid "Server has gone away" during long MK responses
+            $grupoCorteData = GrupoCorte::find($request->grupo_corte);
+            $grupoCorteAnterior = $contrato->grupo_corte();
+            $planActual = ($contrato->plan_id) ? PlanesVelocidad::find($contrato->plan_id) : null;
+            $planNuevo = ($request->plan_id) ? PlanesVelocidad::find($request->plan_id) : null;
+            $apAnterior = ($contrato->ap) ? AP::find($contrato->ap) : null;
+            $apNuevo = ($request->ap) ? AP::find($request->ap) : null;
+            $nodoAnterior = ($contrato->nodo) ? Nodo::find($contrato->nodo) : null;
+
             if ($mikrotik && $mikrotik->status == 1) {
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
@@ -2147,12 +2156,19 @@ class ContratosController extends Controller
             }
 
                 if ($registro) {
-                    $grupo = GrupoCorte::find($request->grupo_corte);
+                    // Force a ping/reconnect to the database after potential API delay
+                    try {
+                        \DB::reconnect();
+                    } catch (\Exception $e) {
+                        Log::error("Error reconectando a la DB: " . $e->getMessage());
+                    }
+
+                    $grupo = $grupoCorteData;
 
                     if ($contrato->grupo_corte) {
-                        $descripcion .= ($contrato->grupo_corte == $request->grupo_corte) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Grupo de Corte</b> de ' . $contrato->grupo_corte()->nombre . ' a ' . $grupo->nombre . '<br>';
+                        $descripcion .= ($contrato->grupo_corte == $request->grupo_corte) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Grupo de Corte</b> de ' . ($grupoCorteAnterior->nombre ?? 'N/A') . ' a ' . ($grupo->nombre ?? 'N/A') . '<br>';
                     } else {
-                        $descripcion .= ($contrato->grupo_corte == $request->grupo_corte) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Grupo de Corte</b> a ' . $grupo->nombre . '<br>';
+                        $descripcion .= ($contrato->grupo_corte == $request->grupo_corte) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Grupo de Corte</b> a ' . ($grupo->nombre ?? 'N/A') . '<br>';
                     }
                     $contrato->grupo_corte = $request->grupo_corte;
                     $contrato->facturacion = $request->facturacion;
@@ -2167,10 +2183,10 @@ class ContratosController extends Controller
                     $descripcion .= ($contrato->fecha_suspension == $request->fecha_suspension) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Fecha de Suspensión Personalizada</b> a ' . $request->fecha_suspension . '<br>';
                     $contrato->fecha_suspension = $request->fecha_suspension;
 
-                    $plan_old = ($contrato->plan_id) ? PlanesVelocidad::find($contrato->plan_id)->name : 'Ninguno';
-                    $plan_new = PlanesVelocidad::find($request->plan_id);
+                    $plan_old = $planActual ? $planActual->name : 'Ninguno';
+                    $plan_new = $planNuevo;
 
-                    $descripcion .= ($contrato->plan_id == $request->plan_id) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Plan</b> de ' . $plan_old . ' a ' . $plan_new->name . '<br>';
+                    $descripcion .= ($contrato->plan_id == $request->plan_id) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Plan</b> de ' . $plan_old . ' a ' . ($plan_new->name ?? 'Ninguno') . '<br>';
                     $contrato->plan_id = $request->plan_id;
 
                     $descripcion .= ($contrato->ip == $request->ip) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio de IP</b> de ' . $contrato->ip . ' a ' . $request->ip . '<br>';
@@ -2204,8 +2220,8 @@ class ContratosController extends Controller
                     $contrato->interfaz = $request->interfaz;
 
                     if ($request->ap) {
-                        $ap_new = AP::find($request->ap);
-                        $ap_old = AP::find($contrato->ap);
+                        $ap_new = $apNuevo;
+                        $ap_old = $apAnterior;
                         if (isset($ap_new)) {
                             //  $descripcion .= ($contrato->ap == $ap_new->ap) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Access Point</b> de '.$ap_old->nombre.' a '.$ap_new->nombre.'<br>';
                             $contrato->ap   = $request->ap;
@@ -2213,7 +2229,7 @@ class ContratosController extends Controller
                     }
 
                     if ($contrato->nodo) {
-                        $nodo_old = Nodo::find($contrato->nodo);
+                        $nodo_old = $nodoAnterior;
 
                         if (isset($ap_new->nodo)) {
                             $nodo_new = Nodo::find($ap_new->nodo)->nombre;
@@ -2223,7 +2239,7 @@ class ContratosController extends Controller
 
                         if (isset($ap_new->nodo)) {
                             $contrato->nodo = $ap_new->nodo;
-                            $descripcion .= ($contrato->nodo == $ap_new->nodo) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Nodo</b> de ' . $nodo_old->nombre . ' a ' . $nodo_new . '<br>';
+                            $descripcion .= ($contrato->nodo == $ap_new->nodo) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Nodo</b> de ' . ($nodo_old->nombre ?? 'N/A') . ' a ' . $nodo_new . '<br>';
                         }
                     }
 
