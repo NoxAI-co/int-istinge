@@ -121,16 +121,21 @@
                 {
                     data: 'estado_sistema',
                     render: function(data, type, row) {
+                        let extraBadge = '';
+                        if (row.contrato && row.contrato.state === 'disabled') {
+                            extraBadge = ' <span class="badge badge-dark" data-toggle="tooltip" title="Contrato deshabilitado en el sistema"><i class="fas fa-user-slash"></i> Deshabilitado</span>';
+                        }
+
                         if (row.tiene_discrepancia) {
-                            return '<span class="badge badge-success" data-toggle="tooltip" title="' + row.mensaje_discrepancia + '">PAGADA (Discrepancia) <i class="fas fa-exclamation-triangle"></i></span>';
+                            return '<span class="badge badge-success" data-toggle="tooltip" title="' + row.mensaje_discrepancia + '">PAGADA (Discrepancia) <i class="fas fa-exclamation-triangle"></i></span>' + extraBadge;
                         } else if (data == 'En Mora') {
-                            return '<span class="badge badge-danger">En Mora</span>';
+                            return '<span class="badge badge-danger">En Mora</span>' + extraBadge;
                         } else if (data == 'Sin Facturas') {
-                            return '<span class="badge badge-secondary">Sin Facturas</span>';
+                            return '<span class="badge badge-secondary">Sin Facturas</span>' + extraBadge;
                         } else if (data == 'Anulada') {
-                            return '<span class="badge badge-warning">Anulada</span>';
+                            return '<span class="badge badge-warning">Anulada</span>' + extraBadge;
                         } else {
-                            return '<span class="badge badge-light">' + data + '</span>';
+                            return '<span class="badge badge-light">' + data + '</span>' + extraBadge;
                         }
                     }
                 },

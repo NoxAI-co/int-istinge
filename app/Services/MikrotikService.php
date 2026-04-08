@@ -223,7 +223,8 @@ class MikrotikService
                         $contratoData = [
                             'nro' => $contrato->nro,
                             'id' => $contrato->id,
-                            'nombre_cliente' => $contrato->cliente()->nombre ?? 'N/A'
+                            'nombre_cliente' => $contrato->cliente()->nombre ?? 'N/A',
+                            'state' => $contrato->state
                         ];
 
                         // Obtener la última factura del contrato
