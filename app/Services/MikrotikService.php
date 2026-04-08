@@ -234,10 +234,15 @@ class MikrotikService
                         
                         // Buscar la última factura (ya sea por la relación o por contrato_id directo)
                         // Utilizamos factura.id para asegurar orden cronológico real, evadiendo fallos de created_at en tabla pivote.
-                        $ultimaFactura = $contrato->facturas()->orderBy('factura.id', 'desc')->first();
+                        // Y Excluimos las facturas anuladas (estatus = 2)
+                        $ultimaFactura = $contrato->facturas()
+                                ->where('factura.estatus', '!=', 2)
+                                ->orderBy('factura.id', 'desc')->first();
                         
                         if (!$ultimaFactura) {
-                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)->orderBy('id', 'desc')->first();
+                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)
+                                ->where('estatus', '!=', 2)
+                                ->orderBy('id', 'desc')->first();
                         }
                         
                         if ($ultimaFactura) {

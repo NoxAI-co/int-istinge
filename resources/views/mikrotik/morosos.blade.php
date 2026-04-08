@@ -28,7 +28,16 @@
     <div class="alert alert-info" role="alert">
         <h4 class="alert-heading"><i class="fas fa-info-circle"></i> Informe de Discrepancias en Morosos</h4>
         <p>Este reporte cruza la información obtenida directamente de la lista de morosos configurada en su Mikrotik con la base de datos del sistema.</p>
-        <p class="mb-0">Si observa un cliente marcado como <span class="badge badge-success">PAGADA (Discrepancia)</span>, significa que su última factura en el sistema ya ha sido pagada, pero su IP sigue en la lista de morosos del Mikrotik. Esto puede deberse a una interrupción en la comunicación con el router al momento del pago o una sobrecarga momentánea. <strong>No es un error crítico</strong>, pero le sugerimos verificar el estado del servicio del cliente.</p>
+        <p class="mb-2">Si observa un cliente marcado como <span class="badge badge-success">PAGADA (Discrepancia)</span>, significa que su última factura en el sistema ya ha sido pagada, pero su IP sigue en la lista de morosos del Mikrotik. Esto puede deberse a una interrupción en la comunicación con el router al momento del pago o una sobrecarga momentánea. <strong>No es un error crítico</strong>, pero le sugerimos verificar el estado del servicio del cliente.</p>
+        <hr>
+        <h5 class="mb-2"><strong>Significado de los Estados del Sistema:</strong></h5>
+        <ul class="mb-0">
+            <li><span class="badge badge-success">PAGADA (Discrepancia)</span>: La última factura válida generada está <strong>pagada</strong>, pero el cliente sigue bloqueado en el Mikrotik.</li>
+            <li><span class="badge badge-danger">En Mora</span>: La última factura válida generada no ha sido pagada (está abierta).</li>
+            <li><span class="badge badge-dark"><i class="fas fa-user-slash"></i> Deshabilitado</span>: El contrato del cliente se encuentra <strong>Deshabilitado</strong> en el sistema (este estado se muestra junto al de la factura).</li>
+            <li><span class="badge badge-warning">Anulada</span>: La última factura está anulada y no hay más facturas válidas anteriores (Raro). (<strong>Nota:</strong> El sistema ahora ignora facturas anuladas al buscar si el cliente está al día).</li>
+            <li><span class="badge badge-secondary">Sin Facturas</span>: El cliente no tiene ninguna factura válida generada en el sistema.</li>
+        </ul>
     </div>
 
     <div class="row card-description">
@@ -143,10 +152,13 @@
 				{
 					data: null,
 					render: function(data, type, row) {
-						if (row.tiene_discrepancia && row.contrato) {
-							return '<button class="btn btn-outline-primary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="'+row.contrato.id+'" title="Sacar de Morosos"><i class="fas fa-check"></i> Sacar de Morosos</button>';
+						let btn = '';
+						if (row.contrato) {
+							btn = '<button class="btn btn-outline-primary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="'+row.contrato.id+'" title="Sacar de Morosos"><i class="fas fa-check"></i> Sacar de Morosos</button>';
+						} else {
+							btn = '<button class="btn btn-outline-secondary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="" title="Sacar IP de Morosos"><i class="fas fa-eraser"></i> Sacar IP</button>';
 						}
-						return '';
+						return btn;
 					}
 				}
 			]
