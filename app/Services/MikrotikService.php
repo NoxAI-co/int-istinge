@@ -253,6 +253,8 @@ class MikrotikService
                             ];
 
                             $estadoString = $ultimaFactura->estatus();
+                            $vencimiento = $ultimaFactura->vencimiento;
+                            $hoy = date('Y-m-d');
 
                             // Dependemos del método estatus() de Factura que retorna el estado real como string.
                             // Posibles retornos: 'Abierta', 'Cerrada', 'Anulada', 'Abonada', 'Cerrada con nota crédito', etc.
@@ -265,7 +267,11 @@ class MikrotikService
                                 $tieneDiscrepancia = false;
                             } else {
                                 // 'Abierta', 'Abonada', 'Abierta con nota crédito' son considerados con deuda
-                                $estadoSistema = 'En Mora'; 
+                                if ($vencimiento < $hoy) {
+                                    $estadoSistema = 'En Mora';
+                                } else {
+                                    $estadoSistema = 'Por Vencer';
+                                }
                             }
                         } else {
                             $estadoSistema = 'Sin Facturas';

@@ -33,7 +33,8 @@
         <h5 class="mb-2"><strong>Significado de los Estados del Sistema:</strong></h5>
         <ul class="mb-0">
             <li><span class="badge badge-success">PAGADA (Discrepancia)</span>: La última factura válida generada está <strong>pagada</strong>, pero el cliente sigue bloqueado en el Mikrotik.</li>
-            <li><span class="badge badge-danger">En Mora</span>: La última factura válida generada no ha sido pagada (está abierta).</li>
+            <li><span class="badge badge-danger">En Mora</span>: La última factura válida generada no ha sido pagada y la fecha de <strong>vencimiento</strong> ya pasó.</li>
+            <li><span class="badge badge-info">Por Vencer</span>: La última factura válida generada no ha sido pagada, pero aún no ha llegado a su fecha de <strong>vencimiento</strong>.</li>
             <li><span class="badge badge-dark"><i class="fas fa-user-slash"></i> Deshabilitado</span>: El contrato del cliente se encuentra <strong>Deshabilitado</strong> en el sistema (este estado se muestra junto al de la factura).</li>
             <li><span class="badge badge-warning">Anulada</span>: La última factura está anulada y no hay más facturas válidas anteriores (Raro). (<strong>Nota:</strong> El sistema ahora ignora facturas anuladas al buscar si el cliente está al día).</li>
             <li><span class="badge badge-secondary">Sin Facturas</span>: El cliente no tiene ninguna factura válida generada en el sistema.</li>
@@ -139,6 +140,8 @@
                             return '<span class="badge badge-success" data-toggle="tooltip" title="' + row.mensaje_discrepancia + '">PAGADA (Discrepancia) <i class="fas fa-exclamation-triangle"></i></span>' + extraBadge;
                         } else if (data == 'En Mora') {
                             return '<span class="badge badge-danger">En Mora</span>' + extraBadge;
+                        } else if (data == 'Por Vencer') {
+                            return '<span class="badge badge-info">Por Vencer</span>' + extraBadge;
                         } else if (data == 'Sin Facturas') {
                             return '<span class="badge badge-secondary">Sin Facturas</span>' + extraBadge;
                         } else if (data == 'Anulada') {
