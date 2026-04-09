@@ -1,53 +1,15 @@
 DOCUMENTACIÓN DE API REST (V1)
 ================================
 
-Todos los endpoints requieren estar autenticados, a excepción del endpoint de Login.
+Todos los endpoints requieren estar autenticados. La autenticación se realiza mediante un Token Maestro estático.
 
 MÉTODO DE AUTENTICACIÓN
 -----------------------
 Tipo: Bearer Token
+Token de autenticación único: %V$40jbESKk9@
+
 Header a incluir en todas las peticiones protegidas:
-Authorization: Bearer <TU_TOKEN_GENERADO>
-
-------------------------------------------------------------------------------------------------
-
-1. ENDPOINT DE LOGIN
-Permite autenticarse y obtener el token de acceso.
-
-URL: /api/v1/login
-MÉTODO: POST
-HEADERS:
-- Accept: application/json
-- Content-Type: application/json
-
-CUERPO DE LA PETICIÓN (JSON):
-{
-  "email_o_username": "usuario123",  // Puede ser email (ej: admin@admin.com) o username
-  "password": "mi_password_seguro"
-}
-
-RESPUESTA EXITOSA (200 OK):
-{
-  "status": 200,
-  "message": "Login exitoso.",
-  "data": {
-    "user": {
-      "id": 1,
-      "nombres": "Juan",
-      "email": "juan@example.com",
-      "username": "usuario123",
-      "rol": 1
-    },
-    "access_token": "1|abc123token...",
-    "token_type": "Bearer"
-  }
-}
-
-RESPUESTA DE ERROR (401 Unauthorized):
-{
-  "status": 401,
-  "message": "Credenciales incorrectas."
-}
+Authorization: Bearer %V$40jbESKk9@
 
 ------------------------------------------------------------------------------------------------
 
@@ -58,7 +20,7 @@ URL: /api/v1/deudacontrato
 MÉTODO: GET
 HEADERS:
 - Accept: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 PARÁMETROS QUERY PERMITIDOS (enviar uno de los dos):
 - contrato_nro (ej: ?contrato_nro=1946)
@@ -94,7 +56,7 @@ URL: /api/v1/medios-pago
 MÉTODO: GET
 HEADERS:
 - Accept: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 RESPUESTA EXITOSA (200 OK):
 {
@@ -111,7 +73,7 @@ URL: /api/v1/tipos-servicio
 MÉTODO: GET
 HEADERS:
 - Accept: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 RESPUESTA EXITOSA (200 OK):
 {
@@ -136,7 +98,7 @@ MÉTODO: POST
 HEADERS:
 - Accept: application/json
 - Content-Type: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 CUERPO DE LA PETICIÓN (JSON):
 {
@@ -167,7 +129,7 @@ URL: /api/v1/planes
 MÉTODO: GET
 HEADERS:
 - Accept: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 RESPUESTA EXITOSA (200 OK):
 (Listado estándar de la API de planes)
@@ -181,7 +143,7 @@ URL: /api/v1/contactos
 MÉTODO: GET
 HEADERS:
 - Accept: application/json
-- Authorization: Bearer <TU_TOKEN>
+- Authorization: Bearer %V$40jbESKk9@
 
 PARÁMETROS QUERY PERMITIDOS:
 - identificacion (Número de documento aproximado)

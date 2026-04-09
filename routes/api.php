@@ -139,7 +139,7 @@ Route::get('facturaElectronica/{key}', function ($key) {
     return abort(419);
 });
 
-Route::group(['prefix' => 'v1', 'middleware' => 'auth:sanctum', 'namespace' => 'API\V1'], function () {
+Route::group(['prefix' => 'v1', 'middleware' => 'auth.master_token', 'namespace' => 'API\V1'], function () {
     // API Creadas
     Route::get('/deudacontrato', 'GeneralController@deudacontrato');
     Route::get('/medios-pago', 'GeneralController@mediosPago');
@@ -158,9 +158,6 @@ Route::group(['prefix' => 'v1', 'middleware' => 'auth:sanctum', 'namespace' => '
     Route::get('/oficinas', '\App\Http\Controllers\API\ExternalApiController@getOficinas');
     Route::get('/canales', '\App\Http\Controllers\API\ExternalApiController@getCanales');
 });
-
-// Login V1 endpoint for Sanctum Tokens (Not protected)
-Route::post('v1/login', 'API\V1\AuthController@login');
 
 Route::get('facturaElectronica/{key}/pdf', function ($key) {
     $tipo1=$tipo = 'original';

@@ -4,7 +4,6 @@ namespace App;
 
 use App\Model\Ingresos\Factura;
 use Carbon\Carbon;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable; use App\Empresa;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Auth; use DB;
@@ -15,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use Notifiable;
     protected $table = "usuarios";
     protected $primaryKey = 'id';
 
