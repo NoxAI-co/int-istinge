@@ -1,0 +1,214 @@
+DOCUMENTACIÓN DE API REST (V1)
+================================
+
+Todos los endpoints requieren estar autenticados, a excepción del endpoint de Login.
+
+MÉTODO DE AUTENTICACIÓN
+-----------------------
+Tipo: Bearer Token
+Header a incluir en todas las peticiones protegidas:
+Authorization: Bearer <TU_TOKEN_GENERADO>
+
+------------------------------------------------------------------------------------------------
+
+1. ENDPOINT DE LOGIN
+Permite autenticarse y obtener el token de acceso.
+
+URL: /api/v1/login
+MÉTODO: POST
+HEADERS:
+- Accept: application/json
+- Content-Type: application/json
+
+CUERPO DE LA PETICIÓN (JSON):
+{
+  "email_o_username": "usuario123",  // Puede ser email (ej: admin@admin.com) o username
+  "password": "mi_password_seguro"
+}
+
+RESPUESTA EXITOSA (200 OK):
+{
+  "status": 200,
+  "message": "Login exitoso.",
+  "data": {
+    "user": {
+      "id": 1,
+      "nombres": "Juan",
+      "email": "juan@example.com",
+      "username": "usuario123",
+      "rol": 1
+    },
+    "access_token": "1|abc123token...",
+    "token_type": "Bearer"
+  }
+}
+
+RESPUESTA DE ERROR (401 Unauthorized):
+{
+  "status": 401,
+  "message": "Credenciales incorrectas."
+}
+
+------------------------------------------------------------------------------------------------
+
+2. DEUDA DE CONTRATO
+Permite obtener la información de deuda de uno o varios contratos según el número de contrato o identificación del cliente.
+
+URL: /api/v1/deudacontrato
+MÉTODO: GET
+HEADERS:
+- Accept: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+PARÁMETROS QUERY PERMITIDOS (enviar uno de los dos):
+- contrato_nro (ej: ?contrato_nro=1946)
+- identificacion (ej: ?identificacion=123456789)
+
+RESPUESTA EXITOSA (200 OK) CON UN CONTRATO:
+{
+  "status": 200,
+  "multicontratos": false,
+  "data": {
+    "id": 1946,
+    "deuda": "$50,000",
+    ...
+  }
+}
+
+RESPUESTA EXITOSA CON MÚLTIPLES CONTRATOS (Al buscar por identificación):
+{
+  "status": 200,
+  "multicontratos": true,
+  "data": [
+    { "id": 1946, "deuda": "$20,000" },
+    { "id": 1947, "deuda": "$30,000" }
+  ]
+}
+
+------------------------------------------------------------------------------------------------
+
+3. MEDIOS DE PAGO
+Obtiene los medios de pago configurados en la empresa.
+
+URL: /api/v1/medios-pago
+MÉTODO: GET
+HEADERS:
+- Accept: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+RESPUESTA EXITOSA (200 OK):
+{
+  "status": 200,
+  "data": "medios_de_pago..."
+}
+
+------------------------------------------------------------------------------------------------
+
+4. TIPOS DE SERVICIO
+Devuelve el listado de servicios activos en la plataforma.
+
+URL: /api/v1/tipos-servicio
+MÉTODO: GET
+HEADERS:
+- Accept: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+RESPUESTA EXITOSA (200 OK):
+{
+  "status": 200,
+  "data": [
+    {
+      "id": 1,
+      "nombre": "Internet",
+      "estatus": 1
+    },
+    ...
+  ]
+}
+
+------------------------------------------------------------------------------------------------
+
+5. CREAR RADICADO
+Permite la generación automática de un radicado relacionado a un cliente y servicio determinado.
+
+URL: /api/v1/create-radicado
+MÉTODO: POST
+HEADERS:
+- Accept: application/json
+- Content-Type: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+CUERPO DE LA PETICIÓN (JSON):
+{
+  "servicio": 1,
+  "identificacion": "123456789",
+  "contrato": "1946",
+  "observaciones": "Sin acceso a internet desde ayer.",
+  "deshabilitar_contrato": 0 // 1 o 0 (Opcional)
+}
+
+RESPUESTA EXITOSA (200 OK):
+{
+  "status": 200,
+  "message": "Se ha creado satisfactoriamente el radicado bajo el código #12345",
+  "data": {
+    "id": 25,
+    "codigo": 12345,
+    ...
+  }
+}
+
+------------------------------------------------------------------------------------------------
+
+6. PLANES (EXISTENTE, MOVIDO A V1)
+Permite buscar los planes registrados.
+
+URL: /api/v1/planes
+MÉTODO: GET
+HEADERS:
+- Accept: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+RESPUESTA EXITOSA (200 OK):
+(Listado estándar de la API de planes)
+
+------------------------------------------------------------------------------------------------
+
+7. CONTACTOS PAGINADOS CON BÚSQUEDA
+Permite la consulta paginada de clientes/contactos, filtrado por identificación (NIT), y otros de forma opcional.
+
+URL: /api/v1/contactos
+MÉTODO: GET
+HEADERS:
+- Accept: application/json
+- Authorization: Bearer <TU_TOKEN>
+
+PARÁMETROS QUERY PERMITIDOS:
+- identificacion (Número de documento aproximado)
+- nombre (Nombre aproximado)
+- celular (Número de contacto)
+- per_page (Cantidad de resultados por página, por defecto 15)
+- page (Número de página solicitada, por defecto 1)
+
+EJEMPLO DE BÚSQUEDA: 
+/api/v1/contactos?identificacion=1234&page=2&per_page=10
+
+RESPUESTA EXITOSA (200 OK):
+{
+  "status": 200,
+  "message": "Lista de contactos",
+  "data": [
+    {
+      "id": 1,
+      "nit": "123456789",
+      "nombre": "Juan Perez",
+      ...
+    }
+  ],
+  "meta": {
+    "current_page": 2,
+    "last_page": 5,
+    "per_page": 10,
+    "total": 45
+  }
+}
