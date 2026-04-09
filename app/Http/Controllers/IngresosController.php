@@ -2073,6 +2073,29 @@ class IngresosController extends Controller
             if ($ingreso->tipo==3) {
                 return redirect('empresa/ingresos')->with('error', 'No puede editar un pago de nota de débito');
             }
+
+            // Validar si paso de Anticipo a Pago a factura/categoría
+            if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                $contacto_saldo = Contacto::find($ingreso->cliente);
+                if ($contacto_saldo) {
+                    $saldo_anterior = $contacto_saldo->saldo_favor;
+                    $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                    $contacto_saldo->saldo_favor = $nuevo_saldo;
+                    $contacto_saldo->save();
+
+                    DB::table('log_saldos')->insert([
+                        'id_contacto' => $contacto_saldo->id,
+                        'accion' => 'Edición de ingreso Nro ' . $ingreso->nro . ' (Cambio de Anticipo a Pago), resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                        'created_by' => Auth::user()->id,
+                        'fecha' => Carbon::now()->format('Y-m-d'),
+                        'created_at' => Carbon::now(),
+                    ]);
+                }
+                
+                $ingreso->anticipo = null;
+                $ingreso->valor_anticipo = null;
+            }
+
             $request->validate([
                 'cuenta' => 'required|numeric',
                 'nro' => [
@@ -2454,6 +2477,25 @@ class IngresosController extends Controller
             }
             if ($ingreso->estatus==1) {
 
+                // Si el ingreso que se anula fue un anticipo, se debe restar el saldo a favor generado
+                if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                    $contacto_saldo = Contacto::find($ingreso->cliente);
+                    if($contacto_saldo){
+                        $saldo_anterior = $contacto_saldo->saldo_favor;
+                        $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                        $contacto_saldo->saldo_favor = $nuevo_saldo;
+                        $contacto_saldo->save();
+
+                        DB::table('log_saldos')->insert([
+                            'id_contacto' => $contacto_saldo->id,
+                            'accion' => 'Anulación de ingreso Nro ' . $ingreso->nro . ', resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                            'created_by' => Auth::user()->id,
+                            'fecha' => Carbon::now()->format('Y-m-d'),
+                            'created_at' => Carbon::now(),
+                        ]);
+                    }
+                }
+
                 $ingreso->estatus=2;
                 $mensaje='Se ha anulado satisfactoriamente el pago';
 
@@ -2520,6 +2562,25 @@ class IngresosController extends Controller
     {
         $ingreso = Ingreso::Find($id);
         if ($ingreso) {
+
+            // Si el ingreso que se elimina fue un anticipo y no estaba anulado previamente, se debe restar el saldo a favor generado
+            if ($ingreso->estatus != 2 && $ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                $contacto_saldo = Contacto::find($ingreso->cliente);
+                if($contacto_saldo){
+                    $saldo_anterior = $contacto_saldo->saldo_favor;
+                    $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                    $contacto_saldo->saldo_favor = $nuevo_saldo;
+                    $contacto_saldo->save();
+
+                    DB::table('log_saldos')->insert([
+                        'id_contacto' => $contacto_saldo->id,
+                        'accion' => 'Eliminación de ingreso Nro ' . $ingreso->nro . ', resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                        'created_by' => Auth::user()->id,
+                        'fecha' => Carbon::now()->format('Y-m-d'),
+                        'created_at' => Carbon::now(),
+                    ]);
+                }
+            }
 
             if ($ingreso->tipo == 3) {
                 return redirect('empresa/pagos')->with('error', 'No puede editar un pago de nota de débito');
