@@ -2514,6 +2514,25 @@ class IngresosController extends Controller
 
             }else{
 
+                // Si el ingreso que se vuelve a abrir fue un anticipo, se debe sumar nuevamente el saldo a favor
+                if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                    $contacto_saldo = Contacto::find($ingreso->cliente);
+                    if($contacto_saldo){
+                        $saldo_anterior = $contacto_saldo->saldo_favor;
+                        $nuevo_saldo = $saldo_anterior + $ingreso->valor_anticipo;
+                        $contacto_saldo->saldo_favor = $nuevo_saldo;
+                        $contacto_saldo->save();
+
+                        DB::table('log_saldos')->insert([
+                            'id_contacto' => $contacto_saldo->id,
+                            'accion' => 'Apertura de ingreso Nro ' . $ingreso->nro . ', reintegro de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                            'created_by' => Auth::user()->id,
+                            'fecha' => Carbon::now()->format('Y-m-d'),
+                            'created_at' => Carbon::now(),
+                        ]);
+                    }
+                }
+
                 if ($ingreso->tipo==1) {
                     $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
                     foreach ($items as $item) {
