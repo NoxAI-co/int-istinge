@@ -308,6 +308,7 @@
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_enabled_tv"><i class="fas fa-tv" style="margin-left:4px; "></i> Habilitar Contratos TV</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_disabled_tv"><i class="fas fa-tv" style="margin-left:4px; "></i> Deshabilitar Contratos TV</a>
                         <a class="dropdown-item" href="javascript:void(0)" id="btn_planes"><i class="fas fa-exchange-alt" style="margin-left:4px; "></i> Cambiar Plan de Internet</a>
+                        <a class="dropdown-item" href="javascript:void(0)" id="btn_destroy_lote"><i class="fas fa-trash" style="margin-left:4px; "></i> Eliminar Contratos</a>
                     </div>
                 </div>
                 @endif
@@ -588,6 +589,10 @@
 
         $('#btn_planes').click( function () {
             planes_lote();
+        });
+
+        $('#btn_destroy_lote').click( function () {
+            destroy_lote();
         });
 
         $('#guardarc').click( function () {
@@ -930,6 +935,73 @@
         //         })
         //     }
         // })
+    }
+
+    function destroy_lote(){
+        var contratos = [];
+
+        var table = $('#tabla-contratos').DataTable();
+        var nro = table.rows('.selected').data().length;
+
+        if(nro<=0){
+            swal({
+                title: 'ERROR',
+                html: 'Para ejecutar esta acción, debe al menos seleccionar un contrato',
+                type: 'error',
+            });
+            return false;
+        }
+
+        for (i = 0; i < nro; i++) {
+            contratos.push(table.rows('.selected').data()[i]['id']);
+        }
+
+        swal({
+            title: '¿Desea eliminar '+nro+' contratos en lote?',
+            html: 'Esta acción eliminará todos los contratos seleccionados <b>A EXCEPCIÓN</b> de aquellos que ya tengan facturas creadas.<br><br>Esto puede demorar unos minutos. Al Aceptar, no podrá cancelar el proceso',
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#00ce68',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Aceptar',
+            cancelButtonText: 'Cancelar',
+        }).then((result) => {
+            if (result.value) {
+                cargando(true);
+
+                if (window.location.pathname.split("/")[1] === "software") {
+                    var url = `/software/empresa/contratos/`+contratos+`/destroy_lote`;
+                }else{
+                    var url = `/empresa/contratos/`+contratos+`/destroy_lote`;
+                }
+
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(data) {
+                        cargando(false);
+                        swal({
+                            title: 'PROCESO TERMINADO',
+                            html: 'Contratos eliminados: <strong>'+data.eliminados+'</strong><br>Omitidos (con facturas u otros): <strong>'+data.omitidos+'</strong>',
+                            type: 'success',
+                            showConfirmButton: true,
+                            confirmButtonColor: '#1A59A1',
+                            confirmButtonText: 'ACEPTAR',
+                        });
+                        getDataTable();
+                    },
+                    error: function() {
+                        cargando(false);
+                        swal({
+                            title: 'ERROR',
+                            html: 'Hubo un problema al eliminar los contratos',
+                            type: 'error',
+                        });
+                    }
+                })
+            }
+        })
     }
 
     function planes_lote_store(){

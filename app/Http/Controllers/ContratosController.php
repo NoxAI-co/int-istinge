@@ -2887,6 +2887,136 @@ class ContratosController extends Controller
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
     }
 
+    public function destroy_lote($contratos)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $empresa = Auth::user()->empresaObj;
+
+        $ids = explode(',', $contratos);
+        $eliminados = 0;
+        $omitidos = 0;
+
+        foreach ($ids as $id) {
+            $contrato = Contrato::find($id);
+            if ($contrato) {
+                // Verificar si tiene facturas (en la tabla facturas_contratos)
+                $tieneFacturas = DB::table('facturas_contratos')
+                    ->where('contrato_nro', $contrato->nro)
+                    ->exists();
+
+                if ($tieneFacturas) {
+                    $omitidos++;
+                    continue;
+                }
+
+                // Borrar datos en mikrotik primero
+                if ($contrato->server_configuration_id) {
+                    $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+                    if ($mikrotik) {
+                        $API = new RouterosAPI();
+                        $API->port = $mikrotik->puerto_api;
+                        
+                        if ($empresa->consultas_mk == 1) {
+                            try {
+                                if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                                    if ($contrato->conexion == 1) {
+                                        $mk_user = $API->comm("/ppp/secret/getall", array("?remote-address" => $contrato->ip));
+                                        if ($mk_user) {
+                                            $API->comm("/ppp/secret/remove", array(".id" => $mk_user[0][".id"]));
+                                        }
+                                        $id_simple = $API->comm("/queue/simple/getall", array("?target" => $contrato->ip . '/32'));
+                                        if ($id_simple) {
+                                            $API->comm("/queue/simple/remove", array(".id" => $id_simple[0][".id"]));
+                                        }
+                                    }
+                                    if ($contrato->conexion == 2) {
+                                        $name = $API->comm("/ip/dhcp-server/lease/getall", array("?address" => $contrato->ip));
+                                        if ($name) {
+                                            $API->comm("/ip/dhcp-server/lease/remove", array(".id" => $name[0][".id"]));
+                                        }
+                                        $id_simple = $API->comm("/queue/simple/getall", array("?target" => $contrato->ip . '/32'));
+                                        if ($id_simple) {
+                                            $API->comm("/queue/simple/remove", array(".id" => $id_simple[0][".id"]));
+                                        }
+                                    }
+                                    if ($contrato->conexion == 3) {
+                                        $mk_user = $API->comm("/ip/arp/getall", array("?address" => $contrato->ip));
+                                        if ($mk_user) {
+                                            $API->comm("/ip/arp/remove", array(".id" => $mk_user[0][".id"]));
+                                        }
+                                        $id_simple = $API->comm("/queue/simple/getall", array("?target" => $contrato->ip . '/32'));
+                                        if ($id_simple) {
+                                            $API->comm("/queue/simple/remove", array(".id" => $id_simple[0][".id"]));
+                                        }
+                                    }
+                                    
+                                    $API->write('/ip/firewall/address-list/print', true);
+                                    $ARRAYS = $API->read();
+                                    $API->write('/ip/firewall/address-list/print', false);
+                                    $API->write('?address=' . $contrato->ip, false);
+                                    $API->write('=.proplist=.id');
+                                    $ARRAYS = $API->read();
+                                    if (count($ARRAYS) > 0) {
+                                        $API->write('/ip/firewall/address-list/remove', false);
+                                        $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                        $API->read();
+                                    }
+
+                                    $API->disconnect();
+                                }
+                            } catch (\Exception $e) {
+                                // Silenciar error en caso de fallo al mikrotik y permitir eliminar
+                            }
+                        }
+                    }
+                }
+
+                // Deshabilitar CATV si es necesario
+                if ($contrato->olt_sn_mac && $empresa->adminOLT != null && $contrato->state_olt_catv == 1) {
+                    try {
+                        $curl = curl_init();
+                        curl_setopt_array($curl, array(
+                            CURLOPT_URL => $empresa->adminOLT . '/api/onu/disable_catv/' . $contrato->olt_sn_mac,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_ENCODING => '',
+                            CURLOPT_MAXREDIRS => 10,
+                            CURLOPT_TIMEOUT => 0,
+                            CURLOPT_FOLLOWLOCATION => true,
+                            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                            CURLOPT_CUSTOMREQUEST => 'POST',
+                            CURLOPT_HTTPHEADER => array('X-token: ' . $empresa->smartOLT),
+                        ));
+                        curl_exec($curl);
+                        curl_close($curl);
+                    } catch (\Exception $e) {
+                        // Continuar...
+                    }
+                }
+                
+                // Borrar archivos adjuntos si existen
+                if ($contrato->adjunto_a && Storage::disk('documentos')->exists($contrato->adjunto_a)) { Storage::disk('documentos')->delete($contrato->adjunto_a); }
+                if ($contrato->adjunto_b && Storage::disk('documentos')->exists($contrato->adjunto_b)) { Storage::disk('documentos')->delete($contrato->adjunto_b); }
+                if ($contrato->adjunto_c && Storage::disk('documentos')->exists($contrato->adjunto_c)) { Storage::disk('documentos')->delete($contrato->adjunto_c); }
+                if ($contrato->adjunto_d && Storage::disk('documentos')->exists($contrato->adjunto_d)) { Storage::disk('documentos')->delete($contrato->adjunto_d); }
+                
+                Ping::where('contrato', $contrato->id)->delete();
+                $cliente = Contacto::find($contrato->client_id);
+                if($cliente){
+                    $cliente->fecha_contrato = Carbon::now();
+                    $cliente->save();
+                }
+                $contrato->delete();
+                $eliminados++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'eliminados' => $eliminados,
+            'omitidos' => $omitidos
+        ]);
+    }
+
     public function destroy_to_networksoft($id)
     {
         $contrato = Contrato::find($id);
