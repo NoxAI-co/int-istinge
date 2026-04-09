@@ -8252,7 +8252,7 @@ class FacturasController extends Controller{
                     if (!$suspensionDate) $suspensionDate = $vencimiento;
 
                 } catch (\Exception $e) {
-                    $valFailing = $sheet->getCell($desplazado ? "E" : "D", $row)->getFormattedValue();
+                    $valFailing = $sheet->getCell(($desplazado ? "E" : "D") . $row)->getFormattedValue();
                     $errores[] = "Fila $row: Error en el formato de fechas ($valFailing) - Use DD-MM-YYYY válido o verifique si agregó columnas extras.";
                     continue;
                 }
