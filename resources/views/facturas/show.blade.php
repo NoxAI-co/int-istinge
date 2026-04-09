@@ -746,6 +746,10 @@
                                         <td>{{ \Carbon\Carbon::parse($factura->fecha)->format('d/m/Y') }}</td>
                                     </tr>
                                     <tr>
+                                        <td><strong>Fecha de emisión (cálculo):</strong><br><small class="text-muted">Fecha base del cálculo prorrateado</small></td>
+                                        <td>{{ \Carbon\Carbon::parse($factura->created_at ?? $factura->fecha)->format('d/m/Y') }}</td>
+                                    </tr>
+                                    <tr>
                                         <td><strong>Días cobrados:</strong></td>
                                         <td><span class="badge badge-success">{{ $diasCobrados }} días</span></td>
                                     </tr>
