@@ -501,6 +501,9 @@ class CronController extends Controller
                                             $factura->empresa       = 1;
                                             $factura->cliente       = $contrato->cliente;
                                             $factura->fecha         = $fecha;
+                                            if($fechaRef){
+                                                $factura->created_at = $fecha . ' ' . date('H:i:s');
+                                            }
                                             $factura->tipo          = $tipo;
                                             $factura->vencimiento   = $date_suspension;
                                             $factura->suspension    = $date_suspension;

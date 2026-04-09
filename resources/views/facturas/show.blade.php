@@ -686,8 +686,8 @@
                             $grupo = App\Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')->where('client_id',$factura->cliente)->select('gc.*')->first();
                         }
                         
-                        $mesFactura = \Carbon\Carbon::parse($factura->created_at ?? $factura->fecha)->format('m');
-                        $yearFactura = \Carbon\Carbon::parse($factura->created_at ?? $factura->fecha)->format('Y');
+                        $mesFactura = \Carbon\Carbon::parse($factura->created_at)->format('m');
+                        $yearFactura = \Carbon\Carbon::parse($factura->created_at)->format('Y');
                         $periodoFacturacion = $grupo ? ($grupo->periodo_facturacion ?? 1) : 1;
                         $tipoPeriodo = 'Mes Anticipado';
                         $estrategia = 'Se factura el mes siguiente al actual.';
@@ -728,8 +728,8 @@
                             <table class="table table-sm table-bordered mt-2">
                                 <tbody>
                                     <tr>
-                                        <td width="35%"><strong>Fecha Base de Cálculo (Emisión):</strong></td>
-                                        <td>{{ \Carbon\Carbon::parse($factura->created_at ?? $factura->fecha)->format('d/m/Y') }} <small class="text-muted">(Mes: {{ $mesFactura }}, Año: {{ $yearFactura }})</small></td>
+                                        <td width="35%"><strong>Fecha de creación de la factura:</strong></td>
+                                        <td>{{ \Carbon\Carbon::parse($factura->created_at)->format('d/m/Y g:i:s A') }} <small class="text-muted">(Mes: {{ $mesFactura }}, Año: {{ $yearFactura }})</small></td>
                                     </tr>
                                     <tr>
                                         <td><strong>Día de corte establecido:</strong></td>
@@ -850,12 +850,12 @@
                                     </tr>
                                     @endif
                                     <tr>
-                                        <td><strong>Fecha de facturación:</strong></td>
+                                        <td><strong>Fecha de facturación (impresa):</strong></td>
                                         <td>{{ \Carbon\Carbon::parse($factura->fecha)->format('d/m/Y') }}</td>
                                     </tr>
                                     <tr>
-                                        <td><strong>Fecha de emisión (cálculo):</strong><br><small class="text-muted">Fecha base del cálculo prorrateado</small></td>
-                                        <td>{{ \Carbon\Carbon::parse($factura->created_at ?? $factura->fecha)->format('d/m/Y') }}</td>
+                                        <td><strong>Fecha de creación de la factura:</strong><br><small class="text-muted">Fecha base del cálculo prorrateado</small></td>
+                                        <td>{{ \Carbon\Carbon::parse($factura->created_at)->format('d/m/Y g:i:s A') }}</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Días cobrados:</strong></td>
