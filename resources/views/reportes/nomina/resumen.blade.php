@@ -107,7 +107,7 @@
                 "url": "https://cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json"
             },
             "order": [[2, "desc"], [1, "desc"]],
-            "pageLength": 12,
+            "pageLength": 50,
             "columnDefs": [
                 { "targets": 'no-sort', "orderable": false }
             ],

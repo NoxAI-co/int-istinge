@@ -3545,30 +3545,40 @@ class ReportesController extends Controller
             ->setKeywords("resumen nomina masivo")
             ->setCategory("reporte excel");
 
-        $titulosColumnas = array('Periodo', 'Nombre', 'Apellido', 'Numero de identificacion', 'Sede', 'Area', 'Cargo', 'Centro de Costos', 'Salario Base', 'Horas Extras y recargos', 'Vacaciones, Incap y Lic', 'Ingresos adicionales', 'Deducc, prest y ReteFuen', 'Pago empleado', 'Prima', 'Cesantias', 'Intereses Cesantias', 'Total');
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $titulosColumnas = array(
+            'Periodo', 'Nombre', 'Apellido', 'Identificación', 'Sede', 'Area', 'Cargo', 'Centro de Costos',
+            'Días Periodo', 'Días Vacaciones', 'Días Trabajados',
+            'Salario Mensual', 'Salario Devengado', 'Subsidio Transporte',
+            'Horas Extras/Recargos', 'Vacaciones/Incap/Lic', 'Otros Ingresos',
+            'Retenciones y Deducciones', 'TOTAL NETO',
+            'IBC Seguridad Social',
+            'Salud (4%)', 'Pensión (4%)',
+            'Pensión (Empresa)', 'ARL (Riesgo)', 'Caja Compensación',
+            'Cesantías', 'Intereses Cesantías', 'Prima Servicios', 'Vacaciones (Prov)', 'Total Provisiones',
+            'COSTO TOTAL'
+        );
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
 
         $objPHPExcel->setActiveSheetIndex(0);
         $sheet = $objPHPExcel->getActiveSheet();
 
         $tituloReporte = "Resumen de Nómina - Selección de Periodos";
-        $sheet->mergeCells('A1:R1');
+        $sheet->mergeCells('A1:AF1');
         $sheet->setCellValue('A1', $tituloReporte);
 
         $estiloA = array(
-            'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
-            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+            'font' => array('bold' => true, 'size' => 14, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER),
+            'fill' => array('type' => \PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '1e3a8a'))
         );
-        $sheet->getStyle('A1:R1')->applyFromArray($estiloA);
+        $sheet->getStyle('A1:AF1')->applyFromArray($estiloA);
 
         $estiloB = array(
-            'fill' => array(
-                'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-                'color' => array('rgb' => 'c6c8cc')
-            ),
-            'font' => array('bold' => true)
+            'fill' => array('type' => \PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'f1f5f9')),
+            'font' => array('bold' => true, 'color' => array('rgb' => '334155')),
+            'borders' => array('allborders' => array('style' => \PHPExcel_Style_Border::BORDER_THIN))
         );
-        $sheet->getStyle('A3:R3')->applyFromArray($estiloB);
+        $sheet->getStyle('A3:AF3')->applyFromArray($estiloB);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $sheet->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
@@ -3603,33 +3613,9 @@ class ReportesController extends Controller
             $periodoNombre = $preferencia->periodo($month, $year, $tipo);
 
             foreach ($nominas as $nomina) {
-                $interesCesantiaValor = $cesantiaValor = $primaValor = 0;
-
-                foreach ($nomina->prestacionesSociales as $prestacion) {
-                    switch ($prestacion->nombre) {
-                        case 'prima':
-                            $primaValor = (float) $prestacion->valor_pagar;
-                            break;
-                        case 'cesantia':
-                            $cesantiaValor = (float) $prestacion->valor_pagar;
-                            break;
-                        case 'intereses_cesantia':
-                            $interesCesantiaValor = (float) $prestacion->valor_pagar;
-                            break;
-                    }
-                }
-
                 foreach ($nomina->nominaperiodos as $nominaPeriodo) {
-                    $salarioBase = (float) ($nominaPeriodo->pago_empleado ? $nominaPeriodo->pago_empleado : $nominaPeriodo->valor_total);
-                    $extras = (float) $nominaPeriodo->extras();
-                    $vacaciones = (float) $nominaPeriodo->vacaciones();
-                    $ingresos = (float) $nominaPeriodo->ingresos();
-                    $deducciones = (float) $nominaPeriodo->deducciones();
-                    $pagoEmpleado = (float) ($nominaPeriodo->valor_total ? $nominaPeriodo->valor_total : 0);
+                    $resumen = $nominaPeriodo->resumenTotal();
                     
-                    // Total por persona: Pago Empleado + Prestaciones
-                    $totalPersona = $pagoEmpleado + $primaValor + $cesantiaValor + $interesCesantiaValor;
-
                     $sheet->setCellValue($letras[0] . $rowIdx, $periodoNombre)
                         ->setCellValue($letras[1] . $rowIdx, $nomina->persona->nombre)
                         ->setCellValue($letras[2] . $rowIdx, $nomina->persona->apellido)
@@ -3638,19 +3624,44 @@ class ReportesController extends Controller
                         ->setCellValue($letras[5] . $rowIdx, $nomina->persona->area()->nombre)
                         ->setCellValue($letras[6] . $rowIdx, $nomina->persona->cargo()->nombre)
                         ->setCellValue($letras[7] . $rowIdx, $nomina->persona->centro_costo()->nombre)
-                        ->setCellValue($letras[8] . $rowIdx, $salarioBase)
-                        ->setCellValue($letras[9] . $rowIdx, $extras)
-                        ->setCellValue($letras[10] . $rowIdx, $vacaciones)
-                        ->setCellValue($letras[11] . $rowIdx, $ingresos)
-                        ->setCellValue($letras[12] . $rowIdx, $deducciones)
-                        ->setCellValue($letras[13] . $rowIdx, $pagoEmpleado)
-                        ->setCellValue($letras[14] . $rowIdx, $primaValor)
-                        ->setCellValue($letras[15] . $rowIdx, $cesantiaValor)
-                        ->setCellValue($letras[16] . $rowIdx, $interesCesantiaValor)
-                        ->setCellValue($letras[17] . $rowIdx, $totalPersona);
+                        // Días
+                        ->setCellValue($letras[8] . $rowIdx, $resumen['diasTrabajados']['diasPeriodo'])
+                        ->setCellValue($letras[9] . $rowIdx, $resumen['diasTrabajados']['ausencia']['VACACIONES'] ?? 0)
+                        ->setCellValue($letras[10] . $rowIdx, $resumen['diasTrabajados']['total'])
+                        // Valores Base
+                        ->setCellValue($letras[11] . $rowIdx, $resumen['salarioSubsidio']['salarioCompleto'])
+                        ->setCellValue($letras[12] . $rowIdx, $resumen['pago']['salario'])
+                        ->setCellValue($letras[13] . $rowIdx, $resumen['salarioSubsidio']['subsidioTransporte'])
+                        // Adicionales
+                        ->setCellValue($letras[14] . $rowIdx, $resumen['pago']['extrasOrdinariasRecargos'])
+                        ->setCellValue($letras[15] . $rowIdx, $resumen['pago']['vacaciones'] + $resumen['ibcSeguridadSocial']['incapacidades'] + $resumen['pago']['licencias'])
+                        ->setCellValue($letras[16] . $rowIdx, $resumen['pago']['ingresosAdicionales'])
+                        // Deducciones y Netos
+                        ->setCellValue($letras[17] . $rowIdx, $resumen['pago']['retencionesDeducciones'])
+                        ->setCellValue($letras[18] . $rowIdx, $resumen['pago']['total'])
+                        // IBC
+                        ->setCellValue($letras[19] . $rowIdx, $resumen['ibcSeguridadSocial']['total'])
+                        // Retenciones
+                        ->setCellValue($letras[20] . $rowIdx, $resumen['retenciones']['salud'])
+                        ->setCellValue($letras[21] . $rowIdx, $resumen['retenciones']['pension'])
+                        // Empresa S.S. y Parafiscales
+                        ->setCellValue($letras[22] . $rowIdx, $resumen['seguridadSocial']['pension'])
+                        ->setCellValue($letras[23] . $rowIdx, $resumen['seguridadSocial']['riesgo1'])
+                        ->setCellValue($letras[24] . $rowIdx, $resumen['parafiscales']['cajaCompensacion'])
+                        // Provisiones
+                        ->setCellValue($letras[25] . $rowIdx, $resumen['provisionPrestacion']['cesantias'])
+                        ->setCellValue($letras[26] . $rowIdx, $resumen['provisionPrestacion']['interesesCesantias'])
+                        ->setCellValue($letras[27] . $rowIdx, $resumen['provisionPrestacion']['primaServicios'])
+                        ->setCellValue($letras[28] . $rowIdx, $resumen['provisionPrestacion']['vacaciones'])
+                        ->setCellValue($letras[29] . $rowIdx, $resumen['provisionPrestacion']['total']);
                     
-                    // Aplicar formato numérico a las columnas de dinero (I a R)
-                    $sheet->getStyle('I' . $rowIdx . ':R' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
+                    // Costo Total = Neto + Retenciones (empresa paga retenciones a salud/pension que el empleado descuenta? no, neto ya descuenta retenciones empleado. Costo empresa es Total + S.S. Empresa + Provisiones)
+                    // En realidad el costo es Salario + Subsidio + Extras + Provisiones + SS Empresa.
+                    $costoTotal = $resumen['pago']['total'] + $resumen['pago']['retencionesDeducciones'] + $resumen['seguridadSocial']['total'] + $resumen['parafiscales']['total'] + $resumen['provisionPrestacion']['total'];
+                    $sheet->setCellValue($letras[30] . $rowIdx, $costoTotal);
+
+                    // Aplicar formato numérico a las columnas de dinero (L a AF)
+                    $sheet->getStyle('L' . $rowIdx . ':AF' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
                     
                     $rowIdx++;
                 }
@@ -3660,7 +3671,7 @@ class ReportesController extends Controller
         // Fila de Totales
         $sheet->setCellValue($letras[7] . $rowIdx, 'TOTALES');
         $sheet->getStyle($letras[7] . $rowIdx)->getFont()->setBold(true);
-        for ($col = 8; $col <= 17; $col++) {
+        for ($col = 8; $col <= 30; $col++) {
             $colLetra = $letras[$col];
             $sheet->setCellValue($colLetra . $rowIdx, "=SUM({$colLetra}{$startRow}:{$colLetra}" . ($rowIdx - 1) . ")");
             $sheet->getStyle($colLetra . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
@@ -3668,17 +3679,18 @@ class ReportesController extends Controller
         }
 
         $estiloC = array(
-            'font' => array('size' => 12, 'name' => 'Times New Roman'),
+            'font' => array('size' => 11, 'name' => 'Calibri'),
             'borders' => array(
                 'allborders' => array(
-                    'style' => \PHPExcel_Style_Border::BORDER_THIN
+                    'style' => \PHPExcel_Style_Border::BORDER_THIN,
+                    'color' => array('rgb' => 'cbd5e1')
                 )
             ),
-            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
+            'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $sheet->getStyle('A3:R' . $rowIdx)->applyFromArray($estiloC);
+        $sheet->getStyle('A3:AF' . $rowIdx)->applyFromArray($estiloC);
 
-        foreach (range(0, 17) as $colIdx) {
+        foreach (range(0, 31) as $colIdx) {
             $sheet->getColumnDimension($letras[$colIdx])->setAutoSize(true);
         }
 
