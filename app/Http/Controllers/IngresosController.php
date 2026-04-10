@@ -1212,12 +1212,17 @@ class IngresosController extends Controller
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
         $mensaje = "";
+        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresa->id}, Ingreso ID: {$ingreso->id}");
 
         try {
 
             /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
-            if ($contrato !== null && $contrato->conexion == 2 && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
+            Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'N/A') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
+            
+            if ($condicionOLT) {
                 try {
+                    Log::debug("funcionesPagoMK: Ejecutando enableOnu en OLT para serial: {$contrato->serial_onu}");
                     $oltController = app('App\Http\Controllers\OltController');
                     $oltController->enableOnu($contrato->serial_onu);
 
@@ -1232,6 +1237,7 @@ class IngresosController extends Controller
                     $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                     $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                     $movimiento->save();
+                    Log::debug("funcionesPagoMK: OLT habilitado y log de movimiento guardado.");
                 } catch (\Throwable $e) {
                     Log::error('Error en bloque Smart OLT de funcionesPagoMK: ' . $e->getMessage());
                 }
@@ -1239,7 +1245,10 @@ class IngresosController extends Controller
             /* * * Smart OLT - DHCP * * */
 
             /* * * API MK * * */
-            if($contrato->server_configuration_id && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 0){
+            $condicionMK = ($contrato->server_configuration_id && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 0);
+            Log::debug("funcionesPagoMK: Verificando condición API MK: " . ($condicionMK ? 'CUMPLE' : 'NO CUMPLE') . " [Server ID: {$contrato->server_configuration_id}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'N/A') . "]");
+            
+            if($condicionMK){
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
                 if(!$mikrotik){
                     Log::warning('No se encontró configuración Mikrotik con id: ' . $contrato->server_configuration_id);
@@ -1247,19 +1256,24 @@ class IngresosController extends Controller
                     $ingreso->save();
                     return $mensaje;
                 }
+                
+                Log::debug("funcionesPagoMK: Intentando conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
                 $API->timeout = 5;
                 $API->attempts = 2;
                 $API->delay = 1;
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+                    Log::debug("funcionesPagoMK: Conexión exitosa a Mikrotik.");
 
                     $API->write('/ip/firewall/address-list/print', TRUE);
                     $ARRAYS = $API->read();
 
+                    Log::debug("funcionesPagoMK: Verificando activeconn_secret: " . ($empresa->activeconn_secret ?? 0));
                     if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
 
                         #HABILITACION DEL SECRET#
+                        Log::debug("funcionesPagoMK: Iniciando habilitación de Secret (Tipo Conexión: {$contrato->conexion})");
                         if ($contrato->conexion == 1 && $contrato->usuario != null) {
                             // Buscar el ID interno del secret
                             $API->write('/ppp/secret/print', false);
@@ -1272,12 +1286,15 @@ class IngresosController extends Controller
                                 $API->write('/ppp/secret/enable', false);
                                 $API->write('=numbers=' . $id, true);
                                 $response = $API->read();
-                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response));
+                            } else {
+                                Log::warning("funcionesPagoMK: No se encontró el Secret '{$contrato->usuario}' en el MikroTik.");
                             }
                         }
                         #HABILITACION DEL SECRET#
 
                         #AGREGAMOS A IP_AUTORIZADAS#
+                        Log::debug("funcionesPagoMK: Agregando IP {$contrato->ip} a ips_autorizadas");
                         $API->comm("/ip/firewall/address-list/add", array(
                             "address" => $contrato->ip,
                             "list" => 'ips_autorizadas'
@@ -1298,15 +1315,17 @@ class IngresosController extends Controller
 
                     }else{
 
-                    // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                    DB::reconnect();
+                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                        DB::reconnect();
 
+                        Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
                         // OPTIMIZADO: Una sola consulta para obtener IDs directamente (elimina el print doble)
                         $API->write('/ip/firewall/address-list/print', false);
                         $API->write('?address=' . $contrato->ip, false);
                         $API->write('?list=morosos', false);
                         $API->write('=.proplist=.id');
                         $ARRAYS = $API->read();
+                        Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
 
                         if (!empty($ARRAYS)) {
                             #ELIMINAMOS DE MOROSOS#
@@ -1326,6 +1345,7 @@ class IngresosController extends Controller
                             $READ = $API->comm('/ip/firewall/address-list/remove', [
                                 'numbers' => implode(',', $idsToRemove)
                             ]);
+                            Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
 
                             // Registro MovimientoLOG respuesta remove
                             $movimiento = new MovimientoLOG;
@@ -1345,6 +1365,7 @@ class IngresosController extends Controller
                             $descVerif = empty($verificacion)
                                 ? '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
                                 : '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                            Log::debug("funcionesPagoMK: {$descVerif}");
 
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
@@ -1359,6 +1380,7 @@ class IngresosController extends Controller
                                 'address' => $contrato->ip,
                                 'list'    => 'ips_autorizadas'
                             ]);
+                            Log::debug("funcionesPagoMK: Resultado agregar a ips_autorizadas: " . json_encode($resultAdd));
 
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
@@ -1400,19 +1422,26 @@ class IngresosController extends Controller
                             $contrato->state = 'enabled';
                             $contrato->save();
                             Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
+                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
                         }
                     }
                     $API->disconnect();
+                } else {
+                    Log::error("funcionesPagoMK: No se pudo conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 }
             }else{
+                Log::debug("funcionesPagoMK: Saltando bloque MK (No cumple condiciones o DHCP OLT activo).");
                 $ingreso->revalidacion_enable_internet = 1;
                 $ingreso->save();
             }
             /* * * API MK * * */
 
              /* * * API CATV * * */
-            if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
+            $condicionCATV = (($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null);
+            Log::debug("funcionesPagoMK: Verificando condición API CATV: " . ($condicionCATV ? 'CUMPLE' : 'NO CUMPLE') . " [OLT SN/MAC: " . ($contrato->olt_sn_mac ?? 'N/A') . ", AdminOLT: " . ($empresa->adminOLT ?? 'N/A') . "]");
 
+            if($condicionCATV){
+                Log::debug("funcionesPagoMK: Ejecutando enable_catv para MAC: {$contrato->olt_sn_mac}");
                 $curl = curl_init();
                 curl_setopt_array($curl, array(
                     CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
@@ -1430,16 +1459,22 @@ class IngresosController extends Controller
                     ));
 
                 $response = curl_exec($curl);
-                $response = json_decode($response);
+                $responseCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $decodedResponse = json_decode($response);
+                Log::debug("funcionesPagoMK: Respuesta CATV (Status Code: $responseCode): " . $response);
 
-                if(isset($response->status) && $response->status == true){
+                if(isset($decodedResponse->status) && $decodedResponse->status == true){
 
                     $ingreso->revalidacion_enable_tv = 1;
                     $ingreso->save();
 
                     $contrato->state_olt_catv = 1;
                     $contrato->save();
+                    Log::debug("funcionesPagoMK: CATV habilitado exitosamente.");
+                } else {
+                    Log::warning("funcionesPagoMK: Falló habilitación CATV.");
                 }
+                curl_close($curl);
             }else{
                 $ingreso->revalidacion_enable_tv = 1;
                 $ingreso->save();
