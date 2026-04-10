@@ -632,31 +632,55 @@ class IngresosController extends Controller
                            $contrato = Contrato::where('id',$factura->contrato_id)->first();
                         }
 
+                        Log::debug("IngresosController@store: Contrato asociado a factura #{$factura->codigo}: " . ($contrato ? "Contrato #{$contrato->nro}" : "Ninguno"));
 
                         if($contrato){
                             try {
+                                Log::debug("IngresosController@store: Validando ejecución MK para contrato #{$contrato->nro} (ID: {$contrato->id}). Consultas_mk: {$empresa->consultas_mk}");
                                 if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
                                     $contratos_procesados_mk[] = $contrato->id; // Registramos para no repetir en esta petición
                                     
                                     // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
                                     $contratoId = $contrato->id;
-                                        $empresaId = $empresa->id;
-                                        $ingresoId = $ingreso->id;
-                                        app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
-                                            try {
-                                                DB::reconnect();
-                                                $contratoBG = \App\Contrato::find($contratoId);
-                                                $empresaBG = \App\Empresa::find($empresaId);
-                                                $ingresoBG = Ingreso::find($ingresoId);
-                                                if($contratoBG && $empresaBG && $ingresoBG){
-                                                    $controller = new \App\Http\Controllers\IngresosController();
-                                                    $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
-                                                }
-                                            } catch (\Throwable $e) {
-                                                Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage());
+                                    $empresaId = $empresa->id;
+                                    $ingresoId = $ingreso->id;
+                                    
+                                    Log::debug("IngresosController@store: Registrando callback terminating para contrato ID: {$contratoId}, Ingreso ID: {$ingresoId}");
+                                    
+                                    app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
+                                        try {
+                                            Log::debug("IngresosController@store (Background): Iniciando callback terminating...");
+                                            DB::reconnect();
+                                            $contratoBG = \App\Contrato::find($contratoId);
+                                            $empresaBG = \App\Empresa::find($empresaId);
+                                            $ingresoBG = Ingreso::find($ingresoId);
+                                            
+                                            Log::debug("IngresosController@store (Background): Modelos cargados - Contrato: " . ($contratoBG ? 'OK' : 'FAIL') . ", Empresa: " . ($empresaBG ? 'OK' : 'FAIL') . ", Ingreso: " . ($ingresoBG ? 'OK' : 'FAIL'));
+                                            
+                                            if($contratoBG && $empresaBG && $ingresoBG){
+                                                Log::debug("IngresosController@store (Background): Llamando a funcionesPagoMK para contrato #{$contratoBG->nro}");
+                                                $controller = new \App\Http\Controllers\IngresosController();
+                                                $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
+                                                Log::debug("IngresosController@store (Background): funcionesPagoMK finalizado.");
+                                            } else {
+                                                Log::warning("IngresosController@store (Background): No se pudieron cargar todos los modelos necesarios para funcionesPagoMK.");
                                             }
-                                        });
+                                        } catch (\Throwable $e) {
+                                            Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage(), [
+                                                'contratoId' => $contratoId,
+                                                'ingresoId' => $ingresoId,
+                                                'trace' => $e->getTraceAsString()
+                                            ]);
+                                        }
+                                    });
+                                } else {
+                                    if ($empresa->consultas_mk != 1) {
+                                        Log::debug("IngresosController@store: No se ejecuta MK porque consultas_mk está desactivado.");
                                     }
+                                    if (in_array($contrato->id, $contratos_procesados_mk)) {
+                                        Log::debug("IngresosController@store: Contrato ID {$contrato->id} ya procesado en esta petición.");
+                                    }
+                                }
                             } catch (\Throwable $thMK) {
                                 Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
