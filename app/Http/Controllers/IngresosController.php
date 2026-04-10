@@ -1217,8 +1217,9 @@ class IngresosController extends Controller
         try {
 
             /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
-            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
-            Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'N/A') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
+            // Si queries_dhcp_smartolt es 1, usamos OLT para DHCP
+            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
+            Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
             
             if ($condicionOLT) {
                 try {
@@ -1245,8 +1246,9 @@ class IngresosController extends Controller
             /* * * Smart OLT - DHCP * * */
 
             /* * * API MK * * */
-            $condicionMK = ($contrato->server_configuration_id && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 0);
-            Log::debug("funcionesPagoMK: Verificando condición API MK: " . ($condicionMK ? 'CUMPLE' : 'NO CUMPLE') . " [Server ID: {$contrato->server_configuration_id}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'N/A') . "]");
+            // Si queries_dhcp_smartolt NO es 1 (es 0 o NULL), y hay un servidor asignado, usamos API Mikrotik
+            $condicionMK = ($contrato->server_configuration_id && $empresa->queries_dhcp_smartolt != 1);
+            Log::debug("funcionesPagoMK: Verificando condición API MK: " . ($condicionMK ? 'CUMPLE' : 'NO CUMPLE') . " [Server ID: {$contrato->server_configuration_id}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . "]");
             
             if($condicionMK){
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
