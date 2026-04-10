@@ -210,22 +210,26 @@
                     <td style="width: 70%;">Monto Pagado:</td>
                     <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago() + $ingreso->ingreso()->valor_anticipo)}} </td>
                 </tr>
+                @if($factura->porpagar() > 0)
+                <tr>
+                    <td style="width: 70%;">Saldo por Pagar:</td>
+                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
+                </tr>
+                @endif
+                @if($ingreso->ingreso()->valor_anticipo > 0)
+                <tr>
+                    <td style="width: 70%;">Saldo a favor generado:</td>
+                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->valor_anticipo)}} </td>
+                </tr>
+                @endif
                 @else
                   <tr>
                     <td style="width: 100%; text-align:right;">Pagado con saldo a favor</td>
                 </tr>
-                @endif
-                @if($ingreso != null)
-                @if($factura->total()->total - $ingreso->pago() > 0)
+                @if($factura->porpagar() > 0)
                 <tr>
-                    <td style="width: 70%;">Monto Pendiente:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago() - $factura->pagado())}} </td>
-                </tr>
-                @endif
-                 @if($ingreso->ingreso()->valor_anticipo > 0)
-                <tr>
-                    <td style="width: 70%;">Saldo a favor generado:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->valor_anticipo)}} </td>
+                    <td style="width: 70%;">Saldo por Pagar:</td>
+                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
                 </tr>
                 @endif
                 @endif
