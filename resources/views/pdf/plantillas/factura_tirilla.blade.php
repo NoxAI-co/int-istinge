@@ -17,166 +17,136 @@
 
         body{
             font-family: Helvetica, sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             color: #000;
+            line-height: 1.5;
         }
         h4{
-            font-weight: bold;m
+            font-weight: bold;
             text-align: center;
-            margin: 0;font-size: 14px;
+            margin: 0 0 5px 0;
+            font-size: 14px;
         }
-        .small{
-            font-size: 13px;line-height: 12px;    margin: 0;
-        }
-        .smalltd{
-            font-size: 13px;line-height: 12px; padding-right: 2px;
-        }
-        .medium{
-            font-size: 20px;line-height: 14px;    margin: 0;
-        }
-        a{
-            color: #000;
-            text-decoration: none;
-        }
-       /* th{
-            background: #ccc;
-        }
-        td{
-            padding-left: 2px;
-        }*/
-        .center
-        {
+        .text-center{
             text-align: center;
         }
-        .right
-        {
+        .text-right{
             text-align: right;
         }
-        .left
-        {
+        .text-left{
             text-align: left;
         }
-
-
-        .titulo{
+        .font-weight-bold{
+            font-weight: bold;
+        }
+        .header-info p {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+        .info-box {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .label {
+            font-weight: normal;
+            color: #444;
+        }
+        .value {
+            font-weight: bold;
+        }
+        .desgloce {
             width: 100%;
             border-collapse: collapse;
-            border-radius: 0.4em;
-            overflow: hidden;
+            margin-top: 10px;
         }
-      /*  td {
-            border: 1px  solid #9e9b9b;
+        .desgloce th {
+            border-bottom: 1px solid #000;
+            padding: 5px 0;
+            font-size: 11px;
+            text-transform: uppercase;
         }
-
-        th {
-            border: 1px  solid #ccc;
-        }*/
-        .desgloce{
+        .desgloce td {
+            padding: 4px 0;
+            font-size: 11px;
+        }
+        .totals-table {
             width: 100%;
-            overflow: hidden;
-            border-collapse: collapse;
-            border-top-left-radius: 0.4em;
-            border-top-right-radius: 0.4em;
+            margin-top: 5px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
         }
-        .desgloce td{
-            padding-top: 3px;
-            border-left: 2px solid #fff;
-            border-top: 2px solid #fff;
-            border-bottom: 2px solid #fff;
-            border-right: 2px solid #ccc;
+        .totals-table td {
+            padding: 2px 0;
         }
-        .foot td{
-            padding-top: 3px;
-            border: 1px solid #fff;
-            padding-right: 1%;
-        }
-        .foot th{
-            padding: 2px;
-            border-radius: unset;
-        }
-        .border_left{
-            border-left: 3px solid #ccc !important;
-        }
-        .border_bottom{
-            border-bottom: 5px solid #ccc !important;
-        }
-        .border_right{
-            border-right: 3px solid #ccc !important;
-        }
-        .padding-right{
-            padding-right:1% !important;
-        }
-        .padding-left{
-            padding-left: 1%;
+        .footer {
+            margin-top: 20px;
+            font-size: 10px;
+            text-align: center;
         }
 
     </style>
-    <div style="width: 100%;">
-        <div style="width: 100%; text-align: center; display: inline-block;">
-            <h4>{{Auth::user()->empresa()->nombre}}</h4>
-            <p style="line-height: 15px;font-size: 12px;">{{Auth::user()->empresa()->tip_iden('mini')}} {{Auth::user()->empresa()->nit}} <br>
-                {{Auth::user()->empresa()->direccion}} <br>
-                {{Auth::user()->empresa()->telefono}}
-                @if(Auth::user()->empresa()->web)
-                    <br>{{Auth::user()->empresa()->web}}
-                @endif
-                <br> <a href="" target="_top">{{Auth::user()->empresa()->email}}</a>
-            </p>
-        </div>
-    </div>
-    <div style="width: 100%;">
-        <div style="width: 100%; text-align: center; display: inline-block;">
-            Señor(es): {{$factura->cliente()->nombre}} {{$factura->cliente()->apellidos()}}<br>
-            
-            <!-- CAMBIO 1: Dirección - de dirección del cliente a dirección del contrato -->
-            @if(isset($data['Contrato']['direccion_instalacion']) && $data['Contrato']['direccion_instalacion'])
-                Dirección: {{$data['Contrato']['direccion_instalacion']}}<br>
-            @elseif($factura->cliente()->direccion) 
-                Dirección: {{$factura->cliente()->direccion}}<br>
-            @endif
-            
-            <!-- CAMBIO 2: Ciudad - mantener la del cliente -->
-            @if($factura->cliente()->ciudad) 
-                Ciudad: {{$factura->cliente()->ciudad}}<br>
-            @endif
-            
-            @if($factura->cliente()->telefono1) Teléfono: {{$factura->cliente()->telefono1}}<br>@endif
-            @if($factura->cliente()->nit) {{ $factura->cliente()->tip_iden('mini')}}: {{$factura->cliente()->nit}}<br>@endif<br>
-        </div>
-    </div>
-
-    <div style="width: 100%; text-align: center; display: inline-block;">
-        @if($factura->tipo == 1 || $factura->tipo == 2) Factura de Venta: @elseif($factura->tipo == 3) Cuenta de Cobro: @endif No. {{$factura->codigo}}<br>
-        Fecha Expedición: {{date('d/m/Y', strtotime($factura->fecha))}}<br>
-        Fecha Vencimiento: {{date('d/m/Y', strtotime($factura->vencimiento))}}<br>
-        Estado: @if($factura->estatus == 0) Cerrada @endif @if($factura->estatus == 1) Abierta @endif @if($factura->estatus == 2) Anulada @endif<br><br>
-
-        @if($ingreso != null)
-            Recibo de Caja: No. {{ $ingreso->nro }}<br>
-            Fecha del Pago: {{ date('d/m/Y', strtotime($ingreso->ingreso()->fecha)) }}<br>
-            Cuenta: {{ $ingreso->ingreso()->cuenta()->nombre }}<br>
-            Método de Pago: {{ $ingreso->ingreso()->metodo_pago() }}<br>
-            Periodo: {{$factura->periodoCobrado('true')}}<br>
-            @if($ingreso->ingreso()->notas) Notas: {{ $ingreso->ingreso()->notas }} @endif
+    <div class="info-box header-info">
+        <h4>{{Auth::user()->empresa()->nombre}}</h4>
+        <p>{{Auth::user()->empresa()->tip_iden('mini')}} {{Auth::user()->empresa()->nit}}</p>
+        <p>{{Auth::user()->empresa()->direccion}}</p>
+        <p>{{Auth::user()->empresa()->telefono}}</p>
+        @if(Auth::user()->empresa()->web)
+            <p>{{Auth::user()->empresa()->web}}</p>
         @endif
+        <p>{{Auth::user()->empresa()->email}}</p>
+    </div>
 
+    <div class="info-box">
+        <p>
+            <span class="label">Señor(es):</span> <span class="value">{{$factura->cliente()->nombre}} {{$factura->cliente()->apellidos()}}</span><br>
+            @if(isset($data['Contrato']['direccion_instalacion']) && $data['Contrato']['direccion_instalacion'])
+                <span class="label">Dirección:</span> <span class="value">{{$data['Contrato']['direccion_instalacion']}}</span><br>
+            @elseif($factura->cliente()->direccion) 
+                <span class="label">Dirección:</span> <span class="value">{{$factura->cliente()->direccion}}</span><br>
+            @endif
+            @if($factura->cliente()->ciudad) 
+                <span class="label">Ciudad:</span> <span class="value">{{$factura->cliente()->ciudad}}</span><br>
+            @endif
+            @if($factura->cliente()->telefono1) <span class="label">Teléfono:</span> <span class="value">{{$factura->cliente()->telefono1}}</span><br>@endif
+            @if($factura->cliente()->nit) <span class="label">{{ $factura->cliente()->tip_iden('mini')}}:</span> <span class="value">{{$factura->cliente()->nit}}</span>@endif
+        </p>
+    </div>
+
+    <div class="info-box">
+        <p>
+            <span class="label">@if($factura->tipo == 1 || $factura->tipo == 2) Factura de Venta No. @elseif($factura->tipo == 3) Cuenta de Cobro No. @endif</span> <span class="value">{{$factura->codigo}}</span><br>
+            <span class="label">Fecha Expedición:</span> <span class="value">{{date('d/m/Y', strtotime($factura->fecha))}}</span><br>
+            <span class="label">Fecha Vencimiento:</span> <span class="value">{{date('d/m/Y', strtotime($factura->vencimiento))}}</span><br>
+            <span class="label">Estado:</span> <span class="value">@if($factura->estatus == 0) Cerrada @endif @if($factura->estatus == 1) Abierta @endif @if($factura->estatus == 2) Anulada @endif</span><br>
+
+            @if($ingreso != null)
+                <span class="label">Recibo de Caja No.</span> <span class="value">{{ $ingreso->nro }}</span><br>
+                <span class="label">Fecha del Pago:</span> <span class="value">{{ date('d/m/Y', strtotime($ingreso->ingreso()->fecha)) }}</span><br>
+                <span class="label">Cuenta:</span> <span class="value">{{ $ingreso->ingreso()->cuenta()->nombre }}</span><br>
+                <span class="label">Método de Pago:</span> <span class="value">{{ $ingreso->ingreso()->metodo_pago() }}</span><br>
+                <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobrado('true')}}</span><br>
+                @if($ingreso->ingreso()->notas) <span class="label">Notas:</span> <span class="value">{{ $ingreso->ingreso()->notas }}</span> @endif
+            @endif
+        </p>
     </div>
 
     <br>
 
-    <div style="width: 100%; text-align: center; display: inline-block; border-top: solid 1px #000; margin-top: 10px;">
-        <table style="width: 100%;text-align: center;">
+    <div class="info-box">
+        <table class="desgloce">
             <thead>
                 <tr>
-                    <th style="width: 70%;">Ítem</th>
-                    <th style="width: 30%;">Total</th>
+                    <th class="text-left">Ítem</th>
+                    <th class="text-right">Total</th>
                 </tr>
             </thead>
             <tbody>
             @foreach($items as $item)
                 <tr>
-                    <td >{{strtolower($item->producto())}}</td>
-                    <td >{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($item->total())}}</td>
+                    <td class="text-left">{{strtolower($item->producto())}}</td>
+                    <td class="text-right">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($item->total())}}</td>
                 </tr>
             @endforeach
             </tbody>
@@ -184,52 +154,48 @@
     </div>
     <br>
 
-    <div  style="width: 100%; text-align: center; display: inline-block;  border-bottom: solid 1px #000; padding: 5px 0 5px 5px; margin-bottom: 5px;">
-        <table style="width: 100%;">
+    <div class="info-box">
+        <table style="width: 100%; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 5px 0;">
             <tbody>
-                <!--<tr>-->
-                <!--    <td style="width: 70%;">Subtotal:</td>-->
-                <!--    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total()->subtotal)}}</td>-->
-                <!--</tr>-->
                 @if($factura->total()->imp)
                     @foreach($factura->total()->imp as $imp)
                         @if(isset($imp->total))
                             <tr>
-                                <td style="width: 70%;">{{$imp->nombre}} ({{$imp->porcentaje}}%)</td>
-                                <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($imp->total)}}</td>
+                                <td style="width: 70%;" class="label">{{$imp->nombre}} ({{$imp->porcentaje}}%)</td>
+                                <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($imp->total)}}</td>
                             </tr>
                         @endif
                     @endforeach
                 @endif
                 @if($ingreso != null)
                 <tr>
-                    <td style="width: 70%;">Monto a Pagar:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago())}} </td>
+                    <td style="width: 70%;" class="label">Monto a Pagar:</td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago())}} </td>
                 </tr>
                 <tr>
-                    <td style="width: 70%;">Monto Pagado:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago() + $ingreso->ingreso()->valor_anticipo)}} </td>
+                    <td style="width: 70%;" class="label">Monto Pagado:</td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago() + $ingreso->ingreso()->valor_anticipo)}} </td>
                 </tr>
                 @if($factura->porpagar() > 0)
                 <tr>
-                    <td style="width: 70%;">Saldo por Pagar:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
+                    <td style="width: 70%;" class="label">Saldo por Pagar:</td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
                 </tr>
                 @endif
                 @if($ingreso->ingreso()->valor_anticipo > 0)
                 <tr>
-                    <td style="width: 70%;">Saldo a favor generado:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->valor_anticipo)}} </td>
+                    <td style="width: 70%;" class="label">Saldo a favor generado:</td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->valor_anticipo)}} </td>
                 </tr>
                 @endif
                 @else
-                  <tr>
-                    <td style="width: 100%; text-align:right;">Pagado con saldo a favor</td>
+                <tr>
+                    <td style="width: 100%;" class="text-right label">Pagado con saldo a favor</td>
                 </tr>
                 @if($factura->porpagar() > 0)
                 <tr>
-                    <td style="width: 70%;">Saldo por Pagar:</td>
-                    <td style="width: 30%;text-align: center;">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
+                    <td style="width: 70%;" class="label">Saldo por Pagar:</td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}} </td>
                 </tr>
                 @endif
                 @endif
@@ -239,22 +205,10 @@
 
     <br>
 
-    <div style="width: 100%; text-align: center; display: inline-block;">
-        <table  style="width: 100%;">
-            <tbody>
-                <tr>
-                    <td style="text-align: center;">RESOLUCIÓN DIAN #{{$resolucion->resolucion}}<br>RANGO DEL {{$resolucion->inicioverdadero}} HASTA {{$resolucion->final}}.</td>
-                </tr>
-                <tr>
-                    <td style="text-align: center;"><br>Integra Colombia</td>
-                </tr>
-                <tr>
-                    <td style="text-align: center;">Network Ingeniería S.A.S</td>
-                </tr>
-                <tr>
-                    <td style="text-align: center;"><b>TIRILLA IMPRESA EL {{ date('d/m/Y') }}</b></td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="footer">
+        <p>RESOLUCIÓN DIAN #{{$resolucion->resolucion}}<br>RANGO DEL {{$resolucion->inicioverdadero}} HASTA {{$resolucion->final}}</p>
+        <p>Integra Colombia</p>
+        <p>Network Ingeniería S.A.S</p>
+        <p>TIRILLA IMPRESA EL {{ date('d/m/Y') }}</p>
     </div>
 @endsection
