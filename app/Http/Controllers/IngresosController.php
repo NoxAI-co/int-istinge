@@ -1423,6 +1423,15 @@ class IngresosController extends Controller
                         }else{
                             $contrato->state = 'enabled';
                             $contrato->save();
+
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = "[MIKROTIK] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
                             Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
                             Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
                         }
