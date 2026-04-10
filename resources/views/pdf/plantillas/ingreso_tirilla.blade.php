@@ -101,6 +101,25 @@
 
     <div class="info-box">
         <p>
+            @php
+                $direcciones_contratos = [];
+                $facturas_del_ingreso = $ingreso->ingresosFacturas();
+                if ($facturas_del_ingreso) {
+                    foreach ($facturas_del_ingreso as $ingresoFactura) {
+                        $fact = $ingresoFactura->factura();
+                        if ($fact && $fact->relationContracts) {
+                            foreach ($fact->relationContracts as $contrato) {
+                                if (isset($contrato->address_street) && trim($contrato->address_street) !== '') {
+                                    if (!in_array($contrato->address_street, $direcciones_contratos)) {
+                                        $direcciones_contratos[] = $contrato->address_street;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                $direccion_mostrar = implode(", ", $direcciones_contratos);
+            @endphp
             <span class="label">Señor(es):</span> <span class="value">{{$ingreso->cliente()->nombre}} {{$ingreso->cliente()->apellidos()}}</span><br>
             @if($direccion_mostrar != "") <span class="label">Dirección:</span> <span class="value">{{$direccion_mostrar}}</span><br>
             @elseif($ingreso->cliente()->direccion) <span class="label">Dirección:</span> <span class="value">{{$ingreso->cliente()->direccion}}</span><br>@endif
