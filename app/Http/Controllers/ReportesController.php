@@ -3546,15 +3546,15 @@ class ReportesController extends Controller
             ->setCategory("reporte excel");
 
         $titulosColumnas = array(
-            'Periodo', 'Nombre', 'Apellido', 'Identificación', 'Sede', 'Area', 'Cargo', 'Centro de Costos',
-            'Días Periodo', 'Días Vacaciones', 'Días Trabajados',
+            'Periodo', 'Nombre', 'Apellido', 'Identificacion', 'Sede', 'Area', 'Cargo', 'Centro de Costos',
+            'Dias Periodo', 'Dias Vacaciones', 'Dias Trabajados',
             'Salario Mensual', 'Salario Devengado', 'Subsidio Transporte',
             'Horas Extras/Recargos', 'Vacaciones/Incap/Lic', 'Otros Ingresos',
             'Retenciones y Deducciones', 'TOTAL NETO',
             'IBC Seguridad Social',
-            'Salud (4%)', 'Pensión (4%)',
-            'Pensión (Empresa)', 'ARL (Riesgo)', 'Caja Compensación',
-            'Cesantías', 'Intereses Cesantías', 'Prima Servicios', 'Vacaciones (Prov)', 'Total Provisiones',
+            'Salud (4%)', 'Pension (4%)',
+            'Pension (Empresa)', 'ARL (Riesgo)', 'Caja Compensacion',
+            'Cesantias', 'Intereses Cesantias', 'Prima Servicios', 'Vacaciones (Prov)', 'Total Provisiones',
             'COSTO TOTAL'
         );
         $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
@@ -3581,7 +3581,7 @@ class ReportesController extends Controller
         $sheet->getStyle('A3:AF3')->applyFromArray($estiloB);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
-            $sheet->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+            $sheet->setCellValue($letras[$i] . '3', $titulosColumnas[$i]);
         }
 
         $rowIdx = 4;
