@@ -12,6 +12,7 @@ use App\Radicado;
 use App\User;
 use App\MovimientoLOG;
 use App\RadicadoLOG;
+use DB;
 use Illuminate\Support\Facades\Log;
 
 class GeneralController extends Controller
