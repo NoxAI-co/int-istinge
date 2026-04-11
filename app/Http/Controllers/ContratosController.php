@@ -1439,7 +1439,7 @@ class ContratosController extends Controller
             $nro->save();
 
             //Opcion de crear factrua con prorrateo
-            if($contrato->prorrateo == 1 || $contrato->fact_primer_mes == 1){
+            if($contrato->prorrateo == 1){
                 try {
                     $this->createFacturaProrrateo($contrato);
                 } catch (\Exception $e) {
@@ -1597,7 +1597,7 @@ class ContratosController extends Controller
             $nro->save();
 
             //Opcion de crear factrua con prorrateo
-            if ($contrato->prorrateo == 1 || $contrato->fact_primer_mes == 1) {
+            if ($contrato->prorrateo == 1) {
                 try {
                     $this->createFacturaProrrateo($contrato);
                 } catch (\Exception $e) {

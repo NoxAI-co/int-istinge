@@ -46,7 +46,7 @@ class Contacto extends Model
     }
 
     public function getDetailsAttribute(){
-        return $this->details();
+        return $this->contrato();
     }
 
     public function getContractsAttribute(){
