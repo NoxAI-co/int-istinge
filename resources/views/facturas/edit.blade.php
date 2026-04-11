@@ -136,7 +136,17 @@
                 </span>
             </div>
 
-            <div class="form-group row @if($factura->factura_mes_manual == null) { 'd-none' } @endif" id='div-fact-mes'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
+                <div class="col-sm-8">
+                    <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
+                        <option value="1" @if($factura->periodo_facturacion == 1) {{'selected'}} @endif>Mes anticipado</option>
+                        <option value="2" @if($factura->periodo_facturacion == 2) {{'selected'}} @endif>Mes vencido</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group row" id='div-fact-mes'>
                 <label class="col-sm-4 col-form-label">Factura del mes?
                     <span class="text-danger">*</span>
                     <a><i data-tippy-content="Si quieres que la factura pertenezca a la del mes para que NO se cree automaticamente una nueva en el mes elige si"
@@ -159,7 +169,7 @@
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Fecha <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control datepicker"  id="fecha"  name="fecha" disabled="" value="{{date('d-m-Y', strtotime($factura->fecha))}}"  >
+                            <input type="text" class="form-control datepicker"  id="fecha" value="{{date('d-m-Y', strtotime($factura->fecha))}}" name="fecha"  >
                         </div>
                     </div>
                     <div class="form-group row">
@@ -176,7 +186,13 @@
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Vencimiento <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control datepickerinput" id="vencimiento" value="{{date('d-m-Y', strtotime($factura->vencimiento))}}" name="vencimiento" disabled="">
+                            <input type="date" class="form-control" id="vencimiento_new" value="{{date('Y-m-d', strtotime($factura->vencimiento))}}" name="vencimiento">
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Pago Oportuno <span class="text-danger">*</span></label>
+                        <div class="col-sm-8">
+                            <input type="date" class="form-control" id="pago_oportuno" value="{{date('Y-m-d', strtotime($factura->pago_oportuno))}}" name="pago_oportuno" required="">
                         </div>
                     </div>
                     <div class="form-group row">
@@ -210,14 +226,7 @@
                         </div>
                     </div>
 
-                    @if(auth()->user()->empresa()->estado_dian == 1)
-                        <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="{{$factura->ordencompra}}">
-                        </div>
-                        </div>
-                    @endif
+
                 </div>
             </div>
 
@@ -239,19 +248,24 @@
                       </div>
                   </div>
 
+                    @if(auth()->user()->empresa()->estado_dian == 1)
+                        <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="{{$factura->ordencompra}}">
+                        </div>
+                        </div>
+                    @endif
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                        <div class="col-sm-8">
+                          <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="{{$factura->ordenservicio}}">
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="col-md-5 offset-md-2">
-
-                    <div class="form-group row">
-                        <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
-                        <div class="col-sm-8">
-                            <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
-                                <option value="1" @if($factura->periodo_facturacion == 1) {{'selected'}} @endif>Mes anticipado</option>
-                                <option value="2" @if($factura->periodo_facturacion == 2) {{'selected'}} @endif>Mes vencido</option>
-                            </select>
-                        </div>
-                    </div>
 
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">Lista de Precios</label>
@@ -674,6 +688,57 @@
             var prefijo = $('#prefijo-codigo').val();
             var numero = $(this).val();
             $('#codigo-completo').val(prefijo + numero);
+        });
+
+        // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
+        $('#form-factura').on('submit', function() {
+            $('#vencimiento_new').removeAttr('disabled');
+            $('#fecha').removeAttr('disabled');
+        });
+
+        // Bloqueo de recalculo automático para Pago Oportuno en EDIT
+        var valorOriginalPagoOportuno = $('#pago_oportuno').val();
+        var valorOriginalVencimiento = $('#vencimiento_new').val();
+        
+        function restaurarOriginales() {
+            if ($('#editfactura').val() == 1) {
+                $('#pago_oportuno').val(valorOriginalPagoOportuno);
+                $('#vencimiento_new').val(valorOriginalVencimiento);
+            }
+        }
+
+        // Restaurar al inicio con un ligero retraso para asegurar que custom.js haya terminado
+        setTimeout(restaurarOriginales, 500);
+
+        // Cuando cambie el plazo, permitimos que se actualice el VENCIMIENTO pero NO el PAGO OPORTUNO
+        $('#plazo').on('change', function() {
+            var dias = $('#plazo option:selected').attr('dias');
+            if ($.isNumeric(dias)) {
+                // Para type="date", el valor debe estar en YYYY-MM-DD
+                var fechaBase = $('#fecha').val(); // Si fecha sigue siendo text d-m-Y
+                var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                if (!momentBase.isValid()) {
+                    momentBase = moment(fechaBase, "YYYY-MM-DD");
+                }
+                
+                var nuevaFecha = momentBase.add(dias, 'days');
+                $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
+                valorOriginalVencimiento = $('#vencimiento_new').val();
+            }
+            // Mantenemos el pago oportuno intacto
+            setTimeout(function() {
+                $('#pago_oportuno').val(valorOriginalPagoOportuno);
+            }, 100);
+        });
+
+        // Si el usuario cambia manualmente el pago oportuno, solo se actualiza ese campo
+        $('#pago_oportuno').on('change', function() {
+            valorOriginalPagoOportuno = $(this).val();
+        });
+
+        // Si cambia manualmente el vencimiento
+        $('#vencimiento_new').on('change', function() {
+            valorOriginalVencimiento = $(this).val();
         });
     });
 

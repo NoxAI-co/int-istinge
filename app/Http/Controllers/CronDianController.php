@@ -62,9 +62,6 @@ class CronDianController extends Controller
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
             })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
-            })
             ->count();
 
         view()->share([
@@ -85,7 +82,7 @@ class CronDianController extends Controller
         // Ejecución activa
         $logActual = DB::table('cron_dian_logs')
             ->where('estado', 'ejecutando')
-            ->where('inicio_ejecucion', '>=', Carbon::now()->subMinutes(20))
+            ->where('updated_at', '>=', Carbon::now()->subMinutes(12))
             ->orderBy('id', 'desc')
             ->first();
 
@@ -100,9 +97,6 @@ class CronDianController extends Controller
             ->where('emitida', 0)
             ->when($empresa && $empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
             })
             ->count();
 
@@ -132,6 +126,24 @@ class CronDianController extends Controller
                 ->orderBy('id', 'desc')
                 ->limit(20)
                 ->get();
+
+            // Sincronizar estados 'pendiente' con la realidad de la tabla factura
+            foreach ($detallesActuales as $detalle) {
+                if ($detalle->estado == 'pendiente') {
+                    $facturaReal = Factura::find($detalle->factura_id);
+                    if ($facturaReal && $facturaReal->emitida == 1) {
+                        DB::table('cron_dian_detalle')->where('id', $detalle->id)->update([
+                            'estado'  => 'emitida',
+                            'cufe'    => $facturaReal->uuid,
+                            'mensaje' => 'Detectada emisión externa/manual',
+                            'updated_at' => now()
+                        ]);
+                        $detalle->estado = 'emitida';
+                        $detalle->mensaje = 'Detectada emisión externa/manual';
+                        $detalle->cufe = $facturaReal->uuid;
+                    }
+                }
+            }
         }
 
         return response()->json([
@@ -275,6 +287,7 @@ class CronDianController extends Controller
     public function ejecutar(Request $request = null)
     {
         set_time_limit(0);
+        ignore_user_abort(true);
 
         if (!$request) {
             $request = request();
@@ -288,7 +301,7 @@ class CronDianController extends Controller
         // ─── PASO 1: VERIFICAR LOCK (MUTEX) ───
         $lockActivo = DB::table('cron_dian_logs')
             ->where('estado', 'ejecutando')
-            ->where('inicio_ejecucion', '>=', Carbon::now()->subMinutes(20))
+            ->where('updated_at', '>=', Carbon::now()->subMinutes(12))
             ->first();
 
         if ($lockActivo) {
@@ -318,8 +331,17 @@ class CronDianController extends Controller
             return response()->json(['status' => 'error', 'mensaje' => 'Empresa no autorizada en DIAN']);
         }
 
-        // ─── PASO 3: CREAR LOG DE EJECUCIÓN ───
+        // ─── PASO 3: LIMPIAR EJECUCIONES HÚERFANAS Y CREAR LOG ───
         $lockToken = (string) Str::uuid();
+
+        // Marcamos como "Finalizado - Incompleto" las ejecuciones anteriores que quedaron colgadas
+        DB::table('cron_dian_logs')
+            ->where('estado', 'ejecutando')
+            ->update([
+                'estado' => 'finalizado_incompleto',
+                'updated_at' => Carbon::now()
+            ]);
+
         $logId = DB::table('cron_dian_logs')->insertGetId([
             'empresa_id'       => 1,
             'inicio_ejecucion' => Carbon::now(),
@@ -411,9 +433,6 @@ class CronDianController extends Controller
             ->where('emitida', 0)
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
-            ->where(function ($q) {
-                $q->whereNull('dian_response')->orWhere('dian_response', '');
             })
             ->orderBy('id', 'asc')
             ->limit(50)
@@ -588,7 +607,7 @@ class CronDianController extends Controller
             $tiempoMs = (int)(($tiempoFin - $tiempoInicio) * 1000);
 
             if ($exitosa) {
-                // ── 6d: Reconectar y guardar ──
+                // ── 6d: Reconectar y guardar confirmación en Factura ──
                 try {
                     DB::reconnect();
 
@@ -614,8 +633,18 @@ class CronDianController extends Controller
                     }
                 }
 
+                // ── 6e: Actualizar detalle inmediatamente para reflejar en UI ──
+                DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
+                    'estado'            => 'emitida',
+                    'cufe'              => $cufe,
+                    'intento'           => $intentos,
+                    'mensaje'           => $mensajeDetalle,
+                    'tiempo_respuesta_ms' => $tiempoMs,
+                    'updated_at'        => Carbon::now(),
+                ]);
+
                 try {
-                    // Instanciar BTW para enviar el correo
+                    // ── 6f: Intentar envío de correo ──
                     $btwService = new BTWService();
                     $mensajeCorreo = '';
                     
@@ -629,33 +658,22 @@ class CronDianController extends Controller
                         );
                     }
 
-                    // ── 6e: Actualizar detalle con resultado correo ──
-                    $mensajeFinal = $mensajeDetalle;
+                    // Actualizar mensaje con resultado correo
                     if ($mensajeCorreo != '') {
-                        $mensajeFinal .= " | Correo: " . $mensajeCorreo;
+                        $mensajeFinal = $mensajeDetalle . " | Correo: " . $mensajeCorreo;
+                        DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
+                            'mensaje'    => $mensajeFinal,
+                            'updated_at' => Carbon::now(),
+                        ]);
                     }
-
-                    DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
-                        'estado'            => 'emitida',
-                        'cufe'              => $cufe,
-                        'intento'           => $intentos,
-                        'mensaje'           => $mensajeFinal,
-                        'tiempo_respuesta_ms' => $tiempoMs,
-                        'updated_at'        => Carbon::now(),
-                    ]);
 
                     $totalEmitidas++;
                     $this->dianLog->info("EMITIDA: id={$factura->id}, codigo={$factura->codigo}, cufe={$cufe}, tiempo={$tiempoMs}ms, correo={$mensajeCorreo}");
                 } catch (\Exception $e) {
-                    // Si falla el envío de correo o la actualización del detalle
-                    // Aseguramos que el estado de emisión no se pierda en el log final
+                    // Si falla el envío de correo, solo actualizamos el mensaje del detalle
                     DB::table('cron_dian_detalle')->where('id', $detalleId)->update([
-                        'estado'            => 'emitida',
-                        'cufe'              => $cufe,
-                        'intento'           => $intentos,
-                        'mensaje'           => $mensajeDetalle . " | Error en envío de correo: " . $e->getMessage(),
-                        'tiempo_respuesta_ms' => $tiempoMs,
-                        'updated_at'        => Carbon::now(),
+                        'mensaje'    => $mensajeDetalle . " | Error en envío de correo: " . $e->getMessage(),
+                        'updated_at' => Carbon::now(),
                     ]);
                     $totalEmitidas++;
                     $this->dianLog->error("EMITIDA pero error en Correo: id={$factura->id}: {$e->getMessage()}");
@@ -674,15 +692,13 @@ class CronDianController extends Controller
                 $this->dianLog->error("FALLIDA: id={$factura->id}, codigo={$factura->codigo}, mensaje={$mensajeDetalle}");
             }
 
-            // ── 6h: Flush parcial cada 5 facturas ──
-            if (($index + 1) % 5 === 0) {
-                DB::table('cron_dian_logs')->where('id', $logId)->update([
-                    'total_emitidas'           => $totalEmitidas,
-                    'total_fallidas'           => $totalFallidas,
-                    'total_alertas_numeracion'  => $totalAlertasNum,
-                    'updated_at'               => Carbon::now(),
-                ]);
-            }
+            // ── 6h: Flush parcial en cada factura para monitorización precisa ──
+            DB::table('cron_dian_logs')->where('id', $logId)->update([
+                'total_emitidas'           => $totalEmitidas,
+                'total_fallidas'           => $totalFallidas,
+                'total_alertas_numeracion'  => $totalAlertasNum,
+                'updated_at'               => Carbon::now(),
+            ]);
 
             // ── 6g: Sleep entre facturas ──
             if ($index < $totalAEmitir - 1) {
@@ -760,24 +776,22 @@ class CronDianController extends Controller
                 $operacionCodigo = "09";
             }
 
-            // Validación de dia 00 en vencimiento
-            if (substr($facturaLock->vencimiento, -2) == '00' || $facturaLock->vencimiento < Carbon::now()->format("Y-m-d")) {
-                $anoMes = substr($facturaLock->vencimiento, 0, 7);
-                $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
-                $facturaLock->vencimiento = $fecha->toDateString();
-                $facturaLock->save();
-            }
+            $vencimientoOriginal = Carbon::parse($facturaLock->vencimiento);
+            $suspensionOriginal = $facturaLock->suspension ? Carbon::parse($facturaLock->suspension) : null;
 
-            // Validación de dia 00 en suspension
-            if ($facturaLock->suspension && (substr($facturaLock->suspension, -2) == '00' || $facturaLock->suspension < Carbon::now()->format("Y-m-d"))) {
-                $anoMes = substr($facturaLock->suspension, 0, 7);
-                $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
-                $facturaLock->suspension = $fecha->toDateString();
-                $facturaLock->save();
-            }
-
-            // Actualizar fecha de emisión
+            // Actualizar fecha de emisión (Regla: Siempre hoy)
             $facturaLock->fecha = Carbon::now()->format('Y-m-d');
+
+            // Regla de Vencimiento: Si está en el pasado o tiene día 00, cambiar al fin de mes actual (alineado con FacturasController)
+            if (substr($facturaLock->vencimiento, -2) == '00' || $facturaLock->vencimiento < $facturaLock->fecha) {
+                $facturaLock->vencimiento = Carbon::parse($facturaLock->fecha)->endOfMonth()->toDateString();
+            }
+
+            // Aplicar la misma lógica para la fecha de suspensión si existe
+            if ($suspensionOriginal && (substr($facturaLock->suspension, -2) == '00' || $facturaLock->suspension < $facturaLock->fecha)) {
+                $facturaLock->suspension = Carbon::parse($facturaLock->fecha)->endOfMonth()->toDateString();
+            }
+
             $facturaLock->save();
 
             // Construir JSON
@@ -802,12 +816,23 @@ class CronDianController extends Controller
             $btw = new BTWService();
             $response = (object) $btw->sendInvoiceBTW($fullJson);
 
+            // Reconectar para evitar "Server has gone away" debido a la latencia de la API
+            DB::reconnect();
+
             // Evaluar respuesta
             if (isset($response->status) && $response->status == 'success') {
                 return [
                     'success'  => true,
                     'cufe'     => $response->cufe ?? null,
                     'response' => $response,
+                ];
+            }
+
+            // Evaluar error 422 (Validación DIAN/BTW)
+            if (isset($response->statusCode) && $response->statusCode == 422) {
+                return [
+                    'success' => false,
+                    'mensaje' => $response->th['message'] ?? $response->message ?? 'Validación DIAN fallida (422)',
                 ];
             }
 
@@ -835,17 +860,20 @@ class CronDianController extends Controller
                 ];
             }
 
-            // Error genérico
+            // Error genérico o error retornado por BTW como 'error'
             $mensajeError = 'Error desconocido';
-            if (isset($response->success) && $response->success == false) {
-                if (isset($response->result) && isset($response->result->descResponseDian)) {
-                    $mensajeError = $response->result->descResponseDian;
-                } elseif (isset($response->message)) {
-                    $mensajeError = $response->message;
-                }
+            if (isset($response->status) && $response->status == 'error') {
+                $mensajeError = $response->message ?? 'Error retornado por BTW sin mensaje';
+            } elseif (isset($response->success) && $response->success == false) {
+                $mensajeError = $response->message ?? 'Error success=false en BTW';
             } elseif (isset($response->errorMessage)) {
                 $mensajeError = $response->errorMessage;
+            } elseif (isset($response->statusCode)) {
+                $mensajeError = "Error HTTP " . $response->statusCode . (isset($response->th['message']) ? ": " . $response->th['message'] : "");
             }
+
+            // Registrar log detallado de la falla para depuración
+            $this->dianLog->error("Rechazo BTW para factura {$facturaLock->codigo}: " . json_encode($response));
 
             // Guardar respuesta DIAN en la factura para debugging
             try {

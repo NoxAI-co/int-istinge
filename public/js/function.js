@@ -3960,13 +3960,6 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
 
                     //-- /Validaciones para la factura --//
                     else {
-                        if (emails) {
-                            window.location.href = rutasuccess + '/' + emails;
-                        } else {
-                            window.location.href = rutasuccess;
-                        }
-
-
                         const Toast = Swal.mixin({
                             toast: true,
                             position: 'top-center',
@@ -3983,6 +3976,52 @@ function validateDian(id, rutasuccess, codigo, emails = false, facturasp = 0) {
                             type: 'success',
                             title: 'Emitiendo documento electrónico a la DIAN...',
                         })
+
+                        $.ajax({
+                            url: rutasuccess + (emails ? '/' + emails : ''),
+                            type: 'GET',
+                            success: function (data) {
+                                Swal.close();
+                                if (data.status === 'success') {
+                                    Swal.fire({
+                                        title: 'PROCESO REALIZADO',
+                                        html: data.message,
+                                        type: 'success',
+                                        showConfirmButton: true,
+                                        confirmButtonColor: '#1A59A1',
+                                        confirmButtonText: 'ACEPTAR',
+                                    }).then(() => {
+                                        if (typeof getDataTable === 'function') {
+                                            getDataTable();
+                                        } else {
+                                            location.reload();
+                                        }
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'ERROR',
+                                        html: data.message + (data.error ? '<br>' + data.error : ''),
+                                        type: 'error',
+                                        confirmButtonColor: '#d33',
+                                        confirmButtonText: 'ACEPTAR',
+                                    });
+                                }
+                            },
+                            error: function (xhr) {
+                                Swal.close();
+                                var msg = 'Error al emitir la factura a la DIAN';
+                                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                                else if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
+
+                                Swal.fire({
+                                    title: 'ERROR DE EMISIÓN',
+                                    html: msg,
+                                    type: 'error',
+                                    confirmButtonColor: '#d33',
+                                    confirmButtonText: 'ACEPTAR',
+                                });
+                            }
+                        });
 
                     }
 

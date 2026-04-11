@@ -97,8 +97,8 @@ class ChatController extends Controller
                 'data' => []
             ], $response['statusCode'] ?? 500);
         }
-
         if (isset($response['data']) && count($response['data']) > 0) {
+            $response['data'] = $this->enrichConversationsWithWarning($response['data']);
             \Log::debug('ChatController::conversations sample item', ['item' => $response['data'][0]]);
         }
 
@@ -154,7 +154,7 @@ class ChatController extends Controller
         );
 
         if (isset($conversationsResponse['data'])) {
-            $updatedConversations = $conversationsResponse['data'];
+            $updatedConversations = $this->enrichConversationsWithWarning($conversationsResponse['data']);
         }
 
         return response()->json([
@@ -248,6 +248,36 @@ class ChatController extends Controller
 
         if (empty($instance->phone_number_id)) {
             return response()->json(['error' => 'La instancia no tiene configurado un ID de WhatsApp (phone_number_id)'], 400);
+        }
+
+        $cleanPhone = preg_replace('/[^0-9]/', '', $conversationId);
+        $phone = substr($cleanPhone, -10);
+        if ($phone && strlen($phone) >= 7) {
+            $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+                ->join('contactos as con', 'con.id', 'c.client_id')
+                ->where(function($q) use ($phone) {
+                    $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                      ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                })
+                ->where('factura.cont_message_undeliverable', '>=', 3)
+                ->exists();
+
+            if (!$hasWarning) {
+                $hasWarning = \App\Model\Ingresos\Ingreso::join('contactos as con', 'con.id', 'ingresos.cliente')
+                    ->where(function($q) use ($phone) {
+                        $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                          ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                    })
+                    ->where('ingresos.cont_message_undeliverable', '>=', 3)
+                    ->exists();
+            }
+
+            if ($hasWarning) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa'
+                ], 400);
+            }
         }
 
         // Enviar mensaje vía API Centralizada
@@ -473,4 +503,41 @@ class ChatController extends Controller
 
         return $messages;
     }
+
+    /**
+     * Enriquecer listado de conversaciones flagueando a las inactivas (rebotes > 3).
+     */
+    private function enrichConversationsWithWarning(array $conversations)
+    {
+        foreach ($conversations as &$conv) {
+            $cleanPhone = preg_replace('/[^0-9]/', '', $conv['phone_number'] ?? '');
+            $phone = substr($cleanPhone, -10); // get the last 10 digits to match safely
+            $hasWarning = false;
+            
+            if ($phone && strlen($phone) >= 7) {
+                $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+                    ->join('contactos as con', 'con.id', 'c.client_id')
+                    ->where(function($q) use ($phone) {
+                        $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                          ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                    })
+                    ->where('factura.cont_message_undeliverable', '>=', 3)
+                    ->exists();
+
+                if (!$hasWarning) {
+                    $hasWarning = \App\Model\Ingresos\Ingreso::join('contactos as con', 'con.id', 'ingresos.cliente')
+                        ->where(function($q) use ($phone) {
+                            $q->where('con.celular', 'LIKE', '%' . $phone . '%')
+                              ->orWhere('con.telefono1', 'LIKE', '%' . $phone . '%');
+                        })
+                        ->where('ingresos.cont_message_undeliverable', '>=', 3)
+                        ->exists();
+                }
+            }
+            $conv['has_undeliverable_warning'] = $hasWarning;
+        }
+
+        return $conversations;
+    }
 }
+

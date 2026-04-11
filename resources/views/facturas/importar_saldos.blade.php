@@ -119,10 +119,13 @@
                 <ul>
                     <li>Descargue la plantilla de importación haciendo clic en el siguiente botón.</li>
                     <li>Complete la plantilla con la información solicitada. Los campos con (*) son obligatorios.</li>
-                    <li><strong>Identificación:</strong> NIT o Cédula del cliente ya registrado en el sistema.</li>
-                    <li><strong>Tipo factura:</strong> Seleccione "Estandar" o "Electronica" según corresponda.</li>
-                    <li><strong>Fechas:</strong> Formato dd/mm/aaaa. Si selecciona la opción de arriba (usar fechas del grupo de corte), los campos de fecha de su excel serán ignorados.</li>
-                    <li>Guarde el archivo y súbalo en este formulario.</li>
+                    <li><strong>Identificación (A):</strong> NIT o Cédula del cliente ya registrado en el sistema.</li>
+                    <li><strong>Cliente (Opcional) (B):</strong> Nombre del cliente para referencia visual (opcional).</li>
+                    <li><strong>Tipo factura (C):</strong> Seleccione "Estandar" o "Electronica" según corresponda.</li>
+                    <li><strong>Fecha factura (D):</strong> Formato dd/mm/aaaa.</li>
+                    <li><strong>Fechas vencimiento/suspensión (E y F):</strong> Obligatorias si no usa cálculos automáticos arriba.</li>
+                    <li><strong>Saldo inicial (G):</strong> Valor numérico sin puntos ni comas para los miles (ej: 150000).</li>
+                    <li>Guarde el archivo con extensión .xlsx y súbalo en este formulario.</li>
                 </ul>
                 
                 <form action="{{ route('saldos_iniciales.ejemplo') }}" method="POST" class="mt-3">

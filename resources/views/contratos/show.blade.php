@@ -96,7 +96,7 @@
 	@endif
 
 	<div class="row card-description">
-		@if($contrato->ip && $contrato->plan_id)
+		@if($contrato->plan_id)
 		<div class="col-md-12">
 			<div class="table-responsive">
 				<table class="table table-striped table-bordered table-sm info">

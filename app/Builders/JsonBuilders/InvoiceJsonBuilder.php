@@ -20,7 +20,7 @@ class InvoiceJsonBuilder
         $empresa = Empresa::Find($factura->empresa);
         $totales = $factura->total();
         $forma_pago = $factura->forma_pago();
-        $plazo = intval(Carbon::parse($factura->fecha)->diffinDays($factura->vencimiento));
+        $plazo = intval(Carbon::parse($factura->fecha)->diffInDays($factura->vencimiento));
         $resolucion_vigencia_meses = intval(Carbon::parse($resolucion->desde)->diffInMonths($resolucion->hasta));
         $resolucion_msj = 'Resolución DIAN No. ' . $resolucion->nroresolucion . ' de ' . $resolucion->desde . ' Prefijo ' . $resolucion->prefijo . ' - Numeración ' . $resolucion->inicioverdadero . ' a la ' . $resolucion->final . ', vigencia ' . $resolucion_vigencia_meses . ' meses.';
 
@@ -118,7 +118,7 @@ class InvoiceJsonBuilder
         $empresa = Empresa::Find($factura->empresa);
         $totales = $nota->total();
         $forma_pago = $factura->forma_pago();
-        $plazo = intval(Carbon::parse($factura->fecha)->diffinDays($factura->vencimiento));
+        $plazo = intval(Carbon::parse($factura->fecha)->diffInDays($factura->vencimiento));
         $resolucion_vigencia_meses = intval(Carbon::parse($resolucion->desde)->diffInMonths($resolucion->hasta));
         $resolucion_msj = 'Resolución DIAN No. ' . $resolucion->nroresolucion . ' de ' . $resolucion->desde . ' Prefijo ' . $resolucion->prefijo . ' - Numeración ' . $resolucion->inicioverdadero . ' a la ' . $resolucion->final . ', vigencia ' . $resolucion_vigencia_meses . ' meses.';
 

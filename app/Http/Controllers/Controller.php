@@ -2501,7 +2501,7 @@ class Controller extends BaseController
 
     public static function createFacturaProrrateo($contrato, $facturaInicio = null, $desdeOnu = false, $desdeConfig = false){
 
-        if ($contrato->prorrateo == 0 && !$desdeOnu) {
+        if ($contrato->prorrateo == 0 && $contrato->fact_primer_mes == 0 && !$desdeOnu) {
             return false;
         }
 
@@ -2598,12 +2598,11 @@ class Controller extends BaseController
         $inicio = $nro->inicio;
 
         // Validacion para que solo asigne numero consecutivo si no existe.
-        while (Factura::where('codigo',$nro->prefijo.$inicio)->first()) {
-            $nro = $nro->fresh();
-            $inicio=$nro->inicio;
+        while (Factura::where('codigo',$nro->prefijo.$nro->inicio)->first()) {
             $nro->inicio += 1;
             $nro->save();
         }
+        $inicio = $nro->inicio;
 
         $electronica = Factura::booleanFacturaElectronica($contrato->client_id);
         $tipo = 1; //1= normal, 2=Electrónica.
@@ -2631,7 +2630,23 @@ class Controller extends BaseController
             $factura->pago_oportuno = $date_pagooportuno;
             $factura->observaciones = 'Factura creada desde contrato - Corte '.$grupo_corte->fecha_corte;
             $factura->bodega        = 1;
-            $factura->vendedor      = 1;
+            // Asignar el vendedor del contrato si existe, si no, buscar uno válido para la empresa.
+            $vendedor_id = $contrato->vendedor;
+            
+            if (!$vendedor_id || !DB::table('vendedores')->where('id', $vendedor_id)->exists()) {
+                $vendedor_default = DB::table('vendedores')->where('empresa', $empresaId)->where('estado', 1)->first();
+                if ($vendedor_default) {
+                    $vendedor_id = $vendedor_default->id;
+                } else {
+                    $vendedor_cualquiera = DB::table('vendedores')->where('empresa', $empresaId)->first();
+                    if ($vendedor_cualquiera) {
+                        $vendedor_id = $vendedor_cualquiera->id;
+                    } else {
+                        throw new \Exception("No hay vendedores creados o activos para esta empresa. Por favor, asegúrese de tener al menos un vendedor creado.");
+                    }
+                }
+            }
+            $factura->vendedor      = $vendedor_id;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 1;
             $factura->factura_mes_manual = 0;
@@ -2643,75 +2658,83 @@ class Controller extends BaseController
             ## Se carga el item a la factura (Plan de Internet) ##
             if($contrato->plan_id){
                 $plan = PlanesVelocidad::find($contrato->plan_id);
-                $item = Inventario::find($plan->item);
-                $item_reg = new ItemsFactura;
-                $item_reg->factura     = $factura->id;
-                $item_reg->producto    = $item->id;
-                $item_reg->ref         = $item->ref;
-                $item_reg->precio      = $item->precio;
-                $item_reg->descripcion = $plan->name;
-                $item_reg->id_impuesto = $item->id_impuesto;
-                $item_reg->impuesto    = $item->impuesto;
+                if ($plan) {
+                    $item = Inventario::find($plan->item);
+                    if ($item) {
+                        $item_reg = new ItemsFactura;
+                        $item_reg->factura     = $factura->id;
+                        $item_reg->producto    = $item->id;
+                        $item_reg->ref         = $item->ref;
+                        $item_reg->precio      = $item->precio;
+                        $item_reg->descripcion = $plan->name;
+                        $item_reg->id_impuesto = $item->id_impuesto;
+                        $item_reg->impuesto    = $item->impuesto;
 
-                if($contrato->iva_factura == 1){
-                    $item_reg->id_impuesto = 1;
-                    $item_reg->impuesto = 19;
-                }
-                $item_reg->cant        = 1;
-                $item_reg->desc        = $contrato->descuento;
+                        if($contrato->iva_factura == 1){
+                            $item_reg->id_impuesto = 1;
+                            $item_reg->impuesto = 19;
+                        }
+                        $item_reg->cant        = 1;
+                        $item_reg->desc        = $contrato->descuento;
 
-                if($contrato->descuento_pesos != null && $descuentoPesos == 0){
-                    $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
-                    $descuentoPesos = 1;
+                        if($contrato->descuento_pesos != null && $descuentoPesos == 0){
+                            $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                        $item_reg->save();
+                    }
                 }
-                $item_reg->save();
             }
 
             ## Se carga el item a la factura (Plan de Televisión) ##
             if($contrato->servicio_tv){
                 $item = Inventario::find($contrato->servicio_tv);
-                $item_reg = new ItemsFactura;
-                $item_reg->factura     = $factura->id;
-                $item_reg->producto    = $item->id;
-                $item_reg->ref         = $item->ref;
-                $item_reg->precio      = $item->precio;
-                $item_reg->descripcion = $item->producto;
-                $item_reg->id_impuesto = $item->id_impuesto;
-                $item_reg->impuesto    = $item->impuesto;
-                $item_reg->cant        = 1;
-                $item_reg->desc        = $contrato->descuento;
-                if($contrato->descuento_pesos != null && $descuentoPesos == 0){
-                    $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
-                    $descuentoPesos = 1;
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+                    $item_reg->desc        = $contrato->descuento;
+                    if($contrato->descuento_pesos != null && $descuentoPesos == 0){
+                        $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
+                        $descuentoPesos = 1;
+                    }
+                    $item_reg->save();
                 }
-                $item_reg->save();
             }
 
             ## Se carga el item de otro tipo de servicio ##
             if($contrato->servicio_otro){
                 $item = Inventario::find($contrato->servicio_otro);
-                $item_reg = new ItemsFactura;
-                $item_reg->factura     = $factura->id;
-                $item_reg->producto    = $item->id;
-                $item_reg->ref         = $item->ref;
-                $item_reg->precio      = $item->precio;
-                $item_reg->descripcion = $item->producto;
-                $item_reg->id_impuesto = $item->id_impuesto;
-                $item_reg->impuesto    = $item->impuesto;
-                $item_reg->cant        = 1;
-                $item_reg->desc        = $contrato->descuento;
-                if($contrato->descuento_pesos != null && $descuentoPesos == 0){
-                    $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
-                    $descuentoPesos = 1;
-                }
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+                    $item_reg->desc        = $contrato->descuento;
+                    if($contrato->descuento_pesos != null && $descuentoPesos == 0){
+                        $item_reg->precio      = $item_reg->precio - $contrato->descuento_pesos;
+                        $descuentoPesos = 1;
+                    }
 
-                if($contrato->rd_item_vencimiento == 1){
+                    if($contrato->rd_item_vencimiento == 1){
 
-                    if($contrato->dt_item_hasta > now()){
+                        if($contrato->dt_item_hasta > now()){
+                            $item_reg->save();
+                        }
+                    }else{
                         $item_reg->save();
                     }
-                }else{
-                    $item_reg->save();
                 }
             }
 

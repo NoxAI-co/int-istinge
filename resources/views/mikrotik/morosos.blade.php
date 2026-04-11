@@ -28,7 +28,17 @@
     <div class="alert alert-info" role="alert">
         <h4 class="alert-heading"><i class="fas fa-info-circle"></i> Informe de Discrepancias en Morosos</h4>
         <p>Este reporte cruza la información obtenida directamente de la lista de morosos configurada en su Mikrotik con la base de datos del sistema.</p>
-        <p class="mb-0">Si observa un cliente marcado como <span class="badge badge-success">PAGADA (Discrepancia)</span>, significa que su última factura en el sistema ya ha sido pagada, pero su IP sigue en la lista de morosos del Mikrotik. Esto puede deberse a una interrupción en la comunicación con el router al momento del pago o una sobrecarga momentánea. <strong>No es un error crítico</strong>, pero le sugerimos verificar el estado del servicio del cliente.</p>
+        <p class="mb-2">Si observa un cliente marcado como <span class="badge badge-success">PAGADA (Discrepancia)</span>, significa que su última factura en el sistema ya ha sido pagada, pero su IP sigue en la lista de morosos del Mikrotik. Esto puede deberse a una interrupción en la comunicación con el router al momento del pago o una sobrecarga momentánea. <strong>No es un error crítico</strong>, pero le sugerimos verificar el estado del servicio del cliente.</p>
+        <hr>
+        <h5 class="mb-2"><strong>Significado de los Estados del Sistema:</strong></h5>
+        <ul class="mb-0">
+            <li><span class="badge badge-success">PAGADA (Discrepancia)</span>: La última factura válida generada está <strong>pagada</strong>, pero el cliente sigue bloqueado en el Mikrotik.</li>
+            <li><span class="badge badge-danger">En Mora</span>: La última factura válida generada no ha sido pagada y la fecha de <strong>vencimiento</strong> ya pasó.</li>
+            <li><span class="badge badge-info">Por Vencer</span>: La última factura válida generada no ha sido pagada, pero aún no ha llegado a su fecha de <strong>vencimiento</strong>.</li>
+            <li><span class="badge badge-dark"><i class="fas fa-user-slash"></i> Deshabilitado</span>: El contrato del cliente se encuentra <strong>Deshabilitado</strong> en el sistema (este estado se muestra junto al de la factura).</li>
+            <li><span class="badge badge-warning">Anulada</span>: La última factura está anulada y no hay más facturas válidas anteriores (Raro). (<strong>Nota:</strong> El sistema ahora ignora facturas anuladas al buscar si el cliente está al día).</li>
+            <li><span class="badge badge-secondary">Sin Facturas</span>: El cliente no tiene ninguna factura válida generada en el sistema.</li>
+        </ul>
     </div>
 
     <div class="row card-description">
@@ -121,16 +131,23 @@
                 {
                     data: 'estado_sistema',
                     render: function(data, type, row) {
+                        let extraBadge = '';
+                        if (row.contrato && row.contrato.state === 'disabled') {
+                            extraBadge = ' <span class="badge badge-dark" data-toggle="tooltip" title="Contrato deshabilitado en el sistema"><i class="fas fa-user-slash"></i> Deshabilitado</span>';
+                        }
+
                         if (row.tiene_discrepancia) {
-                            return '<span class="badge badge-success" data-toggle="tooltip" title="' + row.mensaje_discrepancia + '">PAGADA (Discrepancia) <i class="fas fa-exclamation-triangle"></i></span>';
+                            return '<span class="badge badge-success" data-toggle="tooltip" title="' + row.mensaje_discrepancia + '">PAGADA (Discrepancia) <i class="fas fa-exclamation-triangle"></i></span>' + extraBadge;
                         } else if (data == 'En Mora') {
-                            return '<span class="badge badge-danger">En Mora</span>';
+                            return '<span class="badge badge-danger">En Mora</span>' + extraBadge;
+                        } else if (data == 'Por Vencer') {
+                            return '<span class="badge badge-info">Por Vencer</span>' + extraBadge;
                         } else if (data == 'Sin Facturas') {
-                            return '<span class="badge badge-secondary">Sin Facturas</span>';
+                            return '<span class="badge badge-secondary">Sin Facturas</span>' + extraBadge;
                         } else if (data == 'Anulada') {
-                            return '<span class="badge badge-warning">Anulada</span>';
+                            return '<span class="badge badge-warning">Anulada</span>' + extraBadge;
                         } else {
-                            return '<span class="badge badge-light">' + data + '</span>';
+                            return '<span class="badge badge-light">' + data + '</span>' + extraBadge;
                         }
                     }
                 },
@@ -138,18 +155,21 @@
 				{
 					data: null,
 					render: function(data, type, row) {
-						if (row.tiene_discrepancia && row.contrato) {
-							return '<button class="btn btn-outline-primary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="'+row.contrato.id+'" title="Sacar de Morosos"><i class="fas fa-check"></i> Sacar de Morosos</button>';
+						let btn = '';
+						if (row.contrato) {
+							btn = '<button class="btn btn-outline-primary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="'+row.contrato.id+'" title="Sacar de Morosos"><i class="fas fa-check"></i> Sacar de Morosos</button>';
+						} else {
+							btn = '<button class="btn btn-outline-secondary btn-sm btn-sacar" data-ip="'+row.ip+'" data-contrato="" title="Sacar IP de Morosos"><i class="fas fa-eraser"></i> Sacar IP</button>';
 						}
-						return '';
+						return btn;
 					}
 				}
 			]
 		});
 
-        $('#mikrotik_id').on('change', function() {
+        /*$('#mikrotik_id').on('change', function() {
             tabla.ajax.reload();
-        });
+        });*/
 
 		$(document).on('click', '.btn-sacar', function() {
 			var ip = $(this).data('ip');
@@ -254,45 +274,67 @@
 
 		});
 
-        // Check for Disabled Discrepancies
-        function checkDisabledDiscrepancy() {
-            var mikrotikId = $('#mikrotik_id').val();
-            var mikrotikNombre = $('#mikrotik_id option:selected').text();
-            
-            if (!mikrotikId) {
-                $('#div-alert-disabled').remove();
-                return;
-            }
-
-            $.ajax({
-                url: '{{ route("morosos.check.disabled") }}',
-                type: 'GET',
-                data: { mikrotik_id: mikrotikId },
-                success: function(response) {
-                    $('#div-alert-disabled').remove();
-                    
-                    if (response.success && response.count > 0) {
-                        var html = `
-                            <div class="alert alert-warning mt-3" id="div-alert-disabled" role="alert">
-                                <strong><i class="fas fa-exclamation-circle"></i> Atención:</strong> 
-                                Hay <strong>${response.count}</strong> contratos deshabilitados del servidor <strong>${mikrotikNombre}</strong> que NO aparecen en la lista de morosos (IPs no bloqueadas).
-                                <br><br>
-                                <a href="{{ route('morosos.discrepancias.disabled') }}?mikrotik_id=${mikrotikId}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-eye"></i> Ver y Corregir estos ${response.count} contratos
-                                </a>
-                            </div>
-                        `;
-                        // Insert after the existing info alert
-                        $('.alert-info').after(html);
-                    }
-                }
-            });
+    // Check for Disabled Discrepancies
+    function checkDisabledDiscrepancy(callback = null) {
+        var mikrotikId = $('#mikrotik_id').val();
+        var mikrotikNombre = $('#mikrotik_id option:selected').text();
+        
+        if (!mikrotikId) {
+            $('#div-alert-disabled').remove();
+            if (callback) callback();
+            return;
         }
+
+        $.ajax({
+            url: '{{ route("morosos.check.disabled") }}',
+            type: 'GET',
+            data: { mikrotik_id: mikrotikId },
+            success: function(response) {
+                $('#div-alert-disabled').remove();
+                
+                if (response.success && response.count > 0) {
+                    var html = `
+                        <div class="alert alert-warning mt-3" id="div-alert-disabled" role="alert">
+                            <strong><i class="fas fa-exclamation-circle"></i> Atención:</strong> 
+                            Hay <strong>${response.count}</strong> contratos deshabilitados del servidor <strong>${mikrotikNombre}</strong> que NO aparecen en la lista de morosos (IPs no bloqueadas).
+                            <br><br>
+                            <a href="{{ route('morosos.discrepancias.disabled') }}?mikrotik_id=${mikrotikId}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-eye"></i> Ver y Corregir estos ${response.count} contratos
+                            </a>
+                        </div>
+                    `;
+                    // Insert after the existing info alert
+                    $('.alert-info').after(html);
+                }
+                if (callback) callback();
+            },
+            error: function() {
+                if (callback) callback();
+            }
+        });
+    }
 
         // Call check when Mikrotik changes
         $('#mikrotik_id').on('change', function() {
-            tabla.ajax.reload();
-            checkDisabledDiscrepancy();
+            cargando(true);
+            var reloaded = false;
+            var checked = false;
+
+            function checkFinish() {
+                if (reloaded && checked) {
+                    cargando(false);
+                }
+            }
+
+            tabla.ajax.reload(function() {
+                reloaded = true;
+                checkFinish();
+            });
+
+            checkDisabledDiscrepancy(function() {
+                checked = true;
+                checkFinish();
+            });
         });
 
         // Initial check if one is selected

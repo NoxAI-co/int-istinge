@@ -2869,99 +2869,118 @@ class NominaController extends Controller
         $preferencia = NominaPreferenciaPago::where('empresa', auth()->user()->empresa)->first();
 
         $tituloReporte = "Resumen Nómina " . $preferencia->periodo($periodo, $year, $tipo);
-        $titulosColumnas = array('Nombre', 'Apellido', 'Numero de identificacion', 'Sede', 'Area', 'Cargo', 'Centro de Costos', 'Salario Base', 'Horas Extras y recargos', 'Vacaciones, Incap y Lic', 'Ingresos adicionales', 'Deducc, prest y ReteFuen', 'Pago empleado', 'Prima', 'Cesantias', 'Intereses Cesantias');
-        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $titulosColumnas = array(
+            'Nombre', 'Apellido', 'Identificacion', 'Sede', 'Area', 'Cargo', 'Centro de Costos',
+            'Dias Periodo', 'Dias Vacaciones', 'Dias Trabajados',
+            'Salario Mensual', 'Salario Devengado', 'Subsidio Transporte',
+            'Horas Extras/Recargos', 'Vacaciones/Incap/Lic', 'Otros Ingresos',
+            'Retenciones y Deducciones', 'TOTAL NETO',
+            'IBC Seguridad Social',
+            'Salud (4%)', 'Pension (4%)',
+            'Pension (Empresa)', 'ARL (Riesgo)', 'Caja Compensacion',
+            'Cesantias', 'Intereses Cesantias', 'Prima Servicios', 'Vacaciones (Prov)', 'Total Provisiones',
+            'COSTO TOTAL'
+        );
+        $letras = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF');
 
-        $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
-            ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modificó
-            ->setTitle("Resumen Nomina") // Titulo
-            ->setSubject("Resumen Nomina") //Asunto
-            ->setDescription("Resumen Nmina") //Descripción
-            ->setKeywords("resumen nomina") //Etiquetas
-            ->setCategory("reporte excel"); //Categorias
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Resumen Nomina")
+            ->setSubject("Resumen Nomina")
+            ->setDescription("Resumen Nomina")
+            ->setKeywords("resumen nomina")
+            ->setCategory("reporte excel");
 
-        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:P1');
-        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+        $sheet = $objPHPExcel->setActiveSheetIndex(0);
+        $sheet->mergeCells('A1:AD1');
+        $sheet->setCellValue('A1', $tituloReporte);
 
         $estiloA = array(
-            'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
-            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
+            'font' => array('bold' => true, 'size' => 14, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER),
+            'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '1e3a8a'))
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A1:Q1')->applyFromArray($estiloA);
+        $sheet->getStyle('A1:AD1')->applyFromArray($estiloA);
 
         $estiloB = array(
-            'fill' => array(
-                'type' => PHPExcel_Style_Fill::FILL_SOLID,
-                'color' => array('rgb' => 'c6c8cc')
-            )
+            'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'f1f5f9')),
+            'font' => array('bold' => true, 'color' => array('rgb' => '334155')),
+            'borders' => array('allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN))
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:P3')->applyFromArray($estiloB);
+        $sheet->getStyle('A3:AD3')->applyFromArray($estiloB);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
-            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+            $sheet->setCellValue($letras[$i] . '3', $titulosColumnas[$i]);
         }
 
-        /* >>>
-        Escribimos el archivo
-        <<< */
-        $i = 4;
+        $rowIdx = 4;
+        $startRow = 4;
         foreach ($nominas as $nomina) {
-
-            $interesCesantiaValor = $cesantiaValor = $primaValor = 0;
-
-            foreach ($nomina->prestacionesSociales as $prestacion) {
-
-                switch ($prestacion->nombre) {
-
-                    case 'prima':
-                        $primaValor =  Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($prestacion->valor_pagar);
-                        break;
-                    case 'cesantia':
-                        $cesantiaValor =  Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($prestacion->valor_pagar);
-                        break;
-
-                    case 'intereses_cesantia':
-                        $interesCesantiaValor =  Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($prestacion->valor_pagar);
-                        break;
-                }
-            }
-
             foreach ($nomina->nominaperiodos as $nominaPeriodo) {
-                $objPHPExcel->setActiveSheetIndex(0)
-                    ->setCellValue($letras[0] . $i, $nomina->persona->nombre)
-                    ->setCellValue($letras[1] . $i, $nomina->persona->apellido)
-                    ->setCellValue($letras[2] . $i, $nomina->persona->nro_documento)
-                    ->setCellValue($letras[3] . $i, $nomina->persona->sede()->nombre)
-                    ->setCellValue($letras[4] . $i, $nomina->persona->area()->nombre)
-                    ->setCellValue($letras[5] . $i, $nomina->persona->cargo()->nombre)
-                    ->setCellValue($letras[6] . $i, $nomina->persona->centro_costo()->nombre)
-                    ->setCellValue($letras[7] . $i, Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($nominaPeriodo->pago_empleado ? $nominaPeriodo->pago_empleado : $nominaPeriodo->valor_total))
-                    ->setCellValue($letras[8] . $i, $nominaPeriodo->extras())
-                    ->setCellValue($letras[9] . $i, $nominaPeriodo->vacaciones())
-                    ->setCellValue($letras[10] . $i, Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($nominaPeriodo->ingresos()))
-                    ->setCellValue($letras[11] . $i, Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($nominaPeriodo->deducciones()))
-                    ->setCellValue($letras[12] . $i, Auth::user()->empresaObj->moneda . ' ' . Funcion::Parsear($nominaPeriodo->valor_total ? $nominaPeriodo->valor_total : 0))
-                    ->setCellValue($letras[13] . $i, $primaValor)
-                    ->setCellValue($letras[14] . $i, $cesantiaValor)
-                    ->setCellValue($letras[15] . $i, $interesCesantiaValor);
+                $resumen = $nominaPeriodo->resumenTotal();
+
+                $sheet->setCellValue($letras[0] . $rowIdx, $nomina->persona->nombre)
+                    ->setCellValue($letras[1] . $rowIdx, $nomina->persona->apellido)
+                    ->setCellValue($letras[2] . $rowIdx, $nomina->persona->nro_documento)
+                    ->setCellValue($letras[3] . $rowIdx, $nomina->persona->sede()->nombre)
+                    ->setCellValue($letras[4] . $rowIdx, $nomina->persona->area()->nombre)
+                    ->setCellValue($letras[5] . $rowIdx, $nomina->persona->cargo()->nombre)
+                    ->setCellValue($letras[6] . $rowIdx, $nomina->persona->centro_costo()->nombre)
+                    // Días
+                    ->setCellValue($letras[7] . $rowIdx, $resumen['diasTrabajados']['diasPeriodo'])
+                    ->setCellValue($letras[8] . $rowIdx, $resumen['diasTrabajados']['ausencia']['VACACIONES'] ?? 0)
+                    ->setCellValue($letras[9] . $rowIdx, $resumen['diasTrabajados']['total'])
+                    // Valores Base
+                    ->setCellValue($letras[10] . $rowIdx, $resumen['salarioSubsidio']['salarioCompleto'])
+                    ->setCellValue($letras[11] . $rowIdx, $resumen['pago']['salario'])
+                    ->setCellValue($letras[12] . $rowIdx, $resumen['salarioSubsidio']['subsidioTransporte'])
+                    // Adicionales
+                    ->setCellValue($letras[13] . $rowIdx, $resumen['pago']['extrasOrdinariasRecargos'])
+                    ->setCellValue($letras[14] . $rowIdx, $resumen['pago']['vacaciones'] + $resumen['ibcSeguridadSocial']['incapacidades'] + $resumen['pago']['licencias'])
+                    ->setCellValue($letras[15] . $rowIdx, $resumen['pago']['ingresosAdicionales'])
+                    // Deducciones y Netos
+                    ->setCellValue($letras[16] . $rowIdx, $resumen['pago']['retencionesDeducciones'])
+                    ->setCellValue($letras[17] . $rowIdx, $resumen['pago']['total'])
+                    // IBC
+                    ->setCellValue($letras[18] . $rowIdx, $resumen['ibcSeguridadSocial']['total'])
+                    // Retenciones
+                    ->setCellValue($letras[19] . $rowIdx, $resumen['retenciones']['salud'])
+                    ->setCellValue($letras[20] . $rowIdx, $resumen['retenciones']['pension'])
+                    // Empresa S.S. y Parafiscales
+                    ->setCellValue($letras[21] . $rowIdx, $resumen['seguridadSocial']['pension'])
+                    ->setCellValue($letras[22] . $rowIdx, $resumen['seguridadSocial']['riesgo1'])
+                    ->setCellValue($letras[23] . $rowIdx, $resumen['parafiscales']['cajaCompensacion'])
+                    // Provisiones
+                    ->setCellValue($letras[24] . $rowIdx, $resumen['provisionPrestacion']['cesantias'])
+                    ->setCellValue($letras[25] . $rowIdx, $resumen['provisionPrestacion']['interesesCesantias'])
+                    ->setCellValue($letras[26] . $rowIdx, $resumen['provisionPrestacion']['primaServicios'])
+                    ->setCellValue($letras[27] . $rowIdx, $resumen['provisionPrestacion']['vacaciones'])
+                    ->setCellValue($letras[28] . $rowIdx, $resumen['provisionPrestacion']['total']);
+                
+                $costoTotal = $resumen['pago']['total'] + $resumen['pago']['retencionesDeducciones'] + $resumen['seguridadSocial']['total'] + $resumen['parafiscales']['total'] + $resumen['provisionPrestacion']['total'];
+                $sheet->setCellValue($letras[29] . $rowIdx, $costoTotal);
+
+                // Formato numérico
+                $sheet->getStyle('K' . $rowIdx . ':AD' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0.00');
+                
+                $rowIdx++;
             }
-            $i++;
         }
 
         $estiloC = array(
-            'font' => array('size' => 12, 'name' => 'Times New Roman'),
+            'font' => array('size' => 11, 'name' => 'Calibri'),
             'borders' => array(
                 'allborders' => array(
-                    'style' => PHPExcel_Style_Border::BORDER_THIN
+                    'style' => PHPExcel_Style_Border::BORDER_THIN,
+                    'color' => array('rgb' => 'cbd5e1')
                 )
             ),
-            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
+            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:P' . $i)->applyFromArray($estiloC);
+        $sheet->getStyle('A3:AD' . $rowIdx)->applyFromArray($estiloC);
 
-
-        for ($i = 'A'; $i <= $letras[23]; $i++) {
-            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(true);
+        for ($idx = 0; $idx <= 29; $idx++) {
+            $sheet->getColumnDimension($letras[$idx])->setAutoSize(true);
         }
 
         /* >>>

@@ -504,6 +504,7 @@
             <label class="form-check-label" style="font-size: 13px;">
               <input type="radio" class="form-check-input" name="tipo_electronica" value="2">Convertir a electrónica y emitir
               <i class="input-helper"></i>
+              <a><i data-tippy-content="si la factura ya es electronica se hara uso de la funcion de emitir a la DIAN directamente." class="icono far fa-question-circle"></i></a>
             </label>
           </div>
         </div>

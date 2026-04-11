@@ -192,7 +192,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Verificaci��n del pago de la suscripcion personalizada
+     * Verificacin del pago de la suscripcion personalizada
      * @return bool
      */
     private function payPersonalPlan()

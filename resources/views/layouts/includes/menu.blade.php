@@ -484,7 +484,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
             @endif
             @if(isset($_SESSION['permisos']['710']))
             <li class="nav-item" id="envio-automatico">
-                <a class="nav-link" href="{{route('avisos.automaticos')}}">Envío automático <span class="badge badge-info ml-1">Nuevo</span></a>
+                <a class="nav-link" href="{{route('avisos.automaticos')}}">Envío automático </a>
             </li>
             @endif
         </ul>
@@ -497,7 +497,6 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
     <a class="nav-link" data-toggle="collapse" href="#ui-nomina" aria-expanded="false" aria-controls="ui-nomina">
         <i class="menu-icon far fa-money-bill-alt"></i>
         <span class="menu-title">Nómina
-            <span class="badge badge-info ml-1">Nuevo</span>
         </span>
         <i class="menu-arrow"></i>
     </a>
@@ -605,7 +604,6 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
 @endif
 @endif
 
-@if(isset($_SESSION['permisos']['832']))
 <li class="nav-item" id="auditoria">
     <a class="nav-link" data-toggle="collapse" href="#ui-auditoria" aria-expanded="false" aria-controls="ui-auditoria">
         <i class="menu-icon fas fa-user-secret"></i>
@@ -619,16 +617,12 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
                 <a class="nav-link" href="{{route('auditoria.contratos')}}">Contratos</a>
             </li>
             @endif
-            @if(isset($_SESSION['permisos']['832']))
             <li class="nav-item" id="auditoria-facturas">
                 <a class="nav-link" href="{{route('auditoria.facturas.index')}}">Facturas</a>
             </li>
-            @endif
-            @if(isset($_SESSION['permisos']['832']))
             <li class="nav-item" id="auditoria-dian">
                 <a class="nav-link" href="{{route('auditoria.dian.index')}}">DIAN</a>
             </li>
-            @endif
             <li class="nav-item" id="morosos">
                 <a class="nav-link" href="{{ route('morosos.index') }}">Morosos</a>
             </li>
@@ -638,7 +632,6 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
         </ul>
     </div>
 </li>
-@endif
 
 @if(isset($_SESSION['permisos']['861']))
 <li class="nav-item" id="cronjobs">

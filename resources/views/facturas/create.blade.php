@@ -145,8 +145,17 @@
                     </select>
                 </div>
             </div>
+            <div class="form-group row">
+                <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
+                <div class="col-sm-8">
+                    <select name="periodo_facturacion" id="periodo_facturacion" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
+                        <option value="1" {{$empresa->periodo_facturacion==1 ? 'selected' : ''}}>Mes anticipado</option>
+                        <option value="2" {{$empresa->periodo_facturacion==2 ? 'selected' : ''}}>Mes vencido</option>
+                    </select>
+                </div>
+            </div>
 
-          <div class="form-group row d-none" id='div-fact-mes'>
+          <div class="form-group row" id='div-fact-mes'>
             <label class="col-sm-4 col-form-label">Factura del mes?
                 <span class="text-danger">*</span>
                 <a><i data-tippy-content="Si quieres que la factura pertenezca a la del mes para que NO se cree automaticamente una nueva en el mes elige si"
@@ -155,7 +164,7 @@
             <div class="col-sm-8">
                 <select name="factura_mes_manual" id="factura_mes_manual" class="form-control selectpicker" title="Seleccione" data-live-search="false" data-size="5" required>
                     <option value="1">Si</option>
-                    <option value="0">No</option>
+                    <option value="0" selected>No</option>
                 </select>
             </div>
             </div>
@@ -178,7 +187,7 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Fecha <span class="text-danger">*</span> <a><i data-tippy-content="Fecha en la que se realiza la factura de venta" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<input type="text" class="form-control"  id="fecha" value="{{$fecha}}" name="fecha" disabled=""  >
+	  				<input type="text" class="form-control datepicker"  id="fecha" value="{{$fecha}}" name="fecha"  >
 	  			</div>
   			</div>
   			<div class="form-group row">
@@ -194,7 +203,13 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Vencimiento <span class="text-danger">*</span><a><i data-tippy-content="Fecha de vencimiento de la factura, se calcula automaticamente si se define el plazo" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<input type="text" class="form-control datepicker" id="vencimiento" value="{{$fecha}}" name="vencimiento" disabled="">
+	  				<input type="date" class="form-control" id="vencimiento_new" value="{{date('Y-m-d', strtotime($fecha))}}" name="vencimiento">
+	  			</div>
+  			</div>
+  			<div class="form-group row">
+  				<label class="col-sm-4 col-form-label">Pago Oportuno <span class="text-danger">*</span><a><i data-tippy-content="Fecha de pago oportuno de la factura" class="icono far fa-question-circle"></i></a></label>
+	  			<div class="col-sm-8">
+	  				<input type="date" class="form-control" id="pago_oportuno" value="{{date('Y-m-d', strtotime($fecha))}}" name="pago_oportuno" required="">
 	  			</div>
   			</div>
         <div class="form-group row">
@@ -226,20 +241,7 @@
               </div>
           </div>
 
-        @if(auth()->user()->empresa()->estado_dian == 1)
-            <div class="form-group row">
-              <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-              <div class="col-sm-8">
-                <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="">
-              </div>
-            </div>
-        @endif
-        <div class="form-group row">
-            <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="">
-            </div>
-          </div>
+
   		</div>
     </div>
 
@@ -265,20 +267,25 @@
                     </div>
 		        </div>
 
+                @if(auth()->user()->empresa()->estado_dian == 1)
+                    <div class="form-group row">
+                      <label class="col-sm-4 col-form-label">Orden de compra<a><i data-tippy-content="Número de orden de compra o servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                      <div class="col-sm-8">
+                        <input type="text" class="form-control" name="ordencompra" id="ordencompra" value="">
+                      </div>
+                    </div>
+                @endif
+                <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Orden de servicio<a><i data-tippy-content="Número de  servicio (dejar vacio si no tiene número)" class="icono far fa-question-circle"></i></a></label>
+                    <div class="col-sm-8">
+                      <input type="text" class="form-control" name="ordenservicio" id="ordenservicio" value="">
+                    </div>
+                </div>
+
 			</div>
 
 
             <div class="col-md-5 offset-md-2">
-
-                <div class="form-group row">
-                    <label class="col-sm-4 col-form-label">Periodo a cobrar</label>
-                    <div class="col-sm-8">
-                        <select name="periodo_cobrado" id="periodo_cobrado" class="form-control selectpicker " title="Seleccione" data-live-search="false" data-size="5" required>
-                            <option value="1" {{$empresa->periodo_cobrado==1 ? 'selected' : ''}}>Mes anticipado</option>
-                            <option value="2" {{$empresa->periodo_cobrado==2 ? 'selected' : ''}}>Mes vencido</option>
-                        </select>
-                    </div>
-                </div>
 
                 <div class="form-group row">
                 <label class="col-sm-4 col-form-label">Lista de Precios <a><i data-tippy-content="Lista de precios asociada a la factura de venta, puedes agregar nuevas listas de precio haciendo <a href='#'>clíck aquí</a>" class="icono far fa-question-circle"></i></a></label>
@@ -651,6 +658,29 @@
     }
     </script>
 
+    <script>
+        $(document).ready(function() {
+            // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
+            $('#form-factura').on('submit', function() {
+                $('#vencimiento_new').removeAttr('disabled');
+                $('#fecha').removeAttr('disabled');
+            });
+
+            // Al cambiar el plazo, actualizar vencimiento pero dejar pago oportuno manual
+            $('#plazo').on('change', function() {
+                var dias = $('#plazo option:selected').attr('dias');
+                if ($.isNumeric(dias)) {
+                    var fechaBase = $('#fecha').val();
+                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                    if (!momentBase.isValid()) {
+                        momentBase = moment(fechaBase, "YYYY-MM-DD");
+                    }
+                    var nuevaFecha = momentBase.add(dias, 'days');
+                    $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
+                }
+            });
+        });
+    </script>
 @endsection
 
 @section('scripts')

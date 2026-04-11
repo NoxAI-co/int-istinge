@@ -37,7 +37,8 @@ class Contrato extends Model
         'usuario', 'password', 'interfaz', 'conexion', 'status', 'id_vlan', 'name_vlan', 'grupo_corte', 'created_at',
         'updated_at', 'puerto_conexion', 'factura_individual', 'contrato_permanencia', 'contrato_permanencia_meses',
         'costo_reconexion', 'tipo_contrato', 'observaciones','tipo_nosuspension','fecha_hasta_nosuspension','fecha_desde_nosuspension',
-        'serial_moden','tipo_moden','descuento_pesos','rd_item_vencimiento','dt_item_hasta','fecha_hasta_desc','cajanap_id','cajanap_puerto','estrato','olt_sn_mac'
+        'serial_moden','tipo_moden','descuento_pesos','rd_item_vencimiento','dt_item_hasta','fecha_hasta_desc','cajanap_id',
+        'cajanap_puerto','estrato','olt_sn_mac','precio_personalizado_tv','precio_personalizado_internet'
     ];
 
     protected $appends = ['status'];
@@ -169,14 +170,14 @@ class Contrato extends Model
         if($this->nodo){
             return Nodo::find($this->nodo);
         }
-        return 'N/A';
+        return null;
     }
 
     public function ap(){
         if($this->ap){
             return AP::find($this->ap);
         }
-        return 'N/A';
+        return null;
     }
 
     public function marca_antena(){
@@ -450,5 +451,9 @@ class Contrato extends Model
 
     public function contratoDigital(){
         return $this->hasOne(ContratoDigital::class, 'contrato_id');
+    }
+
+    public function cajanap(){
+        return CajaNap::find($this->cajanap_id);
     }
 }

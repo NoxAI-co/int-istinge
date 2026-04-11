@@ -1021,6 +1021,14 @@ new Vue({
         },
 
         lastMessageError() {
+            if (this.selectedConversation && this.selectedConversation.has_undeliverable_warning) {
+                return {
+                    title: 'Atención',
+                    detail: 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa.',
+                    critical: true
+                };
+            }
+
             const messages = this.messages || [];
             if (messages.length === 0) return null;
 

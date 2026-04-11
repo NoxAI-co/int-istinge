@@ -61,6 +61,7 @@ use App\TerminosPago;
 use App\WhatsappMetaLog;
 use App\Helpers\CamposDinamicosHelper;
 use App\PlanesVelocidad;
+use App\Vendedor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -631,31 +632,55 @@ class IngresosController extends Controller
                            $contrato = Contrato::where('id',$factura->contrato_id)->first();
                         }
 
+                        Log::debug("IngresosController@store: Contrato asociado a factura #{$factura->codigo}: " . ($contrato ? "Contrato #{$contrato->nro}" : "Ninguno"));
 
                         if($contrato){
                             try {
+                                Log::debug("IngresosController@store: Validando ejecución MK para contrato #{$contrato->nro} (ID: {$contrato->id}). Consultas_mk: {$empresa->consultas_mk}");
                                 if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
                                     $contratos_procesados_mk[] = $contrato->id; // Registramos para no repetir en esta petición
                                     
                                     // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
                                     $contratoId = $contrato->id;
-                                        $empresaId = $empresa->id;
-                                        $ingresoId = $ingreso->id;
-                                        app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
-                                            try {
-                                                DB::reconnect();
-                                                $contratoBG = \App\Contrato::find($contratoId);
-                                                $empresaBG = \App\Empresa::find($empresaId);
-                                                $ingresoBG = Ingreso::find($ingresoId);
-                                                if($contratoBG && $empresaBG && $ingresoBG){
-                                                    $controller = new \App\Http\Controllers\IngresosController();
-                                                    $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
-                                                }
-                                            } catch (\Throwable $e) {
-                                                Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage());
+                                    $empresaId = $empresa->id;
+                                    $ingresoId = $ingreso->id;
+                                    
+                                    Log::debug("IngresosController@store: Registrando callback terminating para contrato ID: {$contratoId}, Ingreso ID: {$ingresoId}");
+                                    
+                                    app()->terminating(function () use ($contratoId, $empresaId, $ingresoId) {
+                                        try {
+                                            Log::debug("IngresosController@store (Background): Iniciando callback terminating...");
+                                            DB::reconnect();
+                                            $contratoBG = \App\Contrato::find($contratoId);
+                                            $empresaBG = \App\Empresa::find($empresaId);
+                                            $ingresoBG = Ingreso::find($ingresoId);
+                                            
+                                            Log::debug("IngresosController@store (Background): Modelos cargados - Contrato: " . ($contratoBG ? 'OK' : 'FAIL') . ", Empresa: " . ($empresaBG ? 'OK' : 'FAIL') . ", Ingreso: " . ($ingresoBG ? 'OK' : 'FAIL'));
+                                            
+                                            if($contratoBG && $empresaBG && $ingresoBG){
+                                                Log::debug("IngresosController@store (Background): Llamando a funcionesPagoMK para contrato #{$contratoBG->nro}");
+                                                $controller = new \App\Http\Controllers\IngresosController();
+                                                $controller->funcionesPagoMK($contratoBG, $empresaBG, $ingresoBG);
+                                                Log::debug("IngresosController@store (Background): funcionesPagoMK finalizado.");
+                                            } else {
+                                                Log::warning("IngresosController@store (Background): No se pudieron cargar todos los modelos necesarios para funcionesPagoMK.");
                                             }
-                                        });
+                                        } catch (\Throwable $e) {
+                                            Log::error('Error en funcionesPagoMK (background): ' . $e->getMessage(), [
+                                                'contratoId' => $contratoId,
+                                                'ingresoId' => $ingresoId,
+                                                'trace' => $e->getTraceAsString()
+                                            ]);
+                                        }
+                                    });
+                                } else {
+                                    if ($empresa->consultas_mk != 1) {
+                                        Log::debug("IngresosController@store: No se ejecuta MK porque consultas_mk está desactivado.");
                                     }
+                                    if (in_array($contrato->id, $contratos_procesados_mk)) {
+                                        Log::debug("IngresosController@store: Contrato ID {$contrato->id} ya procesado en esta petición.");
+                                    }
+                                }
                             } catch (\Throwable $thMK) {
                                 Log::error('Error al ejecutar funcionesPagoMK desde store: ' . $thMK->getMessage());
                             }
@@ -1187,10 +1212,45 @@ class IngresosController extends Controller
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
         $mensaje = "";
+        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresa->id}, Ingreso ID: {$ingreso->id}");
 
         try {
+
+            /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
+            // Si queries_dhcp_smartolt es 1, usamos OLT para DHCP
+            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
+            Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
+            
+            if ($condicionOLT) {
+                try {
+                    Log::debug("funcionesPagoMK: Ejecutando enableOnu en OLT para serial: {$contrato->serial_onu}");
+                    $oltController = app('App\Http\Controllers\OltController');
+                    $oltController->enableOnu($contrato->serial_onu);
+
+                    DB::reconnect();
+                    $contrato->state = 'enabled';
+                    $contrato->save();
+
+                    $movimiento = new MovimientoLOG;
+                    $movimiento->contrato    = $contrato->id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT (automático)</b> a Habilitado por pago de factura<br>';
+                    $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                    $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                    $movimiento->save();
+                    Log::debug("funcionesPagoMK: OLT habilitado y log de movimiento guardado.");
+                } catch (\Throwable $e) {
+                    Log::error('Error en bloque Smart OLT de funcionesPagoMK: ' . $e->getMessage());
+                }
+            }
+            /* * * Smart OLT - DHCP * * */
+
             /* * * API MK * * */
-            if($contrato->server_configuration_id){
+            // Si queries_dhcp_smartolt NO es 1 (es 0 o NULL), y hay un servidor asignado, usamos API Mikrotik
+            $condicionMK = ($contrato->server_configuration_id && $empresa->queries_dhcp_smartolt != 1);
+            Log::debug("funcionesPagoMK: Verificando condición API MK: " . ($condicionMK ? 'CUMPLE' : 'NO CUMPLE') . " [Server ID: {$contrato->server_configuration_id}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . "]");
+            
+            if($condicionMK){
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
                 if(!$mikrotik){
                     Log::warning('No se encontró configuración Mikrotik con id: ' . $contrato->server_configuration_id);
@@ -1198,19 +1258,24 @@ class IngresosController extends Controller
                     $ingreso->save();
                     return $mensaje;
                 }
+                
+                Log::debug("funcionesPagoMK: Intentando conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
                 $API->timeout = 5;
                 $API->attempts = 2;
                 $API->delay = 1;
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
+                    Log::debug("funcionesPagoMK: Conexión exitosa a Mikrotik.");
 
                     $API->write('/ip/firewall/address-list/print', TRUE);
                     $ARRAYS = $API->read();
 
+                    Log::debug("funcionesPagoMK: Verificando activeconn_secret: " . ($empresa->activeconn_secret ?? 0));
                     if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
 
                         #HABILITACION DEL SECRET#
+                        Log::debug("funcionesPagoMK: Iniciando habilitación de Secret (Tipo Conexión: {$contrato->conexion})");
                         if ($contrato->conexion == 1 && $contrato->usuario != null) {
                             // Buscar el ID interno del secret
                             $API->write('/ppp/secret/print', false);
@@ -1223,12 +1288,15 @@ class IngresosController extends Controller
                                 $API->write('/ppp/secret/enable', false);
                                 $API->write('=numbers=' . $id, true);
                                 $response = $API->read();
-                                // Log::info("[MIKROTIK] Usuario {$contrato->usuario} habilitado correctamente");
+                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response));
+                            } else {
+                                Log::warning("funcionesPagoMK: No se encontró el Secret '{$contrato->usuario}' en el MikroTik.");
                             }
                         }
                         #HABILITACION DEL SECRET#
 
                         #AGREGAMOS A IP_AUTORIZADAS#
+                        Log::debug("funcionesPagoMK: Agregando IP {$contrato->ip} a ips_autorizadas");
                         $API->comm("/ip/firewall/address-list/add", array(
                             "address" => $contrato->ip,
                             "list" => 'ips_autorizadas'
@@ -1249,129 +1317,142 @@ class IngresosController extends Controller
 
                     }else{
 
-                    // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                    DB::reconnect();
+                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
+                        DB::reconnect();
 
+                        Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
+                        // OPTIMIZADO: Una sola consulta para obtener IDs directamente (elimina el print doble)
                         $API->write('/ip/firewall/address-list/print', false);
                         $API->write('?address=' . $contrato->ip, false);
-                        $API->write('?list=morosos', true);
-                        $result = $API->read();
+                        $API->write('?list=morosos', false);
+                        $API->write('=.proplist=.id');
+                        $ARRAYS = $API->read();
+                        Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
 
-                        if (!empty($result)) {
+                        if (!empty($ARRAYS)) {
                             #ELIMINAMOS DE MOROSOS#
+                            // Recopilar TODOS los IDs (puede haber duplicados de la misma IP)
+                            $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                            // Registro MovimientoLOG intentando remove
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
+                            // OPTIMIZADO: Un solo remove en batch con todos los IDs (=numbers= acepta lista separada por coma)
+                            $READ = $API->comm('/ip/firewall/address-list/remove', [
+                                'numbers' => implode(',', $idsToRemove)
+                            ]);
+                            Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
+
+                            // Registro MovimientoLOG respuesta remove
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
+                            // Verificar si realmente se eliminaron todas las entradas
                             $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address='.$contrato->ip, false);
-                            $API->write("?list=morosos",false);
-                            $API->write('=.proplist=.id');
-                            $ARRAYS = $API->read();
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write('?list=morosos', true);
+                            $verificacion = $API->read();
 
-                            if(count($ARRAYS)>0){
-                                $idToRemove = $ARRAYS[0]['.id'];
-                                
-                                // Registro MovimientoLOG intentando remove
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (.id=' . $idToRemove . ')';
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            $descVerif = empty($verificacion)
+                                ? '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                : '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                            Log::debug("funcionesPagoMK: {$descVerif}");
 
-                                $API->write('/ip/firewall/address-list/remove', false);
-                                $API->write('=.id=' . $idToRemove, true);
-                                $READ = $API->read();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = $descVerif;
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
 
-                                // Registro MovimientoLOG respuesta remove
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Respuesta comando remove: ' . json_encode($READ);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            #AGREGAMOS A IP_AUTORIZADAS#
+                            $resultAdd = $API->comm('/ip/firewall/address-list/add', [
+                                'address' => $contrato->ip,
+                                'list'    => 'ips_autorizadas'
+                            ]);
+                            Log::debug("funcionesPagoMK: Resultado agregar a ips_autorizadas: " . json_encode($resultAdd));
 
-                                // Verificar si realmente se eliminó de morosos
-                                $API->write('/ip/firewall/address-list/print', false);
-                                $API->write('?address=' . $contrato->ip, false);
-                                $API->write('?list=morosos', true);
-                                $verificacion = $API->read();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+                            #AGREGAMOS A IP_AUTORIZADAS#
 
-                                if (empty($verificacion)) {
-                                    $descVerif = '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no se encuentra en la lista de morosos.';
-                                } else {
-                                    $descVerif = '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue apareciendo en la lista de morosos después del comando remove.';
-                                }
+                            $mensaje = "- Se ha sacado la ip de morosos.";
 
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = $descVerif;
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
+                            DB::reconnect();
 
-                                #AGREGAMOS A IP_AUTORIZADAS#
-                                $resultAdd = $API->comm("/ip/firewall/address-list/add", array(
-                                    "address" => $contrato->ip,
-                                    "list" => 'ips_autorizadas'
-                                    )
-                                );
+                            $ingreso->revalidacion_enable_internet = 1;
+                            $ingreso->save();
 
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
-                                #AGREGAMOS A IP_AUTORIZADAS#
+                            $contrato->state = 'enabled';
+                            $contrato->save();
 
-                                $mensaje = "- Se ha sacado la ip de morosos.";
+                            // Etiqueta automática: contrato habilitado por pago de factura
+                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                $contrato->id,
+                                $empresa->id,
+                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                            );
 
-                                // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                                DB::reconnect();
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
 
-                                $ingreso->revalidacion_enable_internet = 1;
-                                $ingreso->save();
-
-                                $contrato->state = 'enabled';
-                                $contrato->save();
-
-                                // Etiqueta automática: contrato habilitado por pago de factura
-                                \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
-                                    $contrato->id,
-                                    $empresa->id,
-                                    \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
-                                    \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
-                                );
-
-                                $movimiento = new MovimientoLOG;
-                                $movimiento->contrato    = $contrato->id;
-                                $movimiento->modulo      = 5;
-                                $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                                $movimiento->save();
-
-                            }else{
-                                Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos');
-                            }
                             #ELIMINAMOS DE MOROSOS#
                         }else{
+                            $contrato->state = 'enabled';
+                            $contrato->save();
+
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = "[MIKROTIK] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
+                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->save();
+
                             Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
+                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
                         }
                     }
                     $API->disconnect();
+                } else {
+                    Log::error("funcionesPagoMK: No se pudo conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 }
             }else{
+                Log::debug("funcionesPagoMK: Saltando bloque MK (No cumple condiciones o DHCP OLT activo).");
                 $ingreso->revalidacion_enable_internet = 1;
                 $ingreso->save();
             }
             /* * * API MK * * */
 
              /* * * API CATV * * */
-            if(($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null){
+            $condicionCATV = (($contrato !== null && isset($contrato->olt_sn_mac)) && $empresa->adminOLT != null);
+            Log::debug("funcionesPagoMK: Verificando condición API CATV: " . ($condicionCATV ? 'CUMPLE' : 'NO CUMPLE') . " [OLT SN/MAC: " . ($contrato->olt_sn_mac ?? 'N/A') . ", AdminOLT: " . ($empresa->adminOLT ?? 'N/A') . "]");
 
+            if($condicionCATV){
+                Log::debug("funcionesPagoMK: Ejecutando enable_catv para MAC: {$contrato->olt_sn_mac}");
                 $curl = curl_init();
                 curl_setopt_array($curl, array(
                     CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
@@ -1389,44 +1470,28 @@ class IngresosController extends Controller
                     ));
 
                 $response = curl_exec($curl);
-                $response = json_decode($response);
+                $responseCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $decodedResponse = json_decode($response);
+                Log::debug("funcionesPagoMK: Respuesta CATV (Status Code: $responseCode): " . $response);
 
-                if(isset($response->status) && $response->status == true){
+                if(isset($decodedResponse->status) && $decodedResponse->status == true){
 
                     $ingreso->revalidacion_enable_tv = 1;
                     $ingreso->save();
 
                     $contrato->state_olt_catv = 1;
                     $contrato->save();
+                    Log::debug("funcionesPagoMK: CATV habilitado exitosamente.");
+                } else {
+                    Log::warning("funcionesPagoMK: Falló habilitación CATV.");
                 }
+                curl_close($curl);
             }else{
                 $ingreso->revalidacion_enable_tv = 1;
                 $ingreso->save();
             }
             /* * * API CATV * * */
 
-            /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
-            if ($contrato !== null && $contrato->conexion == 2 && isset($empresa->queries_dhcp_smartolt) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                try {
-                    $oltController = app('App\Http\Controllers\OltController');
-                    $oltController->enableOnu($contrato->serial_onu);
-
-                    DB::reconnect();
-                    $contrato->state = 'enabled';
-                    $contrato->save();
-
-                    $movimiento = new MovimientoLOG;
-                    $movimiento->contrato    = $contrato->id;
-                    $movimiento->modulo      = 5;
-                    $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a Habilitado por pago de factura<br>';
-                    $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                    $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                    $movimiento->save();
-                } catch (\Throwable $e) {
-                    Log::error('Error en bloque Smart OLT de funcionesPagoMK: ' . $e->getMessage());
-                }
-            }
-            /* * * Smart OLT - DHCP * * */
 
         } catch (\Throwable $th) {
             Log::error('Error en funcionesPagoMK: ' . $th->getMessage() . ' en la linea ' . $th->getLine() . ' del archivo ' . $th->getFile());
@@ -1621,6 +1686,14 @@ class IngresosController extends Controller
 
         if (!$ingreso) {
             return back()->with('error', 'No se encontró el ingreso especificado.');
+        }
+
+        if ($ingreso->whatsapp == 1) {
+            return back()->with('error', 'Esta tirilla ya ha sido enviada por WhatsApp.');
+        }
+
+        if ($ingreso->cont_message_undeliverable >= 3) {
+            return back()->with('error', 'La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa');
         }
 
         // 1️⃣ Buscar instancia activa
@@ -1823,7 +1896,8 @@ class IngresosController extends Controller
         WhatsappMetaLog::create([
             'status' => $status,
             'response' => json_encode($response),
-            'factura_id' => $ingreso->nro, // Es un ingreso, no factura directa
+            'factura_id' => $ingreso->nro, 
+            'incoming_payment_id' => $ingreso->id, // Identificador del ingreso para historial
             'contacto_id' => $cliente->id,
             'empresa' => Auth::user()->empresa,
             'mensaje_enviado' => $mensajeEnviado,
@@ -1832,6 +1906,8 @@ class IngresosController extends Controller
         ]);
 
         if ($status === 'success') {
+            $ingreso->whatsapp = 1;
+            $ingreso->save();
             // Sync con Chat System (Centralizado)
             $wamid = $responseData['data']['messages'][0]['id'] ?? ($responseData['messages'][0]['id'] ?? null);
             
@@ -1945,6 +2021,23 @@ class IngresosController extends Controller
         $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('id', $id)->first();
 
         if ($ingreso) {
+            // Logs de WhatsApp Meta asociados a este ingreso (incoming_payment_id)
+            // Solo se muestran registros con estados delivered o read.
+            // Agrupamos por wamid para que un mismo mensaje no aparezca duplicado
+            // cuando cambia de "delivered" a "read"; se muestra solo el estado más reciente.
+            $rawWhatsappLogs = \App\WhatsappMetaLog::where('incoming_payment_id', $ingreso->id)
+                ->whereIn('status', ['delivered', 'read'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $whatsappLogs = $rawWhatsappLogs
+                ->groupBy('wamid')
+                ->map(function ($group) {
+                    // Tomar el registro más reciente por wamid
+                    return $group->sortByDesc('created_at')->first();
+                })
+                ->values();
+
             if ($ingreso->tipo==1) {
                 $titulo='Pago a facturas de venta';
                 $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
@@ -1957,7 +2050,7 @@ class IngresosController extends Controller
             view()->share(['icon' =>'', 'title' => $titulo, 'middel'=>true]);
             $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
             $print = false;
-            return view('ingresos.show')->with(compact('ingreso', 'items', 'retenciones', 'print'));
+            return view('ingresos.show')->with(compact('ingreso', 'items', 'retenciones', 'print', 'whatsappLogs'));
         }
         return redirect('empresa/ingresos')->with('error', 'No existe un registro con ese id');
     }
@@ -2050,6 +2143,29 @@ class IngresosController extends Controller
             if ($ingreso->tipo==3) {
                 return redirect('empresa/ingresos')->with('error', 'No puede editar un pago de nota de débito');
             }
+
+            // Validar si paso de Anticipo a Pago a factura/categoría
+            if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                $contacto_saldo = Contacto::find($ingreso->cliente);
+                if ($contacto_saldo) {
+                    $saldo_anterior = $contacto_saldo->saldo_favor;
+                    $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                    $contacto_saldo->saldo_favor = $nuevo_saldo;
+                    $contacto_saldo->save();
+
+                    DB::table('log_saldos')->insert([
+                        'id_contacto' => $contacto_saldo->id,
+                        'accion' => 'Edición de ingreso Nro ' . $ingreso->nro . ' (Cambio de Anticipo a Pago), resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                        'created_by' => Auth::user()->id,
+                        'fecha' => Carbon::now()->format('Y-m-d'),
+                        'created_at' => Carbon::now(),
+                    ]);
+                }
+                
+                $ingreso->anticipo = null;
+                $ingreso->valor_anticipo = null;
+            }
+
             $request->validate([
                 'cuenta' => 'required|numeric',
                 'nro' => [
@@ -2431,6 +2547,25 @@ class IngresosController extends Controller
             }
             if ($ingreso->estatus==1) {
 
+                // Si el ingreso que se anula fue un anticipo, se debe restar el saldo a favor generado
+                if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                    $contacto_saldo = Contacto::find($ingreso->cliente);
+                    if($contacto_saldo){
+                        $saldo_anterior = $contacto_saldo->saldo_favor;
+                        $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                        $contacto_saldo->saldo_favor = $nuevo_saldo;
+                        $contacto_saldo->save();
+
+                        DB::table('log_saldos')->insert([
+                            'id_contacto' => $contacto_saldo->id,
+                            'accion' => 'Anulación de ingreso Nro ' . $ingreso->nro . ', resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                            'created_by' => Auth::user()->id,
+                            'fecha' => Carbon::now()->format('Y-m-d'),
+                            'created_at' => Carbon::now(),
+                        ]);
+                    }
+                }
+
                 $ingreso->estatus=2;
                 $mensaje='Se ha anulado satisfactoriamente el pago';
 
@@ -2448,6 +2583,25 @@ class IngresosController extends Controller
                 }
 
             }else{
+
+                // Si el ingreso que se vuelve a abrir fue un anticipo, se debe sumar nuevamente el saldo a favor
+                if ($ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                    $contacto_saldo = Contacto::find($ingreso->cliente);
+                    if($contacto_saldo){
+                        $saldo_anterior = $contacto_saldo->saldo_favor;
+                        $nuevo_saldo = $saldo_anterior + $ingreso->valor_anticipo;
+                        $contacto_saldo->saldo_favor = $nuevo_saldo;
+                        $contacto_saldo->save();
+
+                        DB::table('log_saldos')->insert([
+                            'id_contacto' => $contacto_saldo->id,
+                            'accion' => 'Apertura de ingreso Nro ' . $ingreso->nro . ', reintegro de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                            'created_by' => Auth::user()->id,
+                            'fecha' => Carbon::now()->format('Y-m-d'),
+                            'created_at' => Carbon::now(),
+                        ]);
+                    }
+                }
 
                 if ($ingreso->tipo==1) {
                     $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
@@ -2497,6 +2651,25 @@ class IngresosController extends Controller
     {
         $ingreso = Ingreso::Find($id);
         if ($ingreso) {
+
+            // Si el ingreso que se elimina fue un anticipo y no estaba anulado previamente, se debe restar el saldo a favor generado
+            if ($ingreso->estatus != 2 && $ingreso->anticipo == 1 && $ingreso->valor_anticipo > 0) {
+                $contacto_saldo = Contacto::find($ingreso->cliente);
+                if($contacto_saldo){
+                    $saldo_anterior = $contacto_saldo->saldo_favor;
+                    $nuevo_saldo = $saldo_anterior - $ingreso->valor_anticipo;
+                    $contacto_saldo->saldo_favor = $nuevo_saldo;
+                    $contacto_saldo->save();
+
+                    DB::table('log_saldos')->insert([
+                        'id_contacto' => $contacto_saldo->id,
+                        'accion' => 'Eliminación de ingreso Nro ' . $ingreso->nro . ', resta de saldo a favor de ' . \App\Funcion::Parsear($ingreso->valor_anticipo) . ' (Saldo anterior: ' . \App\Funcion::Parsear($saldo_anterior) . ' / Actual: ' . \App\Funcion::Parsear($nuevo_saldo) . ')',
+                        'created_by' => Auth::user()->id,
+                        'fecha' => Carbon::now()->format('Y-m-d'),
+                        'created_at' => Carbon::now(),
+                    ]);
+                }
+            }
 
             if ($ingreso->tipo == 3) {
                 return redirect('empresa/pagos')->with('error', 'No puede editar un pago de nota de débito');
@@ -3769,13 +3942,11 @@ class IngresosController extends Controller
             $numero = round(floatval($numero)) + 1;
 
             // Obtener código siguiente disponible
-            $inicio = $nro->inicio;
-            while (Factura::where('codigo', $nro->prefijo . $inicio)->first()) {
-                $nro = $nro->fresh();
-                $inicio = $nro->inicio;
+            while (Factura::where('codigo', $nro->prefijo . $nro->inicio)->where('empresa', $empresa->id)->first()) {
                 $nro->inicio += 1;
                 $nro->save();
             }
+            $facturaCodigo = $nro->prefijo . $nro->inicio;
 
             // Determinar tipo de factura
             $tipo = 1; // 1 = normal, 2 = Electrónica
@@ -3802,7 +3973,7 @@ class IngresosController extends Controller
             // Crear factura
             $factura = new Factura;
             $factura->nro = $numero;
-            $factura->codigo = $nro->prefijo . $inicio;
+            $factura->codigo = $facturaCodigo;
             $factura->numeracion = $nro->id;
             $factura->plazo = isset($plazo->id) ? $plazo->id : '';
             $factura->term_cond = $contrato->terminos_cond;
@@ -3816,7 +3987,18 @@ class IngresosController extends Controller
             $factura->pago_oportuno = $datePagoOportuno->format('Y-m-d');
             $factura->observaciones = 'Facturación Manual - Corte ' . $grupoCorte->fecha_corte;
             $factura->bodega = 1;
-            $factura->vendedor = 1;
+            
+            // Asignación dinámica del vendedor para evitar errores de integridad (FK)
+            $vendedor = Vendedor::where('id', $contrato->vendedor)->where('empresa', $empresa->id)->first();
+            if (!$vendedor) {
+                // Fallback a vendedor por defecto habilitado de la empresa
+                $vendedor = Vendedor::where('empresa', $empresa->id)->where('estado', 1)->first();
+                if (!$vendedor) {
+                    // Fallback a cualquier vendedor de la empresa
+                    $vendedor = Vendedor::where('empresa', $empresa->id)->first();
+                }
+            }
+            $factura->vendedor = $vendedor ? $vendedor->id : 1;
             $factura->prorrateo_aplicado = 0;
             $factura->facturacion_automatica = 0;
             $factura->factura_mes_manual = 1;

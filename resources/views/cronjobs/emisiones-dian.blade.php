@@ -607,7 +607,7 @@ $(function() {
                 var ue = data.ultima_ejecucion;
                 var cls = ue.estado === 'completado' ? 'alert-success border-left-success' : (ue.estado === 'error' ? 'alert-danger border-left-danger' : 'alert-warning border-left-warning');
                 $('#estado-msg').attr('class', 'alert ' + cls + ' shadow-sm p-3 mb-0');
-                $('#estado-texto').html('Ciclo finalizado (' + ue.estado + '). Facturas procesadas: ' + ue.total_emitidas + ' exitosas, ' + ue.total_fallidas + ' fallidas.');
+                $('#estado-texto').html('Ciclo #' + ue.id + ' finalizado (' + ue.estado + '). Facturas procesadas: ' + ue.total_emitidas + ' exitosas, ' + ue.total_fallidas + ' fallidas.');
                 $('#console-status-text').text('INACTIVO');
             } else {
                 $('#estado-msg').attr('class', 'alert alert-light border-left-secondary shadow-sm p-3 mb-0');

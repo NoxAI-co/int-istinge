@@ -228,6 +228,22 @@
                             <th style="text-align: left; padding-left: 9px;">Plan Contratado</th>
                             <td style="padding-left: 9px;">{{$contrato->plan()->name}}</td>
                         </tr>
+                        <tr>
+                            <th style="text-align: left; padding-left: 9px;">Usuario</th>
+                            <td style="padding-left: 9px;">{{$contrato->usuario}}</td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: left; padding-left: 9px;">Contraseña</th>
+                            <td style="padding-left: 9px;">{{$contrato->password}}</td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: left; padding-left: 9px;">OLT SN / MAC</th>
+                            <td style="padding-left: 9px;">{{$contrato->olt_sn_mac}}</td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: left; padding-left: 9px;">Observaciones Contrato</th>
+                            <td style="padding: 0px 9px; text-align: justify;">{{$contrato->observaciones}}</td>
+                        </tr>
                         @endif
 
                         <tr>

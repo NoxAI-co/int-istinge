@@ -114,7 +114,7 @@
                     <div class="col-md-4">
                         <div class="form-group mb-0">
                             <label for="periodoSelector" class="small font-weight-bold">Seleccionar Período:</label>
-                            <input type="month" id="periodoSelector" class="form-control" value="{{ $periodo }}" max="{{ Carbon\Carbon::now()->format('Y-m') }}">
+                            <input type="month" id="periodoSelector" class="form-control" value="{{ $periodo }}" max="{{ Carbon\Carbon::now()->addMonth()->format('Y-m') }}">
                         </div>
                     </div>
                 </div>
@@ -1429,7 +1429,7 @@ function eliminarTodasDuplicadas() {
 function eliminarCiclo() {
     swal({
         title: '¿Eliminar facturación del ciclo?',
-        html: 'Esta acción <strong>eliminará todas las facturas</strong> marcadas como "Factura del Mes" generadas para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
+        html: 'Esta acción <strong>eliminará todas las facturas del mes que fueron creadas de manera automática</strong> para este ciclo y restaurará la numeración.<br><br><span class="text-danger font-weight-bold">¡Esta acción NO se puede deshacer!</span>',
         type: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',

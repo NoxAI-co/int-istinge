@@ -69,6 +69,11 @@
                                 <i class="fas fa-calculator"></i> Ver Cálculo de Prorrateo
                             </button>
                         @endif
+                        @if($factura->tipo != 2)
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#modalPeriodoCobrado">
+                                <i class="fas fa-calendar-alt"></i> Ver cálculo periodo cobrado
+                            </button>
+                        @endif
                         @if($empresa->estado_dian != 1)
                             <form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
                                 {{ csrf_field() }}
@@ -111,6 +116,18 @@
                     </div>
             </div>
         @endif
+    @endif
+
+    {{-- Alerta de rebotes WhatsApp --}}
+    @if($factura->cont_message_undeliverable >= 3)
+        <div class="row mt-3 mx-3">
+            <div class="col-md-12">
+                <div class="alert alert-danger shadow-sm" role="alert" style="border-left: 5px solid #dc3545;">
+                    <h5 class="alert-heading mb-1"><i class="fas fa-exclamation-circle"></i> Atención</h5>
+                    La siguiente linea telefónica según nuestros análisis probablemente no tiene una linea de whatsapp activa, te recomendamos comunicarte y enviar el documento con otra alternativa.
+                </div>
+            </div>
+        </div>
     @endif
 
     {{-- Bloque de Logs de WhatsApp vinculados a esta factura --}}
@@ -263,7 +280,7 @@
 <!-- FIN BANNER DE VALORES -->
 @endif
 
-@if(Session::has('success') || Session::has('error'))
+@if(Session::has('success') || Session::has('error') || Session::has('danger'))
   @if(Session::has('success'))
   <div class="alert alert-success alert-view-show">
     {{Session::get('success')}}
@@ -275,11 +292,22 @@
     {{Session::get('error')}}
   </div>
   @endif
+
+  @if(Session::has('danger'))
+  <div class="alert alert-danger alert-view-show">
+    @if(is_array(Session::get('danger')))
+      {{ Session::get('danger')['message'] ?? json_encode(Session::get('danger')) }}
+    @else
+      {{ Session::get('danger') }}
+    @endif
+  </div>
+  @endif
+  
   <script type="text/javascript">
     setTimeout(function(){
         $('.alert').hide();
         $('.active_table').attr('class', ' ');
-    }, 5000);
+    }, 8000);
   </script>
 @endif
 
@@ -633,6 +661,109 @@
         </div>
     </div>
 
+    {{-- Modal de Cálculo Periodo Cobrado --}}
+    @if($factura->tipo != 2)
+    <div class="modal fade" id="modalPeriodoCobrado" tabindex="-1" role="dialog" aria-labelledby="modalPeriodoCobradoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalPeriodoCobradoLabel">
+                        <i class="fas fa-calendar-alt"></i> Cálculo del Período Cobrado - Factura #{{ $factura->codigo }}
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    @php
+                        $periodoCobradoString = $factura->periodoCobradoTexto();
+                        $contrato = App\Contrato::find($factura->contrato_id);
+                        $grupo = null;
+                        if($contrato){
+                            $grupo = App\GrupoCorte::find($contrato->grupo_corte);
+                        }else{
+                            // fallback
+                            $grupo = App\Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')->where('client_id',$factura->cliente)->select('gc.*')->first();
+                        }
+                        
+                        $mesFactura = \Carbon\Carbon::parse($factura->created_at)->format('m');
+                        $yearFactura = \Carbon\Carbon::parse($factura->created_at)->format('Y');
+                        $periodoFacturacion = $grupo ? ($grupo->periodo_facturacion ?? 1) : 1;
+                        $tipoPeriodo = 'Mes Anticipado';
+                        $estrategia = 'Se factura el mes siguiente al actual.';
+                        if($periodoFacturacion == 2){
+                            $tipoPeriodo = 'Mes Vencido';
+                            $estrategia = 'Se factura el mes anterior al actual.';
+                        }elseif($periodoFacturacion == 3){
+                            $tipoPeriodo = 'Mes Actual';
+                            $estrategia = 'Se factura el mes actual.';
+                        }
+                    @endphp
+
+                    {{-- Información del Grupo de Corte --}}
+                    <div class="alert alert-secondary mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mb-2"><i class="fa fa-calendar-check"></i> <strong>Detalle del Grupo de Corte</strong></h6>
+                                @if($grupo)
+                                <p class="mb-1">Nombre: <strong>{{ $grupo->nombre }}</strong></p>
+                                <p class="mb-1">Día de Corte: <strong>{{ $grupo->fecha_corte }}</strong></p>
+                                <p class="mb-0">Día de Facturación: <strong>{{ $grupo->fecha_factura }}</strong></p>
+                                @else
+                                <p class="mb-0 text-danger">No se encontró grupo de corte asociado.</p>
+                                @endif
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-2"><i class="fa fa-cogs"></i> <strong>Estrategia de Facturación</strong></h6>
+                                <p class="mb-1">Tipo: <strong>{{ $tipoPeriodo }}</strong></p>
+                                <p class="mb-0 text-muted">{{ $estrategia }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Detalle del Cálculo --}}
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <h6 class="text-primary"><i class="fa fa-calculator"></i> Proceso de Cálculo</h6>
+                            <table class="table table-sm table-bordered mt-2">
+                                <tbody>
+                                    <tr>
+                                        <td width="35%"><strong>Fecha de creación de la factura:</strong></td>
+                                        <td>{{ \Carbon\Carbon::parse($factura->created_at)->format('d/m/Y g:i:s A') }} <small class="text-muted">(Mes: {{ $mesFactura }}, Año: {{ $yearFactura }})</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Día de corte establecido:</strong></td>
+                                        <td>{{ $grupo ? $grupo->fecha_corte : 'N/A' }} de cada mes</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Modalidad de cobro:</strong></td>
+                                        <td>{{ $tipoPeriodo }} <small class="text-muted">Afecta los meses tomados para establecer el rango.</small></td>
+                                    </tr>
+                                    <tr class="table-info">
+                                        <td><strong>Período Resultante Determinado:</strong></td>
+                                        <td><strong>{{ $periodoCobradoString }}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info border">
+                        <h6 class="mb-2"><i class="fa fa-info-circle"></i> <strong>Explicación Técnica</strong></h6>
+                        <p class="mb-0 small">
+                            El sistema toma la <strong>Fecha Base</strong> en la que se generó esta factura y consulta la estrategia de cobro (anticipado, vencido o mes actual) junto con el día de corte especificado. A partir de esa iteración cronológica, se proyecta el mes que corresponde cobrar, calculando el inicio en el día de corte asignado y finalizando un día antes del próximo corte, formando un ciclo exacto de facturación de acuerdo al período correspondiente.
+                        </p>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Modal de Cálculo de Prorrateo --}}
     @if($factura->prorrateo_aplicado == 1 || $factura->prorrateo_aplicado == 2)
     <div class="modal fade" id="modalProrrateo" tabindex="-1" role="dialog" aria-labelledby="modalProrrateoLabel" aria-hidden="true">
@@ -719,8 +850,12 @@
                                     </tr>
                                     @endif
                                     <tr>
-                                        <td><strong>Fecha de facturación:</strong></td>
+                                        <td><strong>Fecha de facturación (impresa):</strong></td>
                                         <td>{{ \Carbon\Carbon::parse($factura->fecha)->format('d/m/Y') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Fecha de creación de la factura:</strong><br><small class="text-muted">Fecha base del cálculo prorrateado</small></td>
+                                        <td>{{ \Carbon\Carbon::parse($factura->created_at)->format('d/m/Y g:i:s A') }}</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Días cobrados:</strong></td>

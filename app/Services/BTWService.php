@@ -18,8 +18,8 @@ class BTWService
         $this->baseUri = env("BTW_TEST_MODE") == 1 ? env('BTW_URL_TEST') : env('BTW_URL_PROD');
         $this->secretKey =  env("BTW_TEST_CREDENTIAL");
         $this->options = [
-            'timeout' => 60,
-            'connect_timeout' => 60,
+            'timeout' => 90,
+            'connect_timeout' => 90,
         ];
     }
 
@@ -83,12 +83,7 @@ class BTWService
             return $this->makeRequest('POST', '/api/sendinvoice', [], $json, [], true);
         } catch (\Throwable $th) {
 
-            return response()->json([
-                'statusCode' => 400,
-                'errorMessage' => "Error al enviar la factura",
-                'th' => $th
-            ]);
-        }
+            return ["statusCode" => 400, "errorMessage" => "Error al enviar la factura", "th" => ["message" => $th->getMessage()]];        }
     }
 
     public function sendPOSInvoiceBTW($json){

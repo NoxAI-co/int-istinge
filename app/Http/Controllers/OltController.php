@@ -600,7 +600,7 @@ class OltController extends Controller
 
     public function enableOnu($sn)
     {
-        $empresa = Empresa::Find(Auth::user()->empresa);
+        $empresa = !Auth::user() ? Empresa::Find(1) : Empresa::Find(Auth::user()->empresa);
 
         $curl = curl_init();
 
@@ -629,7 +629,7 @@ class OltController extends Controller
 
     public function disableOnu($sn)
     {
-        $empresa = Empresa::Find(Auth::user()->empresa);
+        $empresa = !Auth::user() ? Empresa::Find(1) : Empresa::Find(Auth::user()->empresa);
 
         $curl = curl_init();
 

@@ -223,7 +223,8 @@ class MikrotikService
                         $contratoData = [
                             'nro' => $contrato->nro,
                             'id' => $contrato->id,
-                            'nombre_cliente' => $contrato->cliente()->nombre ?? 'N/A'
+                            'nombre_cliente' => $contrato->cliente()->nombre ?? 'N/A',
+                            'state' => $contrato->state
                         ];
 
                         // Obtener la última factura del contrato
@@ -233,10 +234,15 @@ class MikrotikService
                         
                         // Buscar la última factura (ya sea por la relación o por contrato_id directo)
                         // Utilizamos factura.id para asegurar orden cronológico real, evadiendo fallos de created_at en tabla pivote.
-                        $ultimaFactura = $contrato->facturas()->orderBy('factura.id', 'desc')->first();
+                        // Y Excluimos las facturas anuladas (estatus = 2)
+                        $ultimaFactura = $contrato->facturas()
+                                ->where('factura.estatus', '!=', 2)
+                                ->orderBy('factura.id', 'desc')->first();
                         
                         if (!$ultimaFactura) {
-                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)->orderBy('id', 'desc')->first();
+                            $ultimaFactura = \App\Model\Ingresos\Factura::where('contrato_id', $contrato->id)
+                                ->where('estatus', '!=', 2)
+                                ->orderBy('id', 'desc')->first();
                         }
                         
                         if ($ultimaFactura) {
@@ -247,6 +253,8 @@ class MikrotikService
                             ];
 
                             $estadoString = $ultimaFactura->estatus();
+                            $vencimiento = $ultimaFactura->vencimiento;
+                            $hoy = date('Y-m-d');
 
                             // Dependemos del método estatus() de Factura que retorna el estado real como string.
                             // Posibles retornos: 'Abierta', 'Cerrada', 'Anulada', 'Abonada', 'Cerrada con nota crédito', etc.
@@ -259,7 +267,11 @@ class MikrotikService
                                 $tieneDiscrepancia = false;
                             } else {
                                 // 'Abierta', 'Abonada', 'Abierta con nota crédito' son considerados con deuda
-                                $estadoSistema = 'En Mora'; 
+                                if ($vencimiento < $hoy) {
+                                    $estadoSistema = 'En Mora';
+                                } else {
+                                    $estadoSistema = 'Por Vencer';
+                                }
                             }
                         } else {
                             $estadoSistema = 'Sin Facturas';
