@@ -65,7 +65,8 @@ class GeneralController extends Controller
     public function mediosPago()
     {
         $empresa = Empresa::Find(1); // O tomar del usuario autenticado si es dinámico
-        return response()->json(['data' => $empresa ? $empresa->medios_pago : null, 'status' => 200]);
+        $medios_pago = DB::table('metodos_pago')->get();
+        return response()->json(['data' => $empresa ? $medios_pago : null, 'status' => 200]);
     }
 
     /**
