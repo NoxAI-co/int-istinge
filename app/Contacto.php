@@ -35,7 +35,7 @@ class Contacto extends Model
         'usuario_wifi','contrasena_wifi','ip_receptora','puerto_receptor','ppt','barrio_id', 'feliz_cumpleanos', 'factura_est_elec'
     ];
 
-    protected $appends = ['usado', 'contract', 'details', 'contracts'];
+    protected $appends = ['usado', 'contract', 'details', 'contracts', 'pais_name', 'departamento_name', 'municipio_name'];
 
     public function getUsadoAttribute(){
         return $this->usado();
