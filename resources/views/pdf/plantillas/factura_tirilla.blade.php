@@ -17,9 +17,10 @@
 
         body{
             font-family: Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.2;
+            font-weight: bold;
         }
         h4{
             font-weight: bold;
@@ -50,7 +51,6 @@
             margin-bottom: 10px;
         }
         .label {
-            font-weight: normal;
             color: #444;
         }
         .value {
