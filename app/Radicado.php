@@ -20,12 +20,15 @@ class Radicado extends Model
 
     public function getSessionAttribute()
     {
-        return $this->getAllPermissions(\Auth::user()->id);
+        if (\Auth::user()) {
+            return $this->getAllPermissions(\Auth::user()->id);
+        }
+        return null;
     }
 
     public function getAllPermissions($id)
     {
-        if (\Auth::user()->rol >= 2) {
+        if (\Auth::user() && \Auth::user()->rol >= 2) {
             if (
                 \DB::table('permisos_usuarios')
                     ->select('id_permiso')
