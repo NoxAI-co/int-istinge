@@ -51,7 +51,8 @@
             margin-bottom: 5px;
         }
         .label {
-            color: #444;
+            color: #000;
+            font-weight: bold;
         }
         .value {
             font-weight: bold;

@@ -25,8 +25,8 @@
         h4{
             font-weight: bold;
             text-align: center;
-            margin: 0 0 5px 0;
-            font-size: 14px;
+            margin: 0 0 2px 0;
+            font-size: 12px;
         }
         .text-center{
             text-align: center;
@@ -48,10 +48,11 @@
         .info-box {
             width: 100%;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .label {
-            color: #444;
+            color: #000;
+            font-weight: bold;
         }
         .value {
             font-weight: bold;
