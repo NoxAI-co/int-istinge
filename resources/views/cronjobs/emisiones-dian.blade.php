@@ -395,6 +395,7 @@
                             <option value="completado">Completados</option>
                             <option value="parcial">Parciales</option>
                             <option value="error">Errores</option>
+                            <option value="finalizado_incompleto">Incompletos</option>
                         </select>
                         <input type="date" id="filtro-desde" class="form-control form-control-sm border-0 bg-light rounded-pill px-3 shadow-none" style="height: 38px;">
                     </div>
@@ -749,15 +750,26 @@ $(function() {
     });
 
     function badgeEstado(estado) {
+        if (!estado) {
+            return '<span class="badge-premium bg-light text-dark border">INCOMPLETO</span>';
+        }
+
         var cls = { 
             completado: 'bg-gradient-green text-white', 
             parcial: 'bg-gradient-gold text-white', 
             error: 'bg-gradient-red text-white', 
             ejecutando: 'bg-gradient-blue text-white', 
             emitida: 'bg-gradient-green text-white', 
-            fallida: 'bg-gradient-red text-white' 
+            fallida: 'bg-gradient-red text-white',
+            finalizado_incompleto: 'bg-gradient-red text-white'
         };
-        return '<span class="badge-premium '+(cls[estado]||'bg-light text-dark border')+'">'+estado.toUpperCase()+'</span>';
+
+        var texto = estado.toUpperCase().replace(/_/g, ' ');
+        if (estado === 'finalizado_incompleto') {
+            texto = 'INCOMPLETO';
+        }
+
+        return '<span class="badge-premium '+(cls[estado]||'bg-light text-dark border')+'">'+texto+'</span>';
     }
 
     function formatFecha(str) {
