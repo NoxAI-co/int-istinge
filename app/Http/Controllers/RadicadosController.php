@@ -751,7 +751,8 @@ class RadicadosController extends Controller
             $inicio = Carbon::parse($radicado->tiempo_ini);
             $cierre = Carbon::parse($radicado->tiempo_fin);
             $duracion = $inicio->diffInMinutes($cierre);
-            return view('radicados.show')->with(compact('radicado', 'duracion'));
+            $detalle_equipos = DB::table('radicados_detalles_equipos')->where('radicado_id', $radicado->id)->get();
+            return view('radicados.show')->with(compact('radicado', 'duracion', 'detalle_equipos'));
         }
         return redirect('empresa/radicados')->with('success', 'No existe un registro con ese id');
     }

@@ -48,6 +48,10 @@
 						<th>Proveedor</th> 
 						<td><a href="{{route('contactos.show',$factura->proveedor()->id)}}" target="_blank">{{$factura->proveedor()->nombre}} {{$factura->proveedor()->apellidos()}}</a></td>
 					</tr>
+          <tr>
+						<th>Observación</th>
+						<td>{{$factura->observaciones}}</td>
+					</tr>
 					<tr>
 						<th>Bodega</th>
 						<td>{{$factura->bodega()}}</td>
@@ -59,10 +63,6 @@
 					<tr>
 						<th>Vencimiento</th>
 						<td>{{date('d-m-Y', strtotime($factura->vencimiento_factura))}}</td>
-					</tr>
-          <tr>
-						<th>Observaciones</th>
-						<td>{{$factura->observaciones_factura}}</td>
 					</tr>
           <tr>
 						<th>Total</th>

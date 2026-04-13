@@ -353,7 +353,8 @@ class FacturaspController extends Controller
         $factura->empresa=Auth::user()->empresa;
         $factura->fecha_factura=Carbon::parse($request->fecha)->format('Y-m-d');
         $factura->vencimiento_factura=Carbon::parse($request->vencimiento)->format('Y-m-d');
-        $factura->observaciones_factura=mb_strtolower($request->observaciones_factura);
+        $factura->observaciones=mb_strtolower($request->observaciones);
+        $factura->observaciones_factura=mb_strtolower($request->observaciones);
         $factura->notas=mb_strtolower($request->notas);
         $factura->bodega=$request->bodega;
         $factura->codigo=$request->codigo;
@@ -582,7 +583,8 @@ class FacturaspController extends Controller
                 $factura->plazo =$request->plazo;
                 $factura->fecha_factura=Carbon::parse($request->fecha)->format('Y-m-d');
                 $factura->vencimiento_factura=Carbon::parse($request->vencimiento)->format('Y-m-d');
-                $factura->observaciones_factura=mb_strtolower($request->observaciones_factura);
+                $factura->observaciones=mb_strtolower($request->observaciones);
+                $factura->observaciones_factura=mb_strtolower($request->observaciones);
                 $factura->notas=mb_strtolower($request->notas);
                 $factura->term_cond=mb_strtolower($request->term_cond);
                 $factura->bodega=$request->bodega;
