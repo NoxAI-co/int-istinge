@@ -12,8 +12,9 @@
         ->first();
 @endphp
 
-@if (config('app.entorno') == 2 && $empresa == 128)
-    <a href="{{ route('facturasp.edit', $id) }}" class="btn btn-outline-light btn-icons" title="Editar factura de proveedor {{ $nro }}">
+@if ($estatus == 1)
+    <a href="{{ route('facturasp.edit', $id) }}" class="btn btn-outline-primary btn-icons"
+        title="Editar factura de proveedor {{ $nro }}">
         <i class="fas fa-edit"></i>
     </a>
     @php $sw = 1; @endphp
