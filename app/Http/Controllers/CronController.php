@@ -2458,8 +2458,10 @@ class CronController extends Controller
             $servicio = Integracion::where('nombre', 'WOMPI')->where('tipo', 'PASARELA')->where('lectura', 1)->first();
 
             if($request->status == 'APPROVED'){
-                $factura = Factura::where('codigo', explode("-", $request->reference)[1])->first();
-                if($factura->estatus == 1){
+                $parts = explode("-", $request->reference);
+                $codigo = count($parts) > 1 ? $parts[1] : $parts[0];
+                $factura = Factura::where('codigo', $codigo)->first();
+                if($factura && $factura->estatus == 1){
                     $empresa = Empresa::find($factura->empresa);
                     $nro = Numeracion::where('empresa', $empresa->id)->first();
                     $caja = $nro->caja;
@@ -2473,13 +2475,16 @@ class CronController extends Controller
                     }
 
                     $banco = Banco::where('nombre', 'WOMPI')->where('estatus', 1)->where('lectura', 1)->first();
+                    if(!$banco){
+                        $banco = Banco::where('empresa', $empresa->id)->where('estatus', 1)->first();
+                    }
 
                     # REGISTRAMOS EL INGRESO
                     $ingreso                = new Ingreso;
                     $ingreso->nro           = $caja;
                     $ingreso->empresa       = $empresa->id;
                     $ingreso->cliente       = $factura->cliente;
-                    $ingreso->cuenta        = $banco->id;
+                    $ingreso->cuenta        = $banco ? $banco->id : 1;
                     $ingreso->metodo_pago   = 9;
                     $ingreso->tipo          = 1;
                     $ingreso->fecha         = date('Y-m-d');
@@ -2527,21 +2532,23 @@ class CronController extends Controller
                         $cliente = Contacto::where('id', $factura->cliente)->first();
                         $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                         $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
-                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
+                        
+                        if($contrato){
+                            $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
-                        $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
+                            $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
-                        if ($asignacion) {
-                            $cuotas_pendientes = $asignacion->cuotas_pendientes -= 1;
-                            $asignacion->cuotas_pendientes = $cuotas_pendientes;
-                            if ($cuotas_pendientes == 0) {
-                                $asignacion->status = 1;
+                            if ($asignacion) {
+                                $cuotas_pendientes = $asignacion->cuotas_pendientes -= 1;
+                                $asignacion->cuotas_pendientes = $cuotas_pendientes;
+                                if ($cuotas_pendientes == 0) {
+                                    $asignacion->status = 1;
+                                }
+                                $asignacion->save();
                             }
-                            $asignacion->save();
-                        }
 
-                        # API MK
-                        if($contrato->server_configuration_id){
+                            # API MK
+                            if($contrato->server_configuration_id){
                             $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
 
                             $API = new RouterosAPI();
@@ -2586,6 +2593,7 @@ class CronController extends Controller
                             $ingreso->revalidacion_enable_internet = 1;
                             $ingreso->save();
                         }
+                    }
 
                         # ENVÍO SMS
                         $servicio = Integracion::where('empresa', $empresa->id)->where('tipo', 'SMS')->where('status', 1)->first();
@@ -3001,7 +3009,7 @@ class CronController extends Controller
             if($request->sign == $hash){
                 $factura = Factura::where('codigo', substr($request->reference_sale, 4))->first();
 
-                if($factura->estatus == 1){
+                if($factura && $factura->estatus == 1){
                     $empresa = Empresa::find($factura->empresa);
                     $nro = Numeracion::where('empresa', $empresa->id)->first();
                     $caja = $nro->caja;
@@ -3241,7 +3249,7 @@ class CronController extends Controller
                     $factura = Factura::where('codigo', $request->x_description)->first();
                 }
 
-                if($factura->estatus == 1){
+                if($factura && $factura->estatus == 1){
                     $empresa = Empresa::find($factura->empresa);
                     $nro = Numeracion::where('empresa', $empresa->id)->first();
                     $caja = $nro->caja;
@@ -3475,7 +3483,7 @@ class CronController extends Controller
             if (!$factura) {
                 $factura = Factura::where('codigo', substr($request->invoice_number, 4))->first();
             }
-            if($factura->estatus == 1){
+            if($factura && $factura->estatus == 1){
 
                 $empresa = Empresa::find($factura->empresa);
                 $nro = Numeracion::where('empresa', $empresa->id)->first();
@@ -3713,7 +3721,7 @@ class CronController extends Controller
 
             $factura = Factura::where('codigo','LIKE', '%' . $codigoFactura . '%')->first();
 
-            if($factura->estatus == 1){
+            if($factura && $factura->estatus == 1){
                 $empresa = Empresa::find($factura->empresa);
                 $nro = Numeracion::where('empresa', $empresa->id)->first();
                 $caja = $nro->caja;
