@@ -7210,7 +7210,7 @@ class FacturasController extends Controller{
                       ->orWhere('cs2.fecha_corte', $request->corte);
             });
         }
-        if($request->fact_siigo){
+        if($request->fact_siigo && is_array($request->fact_siigo)){
             if(in_array('1', $request->fact_siigo) && in_array('0', $request->fact_siigo)){
             } elseif(in_array('1', $request->fact_siigo)){
                 $facturas->whereNotNull('factura.siigo_id');
@@ -7218,12 +7218,12 @@ class FacturasController extends Controller{
                 $facturas->whereNull('factura.siigo_id');
             }
         }
-        if($request->creacion!=null){
+        if($request->creacion!=null && $request->creacion != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('factura.fecha', $request->creacion);
             });
         }
-        if($request->vencimiento!=null){
+        if($request->vencimiento!=null && $request->vencimiento != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('factura.vencimiento', $request->vencimiento);
             });
@@ -7251,23 +7251,23 @@ class FacturasController extends Controller{
                 }
             });
         }
-        if($request->municipio!=null){
+        if($request->municipio!=null && $request->municipio != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('c.fk_idmunicipio', $request->municipio);
             });
         }
-        if($request->barrio!=null){
+        if($request->barrio!=null && $request->barrio != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('c.barrio_id', $request->barrio);
             });
         }
-        if($request->servidor!=null){
+        if($request->servidor!=null && $request->servidor != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->where('cs1.server_configuration_id', $request->servidor)
                       ->orWhere('cs2.server_configuration_id', $request->servidor);
             });
         }
-        if($request->grupos_corte!=null){
+        if($request->grupos_corte!=null && is_array($request->grupos_corte)){
             $facturas->where(function ($query) use ($request) {
                 $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
                       ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
