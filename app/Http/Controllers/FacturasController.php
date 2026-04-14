@@ -7056,6 +7056,8 @@ class FacturasController extends Controller{
     }
 
     public function exportar(Request $request){
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas de Ventas";
@@ -7178,22 +7180,42 @@ class FacturasController extends Controller{
             }
         }
 
-        $facturas = $facturas->get();
-        $moneda = auth()->user()->empresa()->moneda;
+        // Optimizamos con Eager Loading para evitar N+1
+        $facturas = $facturas->with(['itemsFactura', 'clienteObj', 'vendedorObj'])->get();
+        $empresa = auth()->user()->empresa();
+        $moneda = $empresa->moneda;
+        $precision = $empresa->precision;
+        $sep_dec = $empresa->sep_dec;
+        $sep_mil = ($sep_dec == '.' ? ',' : '.');
 
         foreach ($facturas as $factura) {
 
+            // Calculamos el total una sola vez para evitar múltiples consultas internas
             $total = $factura->total();
+
+            // Calculamos los impuestos totales usando el objeto $total ya obtenido
+            $impuestos_totales = 0;
+            if (isset($total->imp)) {
+                foreach ($total->imp as $value) {
+                    if ($value->tipo == 1) {
+                        $impuestos_totales += $value->total;
+                    }
+                }
+            }
+
+            $nombre_cliente = $factura->nombrecliente . ' ' . $factura->ape1cliente . ' ' . $factura->ape2cliente;
+            $identificacion_cliente = ($factura->clienteObj) ? $factura->clienteObj->tip_iden('true') . ' ' . $factura->nitcliente : $factura->nitcliente;
+
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0].$i, $factura->codigo)
                 ->setCellValue($letras[1].$i, date('d-m-Y', strtotime($factura->fecha)))
-                ->setCellValue($letras[2].$i, $factura->nombrecliente.' '.$factura->ape1cliente.' '.$factura->ape2cliente)
-                ->setCellValue($letras[3].$i, $factura->cliente()->tip_iden('true').' '.$factura->nitcliente)
-                ->setCellValue($letras[4].$i, $moneda.' '.$factura->parsear(($total->subtotal)))
-                ->setCellValue($letras[5].$i, $moneda.' '.$factura->parsear(($factura->impuestos_totales())))
-                ->setCellValue($letras[6].$i, $moneda.' '.$factura->parsear(($total->total)))
-                ->setCellValue($letras[7].$i, $moneda.' '.$factura->parsear(($factura->pagado)))
-                ->setCellValue($letras[8].$i, $moneda.' '.$factura->parsear(($factura->porpagar)))
+                ->setCellValue($letras[2].$i, $nombre_cliente)
+                ->setCellValue($letras[3].$i, $identificacion_cliente)
+                ->setCellValue($letras[4].$i, $moneda.' '.number_format($total->subtotal, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[5].$i, $moneda.' '.number_format($impuestos_totales, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[6].$i, $moneda.' '.number_format($total->total, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[7].$i, $moneda.' '.number_format($factura->pagado, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[8].$i, $moneda.' '.number_format($factura->porpagar, $precision, $sep_dec, $sep_mil))
                 ->setCellValue($letras[9].$i, ($factura->cuenta_id) ?$factura->formaPago()->nombre:'');
             $i++;
         }
