@@ -34,18 +34,27 @@ function saldoContacto(id){
         success: function(data) {
             data = JSON.parse(data);
 
-            $('#total_saldo').val(data[0]['saldo_favor']);
-            $("#saldofavorcliente").val(data[0]['saldo_favor']);
+            if (Array.isArray(data)) {
+                data = data[0];
+            }
 
-            if(data[0]['saldo_favor']){
+            if (!data) {
+                return;
+            }
+
+            $('#total_saldo').val(data['saldo_favor']);
+            $("#saldofavorcliente").val(data['saldo_favor']);
+
+            if(data['saldo_favor']){
                 $("#saldo123").removeClass('d-none');
-                $("#total_saldo").val(data[0]['saldo_favor']);
+                $("#total_saldo").val(data['saldo_favor']);
                 $("#divusarsaldo").removeClass('d-none');
             }else{
                 $("#divusarsaldo").addClass('d-none');
+                $("#saldo123").addClass('d-none');
             }
-            let opcion = data[0]['contrato'];
-            let opcionEmision = data[0]['boton_emision'];
+            let opcion = data['contrato'];
+            let opcionEmision = data['boton_emision'];
             if(opcionEmision == 0){
               $("#form-ingresos-electronica").addClass('d-none');
             }else{

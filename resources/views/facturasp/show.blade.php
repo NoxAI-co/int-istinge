@@ -52,6 +52,10 @@
 						<th>Observación</th>
 						<td>{{$factura->observaciones}}</td>
 					</tr>
+          <tr>
+						<th>Notas</th>
+						<td>{{$factura->notas}}</td>
+					</tr>
 					<tr>
 						<th>Bodega</th>
 						<td>{{$factura->bodega()}}</td>
