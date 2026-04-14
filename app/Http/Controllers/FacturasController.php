@@ -7119,14 +7119,80 @@ class FacturasController extends Controller{
 
         $i=4;
         $letra=0;
+        $user = auth()->user();
+        $identificadorEmpresa = $user->empresa;
 
         $facturas = Factura::query()
             ->join('contactos as c', 'factura.cliente', '=', 'c.id')
+            ->join('empresas as em', 'em.id', '=', 'factura.empresa')
             ->join('items_factura as if', 'factura.id', '=', 'if.factura')
-            ->leftJoin('contracts as cs', 'c.id', '=', 'cs.client_id')
             ->leftJoin('vendedores as v', 'factura.vendedor', '=', 'v.id')
-            ->select('factura.tipo','factura.promesa_pago','factura.id', 'factura.correo', 'factura.mensaje', 'factura.codigo', 'factura.nro', DB::raw('c.nombre as nombrecliente'), DB::raw('c.apellido1 as ape1cliente'), DB::raw('c.apellido2 as ape2cliente'), DB::raw('c.email as emailcliente'), DB::raw('c.celular as celularcliente'), DB::raw('c.nit as nitcliente'), 'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.vendedor','factura.emitida', DB::raw('v.nombre as nombrevendedor'),DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'), DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),         DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar'))
+            ->leftJoin('barrios as barrio','barrio.id','c.barrio_id')
+            ->leftJoin(
+                DB::raw('
+                    (SELECT factura_id, contrato_nro
+                     FROM (
+                         SELECT fc.factura_id, fc.contrato_nro, ROW_NUMBER() OVER (PARTITION BY fc.factura_id ORDER BY fc.id ASC) AS rn
+                         FROM facturas_contratos fc
+                     ) ranked
+                     WHERE ranked.rn = 1
+                    ) as fc
+                '),
+                'factura.id', '=', 'fc.factura_id'
+            )
+            ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
+            ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
+            ->select(
+                'factura.tipo',
+                'factura.promesa_pago',
+                'factura.id',
+                'factura.correo',
+                'factura.mensaje',
+                'factura.codigo',
+                'factura.nro',
+                'factura.cliente',
+                'factura.fecha',
+                'factura.vencimiento',
+                'factura.estatus',
+                'factura.vendedor',
+                'factura.emitida',
+                'factura.cuenta_id',
+                DB::raw('c.nombre as nombrecliente'),
+                DB::raw('c.apellido1 as ape1cliente'),
+                DB::raw('c.apellido2 as ape2cliente'),
+                DB::raw('c.email as emailcliente'),
+                DB::raw('c.celular as celularcliente'),
+                DB::raw('c.nit as nitcliente'),
+                DB::raw('v.nombre as nombrevendedor'),
+                DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'),
+                DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),
+                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar')
+            )
             ->groupBy('factura.id');
+
+        // Filtro por servidores del usuario
+        if ($user->servidores->count() > 0) {
+            $servers = $user->servidores->pluck('id')->toArray();
+            $facturas->where(function ($query) use ($servers) {
+                $query->whereIn('cs1.server_configuration_id', $servers)
+                      ->orWhereIn('cs2.server_configuration_id', $servers)
+                      ->orWhere(function ($q) use ($servers) {
+                          $q->where(function ($notInServers) use ($servers) {
+                              $notInServers->whereNotIn('cs1.server_configuration_id', $servers)
+                                          ->orWhereNull('cs1.server_configuration_id');
+                          })->where(function ($notInServers2) use ($servers) {
+                              $notInServers2->whereNotIn('cs2.server_configuration_id', $servers)
+                                           ->orWhereNull('cs2.server_configuration_id');
+                          })->where(function ($hasTv) {
+                              $hasTv->whereNotNull('cs1.servicio_tv')
+                                    ->orWhereNotNull('cs2.servicio_tv');
+                          });
+                      })
+                      ->orWhere(function ($q) {
+                          $q->whereNull('cs1.id')->whereNull('cs2.id');
+                      });
+            });
+        }
 
         if($request->codigo!=null){
             $facturas->where(function ($query) use ($request) {
@@ -7140,8 +7206,17 @@ class FacturasController extends Controller{
         }
         if($request->corte!=null){
             $facturas->where(function ($query) use ($request) {
-                $query->orWhere('cs.fecha_corte', $request->corte);
+                $query->where('cs1.fecha_corte', $request->corte)
+                      ->orWhere('cs2.fecha_corte', $request->corte);
             });
+        }
+        if($request->fact_siigo){
+            if(in_array('1', $request->fact_siigo) && in_array('0', $request->fact_siigo)){
+            } elseif(in_array('1', $request->fact_siigo)){
+                $facturas->whereNotNull('factura.siigo_id');
+            } elseif(in_array('0', $request->fact_siigo)){
+                $facturas->whereNull('factura.siigo_id');
+            }
         }
         if($request->creacion!=null){
             $facturas->where(function ($query) use ($request) {
@@ -7167,11 +7242,102 @@ class FacturasController extends Controller{
                 $query->orWhere('factura.estatus', $request->estado);
             });
         }
+        if($request->correo && is_array($request->correo) && count($request->correo) > 0){
+            $correoValues = $request->correo;
+            $facturas->where(function ($query) use ($correoValues) {
+                $query->whereIn('factura.correo', $correoValues);
+                if(in_array('0', $correoValues)){
+                    $query->orWhereNull('factura.correo');
+                }
+            });
+        }
         if($request->municipio!=null){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('c.fk_idmunicipio', $request->municipio);
             });
         }
+        if($request->barrio!=null){
+            $facturas->where(function ($query) use ($request) {
+                $query->orWhere('c.barrio_id', $request->barrio);
+            });
+        }
+        if($request->servidor!=null){
+            $facturas->where(function ($query) use ($request) {
+                $query->where('cs1.server_configuration_id', $request->servidor)
+                      ->orWhere('cs2.server_configuration_id', $request->servidor);
+            });
+        }
+        if($request->grupos_corte!=null){
+            $facturas->where(function ($query) use ($request) {
+                $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
+                      ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+            });
+        }
+        if($request->emision != null){
+            $facturas->where(function ($query) use ($request) {
+                if($request->emision == 1){
+                    $query->orWhere('factura.emitida', 1);
+                }else if($request->emision == 0){
+                    $query->orWhere('factura.emitida', 0);
+                }
+                else{
+                    $query->orWhere('factura.emitida', 0)->whereNotNull('factura.dian_response')->where('factura.dian_response', '!=', '');
+                }
+            });
+        }
+        if ($request->desde) {
+            $facturas->where('factura.fecha', '>=', $request->desde);
+        }
+        if ($request->hasta) {
+            $facturas->where('factura.fecha', '<=', $request->hasta);
+        }
+        if ($request->otras_opciones == 'ultimas_contratos') {
+            $ultimasFacturasIds = DB::table('facturas_contratos as fc1')
+                ->select(DB::raw('MAX(fc1.factura_id) as factura_id'))
+                ->whereIn('fc1.factura_id', function($query) use ($identificadorEmpresa, $request) {
+                    $query->select('id')
+                        ->from('factura')
+                        ->where('empresa', $identificadorEmpresa)
+                        ->where('tipo', $request->tipo)
+                        ->where('lectura', 1);
+                })
+                ->groupBy('fc1.contrato_nro')
+                ->pluck('factura_id')
+                ->toArray();
+
+            if (!empty($ultimasFacturasIds)) {
+                $facturas->whereIn('factura.id', $ultimasFacturasIds);
+            } else {
+                $facturas->where('factura.id', '=', 0);
+            }
+        }
+        if ($request->otras_opciones == 'clientes_multiples_facturas') {
+            $clientesMultiplesIds = DB::table('factura')
+                ->select('cliente')
+                ->where('empresa', $identificadorEmpresa)
+                ->where('tipo', $request->tipo)
+                ->where('lectura', 1);
+
+            if ($request->desde) {
+                $clientesMultiplesIds->where('fecha', '>=', $request->desde);
+            }
+            if ($request->hasta) {
+                $clientesMultiplesIds->where('fecha', '<=', $request->hasta);
+            }
+
+            $clientesMultiplesIds = $clientesMultiplesIds
+                ->groupBy('cliente')
+                ->havingRaw('COUNT(*) >= 2')
+                ->pluck('cliente')
+                ->toArray();
+
+            if (!empty($clientesMultiplesIds)) {
+                $facturas->whereIn('factura.cliente', $clientesMultiplesIds);
+            } else {
+                $facturas->where('factura.id', '=', 0);
+            }
+        }
+
         $facturas->where('factura.tipo', $request->tipo)->where('factura.lectura',1);
 
         if(Auth::user()->empresa()->oficina){
