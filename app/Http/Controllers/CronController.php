@@ -1058,6 +1058,14 @@ class CronController extends Controller
 
                 $factura = Factura::find($contacto->factura);
 
+                // Saltar facturas cerradas con nota crédito por el valor total
+                if ($factura && $factura->devoluciones() > 0) {
+                    $totalFactura = $factura->total()->total ?? 0;
+                    if ($totalFactura > 0 && $factura->devoluciones() >= $totalFactura) {
+                        continue;
+                    }
+                }
+
                 //ESto es lo que hay que refactorizar.
                 $facturaContratos = DB::table('facturas_contratos')
                 ->where('factura_id',$factura->id)
@@ -1455,6 +1463,14 @@ class CronController extends Controller
 
                 $factura = Factura::find($contacto->factura);
 
+                // Saltar facturas cerradas con nota crédito por el valor total
+                if ($factura && $factura->devoluciones() > 0) {
+                    $totalFactura = $factura->total()->total ?? 0;
+                    if ($totalFactura > 0 && $factura->devoluciones() >= $totalFactura) {
+                        continue;
+                    }
+                }
+
                 //ESto es lo que hay que refactorizar.
                 $facturaContratos = DB::table('facturas_contratos')
                 ->where('factura_id',$factura->id)
@@ -1837,6 +1853,14 @@ class CronController extends Controller
                     //** Fin desarrollo nuevo
 
                     $factura = Factura::find($contacto->factura);
+
+                    // Saltar facturas cerradas con nota crédito por el valor total
+                    if ($factura && $factura->devoluciones() > 0) {
+                        $totalFactura = $factura->total()->total ?? 0;
+                        if ($totalFactura > 0 && $factura->devoluciones() >= $totalFactura) {
+                            continue;
+                        }
+                    }
 
                     //ESto es lo que hay que refactorizar.
                     $facturaContratos = DB::table('facturas_contratos')
