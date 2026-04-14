@@ -1908,7 +1908,7 @@ class FacturasController extends Controller{
         $user = Auth::user();
         $nro = false;
         $contrato = false;
-        $num = Factura::where('empresa',1)->orderby('nro','asc')->get()->last();
+        $num = Factura::where('empresa',$user->empresa)->orderby('nro','asc')->get()->last();
 
         //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
         if(!isset($request->electronica)){
@@ -6535,7 +6535,7 @@ class FacturasController extends Controller{
                 ];
             }
 
-            $num = Factura::where('empresa', 1)->orderBy('nro', 'asc')->get()->last();
+            $num = Factura::where('empresa', Auth::user()->empresa)->orderBy('nro', 'asc')->get()->last();
             $numero = $num ? $num->nro + 1 : 1;
 
             $nro = NumeracionFactura::where('empresa', Auth::user()->empresa)
@@ -6566,7 +6566,7 @@ class FacturasController extends Controller{
 
             $factura->codigo = $nro->prefijo . $inicio;
 
-            $codigoUsado = Factura::where('empresa', 1)
+            $codigoUsado = Factura::where('empresa', Auth::user()->empresa)
             ->where('codigo', $factura->codigo)
             ->where('id', '!=', $facturaId)
             ->where('numeracion', $nro->id)
@@ -6586,8 +6586,7 @@ class FacturasController extends Controller{
 
             }
 
-            // Guardar código anterior antes de actualizar
-            $codigoAnterior = $factura->codigo;
+
 
             $vencimientoOriginal = Carbon::parse($factura->vencimiento);
             $suspensionOriginal = $factura->suspension ? Carbon::parse($factura->suspension) : null;

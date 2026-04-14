@@ -484,8 +484,18 @@ class IngresosController extends Controller
                         if(isset($request->tipo_electronica) && $request->tipo_electronica == 1){
 
                             //primero recuperamos
-                            $nro=NumeracionFactura::where('empresa',1)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
                             $inicio = $nro->inicio;
+
+                            $codigoUsado = Factura::where('empresa', $user->empresa)
+                            ->where('codigo', $nro->prefijo.$inicio)
+                            ->where('id', '!=', $factura->id)
+                            ->where('numeracion', $nro->id)
+                            ->first();
+
+                            if($codigoUsado){
+                                return back()->with('danger', 'Revisar la ultima factura del segmento y modificar la numeracion. Razon: Codigo duplicado ('.$nro->prefijo.$inicio.')');
+                            }
 
                             if($factura->tipo != 2 && $request->precio[$key] > 0)
                             {
