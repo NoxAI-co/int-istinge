@@ -2429,11 +2429,13 @@ class IngresosController extends Controller
             // Obtener el contrato correcto desde la factura asociada al ingreso
             $contratoNro = null;
             $direccionMostrar = null; // NUEVA VARIABLE
+            $saldo_inicial = 0;
 
             if ($ingreso->tipo == 1) {
                 $primeraFactura = IngresosFactura::where('ingreso', $ingreso->id)->first();
 
                 if ($primeraFactura) {
+                    $factura = Factura::find($primeraFactura->factura);
                     // Opción 1: Buscar en la tabla facturas_contratos
                     $contratoRelacion = DB::table('facturas_contratos')
                         ->where('factura_id', $primeraFactura->factura)
@@ -2446,14 +2448,48 @@ class IngresosController extends Controller
                         if ($contratoObj) {
                             $direccionMostrar = $contratoObj->address_street ?? $contratoObj->direccion_instalacion ?? null;
                         }
+
+                        // Cálculo de Saldo Inicial sin filtro de vencimiento: 
+                        // Incluir facturas de venta (estándar y electrónicas), abiertas, con contrato y sin pagos previos.
+                        if ($factura) {
+                            $facturasContratoIds = DB::table('facturas_contratos')
+                                ->where('contrato_nro', $contratoNro)
+                                ->pluck('factura_id');
+
+                            $sumatoria = Factura::whereIn('id', $facturasContratoIds)
+                                ->where('tipo', 1) // Facturas de venta (Estándar/Electrónica)
+                                ->where('estatus', 1) // Abiertas
+                                ->get()
+                                ->filter(function($f) {
+                                    return $f->pagado() == 0; // Sin pagos previos
+                                })
+                                ->sum(function($f) {
+                                    return $f->porpagar();
+                                });
+                            
+                            $saldo_inicial = $sumatoria + $ingreso->pago();
+                        }
                     } else {
                         // Opción 2: Buscar desde el contrato_id directo de la factura
-                        $factura = Factura::find($primeraFactura->factura);
                         if ($factura && $factura->contrato_id) {
                             $contrato = Contrato::find($factura->contrato_id);
                             if ($contrato) {
                                 $contratoNro = $contrato->nro;
                                 $direccionMostrar = $contrato->address_street ?? $contrato->direccion_instalacion ?? null;
+
+                                // Cálculo de Saldo Inicial sin filtro de vencimiento (Opción 2)
+                                $sumatoria = Factura::where('contrato_id', $factura->contrato_id)
+                                    ->where('tipo', 1)
+                                    ->where('estatus', 1)
+                                    ->get()
+                                    ->filter(function($f) {
+                                        return $f->pagado() == 0;
+                                    })
+                                    ->sum(function($f) {
+                                        return $f->porpagar();
+                                    });
+                                
+                                $saldo_inicial = $sumatoria + $ingreso->pago();
                             }
                         }
                     }
@@ -2469,11 +2505,11 @@ class IngresosController extends Controller
 
             if ($ingreso->valor_anticipo > 0) {
                 $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla_anticipo', compact(
-                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar'
+                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar', 'saldo_inicial'
                 ));
             } else {
                 $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact(
-                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar'
+                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar', 'saldo_inicial'
                 ));
             }
 

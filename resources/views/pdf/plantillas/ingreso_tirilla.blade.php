@@ -144,6 +144,9 @@
             <span class="label">Hora:</span> <span class="value">{{date('H:i',strtotime($ingreso->created_at))}}</span> <br>
             <span class="label">Cuenta:</span> <span class="value">{{ $ingreso->cuenta()->nombre }}</span><br>
             <span class="label">Método de Pago:</span> <span class="value">{{ $ingreso->metodo_pago() }}</span><br>
+            @if(isset($saldo_inicial) && $saldo_inicial > 0)
+            <span class="label">Saldo Inicial:</span> <span class="value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($saldo_inicial)}}</span><br>
+            @endif
             @if(isset(Auth::user()->empresa()->periodo_tirilla) && Auth::user()->empresa()->periodo_tirilla == 1)
             <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobradoTexto()}}</span><br>
             @endif
