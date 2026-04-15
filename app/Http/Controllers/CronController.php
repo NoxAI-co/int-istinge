@@ -30,6 +30,7 @@ use App\Plantilla;
 use Auth;
 use App\Vendedor;
 use App\Services\EmisionesService;
+use App\Services\OnePayService;
 
 include_once(app_path() .'/../public/routeros_api.class.php');
 use RouterosAPI;
@@ -6492,5 +6493,109 @@ class CronController extends Controller
                 return Carbon::now()->format('Y-m-d');
             }
         }
+    }
+
+    // ============================================================
+    // SINCRONIZACIÓN MASIVA DE FACTURAS CON ONEPAY
+    // URL: GET /sincronizar-onepay?desde=2025-01-01&hasta=2025-12-31
+    // ============================================================
+    public function CrearFacturasOnePay(Request $request)
+    {
+        ini_set('max_execution_time', 600);
+
+        // --- Parámetros de fechas ---
+        $desde = $request->query('desde');
+        $hasta = $request->query('hasta');
+
+        if (!$desde || !$hasta) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes indicar los parámetros "desde" y "hasta" con formato Y-m-d. ' .
+                             'Ejemplo: /sincronizar-onepay?desde=2025-01-01&hasta=2025-12-31',
+            ], 422);
+        }
+
+        // Validar formato Y-m-d
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El formato de fecha debe ser Y-m-d (ej: 2025-01-01)',
+            ], 422);
+        }
+
+        $empresa = Empresa::find(1);
+
+        if (!OnePayService::isEnabled($empresa->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OnePay no está habilitado para esta empresa. Verifica la integración en Configuración.',
+            ], 400);
+        }
+
+        // --- Consulta de facturas candidatas ---
+        // Criterios:
+        //   1. fecha BETWEEN $desde AND $hasta
+        //   2. estatus = 1 (abiertas)
+        //   3. onepay_invoice_id IS NULL o vacío
+        $facturas = Factura::where('empresa', $empresa->id)
+            ->where('estatus', 1)
+            ->where(function ($q) {
+                $q->whereNull('onepay_invoice_id')
+                  ->orWhere('onepay_invoice_id', '');
+            })
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->orderBy('fecha', 'asc')
+            ->get();
+
+        if ($facturas->isEmpty()) {
+            return response()->json([
+                'success'  => true,
+                'message'  => "No se encontraron facturas abiertas sin OnePay ID en el rango $desde → $hasta.",
+                'total'    => 0,
+                'enviadas' => 0,
+                'errores'  => 0,
+                'detalle'  => [],
+            ]);
+        }
+
+        $onePayService = new OnePayService($empresa->id);
+
+        $enviadas = 0;
+        $errores  = 0;
+        $detalle  = [];
+
+        foreach ($facturas as $factura) {
+            try {
+                $onePayService->createInvoice($factura, $empresa->id);
+                $enviadas++;
+                $detalle[] = [
+                    'factura_id' => $factura->id,
+                    'codigo'     => $factura->codigo,
+                    'fecha'      => $factura->fecha,
+                    'status'     => 'ok',
+                    'onepay_id'  => $factura->fresh()->onepay_invoice_id,
+                ];
+            } catch (\Exception $e) {
+                $errores++;
+                $detalle[] = [
+                    'factura_id' => $factura->id,
+                    'codigo'     => $factura->codigo,
+                    'fecha'      => $factura->fecha,
+                    'status'     => 'error',
+                    'mensaje'    => $e->getMessage(),
+                ];
+                Log::error('CrearFacturasOnePay: Error en factura ' . $factura->id . ': ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success'  => true,
+            'message'  => "Proceso completado. $enviadas factura(s) enviadas a OnePay, $errores con error.",
+            'rango'    => "$desde → $hasta",
+            'total'    => $facturas->count(),
+            'enviadas' => $enviadas,
+            'errores'  => $errores,
+            'detalle'  => $detalle,
+        ]);
     }
 }
