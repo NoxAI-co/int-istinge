@@ -2862,13 +2862,17 @@ class CronController extends Controller
                     $caja++;
                 }
 
-                $banco = Banco::where('nombre', 'ONEPAY')->where('estatus', 1)->where('lectura', 1)->first();
+                $banco = Banco::where('nombre', 'ONEPAY')->where('estatus', 1)->where('lectura', 1)
+                ->orWhere('nombre', 'INTEGRAPAY')->where('estatus', 1)->where('lectura', 1)
+                ->first();
 
                 // Si no existe el banco ONEPAY, crearlo o usar uno genérico
                 if(!$banco){
                     // Buscar cualquier banco activo como fallback
                     $banco = Banco::where('empresa', $empresa->id)->where('estatus', 1)->first();
                 }
+
+                $pasarela = $banco->nombre == 'ONEPAY' ? 'OnePay' : 'IntegraPay';
 
                 # REGISTRAMOS EL INGRESO
                 $ingreso                = new Ingreso;
@@ -2879,7 +2883,7 @@ class CronController extends Controller
                 $ingreso->metodo_pago   = 9;
                 $ingreso->tipo          = 1;
                 $ingreso->fecha         = date('Y-m-d');
-                $ingreso->observaciones = 'Pago OnePay ID: '.$paymentId;
+                $ingreso->observaciones = 'Pago '.$pasarela.' ID: '.$paymentId;
                 $ingreso->save();
 
                 # REGISTRAMOS EL INGRESO_FACTURA
@@ -2922,7 +2926,7 @@ class CronController extends Controller
                 $movimiento = new MovimientoLOG();
                 $movimiento->contrato = $factura->id;
                 $movimiento->modulo = 8; // Módulo de facturas
-                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Pago recibido</b> mediante OnePay por valor de '.Funcion::ParsearAPI($precioPagado, $empresa->id).' - ID: '.$paymentId;
+                $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Pago recibido</b> mediante '.$pasarela.' por valor de '.Funcion::ParsearAPI($precioPagado, $empresa->id).' - ID: '.$paymentId;
                 $movimiento->created_by = null; // Sistema
                 $movimiento->empresa = $empresa->id;
                 $movimiento->save();

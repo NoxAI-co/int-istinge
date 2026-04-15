@@ -19,7 +19,7 @@ class OnePayService
     public function __construct($empresaId = null)
     {
         // Obtener la integración de OnePay
-        $servicio = Integracion::where('nombre', 'ONEPAY')
+        $servicio = Integracion::whereIn('nombre', ['ONEPAY', 'INTEGRAPAY'])
             ->where('tipo', 'PASARELA')
             ->where('lectura', 1)
             ->where('status', 1)
@@ -127,25 +127,25 @@ class OnePayService
 
                 // Registrar log de éxito
                 $montoFormateado = Funcion::ParsearAPI($amount/100, $empresaId);
-                $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura creada en OnePay</b> exitosamente. ID OnePay: <b>' . ($responseData['id'] ?? 'N/A') . '</b>. Monto: <b>' . $montoFormateado . '</b>';
+                $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura creada en Integra Pay</b> exitosamente. ID Integra Pay: <b>' . ($responseData['id'] ?? 'N/A') . '</b>. Monto: <b>' . $montoFormateado . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
                 return $responseData;
             } else {
                 $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
-                Log::error('OnePay API Error: ' . $errorMessage, ['response' => $responseData]);
+                Log::error('Integra Pay API Error: ' . $errorMessage, ['response' => $responseData]);
 
                 // Registrar log de error
-                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al crear factura en OnePay</b>: ' . $errorMessage;
+                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al crear factura en Integra Pay</b>: ' . $errorMessage;
                 $this->registrarLogFactura($factura, $descripcion, true);
 
-                throw new \Exception('Error al crear factura en OnePay: ' . $errorMessage);
+                throw new \Exception('Error al crear factura en Integra Pay: ' . $errorMessage);
             }
         } catch (\Exception $e) {
-            Log::error('OnePay createInvoice Exception: ' . $e->getMessage());
+            Log::error('Integra Pay createInvoice Exception: ' . $e->getMessage());
 
             // Registrar log de error en la excepción
-            $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al crear factura en OnePay</b>: ' . $e->getMessage();
+            $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al crear factura en Integra Pay</b>: ' . $e->getMessage();
             $this->registrarLogFactura($factura, $descripcion, true);
 
             throw $e;
@@ -216,8 +216,8 @@ class OnePayService
             curl_close($curl);
 
             if ($error) {
-                Log::error('OnePay Error: ' . $error);
-                throw new \Exception('Error en la conexión con OnePay: ' . $error);
+                Log::error('In  tegra Pay Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
             }
 
             $responseData = json_decode($response, true);
@@ -237,19 +237,19 @@ class OnePayService
                 return $responseData;
             } else {
                 $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
-                Log::error('OnePay API Error: ' . $errorMessage, ['response' => $responseData]);
+                Log::error('Integra Pay API Error: ' . $errorMessage, ['response' => $responseData]);
 
                 // Registrar log de error
-                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al actualizar factura en OnePay</b>: ' . $errorMessage;
+                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al actualizar factura en Integra Pay</b>: ' . $errorMessage;
                 $this->registrarLogFactura($factura, $descripcion, true);
 
-                throw new \Exception('Error al actualizar factura en OnePay: ' . $errorMessage);
+                throw new \Exception('Error al actualizar factura en Integra Pay: ' . $errorMessage);
             }
         } catch (\Exception $e) {
-            Log::error('OnePay updateInvoice Exception: ' . $e->getMessage());
+            Log::error('Integra Pay updateInvoice Exception: ' . $e->getMessage());
 
             // Registrar log de error en la excepción
-            $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al actualizar factura en OnePay</b>: ' . $e->getMessage();
+            $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al actualizar factura en Integra Pay</b>: ' . $e->getMessage();
             $this->registrarLogFactura($factura, $descripcion, true);
 
             throw $e;
@@ -295,15 +295,15 @@ class OnePayService
             curl_close($curl);
 
             if ($error) {
-                Log::error('OnePay Error: ' . $error);
-                throw new \Exception('Error en la conexión con OnePay: ' . $error);
+                Log::error('Integra Pay Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
             }
 
             $responseData = json_decode($response, true);
 
             if ($httpCode >= 200 && $httpCode < 300) {
                 // Registrar log de éxito
-                $descripcion = '<i class="fas fa-trash text-warning"></i> <b>Factura eliminada en OnePay</b> exitosamente. Motivo: <b>' . $reason . '</b>';
+                $descripcion = '<i class="fas fa-trash text-warning"></i> <b>Factura eliminada en Integra Pay</b> exitosamente. Motivo: <b>' . $reason . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
                 // Limpiar onepay_invoice_id
@@ -321,19 +321,19 @@ class OnePayService
                     return;
                 }
 
-                Log::error('OnePay API Error: ' . $errorMessage, ['response' => $responseData]);
+                Log::error('Integra Pay API Error: ' . $errorMessage, ['response' => $responseData]);
 
                 // Registrar log de error
-                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al eliminar factura en OnePay</b>: ' . $errorMessage;
+                $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al eliminar factura en Integra Pay</b>: ' . $errorMessage;
                 $this->registrarLogFactura($factura, $descripcion, true);
 
-                throw new \Exception('Error al eliminar factura en OnePay: ' . $errorMessage);
+                throw new \Exception('Error al eliminar factura en Integra Pay: ' . $errorMessage);
             }
         } catch (\Exception $e) {
-            Log::error('OnePay deleteInvoice Exception: ' . $e->getMessage());
+            Log::error('Integra Pay deleteInvoice Exception: ' . $e->getMessage());
 
              // Registrar log de error en la excepción
-             $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al eliminar factura en OnePay</b>: ' . $e->getMessage();
+             $descripcion = '<i class="fas fa-times text-danger"></i> <b>Error al eliminar factura en Integra Pay</b>: ' . $e->getMessage();
              $this->registrarLogFactura($factura, $descripcion, true);
 
             throw $e;
@@ -355,7 +355,7 @@ class OnePayService
             $movimiento->save();
         } catch (\Exception $e) {
             // Si falla el registro del log, solo lo registramos en el log del sistema
-            Log::error('Error al registrar log de factura OnePay: ' . $e->getMessage());
+            Log::error('Error al registrar log de factura Integra Pay: ' . $e->getMessage());
         }
     }
 
@@ -388,7 +388,7 @@ class OnePayService
     {
         try {
             if (!$this->token) {
-                throw new \Exception('No hay token configurado para OnePay');
+                throw new \Exception('No hay token configurado para Integra Pay');
             }
 
             // Construir query params
@@ -448,8 +448,8 @@ class OnePayService
             curl_close($curl);
 
             if ($error) {
-                Log::error('OnePay getInvoices Error: ' . $error);
-                throw new \Exception('Error en la conexión con OnePay: ' . $error);
+                Log::error('Integra Pay getInvoices Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
             }
 
             $responseData = json_decode($response, true);
@@ -458,11 +458,11 @@ class OnePayService
                 return $responseData;
             } else {
                 $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
-                Log::error('OnePay getInvoices API Error: ' . $errorMessage, ['response' => $responseData]);
-                throw new \Exception('Error al obtener facturas de OnePay: ' . $errorMessage);
+                Log::error('Integra Pay getInvoices API Error: ' . $errorMessage, ['response' => $responseData]);
+                throw new \Exception('Error al obtener facturas de Integra Pay: ' . $errorMessage);
             }
         } catch (\Exception $e) {
-            Log::error('OnePay getInvoices Exception: ' . $e->getMessage());
+            Log::error('Integra Pay getInvoices Exception: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -472,7 +472,7 @@ class OnePayService
      */
     public static function isEnabled($empresaId = null)
     {
-        $servicio = Integracion::where('nombre', 'ONEPAY')
+        $servicio = Integracion::whereIn('nombre', ['ONEPAY', 'INTEGRAPAY'])
             ->where('tipo', 'PASARELA')
             ->where('lectura', 1)
             ->where('status', 1)
