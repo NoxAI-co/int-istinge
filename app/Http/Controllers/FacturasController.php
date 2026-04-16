@@ -817,16 +817,48 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
-            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
-                $facturas->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.plan_id', $request->plan)
-                          ->orWhereIn('cs2.plan_id', $request->plan);
-                });
-            }
-            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
-                $facturas->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
-                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $facturas->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
                 });
             }
             if($request->emision != null){
@@ -1221,16 +1253,48 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
-            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
-                $facturas->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.plan_id', $request->plan)
-                          ->orWhereIn('cs2.plan_id', $request->plan);
-                });
-            }
-            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
-                $facturas->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
-                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $facturas->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
                 });
             }
             if($request->municipio){
@@ -1472,16 +1536,48 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
-            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
-                $countQuery->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.plan_id', $request->plan)
-                          ->orWhereIn('cs2.plan_id', $request->plan);
-                });
-            }
-            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
-                $countQuery->where(function ($query) use ($request) {
-                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
-                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $countQuery->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
                 });
             }
             if($request->municipio){
