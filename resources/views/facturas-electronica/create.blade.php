@@ -6,39 +6,18 @@
   <div class="alert alert-success" >
     {{Session::get('success')}}
   </div>
-
-  <script type="text/javascript">
-    setTimeout(function(){
-        $('.alert').hide();
-        $('.active_table').attr('class', ' ');
-    }, 5000);
-  </script>
 @endif
 
 @if(Session::has('error'))
   <div class="alert alert-danger" >
     {{Session::get('error')}}
   </div>
-
-  <script type="text/javascript">
-    setTimeout(function(){
-        $('.alert').hide();
-        $('.active_table').attr('class', ' ');
-    }, 5000);
-  </script>
 @endif
 
 @if(Session::has('success-newcontact'))
 <div class="alert alert-success" style="text-align: center;">
   {{Session::get('success-newcontact')}}
 </div>
-
-<script type="text/javascript">
-  setTimeout(function(){
-    $('.alert').hide();
-    $('.active_table').attr('class', ' ');
-  }, 5000);
-</script>
 @endif
 
 <style>
@@ -184,9 +163,9 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Plazo <a><i data-tippy-content="Tiempo maximo para realizar el pago, puedes agregar nuevos plazos haciendo <a href='#'>clíck aquí</a>" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<select name="plazo" id="plazo" class="form-control " title="Seleccione">
+	  				<select name="plazo" id="plazo" class="form-control " title="Seleccione" onchange="calcularFechasElectronica()">
               @foreach($terminos as $termino)
-                <option value="{{$termino->id}}" dias="{{$termino->dias}}">{{$termino->nombre}}</option>
+                <option value="{{$termino->id}}" data-dias="{{$termino->dias}}">{{$termino->nombre}}</option>
               @endforeach
 	  				</select>
 	  			</div>
@@ -306,11 +285,6 @@
              <span aria-hidden="true">&times;</span> </button></div>';
                         echo $alert;
                     @endphp
-                    <script>
-                        setTimeout(function(){
-                            $('#alertInventario').remove();
-                        }, 5000);
-                    </script>
                 @endif
             @endif
         </div>
@@ -532,6 +506,47 @@
       </div>
 
   </form>
+
+  <script>
+    // Base = today, fixed at page load
+    var _fechaBaseHoy = (function() {
+        var hoy = new Date();
+        return new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    })();
+
+    function calcularFechasElectronica() {
+        var selectedOption = document.querySelector('#plazo option:checked');
+        if (!selectedOption) return;
+
+        var nDias = parseInt(selectedOption.getAttribute('data-dias'));
+        if (isNaN(nDias)) return;
+
+        var result = new Date(_fechaBaseHoy);
+        result.setDate(result.getDate() + nDias);
+
+        var yyyy = result.getFullYear();
+        var mm   = String(result.getMonth()+1).padStart(2,'0');
+        var dd   = String(result.getDate()).padStart(2,'0');
+        var iso  = yyyy+'-'+mm+'-'+dd;        // YYYY-MM-DD  (for type="date" inputs)
+        var dmy  = dd+'-'+mm+'-'+yyyy;        // DD-MM-YYYY  (for Gijgo datepicker)
+
+        // Fecha (Gijgo datepicker — needs DD-MM-YYYY)
+        var elF = document.getElementById('fecha');
+        if (elF) {
+            elF.value = dmy;
+            if (typeof $ !== 'undefined' && typeof $.fn.datepicker !== 'undefined') {
+                try { $('#fecha').datepicker().value(dmy); } catch(e) {}
+            }
+        }
+
+        // Vencimiento and Pago Oportuno (type="date" — needs YYYY-MM-DD)
+        var elV = document.getElementById('vencimiento_new');
+        var elP = document.getElementById('pago_oportuno');
+        if (elV) elV.value = iso;
+        if (elP) elP.value = iso;
+    }
+  </script>
+
   <input type="hidden" id="impuestos" value="{{json_encode($impuestos)}}">
   @foreach ($impuestos as $impuesto)
     <input type="hidden" id="hddn_imp_{{$impuesto->id}}" value="{{$impuesto->tipo}}">
@@ -643,6 +658,26 @@
       </div>
   </div>
   {{--/Modal Editar Código Factura  --}}
+
+@endsection
+
+@section('scripts')
+    <script>
+        $(document).ready(function() {
+            // Hiding alerts after 5 seconds
+            setTimeout(function(){
+                $('.alert').hide();
+                $('.active_table').attr('class', ' ');
+            }, 5000);
+
+            // Removing inventory alert after 5 seconds
+            if ($('#alertInventario').length > 0) {
+                setTimeout(function(){
+                    $('#alertInventario').remove();
+                }, 5000);
+            }
+        });
+    </script>
 
     <script>
     function opcionFacturaMes(id){
@@ -816,21 +851,4 @@
     }
     </script>
 
-    <script>
-        $(document).ready(function() {
-            // Al cambiar el plazo, actualizar vencimiento pero dejar pago oportuno manual
-            $('#plazo').on('change', function() {
-                var dias = $('#plazo option:selected').attr('dias');
-                if ($.isNumeric(dias)) {
-                    var fechaBase = $('#fecha').val();
-                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
-                    if (!momentBase.isValid()) {
-                        momentBase = moment(fechaBase, "YYYY-MM-DD");
-                    }
-                    var nuevaFecha = momentBase.add(dias, 'days');
-                    $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
-                }
-            });
-        });
-    </script>
 @endsection

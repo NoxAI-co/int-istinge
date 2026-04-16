@@ -660,25 +660,62 @@
 
     <script>
         $(document).ready(function() {
+            function actualizarFechasCalculadas() {
+                var dias = $('#plazo option:selected').attr('dias');
+                var fechaBase = $('#fecha').val();
+                
+                if ($.isNumeric(dias) && fechaBase) {
+                    var nDias = parseInt(dias);
+                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                    if (!momentBase.isValid()) {
+                        momentBase = moment(fechaBase, "YYYY-MM-DD");
+                    }
+                    
+                    if (momentBase.isValid()) {
+                        var nuevaFecha = momentBase.clone().add(nDias, 'days');
+                        var nuevaFechaFormatted = nuevaFecha.format('YYYY-MM-DD'); 
+                        var nuevaFechaPicker = nuevaFecha.format('DD-MM-YYYY');     
+
+                        // 1. Actualizar Vencimiento
+                        $('#vencimiento_new').val(nuevaFechaFormatted);
+                        actualizarWidgetGijgo('#vencimiento_new', nuevaFechaPicker);
+
+                        // 2. Actualizar Pago Oportuno
+                        $('#pago_oportuno').val(nuevaFechaFormatted);
+                        actualizarWidgetGijgo('#pago_oportuno', nuevaFechaPicker);
+                    }
+                }
+            }
+
+            function actualizarWidgetGijgo(selector, valor) {
+                try {
+                    if (typeof $(selector).datepicker === 'function') {
+                        var picker = $(selector).datepicker();
+                        if (picker && typeof picker.value === 'function') {
+                            picker.value(valor);
+                        }
+                    }
+                } catch (e) { }
+            }
+
             // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
             $('#form-factura').on('submit', function() {
                 $('#vencimiento_new').removeAttr('disabled');
                 $('#fecha').removeAttr('disabled');
             });
 
-            // Al cambiar el plazo, actualizar vencimiento pero dejar pago oportuno manual
+            // Evento change del plazo
             $('#plazo').on('change', function() {
-                var dias = $('#plazo option:selected').attr('dias');
-                if ($.isNumeric(dias)) {
-                    var fechaBase = $('#fecha').val();
-                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
-                    if (!momentBase.isValid()) {
-                        momentBase = moment(fechaBase, "YYYY-MM-DD");
-                    }
-                    var nuevaFecha = momentBase.add(dias, 'days');
-                    $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
-                }
+                actualizarFechasCalculadas();
             });
+
+            // Evento change de la fecha base
+            $('#fecha').on('change', function() {
+                actualizarFechasCalculadas();
+            });
+
+            // Ejecución inicial
+            setTimeout(actualizarFechasCalculadas, 500);
         });
     </script>
 @endsection

@@ -699,36 +699,56 @@
         // Bloqueo de recalculo automático para Pago Oportuno en EDIT
         var valorOriginalPagoOportuno = $('#pago_oportuno').val();
         var valorOriginalVencimiento = $('#vencimiento_new').val();
-        
-        function restaurarOriginales() {
-            if ($('#editfactura').val() == 1) {
-                $('#pago_oportuno').val(valorOriginalPagoOportuno);
-                $('#vencimiento_new').val(valorOriginalVencimiento);
-            }
-        }
 
-        // Restaurar al inicio con un ligero retraso para asegurar que custom.js haya terminado
-        setTimeout(restaurarOriginales, 500);
-
-        // Cuando cambie el plazo, permitimos que se actualice el VENCIMIENTO pero NO el PAGO OPORTUNO
-        $('#plazo').on('change', function() {
+        function actualizarFechasCalculadas() {
             var dias = $('#plazo option:selected').attr('dias');
-            if ($.isNumeric(dias)) {
-                // Para type="date", el valor debe estar en YYYY-MM-DD
-                var fechaBase = $('#fecha').val(); // Si fecha sigue siendo text d-m-Y
+            var fechaBase = $('#fecha').val();
+            
+            if ($.isNumeric(dias) && fechaBase) {
+                var nDias = parseInt(dias);
                 var momentBase = moment(fechaBase, "DD-MM-YYYY");
                 if (!momentBase.isValid()) {
                     momentBase = moment(fechaBase, "YYYY-MM-DD");
                 }
                 
-                var nuevaFecha = momentBase.add(dias, 'days');
-                $('#vencimiento_new').val(nuevaFecha.format('YYYY-MM-DD'));
-                valorOriginalVencimiento = $('#vencimiento_new').val();
+                if (momentBase.isValid()) {
+                    var nuevaFecha = momentBase.clone().add(nDias, 'days');
+                    var nuevaFechaFormatted = nuevaFecha.format('YYYY-MM-DD'); 
+                    var nuevaFechaPicker = nuevaFecha.format('DD-MM-YYYY');     
+
+                    // 1. Actualizar Vencimiento
+                    $('#vencimiento_new').val(nuevaFechaFormatted);
+                    actualizarWidgetGijgo('#vencimiento_new', nuevaFechaPicker);
+
+                    // 2. Actualizar Pago Oportuno
+                    $('#pago_oportuno').val(nuevaFechaFormatted);
+                    actualizarWidgetGijgo('#pago_oportuno', nuevaFechaPicker);
+                    
+                    valorOriginalVencimiento = $('#vencimiento_new').val();
+                    valorOriginalPagoOportuno = $('#pago_oportuno').val();
+                }
             }
-            // Mantenemos el pago oportuno intacto
-            setTimeout(function() {
-                $('#pago_oportuno').val(valorOriginalPagoOportuno);
-            }, 100);
+        }
+
+        function actualizarWidgetGijgo(selector, valor) {
+            try {
+                if (typeof $(selector).datepicker === 'function') {
+                    var picker = $(selector).datepicker();
+                    if (picker && typeof picker.value === 'function') {
+                        picker.value(valor);
+                    }
+                }
+            } catch (e) { }
+        }
+
+        // Evento change del plazo
+        $('#plazo').on('change', function() {
+            actualizarFechasCalculadas();
+        });
+
+        // Evento change de la fecha base
+        $('#fecha').on('change', function() {
+            actualizarFechasCalculadas();
         });
 
         // Si el usuario cambia manualmente el pago oportuno, solo se actualiza ese campo
@@ -740,6 +760,9 @@
         $('#vencimiento_new').on('change', function() {
             valorOriginalVencimiento = $(this).val();
         });
+
+        // Ejecución inicial con un pequeño delay
+        setTimeout(actualizarFechasCalculadas, 500);
     });
 
     var facturaIdCodigo = null;
