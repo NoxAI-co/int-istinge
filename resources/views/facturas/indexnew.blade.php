@@ -161,6 +161,20 @@
                                 @endforeach
 							</select>
 						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="Planes" class="form-control rounded selectpicker" id="plan" name="plan[]" data-size="5" data-live-search="true" multiple>
+								@foreach ($planes as $p)
+									<option value="{{ $p->id }}">{{ $p->name }}</option>
+								@endforeach
+							</select>
+						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="Planes de TV" class="form-control rounded selectpicker" id="plan_tv" name="plan_tv[]" data-size="5" data-live-search="true" multiple>
+								@foreach ($planestv as $ptv)
+									<option value="{{ $ptv->id }}">{{ $ptv->producto }}</option>
+								@endforeach
+							</select>
+						</div>
                         <div class="col-md-2 pl-1 pt-1">
 							<select title="Contrato tipo" class="form-control rounded selectpicker" name="tipo_facturacion" id="tipo_facturacion" multiple data-live-search="true">
 								<option value="1">Estándar</option>
@@ -777,6 +791,8 @@
 			data.estado = $('#estado').val();
 			data.state_contrato = $('#state_contrato').val();
 			data.grupos_corte = $('#grupos_corte').val();
+			data.plan = $('#plan').val();
+			data.plan_tv = $('#plan_tv').val();
 			data.fact_siigo = $('#fact_siigo').val();
 			data.otras_opciones = $('#otras_opciones').val();
 			data.tipo_facturacion = $('#tipo_facturacion').val();
@@ -812,7 +828,7 @@
             }
         });
 
-        $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #state_contrato, #grupos_corte, #fact_siigo, #tipo_facturacion').on('change',function() {
+        $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #servidor, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #tipo_facturacion, #state_contrato, #prorrateo').on('change',function() {
             filtroClickeado = true; // Marcar que se aplicó un filtro por cambio de dropdown
             getDataTable();
             return false;
@@ -1444,6 +1460,8 @@
 		$('#total').val('');
 		$('#estado').val('').selectpicker('refresh');
 		$('#grupos_corte').val('').selectpicker('refresh');
+		$('#plan').val('').selectpicker('refresh');
+		$('#plan_tv').val('').selectpicker('refresh');
 		$('#fact_siigo').val('').selectpicker('refresh');
 		$('#otras_opciones').val('').selectpicker('refresh');
 		$('#tipo_facturacion').val('').selectpicker('refresh');

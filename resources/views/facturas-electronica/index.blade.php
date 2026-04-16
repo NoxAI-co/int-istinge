@@ -207,6 +207,20 @@
                                 @endforeach
 							</select>
 						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="Planes" class="form-control rounded selectpicker" id="plan" name="plan[]" data-size="5" data-live-search="true" multiple>
+								@foreach ($planes as $p)
+									<option value="{{ $p->id }}">{{ $p->name }}</option>
+								@endforeach
+							</select>
+						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="Planes de TV" class="form-control rounded selectpicker" id="plan_tv" name="plan_tv[]" data-size="5" data-live-search="true" multiple>
+								@foreach ($planestv as $ptv)
+									<option value="{{ $ptv->id }}">{{ $ptv->producto }}</option>
+								@endforeach
+							</select>
+						</div>
                         @if ($empresa->token_siigo != null || $empresa->token_siigo != '')
                         <div class="col-md-2 pl-1 pt-1">
 							<select title="¿Envía a siigo?" class="form-control rounded selectpicker" name="fact_siigo" id="fact_siigo" multiple data-live-search="true">
@@ -452,6 +466,8 @@
 			data.fact_siigo = $('#fact_siigo').val();
 			data.emision = $('#emision').val();
 			data.correo = $('#correo').val();
+			data.plan = $('#plan').val();
+			data.plan_tv = $('#plan_tv').val();
 			data.otras_opciones = $('#otras_opciones').val();
 			data.filtro = true;
 		});
@@ -475,7 +491,7 @@
             }
         });
 
-		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
+		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
             getDataTable();
             return false;
         });
@@ -1332,6 +1348,8 @@
 		$('#total').val('');
 		$('#estado').val('').selectpicker('refresh');
 		$('#grupos_corte').val('').selectpicker('refresh');
+		$('#plan').val('').selectpicker('refresh');
+		$('#plan_tv').val('').selectpicker('refresh');
 		$('#fact_siigo').val('').selectpicker('refresh');
 		$('#correo').val('').selectpicker('refresh');
 		$('#otras_opciones').val('').selectpicker('refresh');

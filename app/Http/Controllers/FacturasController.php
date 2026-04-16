@@ -68,6 +68,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
+use App\PlanesVelocidad;
 
 class FacturasController extends Controller{
     use CentralizedWhatsApp;
@@ -480,8 +481,10 @@ class FacturasController extends Controller{
         $municipios = DB::table('municipios')->orderBy('nombre', 'asc')->get();
         $barrios = DB::table('barrios')->orderBy('nombre', 'asc')->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
+        $planes = PlanesVelocidad::where('status', 1)->where('empresa', $empresaActual)->get();
+        $planestv = Inventario::where('empresa', $empresaActual)->where('type', 'like', '%TV%')->where('status', 1)->get();
 
-        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte','empresa'));
+        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte','empresa', 'planes', 'planestv'));
     }
 
     public function indexNew(Request $request, $tipo){
@@ -596,7 +599,10 @@ class FacturasController extends Controller{
 
 
         view()->share(['title' => 'Facturas de Venta Electrónica', 'subseccion' => 'venta-electronica']);
-        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','barrios','grupos_corte','empresa','reporteFaltantes', 'dianFecthSync'));
+        $planes = PlanesVelocidad::where('status', 1)->where('empresa', $empresaActual)->get();
+        $planestv = Inventario::where('empresa', $empresaActual)->where('type', 'like', '%TV%')->where('status', 1)->get();
+
+        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','barrios','grupos_corte','empresa','reporteFaltantes', 'dianFecthSync', 'planes', 'planestv'));
     }
 
     /*
@@ -809,6 +815,18 @@ class FacturasController extends Controller{
                 $facturas->where(function ($query) use ($request) {
                     $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+                });
+            }
+            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                $facturas->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.plan_id', $request->plan)
+                          ->orWhereIn('cs2.plan_id', $request->plan);
+                });
+            }
+            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                $facturas->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
+                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
                 });
             }
             if($request->emision != null){
@@ -1203,6 +1221,18 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
+            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                $facturas->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.plan_id', $request->plan)
+                          ->orWhereIn('cs2.plan_id', $request->plan);
+                });
+            }
+            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                $facturas->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
+                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
+                });
+            }
             if($request->municipio){
                 $facturas->where('c.fk_idmunicipio', $request->municipio);
             }
@@ -1440,6 +1470,18 @@ class FacturasController extends Controller{
                 $countQuery->where(function ($query) use ($request) {
                     $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+                });
+            }
+            if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                $countQuery->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.plan_id', $request->plan)
+                          ->orWhereIn('cs2.plan_id', $request->plan);
+                });
+            }
+            if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                $countQuery->where(function ($query) use ($request) {
+                    $query->whereIn('cs1.servicio_tv', $request->plan_tv)
+                          ->orWhereIn('cs2.servicio_tv', $request->plan_tv);
                 });
             }
             if($request->municipio){
