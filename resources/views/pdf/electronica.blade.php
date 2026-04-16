@@ -1005,7 +1005,7 @@
             @endif
         </div>
         <div style="width: 40%; display: inline-block; text-align:left;">
-            <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://integracolombia.com/assets/images/logoIntegra-simple.png">
+            <!-- <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://integracolombia.com/assets/images/logoIntegra-simple.png"> -->
         </div>
     </div>
 @endsection
