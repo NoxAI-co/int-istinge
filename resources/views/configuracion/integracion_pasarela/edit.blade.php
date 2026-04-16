@@ -196,7 +196,7 @@
                     {{ $servicio->nombre == 'PayU' ? 'API Key' : ''}}
                     {{ $servicio->nombre == 'ePayco' ? 'PUBLIC_KEY' : ''}}
                     {{ $servicio->nombre == 'TopPay' ? 'Llave pública' : ''}}
-                    {{ $servicio->nombre == 'ONEPAY' ? 'appkey' : ''}}
+                    {{ $servicio->nombre == 'ONEPAY' || $servicio->nombre == 'INTEGRAPAY' ? 'appkey' : ''}}
                 <span class="text-danger">*</span></label>
 	            <input type="text" class="form-control" id="api_key" name="api_key"  required="" value="{{$servicio->api_key}}" maxlength="200">
 	            <span class="help-block error">
