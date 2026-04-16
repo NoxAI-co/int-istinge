@@ -340,6 +340,9 @@
                         <br>{{$empresa->web}}
                     @endif
                     <br> <a href="mailto:{{$empresa->email}}" target="_top">{{$empresa->email}}</a>
+                    @if($empresa->responsabilidades->first())
+                        <br>{{$empresa->responsabilidades->first()->responsabilidad}}
+                    @endif
                 </p>
             @endif
         </div>
@@ -414,8 +417,8 @@
                 <td colspan="">{{$factura->ordencompra}}</td>
             </tr>
             <tr>
-                <th class="right smalltd" width="10%">ORDEN DE SERVICIO</th>
-                <td colspan="">{{$factura->ordenservicio}}</td>
+                <th class="right smalltd" width="10%">FORMA PAGO</th>
+                <td colspan="">{{$factura->forma_pago() == 1 ? 'De Contado' : 'Crédito'}}</td>
             </tr>
             <tr>
                 <th class="right smalltd" width="10%">PLAZO</th>

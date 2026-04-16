@@ -909,28 +909,26 @@ class Factura extends Model
     }
 
 
-public function forma_pago()
-{
-    $terminos=TerminosPago::find($this->plazo);
+    public function forma_pago()
+    {
+        $terminos = TerminosPago::find($this->plazo);
 
-    if ($terminos) {
-        if ($terminos->dias > 0) {
+        if ($terminos) {
+            $terminos->nombre = strtolower($terminos->nombre);
+            if ($terminos->dias > 0 || $terminos->nombre == "credito" || $terminos->nombre == "crédito") {
+                //cbc:PaymentMeans/ID  2 = Crédito
+                $formapago = 2;
+            } elseif ($terminos->dias == 0) {
+                //cbc:PaymentMeans/ID  1 = De Contado
+                $formapago = 1;
+            }
+        } else {
+            //-- Si no hay un plazo es por que se escogio manual, y obviamente se va a escoger un fecha futura entonces la forma de pago será a credito
             //cbc:PaymentMeans/ID  2 = Crédito
             $formapago = 2;
         }
-        elseif($terminos->dias == 0)
-        {
-            //cbc:PaymentMeans/ID  1 = De Contado
-            $formapago = 1;
-        }
-    }else
-    {
-        //-- Si no hay un plazo es por que se escogio manual, y obviamente se va a escoger un fecha futura entonces la forma de pago será a credito
-        //cbc:PaymentMeans/ID  2 = Crédito
-        $formapago = 2;
+        return $formapago;
     }
-    return $formapago;
-}
 
     public function itemsFactura()
     {
