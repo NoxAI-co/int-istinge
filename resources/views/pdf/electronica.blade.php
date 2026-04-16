@@ -1001,11 +1001,11 @@
     <div style="width: 100%;height:auto;">
         <div style="width: 60%; display: inline-block; text-align:left;">
             @if(isset($codqr))
-            <img style="width:75%; height:auto; position:absolute; bottom:20px" src="https://gestordepartes.net/images/btw.png">
+            <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://gestordepartes.net/images/btw.png">
             @endif
         </div>
         <div style="width: 40%; display: inline-block; text-align:left;">
-            <img style="width:15%; height:auto; position:absolute; bottom:20px" src="{{asset('images/logo_integra.png')}}">
+            <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://integracolombia.com/assets/images/logoIntegra-simple.png">
         </div>
     </div>
 @endsection
