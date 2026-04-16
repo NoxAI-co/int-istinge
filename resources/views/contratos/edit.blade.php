@@ -966,6 +966,23 @@
                         </div>
                         @endif
 
+                        <div class="form-group col-md-4">
+                            <label class="control-label">Emitir factura a la DIAN al pagar <a><i
+                                        data-tippy-content="La factura que sea pagada en su totalidad se va a convertir a electrónica y emitir a la DIAN automáticamente"
+                                        class="icono far fa-question-circle"></i></a></label>
+                            <div class="d-flex align-items-center">
+                                <label class="switch mb-0">
+                                    <input type="hidden" name="pago_emitir" value="0">
+                                    <input type="checkbox" name="pago_emitir" id="pago_emitir" value="1" {{$contrato->pago_emitir == 1 ? 'checked' : ''}}>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="ml-2" id="pago_emitir_label">{{$contrato->pago_emitir == 1 ? 'Si' : 'No'}}</span>
+                            </div>
+                            <span class="help-block error">
+                                <strong></strong>
+                            </span>
+                        </div>
+
                         <div class="form-group col-md-12">
                             <label class="control-label">Observaciones</label>
                             <textarea class="form-control" name="observaciones" >{{ $contrato->observaciones }}</textarea>
@@ -1231,6 +1248,10 @@
 
             $(document).on('change', '#pago_siigo_contrato', function() {
                 $('#pago_siigo_contrato_label').text($(this).is(':checked') ? 'Si' : 'No');
+            });
+
+            $(document).on('change', '#pago_emitir', function() {
+                $('#pago_emitir_label').text($(this).is(':checked') ? 'Si' : 'No');
             });
 
             $(document).on('change', '#change_cliente', function() {

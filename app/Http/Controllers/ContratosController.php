@@ -1433,6 +1433,11 @@ class ContratosController extends Controller
             } else {
                 $contrato->pago_siigo_contrato = 0;
             }
+            if(isset($request->pago_emitir) && $request->pago_emitir == 1){
+                $contrato->pago_emitir = 1;
+            } else {
+                $contrato->pago_emitir = 0;
+            }
             $contrato->save();
 
             $nro->contrato = $nro_contrato + 1;
@@ -1591,6 +1596,11 @@ class ContratosController extends Controller
             ### DOCUMENTOS ADJUNTOS ###
 
             $contrato->creador = Auth::user()->nombres;
+            if(isset($request->pago_emitir) && $request->pago_emitir == 1){
+                $contrato->pago_emitir = 1;
+            } else {
+                $contrato->pago_emitir = 0;
+            }
             $contrato->save();
 
             $nro->contrato = $nro_contrato + 1;
@@ -1699,6 +1709,7 @@ class ContratosController extends Controller
             'contracts.rd_item_vencimiento',
             'contracts.dt_item_hasta',
             'contracts.pago_siigo_contrato',
+            'contracts.pago_emitir',
             'contracts.cajanap_id',
             'contracts.cajanap_puerto',
             'contracts.prorrateo',
@@ -2453,6 +2464,11 @@ class ContratosController extends Controller
                         $contrato->pago_siigo_contrato = 1;
                     } else {
                         $contrato->pago_siigo_contrato = 0;
+                    }
+                    if(isset($request->pago_emitir) && $request->pago_emitir == 1){
+                        $contrato->pago_emitir = 1;
+                    } else {
+                        $contrato->pago_emitir = 0;
                     }
 
                     $contrato->save();

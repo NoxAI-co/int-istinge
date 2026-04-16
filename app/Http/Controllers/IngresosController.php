@@ -237,8 +237,11 @@ class IngresosController extends Controller
             $numero = 1;
         }
         $contrato = false;
+        $pagoEmitirDian = false;
         if($cliente){
             $contrato = Contrato::where('client_id',$cliente)->first();
+            $pagoEmitirDian = Contrato::where('client_id', $cliente)
+                ->where('pago_emitir', 1)->exists();
         }
 
         //$bancos = Banco::where('empresa',Auth::user()->empresa)->where('estatus', 1)->get();
@@ -271,7 +274,7 @@ class IngresosController extends Controller
 
         return view('ingresos.create')->with(compact('contrato','clientes', 'inventario', 'cliente', 'factura',
         'bancos', 'metodos_pago', 'impuestos', 'saldo_favor',
-        'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones'));
+        'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones','pagoEmitirDian'));
     }
 
     public function saldoContacto($id){
@@ -755,6 +758,31 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
+
+                            // Auto-emisión a la DIAN cuando pago_emitir está activo en el contrato
+                            if($contrato && $contrato->pago_emitir == 1 && $factura->estatus == 0){
+                                // Solo auto-emitir si el usuario NO seleccionó tipo_electronica=2 manualmente (para evitar doble ejecución)
+                                if(!isset($request->tipo_electronica) || $request->tipo_electronica != 2){
+                                    try {
+                                        if($factura->emitida != 1){
+                                            if($factura->tipo == 1){
+                                                app(FacturasController::class)->convertirelEctronica($factura->id, 0, 1);
+                                                $factura->refresh();
+                                            }
+                                            if(isset($empresa->proveedor) && $empresa->proveedor == 2){
+                                                app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
+                                            } else {
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                            }
+                                        }
+                                    } catch (\Throwable $eEmitir) {
+                                        Log::error('Error en auto-emisión DIAN (pago_emitir): ' . $eEmitir->getMessage(), [
+                                            'factura_id' => $factura->id,
+                                            'contrato_id' => $contrato->id,
+                                        ]);
+                                    }
+                                }
+                            }
 
                             // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
                             if ($factura->onepay_invoice_id) {

@@ -38,7 +38,7 @@ class Contrato extends Model
         'updated_at', 'puerto_conexion', 'factura_individual', 'contrato_permanencia', 'contrato_permanencia_meses',
         'costo_reconexion', 'tipo_contrato', 'observaciones','tipo_nosuspension','fecha_hasta_nosuspension','fecha_desde_nosuspension',
         'serial_moden','tipo_moden','descuento_pesos','rd_item_vencimiento','dt_item_hasta','fecha_hasta_desc','cajanap_id',
-        'cajanap_puerto','estrato','olt_sn_mac','precio_personalizado_tv','precio_personalizado_internet'
+        'cajanap_puerto','estrato','olt_sn_mac','precio_personalizado_tv','precio_personalizado_internet','pago_emitir'
     ];
 
     protected $appends = ['status'];
