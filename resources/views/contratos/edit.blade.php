@@ -328,6 +328,26 @@
                                     <option value="estatica" {{$contrato->simple_queue == 'estatica' ? 'selected':''}}>Estática</option>
                                 </select>
                             </div>
+                            <div class="col-md-4 form-group d-none" id="div_name_vlan">
+                                <label class="control-label">Nombre VLAN <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="name_vlan" id="name_vlan" value="{{ $contrato->name_vlan }}">
+                                    <span class="help-block error">
+                                        <strong>{{ $errors->first('name_vlan') }}</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 form-group d-none" id="div_id_vlan">
+                                <label class="control-label">ID VLAN <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="id_vlan" id="id_vlan" min="1" max="4095" value="{{ $contrato->id_vlan }}">
+                                    <span class="help-block error">
+                                        <strong>{{ $errors->first('id_vlan') }}</strong>
+                                    </span>
+                                </div>
+                            </div>
+
                             <div class="col-md-4 form-group {{ ($contrato->conexion==3 || (($contrato->conexion==1 || $contrato->conexion==2) && $contrato->simple_queue != 'dinamica')) ? '' : 'd-none' }}" id="div_interfaz">
                                 <label class="control-label">Interfaz de Conexión <span class="text-danger">*</span></label>
                                 <div class="input-group">
@@ -427,6 +447,7 @@
                                 <select class="form-control selectpicker" id="tecnologia" name="tecnologia" required="" title="Seleccione" onchange="visibilidad(this)">
                                     <option value="1" {{$contrato->tecnologia==1?'selected':''}}>Fibra</option>
                                     <option value="2" {{$contrato->tecnologia==2?'selected':''}}>Inalámbrico</option>
+                                    <option value="3" {{$contrato->tecnologia==3?'selected':''}}>Cableado UTP</option>
                                 </select>
                                 <span class="help-block error">
                                     <strong>{{ $errors->first('tecnologia') }}</strong>
@@ -464,6 +485,30 @@
                                     <strong>{{ $errors->first('ap') }}</strong>
                                 </span>
                             </div>
+                            <div class="col-md-4 form-group d-none">
+                                <label class="control-label">¿Aplicar reuso? <span class="text-danger">*</span></label>
+                                <select class="form-control selectpicker" id="rehuso" name="rehuso" required="" title="Seleccione">
+                                    <option value="SI" {{ $contrato->rehuso == 'SI' ? 'selected' : '' }}>Si</option>
+                                    <option value="NO" {{ $contrato->rehuso == 'NO' ? 'selected' : '' }}>No</option>
+                                </select>
+                                <span class="help-block error">
+                                    <strong>{{ $errors->first('rehuso') }}</strong>
+                                </span>
+                            </div>
+
+                            <div class="col-md-4 form-group d-none" id="div_rehuso_aplicar">
+                                <label class="control-label">Reuso a aplicar<span class="text-danger">*</span></label>
+                                <div class="input-group mb-2">
+                                    <div class="input-group-prepend">
+                                        <div class="input-group-text" style="background: #f3f5f6;border-color: #dee4e6;">1:</div>
+                                    </div>
+                                    <input type="text" class="form-control" name="rehuso_aplicar" id="rehuso_aplicar" value="{{ $contrato->rehuso_aplicar }}">
+                                </div>
+                                <span class="help-block error">
+                                    <strong>{{ $errors->first('rehuso_aplicar') }}</strong>
+                                </span>
+                            </div>
+
                             <div class="col-md-4 form-group {{$contrato->conexion==1?'d-none':''}}" id="div_mac">
                                 <label class="control-label">Dirección MAC</label>
                                 <div class="input-group">

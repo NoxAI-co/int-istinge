@@ -2172,6 +2172,7 @@ class FacturasController extends Controller{
         $factura->cliente=$request->cliente;
         $factura->tipo=$tipo;
         $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
+        $factura->created_at=Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
         $factura->vencimiento= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->suspension= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->pago_oportuno = Carbon::parse($request->pago_oportuno)->format('Y-m-d');
