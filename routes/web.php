@@ -1106,6 +1106,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	});
 
 	Route::resource('recurrentes', 'RecurrentesController');
+	Route::get('ingresos/pago-emitir-dian/{cliente}', 'IngresosController@pagoEmitirDian')->name('ingresos.pagoEmitirDian');
 	Route::resource('ingresos', 'IngresosController');
 	Route::resource('ingresosr', 'IngresosRController');
 	Route::group(['prefix' => 'ingresosr'], function () {

@@ -968,7 +968,7 @@
 
                         <div class="form-group col-md-4">
                             <label class="control-label">Emitir factura a la DIAN al pagar <a><i
-                                        data-tippy-content="La factura que sea pagada en su totalidad se va a convertir a electrónica y emitir a la DIAN automáticamente"
+                                        data-tippy-content="La factura que sea pagada en su totalidad se va a convertir a electrónica y emitir a la DIAN automáticamente. (Si el cliente cuenta con más de un contrato y alguno tiene esta opción activa, aplicará para todos los contratos asociados a la factura)."
                                         class="icono far fa-question-circle"></i></a></label>
                             <div class="d-flex align-items-center">
                                 <label class="switch mb-0">

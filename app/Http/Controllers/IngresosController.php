@@ -759,8 +759,10 @@ class IngresosController extends Controller
 
                             $items->save();
 
-                            // Auto-emisión a la DIAN cuando pago_emitir está activo en el contrato
-                            if($contrato && $contrato->pago_emitir == 1 && $factura->estatus == 0){
+                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente
+                            $pagoEmitirCliente = Contrato::where('client_id', $factura->cliente)->where('pago_emitir', 1)->exists();
+                            
+                            if($pagoEmitirCliente && $factura->estatus == 0){
                                 // Solo auto-emitir si el usuario NO seleccionó tipo_electronica=2 manualmente (para evitar doble ejecución)
                                 if(!isset($request->tipo_electronica) || $request->tipo_electronica != 2){
                                     try {
@@ -776,9 +778,9 @@ class IngresosController extends Controller
                                             }
                                         }
                                     } catch (\Throwable $eEmitir) {
-                                        Log::error('Error en auto-emisión DIAN (pago_emitir): ' . $eEmitir->getMessage(), [
+                                        Log::error('Error en auto-emisión DIAN (pago_emitir cliente): ' . $eEmitir->getMessage(), [
                                             'factura_id' => $factura->id,
-                                            'contrato_id' => $contrato->id,
+                                            'cliente_id' => $factura->cliente,
                                         ]);
                                     }
                                 }
@@ -4348,5 +4350,21 @@ class IngresosController extends Controller
                 return Carbon::now()->format('Y-m-d');
             }
         }
+    }
+
+    /**
+     * Verifica si algún contrato del cliente tiene habilitada la opción pago_emitir
+     * para auto-seleccionar la opción de emisión en el formulario de ingresos.
+     * 
+     * @param int $cliente_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pagoEmitirDian($cliente_id)
+    {
+        $pago_emitir = Contrato::where('client_id', $cliente_id)
+            ->where('pago_emitir', 1)
+            ->exists();
+            
+        return response()->json(['pago_emitir' => $pago_emitir]);
     }
 }

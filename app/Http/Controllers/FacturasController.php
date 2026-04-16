@@ -2355,7 +2355,7 @@ class FacturasController extends Controller{
                 //Modificacion de los datos de la factura
                 $factura->notas =$request->notas;
                 $factura->cliente=$request->cliente;
-                if ($factura->fecha != Carbon::parse($request->fecha)->format('Y-m-d')) {
+                if (Carbon::parse($factura->fecha)->format('Y-m-d') != Carbon::parse($request->fecha)->format('Y-m-d')) {
                     $factura->created_at = Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
                 }
                 $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
@@ -3636,7 +3636,7 @@ class FacturasController extends Controller{
 
 
             //Validacion de dia 00 en vencimiento
-            if (substr($factura->vencimiento, -2) == '00' || $factura->vencimiento < Carbon::now()->format("Y-m-d")) {
+            if ($factura->vencimiento && strlen($factura->vencimiento) >= 7 && (substr($factura->vencimiento, -2) == '00' || $factura->vencimiento < Carbon::now()->format("Y-m-d"))) {
                 $anoMes = substr($factura->vencimiento, 0, 7);
                 $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
                 $factura->vencimiento = $fecha->toDateString();
@@ -3644,7 +3644,7 @@ class FacturasController extends Controller{
             }
 
             //Validacion de dia 00 en suspension
-            if (substr($factura->suspension, -2) == '00' || $factura->suspension < Carbon::now()->format("Y-m-d")) {
+            if ($factura->suspension && strlen($factura->suspension) >= 7 && (substr($factura->suspension, -2) == '00' || $factura->suspension < Carbon::now()->format("Y-m-d"))) {
                 $anoMes = substr($factura->suspension, 0, 7);
                 $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
                 $factura->suspension = $fecha->toDateString();
@@ -3941,7 +3941,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->vencimiento && strlen($FacturaVenta->vencimiento) >= 7 && (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -3949,7 +3949,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->suspension && strlen($FacturaVenta->suspension) >= 7 && (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();
@@ -5616,7 +5616,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->vencimiento && strlen($FacturaVenta->vencimiento) >= 7 && (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -5624,7 +5624,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->suspension && strlen($FacturaVenta->suspension) >= 7 && (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();

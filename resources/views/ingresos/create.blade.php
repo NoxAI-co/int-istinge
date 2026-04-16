@@ -867,6 +867,18 @@
         $('#modalPreviewFactura').modal('hide');
     });
 
+    // Verificación de pago_emitir al cambiar de cliente
+    $('#cliente').on('change', function() {
+        var cliente_id = $(this).val();
+        if (cliente_id) {
+            $.get('/empresa/ingresos/pago-emitir-dian/' + cliente_id, function(data) {
+                if (data.pago_emitir) {
+                    // Seleccionar "Convertir a electrónica y emitir" (value 2)
+                    $('input[name="tipo_electronica"][value="2"]').prop('checked', true);
+                }
+            });
+        }
+    });
 
   })
 </script>
