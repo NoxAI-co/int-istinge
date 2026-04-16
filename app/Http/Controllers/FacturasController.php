@@ -3175,11 +3175,28 @@ class FacturasController extends Controller{
                         $factura->correo = 1;
                         $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
                         $factura->save();
+
+                        $log = new MovimientoLOG;
+                        $log->contrato = $factura->id;
+                        $log->modulo = 8;
+                        $log->empresa = $factura->empresa;
+                        $log->descripcion = 'Factura enviada por correo electrónico (Brevo) por ' . Auth::user()->nombres;
+                        $log->created_by = Auth::user()->id;
+                        $log->save();
                     } else {
                         \Log::error('Error Brevo en enviar', [
                             'factura' => $factura->codigo,
                             'error'   => $resultado['message'],
                         ]);
+
+                        $log = new MovimientoLOG;
+                        $log->contrato = $factura->id;
+                        $log->modulo = 8;
+                        $log->empresa = $factura->empresa;
+                        $log->descripcion = 'Error al intentar enviar la factura por correo (Brevo): ' . $resultado['message'];
+                        $log->created_by = Auth::user()->id;
+                        $log->save();
+
                         if ($redireccionar) {
                             return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo (Brevo): ' . $resultado['message']);
                         }
@@ -3218,6 +3235,14 @@ class FacturasController extends Controller{
                     $factura->correo = 1;
                     $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
                     $factura->save();
+
+                    $log = new MovimientoLOG;
+                    $log->contrato = $factura->id;
+                    $log->modulo = 8;
+                    $log->empresa = $factura->empresa;
+                    $log->descripcion = 'Factura enviada por correo electrónico (SMTP) por ' . Auth::user()->nombres;
+                    $log->created_by = Auth::user()->id;
+                    $log->save();
                 }
 
                 if ($redireccionar) {

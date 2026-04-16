@@ -22,6 +22,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Empresa;  use Auth; use App\Movimiento;
+use App\MovimientoLOG;
 use DB;
 use Illuminate\Support\Facades\Log;
 use App\Radicado;
@@ -2887,6 +2888,16 @@ class Controller extends BaseController
             $mensaje= "Documento enviado al correo del cliente correctamente.";
             $documento->correo =1;
             $documento->save();
+
+            if($tipo == 1){
+                $log = new MovimientoLOG;
+                $log->contrato = $documento->id;
+                $log->modulo = 8;
+                $log->empresa = $documento->empresa;
+                $log->descripcion = 'Factura se ha enviado automáticamente a través del servicio de BTW';
+                $log->created_by = Auth::user() ? Auth::user()->id : null;
+                $log->save();
+            }
         }else{
             if(isset($responseEmail['statusCode']) && $responseEmail['statusCode'] == 406 && isset($responseEmail['th'])){
                 $mensaje = "No se encontró la información del AttachedDocument del documento, intentelo más tarde";
@@ -2896,6 +2907,16 @@ class Controller extends BaseController
                 $mensaje= "Documento no pudo ser enviado al correo.";
                 $documento->correo = 400;
                 $documento->save();
+            }
+
+            if($tipo == 1){
+                $log = new MovimientoLOG;
+                $log->contrato = $documento->id;
+                $log->modulo = 8;
+                $log->empresa = $documento->empresa;
+                $log->descripcion = 'Error al intentar enviar la factura automáticamente a través de BTW: ' . $mensaje;
+                $log->created_by = Auth::user() ? Auth::user()->id : null;
+                $log->save();
             }
         }
 
