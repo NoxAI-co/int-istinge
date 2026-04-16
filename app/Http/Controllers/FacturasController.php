@@ -2355,6 +2355,9 @@ class FacturasController extends Controller{
                 //Modificacion de los datos de la factura
                 $factura->notas =$request->notas;
                 $factura->cliente=$request->cliente;
+                if ($factura->fecha != Carbon::parse($request->fecha)->format('Y-m-d')) {
+                    $factura->created_at = Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
+                }
                 $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
                 $factura->vencimiento=Carbon::parse($request->vencimiento)->format('Y-m-d');
                 $factura->suspension=Carbon::parse($request->vencimiento)->format('Y-m-d');

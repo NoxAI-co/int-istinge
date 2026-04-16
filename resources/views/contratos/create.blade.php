@@ -1357,6 +1357,13 @@
             $('#fact_primer_mes').change(updateFactPrimerMes);
             updateFactPrimerMes();
 
+            function updatePagoEmitir() {
+                var isChecked = $('#pago_emitir').is(':checked');
+                $('#pago_emitir_label').text(isChecked ? 'Si' : 'No');
+            }
+            $('#pago_emitir').change(updatePagoEmitir);
+            updatePagoEmitir();
+
 
             function updateSuspension() {
                 var isChecked = $('#tipo_suspension_no').is(':checked');
