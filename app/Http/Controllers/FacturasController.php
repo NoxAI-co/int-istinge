@@ -1650,6 +1650,14 @@ class FacturasController extends Controller{
             $mensaje='Debes crear una numeración para facturas de venta preferida';
             return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
         }
+
+        // Validación visual: buscar el siguiente número disponible si el actual ya existe
+        $inicio_visual = $nro->inicio;
+        while (Factura::where('empresa', $empresa->id)->where('codigo', $nro->prefijo.$inicio_visual)->exists()) {
+            $inicio_visual++;
+        }
+        $nro->inicio = $inicio_visual;
+
         if ($nro->inicio==$nro->final) {
             $nro->estado=0;
             $nro->save();
@@ -1746,6 +1754,14 @@ class FacturasController extends Controller{
             $mensaje='Debes crear una numeración para facturas de venta preferida';
             return redirect('empresa/configuracion/numeraciones/dian')->with('error', $mensaje);
         }
+
+        // Validación visual: buscar el siguiente número disponible si el actual ya existe
+        $inicio_visual = $nro->inicio;
+        while (Factura::where('empresa', Auth::user()->empresa)->where('codigo', $nro->prefijo.$inicio_visual)->exists()) {
+            $inicio_visual++;
+        }
+        $nro->inicio = $inicio_visual;
+
         if ($nro->inicio==$nro->final) {
             $nro->estado=0;
             $nro->save();
@@ -1903,68 +1919,76 @@ class FacturasController extends Controller{
             'vendedor' => 'required',
         ]);
 
-        // return $request->all();
+        DB::beginTransaction();
+        try {
+            $user = Auth::user();
+            $nro = false;
+            $contrato = false;
+            $num = Factura::where('empresa',$user->empresa)->orderby('nro','asc')->get()->last();
 
-        $user = Auth::user();
-        $nro = false;
-        $contrato = false;
-        $num = Factura::where('empresa',$user->empresa)->orderby('nro','asc')->get()->last();
+            //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
+            if(!isset($request->electronica)){
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->first();
 
-        //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
-        if(!isset($request->electronica)){
-            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->first();
+                if($request->contratos_json != ''){
+                    $contrato = Contrato::where('id', $request->contratos_json)->first();
+                }
 
-            if($request->contratos_json != ''){
-                $contrato = Contrato::where('id', $request->contratos_json)->first();
+            }else{
+
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                if(!$nro){
+                    $mensaje='Debes crear una numeración para facturas de venta preferida';
+                    DB::rollBack();
+                    return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
+                }
+
+                if($request->contratos_json != ''){
+                    $contrato = Contrato::where('id', $request->contratos_json)->first();
+                }
+
             }
 
-        }else{
+            //Actualiza el nro de inicio para la numeracion seleccionada
+            $inicio = $nro->inicio;
+            $codigoEditado = $request->codigo_editado;
 
-            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
-            if(!$nro){
-                $mensaje='Debes crear una numeración para facturas de venta preferida';
-                return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
-            }
+            // Si hay un código editado, validarlo y usarlo
+          if ($codigoEditado && !empty($codigoEditado)) {
+              // Validar que el código no exista EN ESTA EMPRESA
+              $existe = Factura::where('empresa', $user->empresa)
+                  ->where('codigo', $codigoEditado)
+                  ->exists();
 
-            if($request->contratos_json != ''){
-                $contrato = Contrato::where('id', $request->contratos_json)->first();
-            }
+              if ($existe) {
+                  $mensaje = 'El código editado ya existe en otra factura de su empresa.';
+                  DB::rollBack();
+                  return redirect()->back()->with('error', $mensaje)->withInput();
+              }
 
-        }
+              $codigoFinal = $codigoEditado;
 
-        //Actualiza el nro de inicio para la numeracion seleccionada
-        $inicio = $nro->inicio;
-        $codigoEditado = $request->codigo_editado;
+              // Si el código editado coincide con el actual sugerido, incrementamos proactivamente para la próxima factura
+              if ($codigoEditado == $nro->prefijo . $inicio) {
+                  $nro->inicio = $inicio + 1;
+                  $nro->save();
+              }
+          } else {
+              // Validacion MUY ESTRICTA: Autoincrementar si el código ya existe para la empresa
+              // Esto evita colisiones con el UNIQUE INDEX de MySQL
+              while (Factura::where('empresa', $user->empresa)->where('codigo', $nro->prefijo.$inicio)->exists()) {
+                  $inicio++; // Sumar al temporal
+              }
+              $codigoFinal = $nro->prefijo.$inicio;
 
-        // Si hay un código editado, validarlo y usarlo
-      if ($codigoEditado && !empty($codigoEditado)) {
-          // Validar que el código no exista EN ESTA EMPRESA
-          $existe = Factura::where('empresa', $user->empresa)
-              ->where('codigo', $codigoEditado)
-              ->exists();
-
-          if ($existe) {
-              $mensaje = 'El código editado ya existe en otra factura de su empresa.';
-              return redirect()->back()->with('error', $mensaje)->withInput();
-          }
-
-          $codigoFinal = $codigoEditado;
-      } else {
-          // Validacion MUY ESTRICTA: Autoincrementar si el código ya existe para la empresa
-          // Esto evita colisiones con el UNIQUE INDEX de MySQL
-          while (Factura::where('empresa', $user->empresa)->where('codigo', $nro->prefijo.$inicio)->exists()) {
-              $inicio++; // Sumar al temporal
-              
-              // Guardar el nuevo inicio en la resolución
-              $nro->inicio = $inicio;
+              // Incrementamos proactivamente el inicio para que la próxima factura ya tenga el número siguiente
+              $nro->inicio = $inicio + 1;
               $nro->save();
           }
-          $codigoFinal = $nro->prefijo.$inicio;
-      }
 
-        if($request->nro_remision){
-            DB::table('remisiones')->where('nro', $request->nro_remision)->update(['estatus' => 3]);
-        }
+            if($request->nro_remision){
+                DB::table('remisiones')->where('nro', $request->nro_remision)->update(['estatus' => 3]);
+            }
 
         //Generacion de llave unica para acceso por correo
         $key = Hash::make(date("H:i:s"));
@@ -2138,13 +2162,6 @@ class FacturasController extends Controller{
             }
         }
 
-        //Actualiza el nro de inicio para la numeracion seleccionada
-        $cant=Factura::where('empresa',Auth::user()->empresa)->where('codigo','=',($nro->prefijo.$inicio))->count();
-        if($cant==0){
-            $nro->inicio-=1;
-            $nro->save();
-        }
-
         PucMovimiento::facturaVenta($factura,1, $request);
 
         // Integración con OnePay si está habilitado
@@ -2179,6 +2196,8 @@ class FacturasController extends Controller{
             $this->enviar($factura->nro, null, false);
         }
 
+        DB::commit();
+
         //Se redirecciona a la vista Nuevo ingreso, si se selecciono la opcion "Agregar Pago"
         if ($request->pago) {
             return redirect('empresa/ingresos/create/'.$request->cliente.'/'.$factura->id)->with('print', $print)->with('success', $mensaje);
@@ -2190,7 +2209,12 @@ class FacturasController extends Controller{
             return redirect('empresa/facturas/facturas_electronica')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
         }
         return redirect('empresa/factura-index')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Error al guardar factura: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Ocurrió un error inesperado al intentar guardar la factura: ' . $e->getMessage())->withInput();
     }
+}
 
   /**
   * Formulario para modificar los datos de una factura
