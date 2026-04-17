@@ -1672,12 +1672,12 @@ class Factura extends Model
                     $contrato->save();
                 }
                 $fechaC = Carbon::parse($contrato->created_at);
-                if($fechaC->lt($fechaInicioOrg) && $factura->id != $this->id){
+                if($fechaC->lt($fechaInicioOrg) && optional($factura)->id != $this->id){
                     $esMismoPeriodo = false;
                 }
             }
 
-            if((($factura->id == $this->id && $empresa->prorrateo == 1 && $contrato->prorrateo == 1) ||
+            if($factura && $contrato && (($factura->id == $this->id && $empresa->prorrateo == 1 && $contrato->prorrateo == 1) ||
                 ($factura->id == $this->id && $forzar_prorrateo == 1 && $contrato->prorrateo == 1)) && $esMismoPeriodo){
 
 
