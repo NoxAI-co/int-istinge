@@ -17,15 +17,16 @@
 
         body{
             font-family: Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.2;
+            font-weight: bold;
         }
         h4{
             font-weight: bold;
             text-align: center;
-            margin: 0 0 5px 0;
-            font-size: 14px;
+            margin: 0 0 2px 0;
+            font-size: 12px;
         }
         .text-center{
             text-align: center;
@@ -47,11 +48,11 @@
         .info-box {
             width: 100%;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .label {
-            font-weight: normal;
-            color: #444;
+            color: #000;
+            font-weight: bold;
         }
         .value {
             font-weight: bold;

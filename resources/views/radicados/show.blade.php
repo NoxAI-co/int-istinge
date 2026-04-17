@@ -411,6 +411,37 @@
     				</tbody>
     			</table>
     		</div>
+            @if(count($detalle_equipos) > 0)
+            <div class="table-responsive mt-3">
+                <table class="table table-striped table-bordered table-sm info">
+                    <thead>
+                        <tr>
+                            <th colspan="6" class="text-center">DETALLES DEL EQUIPO</th>
+                        </tr>
+                        <tr>
+                            <th width="15%">Marca</th>
+                            <th width="20%">Modelo Tv</th>
+                            <th width="15%">Serial</th>
+                            <th width="15%">Mac</th>
+                            <th width="20%">Señal / Potencia</th>
+                            <th width="15%">Cant. Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($detalle_equipos as $detalle)
+                        <tr>
+                            <td>{{$detalle->marca}}</td>
+                            <td>{{$detalle->modelo_tv}}</td>
+                            <td>{{$detalle->serial}}</td>
+                            <td>{{$detalle->mac}}</td>
+                            <td>{{$detalle->senal_potencia}}</td>
+                            <td>{{$detalle->cantidad_puntos}}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
     		@if($radicado->estatus > 1)
     			@if(isset($_SESSION['permisos']['210']))
     				<form method="POST" action="{{ route('radicados.update', $radicado->id ) }}" style="padding: 2% 3%;    " role="form" class="forms-sample" novalidate id="form-radicado" >

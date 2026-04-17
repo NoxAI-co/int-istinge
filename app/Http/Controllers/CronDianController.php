@@ -431,6 +431,7 @@ class CronDianController extends Controller
         $facturas = Factura::where('empresa', 1)
             ->where('tipo', 2)
             ->where('emitida', 0)
+            ->where('numeracion', $numeracion->id)
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
             })
@@ -557,6 +558,25 @@ class CronDianController extends Controller
                     $totalAlertasNum++;
                     continue;
                 }
+            }
+
+            // ── 5d: Verificar correo del cliente ──
+            if (!$factura->clienteObj || !$factura->clienteObj->email) {
+                DB::table('cron_dian_detalle')->insert([
+                    'log_id'          => $logId,
+                    'factura_id'      => $factura->id,
+                    'factura_codigo'  => $factura->codigo,
+                    'numeracion_id'   => $factura->numeracion,
+                    'estado'          => 'fallida',
+                    'intento'         => 0,
+                    'mensaje'         => "El cliente no tiene un correo electrónico configurado",
+                    'procesado_en'    => Carbon::now(),
+                    'created_at'      => Carbon::now(),
+                    'updated_at'      => Carbon::now(),
+                ]);
+                $totalFallidas++;
+                $this->dianLog->warning("SIN CORREO: factura_id={$factura->id}, codigo={$factura->codigo}");
+                continue;
             }
 
             // ── 6a: Registrar detalle pendiente ──

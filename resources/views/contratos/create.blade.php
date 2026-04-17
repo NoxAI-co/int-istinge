@@ -1153,6 +1153,23 @@
                                     value="" name="fecha_hasta_nosuspension" required>
                             </div>
 
+                            <div class="form-group col-md-4">
+                                <label class="control-label">Emitir factura a la DIAN al pagar <a><i
+                                            data-tippy-content="La factura que sea pagada en su totalidad se va a convertir a electrónica y emitir a la DIAN automáticamente. (Si el cliente cuenta con más de un contrato y alguno tiene esta opción activa, aplicará para todos los contratos asociados a la factura)."
+                                            class="icono far fa-question-circle"></i></a></label>
+                                <div class="d-flex align-items-center">
+                                    <label class="switch mb-0">
+                                        <input type="hidden" name="pago_emitir" value="0">
+                                        <input type="checkbox" name="pago_emitir" id="pago_emitir" value="1">
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <span class="ml-2" id="pago_emitir_label">No</span>
+                                </div>
+                                <span class="help-block error">
+                                    <strong></strong>
+                                </span>
+                            </div>
+
                             <div class="form-group col-md-12">
                                 <label class="control-label">Observaciones</label>
                                 <textarea class="form-control" name="observaciones">{{ old('observaciones') }}</textarea>
@@ -1339,6 +1356,13 @@
             }
             $('#fact_primer_mes').change(updateFactPrimerMes);
             updateFactPrimerMes();
+
+            function updatePagoEmitir() {
+                var isChecked = $('#pago_emitir').is(':checked');
+                $('#pago_emitir_label').text(isChecked ? 'Si' : 'No');
+            }
+            $('#pago_emitir').change(updatePagoEmitir);
+            updatePagoEmitir();
 
 
             function updateSuspension() {

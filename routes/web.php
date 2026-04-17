@@ -176,6 +176,7 @@ Route::get('/import_contracts', 'Controller@import_contracts')->name('import_con
 Route::get('/import_bmus', 'Controller@import_bmus')->name('import_bmus');
 Route::get('/import_mikrotiks', 'Controller@import_mikrotiks')->name('import_mikrotiks');
 Route::get('/generarfactura', 'CronController@CrearFactura')->name('CrearFactura');
+Route::get('/sincronizar-onepay', 'CronController@CrearFacturasOnePay')->name('sincronizar.onepay');
 Route::get('/deleteAll', 'CronController@deleteFactura');
 Route::get('/aplicateProrrateo', 'CronController@aplicateProrrateo');
 Route::get('/cortarfacturas', 'CronController@CortarFacturas')->name('CortarFacturas');
@@ -1105,6 +1106,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	});
 
 	Route::resource('recurrentes', 'RecurrentesController');
+	Route::get('ingresos/pago-emitir-dian/{cliente}', 'IngresosController@pagoEmitirDian')->name('ingresos.pagoEmitirDian');
 	Route::resource('ingresos', 'IngresosController');
 	Route::resource('ingresosr', 'IngresosRController');
 	Route::group(['prefix' => 'ingresosr'], function () {

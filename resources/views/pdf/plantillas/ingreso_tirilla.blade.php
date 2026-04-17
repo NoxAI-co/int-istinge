@@ -17,15 +17,16 @@
 
         body{
             font-family: Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.2;
+            font-weight: bold;
         }
         h4{
             font-weight: bold;
             text-align: center;
-            margin: 0 0 5px 0;
-            font-size: 14px;
+            margin: 0 0 2px 0;
+            font-size: 12px;
         }
         .text-center{
             text-align: center;
@@ -47,11 +48,11 @@
         .info-box {
             width: 100%;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .label {
-            font-weight: normal;
-            color: #444;
+            color: #000;
+            font-weight: bold;
         }
         .value {
             font-weight: bold;
@@ -59,16 +60,16 @@
         .desgloce {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         .desgloce th {
             border-bottom: 1px solid #000;
-            padding: 5px 0;
+            padding: 3px 0;
             font-size: 11px;
             text-transform: uppercase;
         }
         .desgloce td {
-            padding: 4px 0;
+            padding: 2px 0;
             font-size: 11px;
         }
         .totals-table {
@@ -81,7 +82,7 @@
             padding: 2px 0;
         }
         .footer {
-            margin-top: 20px;
+            margin-top: 10px;
             font-size: 10px;
             text-align: center;
         }
@@ -143,14 +144,14 @@
             <span class="label">Hora:</span> <span class="value">{{date('H:i',strtotime($ingreso->created_at))}}</span> <br>
             <span class="label">Cuenta:</span> <span class="value">{{ $ingreso->cuenta()->nombre }}</span><br>
             <span class="label">Método de Pago:</span> <span class="value">{{ $ingreso->metodo_pago() }}</span><br>
+            @if(isset($saldo_inicial) && $saldo_inicial > 0)
+            <span class="label">Saldo Inicial:</span> <span class="value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($saldo_inicial)}}</span><br>
+            @endif
             @if(isset(Auth::user()->empresa()->periodo_tirilla) && Auth::user()->empresa()->periodo_tirilla == 1)
             <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobradoTexto()}}</span><br>
             @endif
             @if($ingreso->notas) <span class="label">Notas:</span> <span class="value">{{ $ingreso->notas }}</span> @endif
         </p>
-    </div>
-
-    <br>
     <div class="info-box">
         <table class="desgloce">
             <thead>
@@ -187,7 +188,6 @@
                 </tr>
             @endforeach
 
-            <!-- calculando impuesto -->
             @foreach($items as $item)
                 @if($item->impuesto != 0)
                 @php
@@ -202,11 +202,9 @@
             </tbody>
         </table>
     </div>
-    <br>
-    <br>
 
     <div class="info-box">
-        <table style="width: 100%; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 5px 0;">
+        <table style="width: 100%; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 3px 0;">
             <tbody>
                 @if($ingreso->total()->imp)
                     @foreach($ingreso->total()->imp as $imp)
@@ -241,8 +239,6 @@
             </tbody>
         </table>
     </div>
-
-    <br>
 
     <div class="footer">
         @if(isset($resolucion->resolucion))

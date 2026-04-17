@@ -35,7 +35,7 @@ class Contacto extends Model
         'usuario_wifi','contrasena_wifi','ip_receptora','puerto_receptor','ppt','barrio_id', 'feliz_cumpleanos', 'factura_est_elec'
     ];
 
-    protected $appends = ['usado', 'contract', 'details'];
+    protected $appends = ['usado', 'contract', 'details', 'contracts', 'pais_name', 'departamento_name', 'municipio_name'];
 
     public function getUsadoAttribute(){
         return $this->usado();
@@ -46,6 +46,10 @@ class Contacto extends Model
     }
 
     public function getDetailsAttribute(){
+        return $this->contrato();
+    }
+
+    public function getContractsAttribute(){
         return $this->details();
     }
 
@@ -350,25 +354,27 @@ class Contacto extends Model
     }
 
     public function contract($details=false){
-        $contrato = Contrato::where('client_id', $this->id)->where('status', 1)->first();
+        $contratos = Contrato::where('client_id', $this->id)->where('status', 1)->get();
 
-        if($contrato){
+        if($contratos->count() > 0){
             if($details){
-                return $contrato->ip;
+                return $contratos->pluck('ip')->implode(', ');
             }
-            return "<a href=" . route('contratos.show', $contrato->id) . " target='_blank'>".$contrato->nro."</div></a>";
+            $links = [];
+            foreach($contratos as $contrato){
+                $links[] = "<a href=" . route('contratos.show', $contrato->id) . " target='_blank'>".$contrato->nro."</a>";
+            }
+            return implode(", ", $links);
         }
         return 'N/A';
     }
 
     public function details($contrato = null){
         if($contrato){
-           $c = Contrato::where('client_id', $this->id)->where('id', $contrato)->first();
-        }else{
-           $c = Contrato::where('client_id', $this->id)->where('status', 1)->latest()->first();
+            return Contrato::where('client_id', $this->id)->where('id', $contrato)->first();
         }
-
-        return $c;
+        
+        return Contrato::where('client_id', $this->id)->get();
     }
 
     public function radicados(){

@@ -237,8 +237,11 @@ class IngresosController extends Controller
             $numero = 1;
         }
         $contrato = false;
+        $pagoEmitirDian = false;
         if($cliente){
             $contrato = Contrato::where('client_id',$cliente)->first();
+            $pagoEmitirDian = Contrato::where('client_id', $cliente)
+                ->where('pago_emitir', 1)->exists();
         }
 
         //$bancos = Banco::where('empresa',Auth::user()->empresa)->where('estatus', 1)->get();
@@ -271,7 +274,7 @@ class IngresosController extends Controller
 
         return view('ingresos.create')->with(compact('contrato','clientes', 'inventario', 'cliente', 'factura',
         'bancos', 'metodos_pago', 'impuestos', 'saldo_favor',
-        'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones'));
+        'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones','pagoEmitirDian'));
     }
 
     public function saldoContacto($id){
@@ -484,8 +487,18 @@ class IngresosController extends Controller
                         if(isset($request->tipo_electronica) && $request->tipo_electronica == 1){
 
                             //primero recuperamos
-                            $nro=NumeracionFactura::where('empresa',1)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
                             $inicio = $nro->inicio;
+
+                            $codigoUsado = Factura::where('empresa', $user->empresa)
+                            ->where('codigo', $nro->prefijo.$inicio)
+                            ->where('id', '!=', $factura->id)
+                            ->where('numeracion', $nro->id)
+                            ->first();
+
+                            if($codigoUsado){
+                                return back()->with('danger', 'Revisar la ultima factura del segmento y modificar la numeracion. Razon: Codigo duplicado ('.$nro->prefijo.$inicio.')');
+                            }
 
                             if($factura->tipo != 2 && $request->precio[$key] > 0)
                             {
@@ -745,6 +758,33 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
+
+                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente
+                            $pagoEmitirCliente = Contrato::where('client_id', $factura->cliente)->where('pago_emitir', 1)->exists();
+                            
+                            if($pagoEmitirCliente && $factura->estatus == 0){
+                                // Solo auto-emitir si el usuario NO seleccionó tipo_electronica=2 manualmente (para evitar doble ejecución)
+                                if(!isset($request->tipo_electronica) || $request->tipo_electronica != 2){
+                                    try {
+                                        if($factura->emitida != 1){
+                                            if($factura->tipo == 1){
+                                                app(FacturasController::class)->convertirelEctronica($factura->id, 0, 1);
+                                                $factura->refresh();
+                                            }
+                                            if(isset($empresa->proveedor) && $empresa->proveedor == 2){
+                                                app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
+                                            } else {
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                            }
+                                        }
+                                    } catch (\Throwable $eEmitir) {
+                                        Log::error('Error en auto-emisión DIAN (pago_emitir cliente): ' . $eEmitir->getMessage(), [
+                                            'factura_id' => $factura->id,
+                                            'cliente_id' => $factura->cliente,
+                                        ]);
+                                    }
+                                }
+                            }
 
                             // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
                             if ($factura->onepay_invoice_id) {
@@ -2419,11 +2459,13 @@ class IngresosController extends Controller
             // Obtener el contrato correcto desde la factura asociada al ingreso
             $contratoNro = null;
             $direccionMostrar = null; // NUEVA VARIABLE
+            $saldo_inicial = 0;
 
             if ($ingreso->tipo == 1) {
                 $primeraFactura = IngresosFactura::where('ingreso', $ingreso->id)->first();
 
                 if ($primeraFactura) {
+                    $factura = Factura::find($primeraFactura->factura);
                     // Opción 1: Buscar en la tabla facturas_contratos
                     $contratoRelacion = DB::table('facturas_contratos')
                         ->where('factura_id', $primeraFactura->factura)
@@ -2436,14 +2478,48 @@ class IngresosController extends Controller
                         if ($contratoObj) {
                             $direccionMostrar = $contratoObj->address_street ?? $contratoObj->direccion_instalacion ?? null;
                         }
+
+                        // Cálculo de Saldo Inicial sin filtro de vencimiento: 
+                        // Incluir facturas de venta (estándar y electrónicas), abiertas, con contrato y sin pagos previos.
+                        if ($factura) {
+                            $facturasContratoIds = DB::table('facturas_contratos')
+                                ->where('contrato_nro', $contratoNro)
+                                ->pluck('factura_id');
+
+                            $sumatoria = Factura::whereIn('id', $facturasContratoIds)
+                                ->where('tipo', 1) // Facturas de venta (Estándar/Electrónica)
+                                ->where('estatus', 1) // Abiertas
+                                ->get()
+                                ->filter(function($f) {
+                                    return $f->pagado() == 0; // Sin pagos previos
+                                })
+                                ->sum(function($f) {
+                                    return $f->porpagar();
+                                });
+                            
+                            $saldo_inicial = $sumatoria + $ingreso->pago();
+                        }
                     } else {
                         // Opción 2: Buscar desde el contrato_id directo de la factura
-                        $factura = Factura::find($primeraFactura->factura);
                         if ($factura && $factura->contrato_id) {
                             $contrato = Contrato::find($factura->contrato_id);
                             if ($contrato) {
                                 $contratoNro = $contrato->nro;
                                 $direccionMostrar = $contrato->address_street ?? $contrato->direccion_instalacion ?? null;
+
+                                // Cálculo de Saldo Inicial sin filtro de vencimiento (Opción 2)
+                                $sumatoria = Factura::where('contrato_id', $factura->contrato_id)
+                                    ->where('tipo', 1)
+                                    ->where('estatus', 1)
+                                    ->get()
+                                    ->filter(function($f) {
+                                        return $f->pagado() == 0;
+                                    })
+                                    ->sum(function($f) {
+                                        return $f->porpagar();
+                                    });
+                                
+                                $saldo_inicial = $sumatoria + $ingreso->pago();
                             }
                         }
                     }
@@ -2459,11 +2535,11 @@ class IngresosController extends Controller
 
             if ($ingreso->valor_anticipo > 0) {
                 $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla_anticipo', compact(
-                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar'
+                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar', 'saldo_inicial'
                 ));
             } else {
                 $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact(
-                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar'
+                    'ingreso', 'items', 'retenciones', 'itemscount', 'empresa', 'resolucion', 'contratoNro', 'direccionMostrar', 'saldo_inicial'
                 ));
             }
 
@@ -4274,5 +4350,21 @@ class IngresosController extends Controller
                 return Carbon::now()->format('Y-m-d');
             }
         }
+    }
+
+    /**
+     * Verifica si algún contrato del cliente tiene habilitada la opción pago_emitir
+     * para auto-seleccionar la opción de emisión en el formulario de ingresos.
+     * 
+     * @param int $cliente_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pagoEmitirDian($cliente_id)
+    {
+        $pago_emitir = Contrato::where('client_id', $cliente_id)
+            ->where('pago_emitir', 1)
+            ->exists();
+            
+        return response()->json(['pago_emitir' => $pago_emitir]);
     }
 }

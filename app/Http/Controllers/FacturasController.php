@@ -68,6 +68,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
+use App\PlanesVelocidad;
 
 class FacturasController extends Controller{
     use CentralizedWhatsApp;
@@ -480,8 +481,10 @@ class FacturasController extends Controller{
         $municipios = DB::table('municipios')->orderBy('nombre', 'asc')->get();
         $barrios = DB::table('barrios')->orderBy('nombre', 'asc')->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
+        $planes = PlanesVelocidad::where('status', 1)->where('empresa', $empresaActual)->get();
+        $planestv = Inventario::where('empresa', $empresaActual)->where('type', 'like', '%TV%')->where('status', 1)->get();
 
-        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte','empresa'));
+        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios','servidores','barrios','grupos_corte','empresa', 'planes', 'planestv'));
     }
 
     public function indexNew(Request $request, $tipo){
@@ -596,7 +599,10 @@ class FacturasController extends Controller{
 
 
         view()->share(['title' => 'Facturas de Venta Electrónica', 'subseccion' => 'venta-electronica']);
-        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','barrios','grupos_corte','empresa','reporteFaltantes', 'dianFecthSync'));
+        $planes = PlanesVelocidad::where('status', 1)->where('empresa', $empresaActual)->get();
+        $planestv = Inventario::where('empresa', $empresaActual)->where('type', 'like', '%TV%')->where('status', 1)->get();
+
+        return view('facturas-electronica.index', compact('clientes', 'municipios', 'tabla','servidores','barrios','grupos_corte','empresa','reporteFaltantes', 'dianFecthSync', 'planes', 'planestv'));
     }
 
     /*
@@ -809,6 +815,50 @@ class FacturasController extends Controller{
                 $facturas->where(function ($query) use ($request) {
                     $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+                });
+            }
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $facturas->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
                 });
             }
             if($request->emision != null){
@@ -1203,6 +1253,50 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $facturas->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                });
+            }
             if($request->municipio){
                 $facturas->where('c.fk_idmunicipio', $request->municipio);
             }
@@ -1442,6 +1536,50 @@ class FacturasController extends Controller{
                           ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
                 });
             }
+            // Filtros de Planes (Internet O TV)
+            if (($request->plan && is_array($request->plan) && count($request->plan) > 0) || 
+                ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0)) {
+                $countQuery->where(function ($query) use ($request, $identificadorEmpresa) {
+                    // Plan de Internet
+                    if ($request->plan && is_array($request->plan) && count($request->plan) > 0) {
+                        if (count($request->plan) < PlanesVelocidad::where('empresa', $identificadorEmpresa)->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('plan_id', $request->plan);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.plan_id', $request->plan);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                    // Plan de TV
+                    if ($request->plan_tv && is_array($request->plan_tv) && count($request->plan_tv) > 0) {
+                        if (count($request->plan_tv) < Inventario::where('empresa', $identificadorEmpresa)->where('type', 'like', '%TV%')->where('status', 1)->count()) {
+                            $query->orWhere(function($q) use ($request) {
+                                $q->whereIn('factura.contrato_id', function($sub) use ($request) {
+                                    $sub->select('id')->from('contracts')->whereIn('servicio_tv', $request->plan_tv);
+                                })->orWhereExists(function ($subquery) use ($request) {
+                                    $subquery->select(DB::raw(1))
+                                        ->from('facturas_contratos')
+                                        ->join('contracts', 'contracts.nro', '=', 'facturas_contratos.contrato_nro')
+                                        ->whereRaw('facturas_contratos.factura_id = factura.id')
+                                        ->whereIn('contracts.servicio_tv', $request->plan_tv);
+                                });
+                            });
+                        } else {
+                            // Si selecciona todos, es equivalente a no filtrar (incluir a todos)
+                            $query->orWhere(DB::raw(1), 1);
+                        }
+                    }
+                });
+            }
             if($request->municipio){
                 $countQuery->where('c.fk_idmunicipio', $request->municipio);
             }
@@ -1650,6 +1788,14 @@ class FacturasController extends Controller{
             $mensaje='Debes crear una numeración para facturas de venta preferida';
             return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
         }
+
+        // Validación visual: buscar el siguiente número disponible si el actual ya existe
+        $inicio_visual = $nro->inicio;
+        while (Factura::where('empresa', $empresa->id)->where('codigo', $nro->prefijo.$inicio_visual)->exists()) {
+            $inicio_visual++;
+        }
+        $nro->inicio = $inicio_visual;
+
         if ($nro->inicio==$nro->final) {
             $nro->estado=0;
             $nro->save();
@@ -1746,6 +1892,14 @@ class FacturasController extends Controller{
             $mensaje='Debes crear una numeración para facturas de venta preferida';
             return redirect('empresa/configuracion/numeraciones/dian')->with('error', $mensaje);
         }
+
+        // Validación visual: buscar el siguiente número disponible si el actual ya existe
+        $inicio_visual = $nro->inicio;
+        while (Factura::where('empresa', Auth::user()->empresa)->where('codigo', $nro->prefijo.$inicio_visual)->exists()) {
+            $inicio_visual++;
+        }
+        $nro->inicio = $inicio_visual;
+
         if ($nro->inicio==$nro->final) {
             $nro->estado=0;
             $nro->save();
@@ -1903,68 +2057,76 @@ class FacturasController extends Controller{
             'vendedor' => 'required',
         ]);
 
-        // return $request->all();
+        DB::beginTransaction();
+        try {
+            $user = Auth::user();
+            $nro = false;
+            $contrato = false;
+            $num = Factura::where('empresa',$user->empresa)->orderby('nro','asc')->get()->last();
 
-        $user = Auth::user();
-        $nro = false;
-        $contrato = false;
-        $num = Factura::where('empresa',1)->orderby('nro','asc')->get()->last();
+            //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
+            if(!isset($request->electronica)){
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->first();
 
-        //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
-        if(!isset($request->electronica)){
-            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->first();
+                if($request->contratos_json != ''){
+                    $contrato = Contrato::where('id', $request->contratos_json)->first();
+                }
 
-            if($request->contratos_json != ''){
-                $contrato = Contrato::where('id', $request->contratos_json)->first();
+            }else{
+
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                if(!$nro){
+                    $mensaje='Debes crear una numeración para facturas de venta preferida';
+                    DB::rollBack();
+                    return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
+                }
+
+                if($request->contratos_json != ''){
+                    $contrato = Contrato::where('id', $request->contratos_json)->first();
+                }
+
             }
 
-        }else{
+            //Actualiza el nro de inicio para la numeracion seleccionada
+            $inicio = $nro->inicio;
+            $codigoEditado = $request->codigo_editado;
 
-            $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
-            if(!$nro){
-                $mensaje='Debes crear una numeración para facturas de venta preferida';
-                return redirect('empresa/configuracion/numeraciones')->with('error', $mensaje);
-            }
+            // Si hay un código editado, validarlo y usarlo
+          if ($codigoEditado && !empty($codigoEditado)) {
+              // Validar que el código no exista EN ESTA EMPRESA
+              $existe = Factura::where('empresa', $user->empresa)
+                  ->where('codigo', $codigoEditado)
+                  ->exists();
 
-            if($request->contratos_json != ''){
-                $contrato = Contrato::where('id', $request->contratos_json)->first();
-            }
+              if ($existe) {
+                  $mensaje = 'El código editado ya existe en otra factura de su empresa.';
+                  DB::rollBack();
+                  return redirect()->back()->with('error', $mensaje)->withInput();
+              }
 
-        }
+              $codigoFinal = $codigoEditado;
 
-        //Actualiza el nro de inicio para la numeracion seleccionada
-        $inicio = $nro->inicio;
-        $codigoEditado = $request->codigo_editado;
+              // Si el código editado coincide con el actual sugerido, incrementamos proactivamente para la próxima factura
+              if ($codigoEditado == $nro->prefijo . $inicio) {
+                  $nro->inicio = $inicio + 1;
+                  $nro->save();
+              }
+          } else {
+              // Validacion MUY ESTRICTA: Autoincrementar si el código ya existe para la empresa
+              // Esto evita colisiones con el UNIQUE INDEX de MySQL
+              while (Factura::where('empresa', $user->empresa)->where('codigo', $nro->prefijo.$inicio)->exists()) {
+                  $inicio++; // Sumar al temporal
+              }
+              $codigoFinal = $nro->prefijo.$inicio;
 
-        // Si hay un código editado, validarlo y usarlo
-      if ($codigoEditado && !empty($codigoEditado)) {
-          // Validar que el código no exista EN ESTA EMPRESA
-          $existe = Factura::where('empresa', $user->empresa)
-              ->where('codigo', $codigoEditado)
-              ->exists();
-
-          if ($existe) {
-              $mensaje = 'El código editado ya existe en otra factura de su empresa.';
-              return redirect()->back()->with('error', $mensaje)->withInput();
-          }
-
-          $codigoFinal = $codigoEditado;
-      } else {
-          // Validacion MUY ESTRICTA: Autoincrementar si el código ya existe para la empresa
-          // Esto evita colisiones con el UNIQUE INDEX de MySQL
-          while (Factura::where('empresa', $user->empresa)->where('codigo', $nro->prefijo.$inicio)->exists()) {
-              $inicio++; // Sumar al temporal
-              
-              // Guardar el nuevo inicio en la resolución
-              $nro->inicio = $inicio;
+              // Incrementamos proactivamente el inicio para que la próxima factura ya tenga el número siguiente
+              $nro->inicio = $inicio + 1;
               $nro->save();
           }
-          $codigoFinal = $nro->prefijo.$inicio;
-      }
 
-        if($request->nro_remision){
-            DB::table('remisiones')->where('nro', $request->nro_remision)->update(['estatus' => 3]);
-        }
+            if($request->nro_remision){
+                DB::table('remisiones')->where('nro', $request->nro_remision)->update(['estatus' => 3]);
+            }
 
         //Generacion de llave unica para acceso por correo
         $key = Hash::make(date("H:i:s"));
@@ -2010,6 +2172,7 @@ class FacturasController extends Controller{
         $factura->cliente=$request->cliente;
         $factura->tipo=$tipo;
         $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
+        $factura->created_at=Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
         $factura->vencimiento= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->suspension= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->pago_oportuno = Carbon::parse($request->pago_oportuno)->format('Y-m-d');
@@ -2138,13 +2301,6 @@ class FacturasController extends Controller{
             }
         }
 
-        //Actualiza el nro de inicio para la numeracion seleccionada
-        $cant=Factura::where('empresa',Auth::user()->empresa)->where('codigo','=',($nro->prefijo.$inicio))->count();
-        if($cant==0){
-            $nro->inicio-=1;
-            $nro->save();
-        }
-
         PucMovimiento::facturaVenta($factura,1, $request);
 
         // Integración con OnePay si está habilitado
@@ -2179,6 +2335,8 @@ class FacturasController extends Controller{
             $this->enviar($factura->nro, null, false);
         }
 
+        DB::commit();
+
         //Se redirecciona a la vista Nuevo ingreso, si se selecciono la opcion "Agregar Pago"
         if ($request->pago) {
             return redirect('empresa/ingresos/create/'.$request->cliente.'/'.$factura->id)->with('print', $print)->with('success', $mensaje);
@@ -2190,7 +2348,12 @@ class FacturasController extends Controller{
             return redirect('empresa/facturas/facturas_electronica')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
         }
         return redirect('empresa/factura-index')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Error al guardar factura: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Ocurrió un error inesperado al intentar guardar la factura: ' . $e->getMessage())->withInput();
     }
+}
 
   /**
   * Formulario para modificar los datos de una factura
@@ -2355,6 +2518,9 @@ class FacturasController extends Controller{
                 //Modificacion de los datos de la factura
                 $factura->notas =$request->notas;
                 $factura->cliente=$request->cliente;
+                if (Carbon::parse($factura->fecha)->format('Y-m-d') != Carbon::parse($request->fecha)->format('Y-m-d')) {
+                    $factura->created_at = Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
+                }
                 $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
                 $factura->vencimiento=Carbon::parse($request->vencimiento)->format('Y-m-d');
                 $factura->suspension=Carbon::parse($request->vencimiento)->format('Y-m-d');
@@ -3172,11 +3338,28 @@ class FacturasController extends Controller{
                         $factura->correo = 1;
                         $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
                         $factura->save();
+
+                        $log = new MovimientoLOG;
+                        $log->contrato = $factura->id;
+                        $log->modulo = 8;
+                        $log->empresa = $factura->empresa;
+                        $log->descripcion = 'Factura enviada por correo electrónico (Brevo) por ' . Auth::user()->nombres;
+                        $log->created_by = Auth::user()->id;
+                        $log->save();
                     } else {
                         \Log::error('Error Brevo en enviar', [
                             'factura' => $factura->codigo,
                             'error'   => $resultado['message'],
                         ]);
+
+                        $log = new MovimientoLOG;
+                        $log->contrato = $factura->id;
+                        $log->modulo = 8;
+                        $log->empresa = $factura->empresa;
+                        $log->descripcion = 'Error al intentar enviar la factura por correo (Brevo): ' . $resultado['message'];
+                        $log->created_by = Auth::user()->id;
+                        $log->save();
+
                         if ($redireccionar) {
                             return redirect('empresa/facturas/'.$factura->id)->with('danger', 'Error al enviar correo (Brevo): ' . $resultado['message']);
                         }
@@ -3215,6 +3398,14 @@ class FacturasController extends Controller{
                     $factura->correo = 1;
                     $factura->observaciones = $factura->observaciones.' | Factura Enviada por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
                     $factura->save();
+
+                    $log = new MovimientoLOG;
+                    $log->contrato = $factura->id;
+                    $log->modulo = 8;
+                    $log->empresa = $factura->empresa;
+                    $log->descripcion = 'Factura enviada por correo electrónico (SMTP) por ' . Auth::user()->nombres;
+                    $log->created_by = Auth::user()->id;
+                    $log->save();
                 }
 
                 if ($redireccionar) {
@@ -3633,7 +3824,7 @@ class FacturasController extends Controller{
 
 
             //Validacion de dia 00 en vencimiento
-            if (substr($factura->vencimiento, -2) == '00' || $factura->vencimiento < Carbon::now()->format("Y-m-d")) {
+            if ($factura->vencimiento && strlen($factura->vencimiento) >= 7 && (substr($factura->vencimiento, -2) == '00' || $factura->vencimiento < Carbon::now()->format("Y-m-d"))) {
                 $anoMes = substr($factura->vencimiento, 0, 7);
                 $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
                 $factura->vencimiento = $fecha->toDateString();
@@ -3641,7 +3832,7 @@ class FacturasController extends Controller{
             }
 
             //Validacion de dia 00 en suspension
-            if (substr($factura->suspension, -2) == '00' || $factura->suspension < Carbon::now()->format("Y-m-d")) {
+            if ($factura->suspension && strlen($factura->suspension) >= 7 && (substr($factura->suspension, -2) == '00' || $factura->suspension < Carbon::now()->format("Y-m-d"))) {
                 $anoMes = substr($factura->suspension, 0, 7);
                 $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
                 $factura->suspension = $fecha->toDateString();
@@ -3938,7 +4129,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->vencimiento && strlen($FacturaVenta->vencimiento) >= 7 && (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -3946,7 +4137,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->suspension && strlen($FacturaVenta->suspension) >= 7 && (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();
@@ -5613,7 +5804,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en vencimiento
-        if (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->vencimiento && strlen($FacturaVenta->vencimiento) >= 7 && (substr($FacturaVenta->vencimiento, -2) == '00' || $FacturaVenta->vencimiento < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->vencimiento, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->vencimiento = $fecha->toDateString();
@@ -5621,7 +5812,7 @@ class FacturasController extends Controller{
         }
 
         //Validacion de dia 00 en suspension
-        if (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d")) {
+        if ($FacturaVenta->suspension && strlen($FacturaVenta->suspension) >= 7 && (substr($FacturaVenta->suspension, -2) == '00' || $FacturaVenta->suspension < Carbon::now()->format("Y-m-d"))) {
             $anoMes = substr($FacturaVenta->suspension, 0, 7);
             $fecha = Carbon::createFromFormat('Y-m', $anoMes)->endOfMonth();
             $FacturaVenta->suspension = $fecha->toDateString();
@@ -6535,7 +6726,7 @@ class FacturasController extends Controller{
                 ];
             }
 
-            $num = Factura::where('empresa', 1)->orderBy('nro', 'asc')->get()->last();
+            $num = Factura::where('empresa', Auth::user()->empresa)->orderBy('nro', 'asc')->get()->last();
             $numero = $num ? $num->nro + 1 : 1;
 
             $nro = NumeracionFactura::where('empresa', Auth::user()->empresa)
@@ -6566,7 +6757,7 @@ class FacturasController extends Controller{
 
             $factura->codigo = $nro->prefijo . $inicio;
 
-            $codigoUsado = Factura::where('empresa', 1)
+            $codigoUsado = Factura::where('empresa', Auth::user()->empresa)
             ->where('codigo', $factura->codigo)
             ->where('id', '!=', $facturaId)
             ->where('numeracion', $nro->id)
@@ -6586,8 +6777,7 @@ class FacturasController extends Controller{
 
             }
 
-            // Guardar código anterior antes de actualizar
-            $codigoAnterior = $factura->codigo;
+
 
             $vencimientoOriginal = Carbon::parse($factura->vencimiento);
             $suspensionOriginal = $factura->suspension ? Carbon::parse($factura->suspension) : null;
@@ -7057,6 +7247,8 @@ class FacturasController extends Controller{
     }
 
     public function exportar(Request $request){
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas de Ventas";
@@ -7118,14 +7310,80 @@ class FacturasController extends Controller{
 
         $i=4;
         $letra=0;
+        $user = auth()->user();
+        $identificadorEmpresa = $user->empresa;
 
         $facturas = Factura::query()
             ->join('contactos as c', 'factura.cliente', '=', 'c.id')
+            ->join('empresas as em', 'em.id', '=', 'factura.empresa')
             ->join('items_factura as if', 'factura.id', '=', 'if.factura')
-            ->leftJoin('contracts as cs', 'c.id', '=', 'cs.client_id')
             ->leftJoin('vendedores as v', 'factura.vendedor', '=', 'v.id')
-            ->select('factura.tipo','factura.promesa_pago','factura.id', 'factura.correo', 'factura.mensaje', 'factura.codigo', 'factura.nro', DB::raw('c.nombre as nombrecliente'), DB::raw('c.apellido1 as ape1cliente'), DB::raw('c.apellido2 as ape2cliente'), DB::raw('c.email as emailcliente'), DB::raw('c.celular as celularcliente'), DB::raw('c.nit as nitcliente'), 'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.vendedor','factura.emitida', DB::raw('v.nombre as nombrevendedor'),DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'), DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),         DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar'))
+            ->leftJoin('barrios as barrio','barrio.id','c.barrio_id')
+            ->leftJoin(
+                DB::raw('
+                    (SELECT factura_id, contrato_nro
+                     FROM (
+                         SELECT fc.factura_id, fc.contrato_nro, ROW_NUMBER() OVER (PARTITION BY fc.factura_id ORDER BY fc.id ASC) AS rn
+                         FROM facturas_contratos fc
+                     ) ranked
+                     WHERE ranked.rn = 1
+                    ) as fc
+                '),
+                'factura.id', '=', 'fc.factura_id'
+            )
+            ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
+            ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
+            ->select(
+                'factura.tipo',
+                'factura.promesa_pago',
+                'factura.id',
+                'factura.correo',
+                'factura.mensaje',
+                'factura.codigo',
+                'factura.nro',
+                'factura.cliente',
+                'factura.fecha',
+                'factura.vencimiento',
+                'factura.estatus',
+                'factura.vendedor',
+                'factura.emitida',
+                'factura.cuenta_id',
+                DB::raw('c.nombre as nombrecliente'),
+                DB::raw('c.apellido1 as ape1cliente'),
+                DB::raw('c.apellido2 as ape2cliente'),
+                DB::raw('c.email as emailcliente'),
+                DB::raw('c.celular as celularcliente'),
+                DB::raw('c.nit as nitcliente'),
+                DB::raw('v.nombre as nombrevendedor'),
+                DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'),
+                DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),
+                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar')
+            )
             ->groupBy('factura.id');
+
+        // Filtro por servidores del usuario
+        if ($user->servidores->count() > 0) {
+            $servers = $user->servidores->pluck('id')->toArray();
+            $facturas->where(function ($query) use ($servers) {
+                $query->whereIn('cs1.server_configuration_id', $servers)
+                      ->orWhereIn('cs2.server_configuration_id', $servers)
+                      ->orWhere(function ($q) use ($servers) {
+                          $q->where(function ($notInServers) use ($servers) {
+                              $notInServers->whereNotIn('cs1.server_configuration_id', $servers)
+                                          ->orWhereNull('cs1.server_configuration_id');
+                          })->where(function ($notInServers2) use ($servers) {
+                              $notInServers2->whereNotIn('cs2.server_configuration_id', $servers)
+                                           ->orWhereNull('cs2.server_configuration_id');
+                          })->where(function ($hasTv) {
+                              $hasTv->whereNotNull('cs1.servicio_tv')
+                                    ->orWhereNotNull('cs2.servicio_tv');
+                          });
+                      })
+                      ->orWhere(function ($q) {
+                          $q->whereNull('cs1.id')->whereNull('cs2.id');
+                      });
+            });
+        }
 
         if($request->codigo!=null){
             $facturas->where(function ($query) use ($request) {
@@ -7139,15 +7397,24 @@ class FacturasController extends Controller{
         }
         if($request->corte!=null){
             $facturas->where(function ($query) use ($request) {
-                $query->orWhere('cs.fecha_corte', $request->corte);
+                $query->where('cs1.fecha_corte', $request->corte)
+                      ->orWhere('cs2.fecha_corte', $request->corte);
             });
         }
-        if($request->creacion!=null){
+        if($request->fact_siigo && is_array($request->fact_siigo)){
+            if(in_array('1', $request->fact_siigo) && in_array('0', $request->fact_siigo)){
+            } elseif(in_array('1', $request->fact_siigo)){
+                $facturas->whereNotNull('factura.siigo_id');
+            } elseif(in_array('0', $request->fact_siigo)){
+                $facturas->whereNull('factura.siigo_id');
+            }
+        }
+        if($request->creacion!=null && $request->creacion != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('factura.fecha', $request->creacion);
             });
         }
-        if($request->vencimiento!=null){
+        if($request->vencimiento!=null && $request->vencimiento != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('factura.vencimiento', $request->vencimiento);
             });
@@ -7166,11 +7433,102 @@ class FacturasController extends Controller{
                 $query->orWhere('factura.estatus', $request->estado);
             });
         }
-        if($request->municipio!=null){
+        if($request->correo && is_array($request->correo) && count($request->correo) > 0){
+            $correoValues = $request->correo;
+            $facturas->where(function ($query) use ($correoValues) {
+                $query->whereIn('factura.correo', $correoValues);
+                if(in_array('0', $correoValues)){
+                    $query->orWhereNull('factura.correo');
+                }
+            });
+        }
+        if($request->municipio!=null && $request->municipio != 'undefined'){
             $facturas->where(function ($query) use ($request) {
                 $query->orWhere('c.fk_idmunicipio', $request->municipio);
             });
         }
+        if($request->barrio!=null && $request->barrio != 'undefined'){
+            $facturas->where(function ($query) use ($request) {
+                $query->orWhere('c.barrio_id', $request->barrio);
+            });
+        }
+        if($request->servidor!=null && $request->servidor != 'undefined'){
+            $facturas->where(function ($query) use ($request) {
+                $query->where('cs1.server_configuration_id', $request->servidor)
+                      ->orWhere('cs2.server_configuration_id', $request->servidor);
+            });
+        }
+        if($request->grupos_corte!=null && is_array($request->grupos_corte)){
+            $facturas->where(function ($query) use ($request) {
+                $query->whereIn('cs1.grupo_corte', $request->grupos_corte)
+                      ->orWhereIn('cs2.grupo_corte', $request->grupos_corte);
+            });
+        }
+        if($request->emision != null){
+            $facturas->where(function ($query) use ($request) {
+                if($request->emision == 1){
+                    $query->orWhere('factura.emitida', 1);
+                }else if($request->emision == 0){
+                    $query->orWhere('factura.emitida', 0);
+                }
+                else{
+                    $query->orWhere('factura.emitida', 0)->whereNotNull('factura.dian_response')->where('factura.dian_response', '!=', '');
+                }
+            });
+        }
+        if ($request->desde) {
+            $facturas->where('factura.fecha', '>=', $request->desde);
+        }
+        if ($request->hasta) {
+            $facturas->where('factura.fecha', '<=', $request->hasta);
+        }
+        if ($request->otras_opciones == 'ultimas_contratos') {
+            $ultimasFacturasIds = DB::table('facturas_contratos as fc1')
+                ->select(DB::raw('MAX(fc1.factura_id) as factura_id'))
+                ->whereIn('fc1.factura_id', function($query) use ($identificadorEmpresa, $request) {
+                    $query->select('id')
+                        ->from('factura')
+                        ->where('empresa', $identificadorEmpresa)
+                        ->where('tipo', $request->tipo)
+                        ->where('lectura', 1);
+                })
+                ->groupBy('fc1.contrato_nro')
+                ->pluck('factura_id')
+                ->toArray();
+
+            if (!empty($ultimasFacturasIds)) {
+                $facturas->whereIn('factura.id', $ultimasFacturasIds);
+            } else {
+                $facturas->where('factura.id', '=', 0);
+            }
+        }
+        if ($request->otras_opciones == 'clientes_multiples_facturas') {
+            $clientesMultiplesIds = DB::table('factura')
+                ->select('cliente')
+                ->where('empresa', $identificadorEmpresa)
+                ->where('tipo', $request->tipo)
+                ->where('lectura', 1);
+
+            if ($request->desde) {
+                $clientesMultiplesIds->where('fecha', '>=', $request->desde);
+            }
+            if ($request->hasta) {
+                $clientesMultiplesIds->where('fecha', '<=', $request->hasta);
+            }
+
+            $clientesMultiplesIds = $clientesMultiplesIds
+                ->groupBy('cliente')
+                ->havingRaw('COUNT(*) >= 2')
+                ->pluck('cliente')
+                ->toArray();
+
+            if (!empty($clientesMultiplesIds)) {
+                $facturas->whereIn('factura.cliente', $clientesMultiplesIds);
+            } else {
+                $facturas->where('factura.id', '=', 0);
+            }
+        }
+
         $facturas->where('factura.tipo', $request->tipo)->where('factura.lectura',1);
 
         if(Auth::user()->empresa()->oficina){
@@ -7179,22 +7537,42 @@ class FacturasController extends Controller{
             }
         }
 
-        $facturas = $facturas->get();
-        $moneda = auth()->user()->empresa()->moneda;
+        // Optimizamos con Eager Loading para evitar N+1
+        $facturas = $facturas->with(['itemsFactura', 'clienteObj', 'vendedorObj'])->get();
+        $empresa = auth()->user()->empresa();
+        $moneda = $empresa->moneda;
+        $precision = $empresa->precision;
+        $sep_dec = $empresa->sep_dec;
+        $sep_mil = ($sep_dec == '.' ? ',' : '.');
 
         foreach ($facturas as $factura) {
 
+            // Calculamos el total una sola vez para evitar múltiples consultas internas
             $total = $factura->total();
+
+            // Calculamos los impuestos totales usando el objeto $total ya obtenido
+            $impuestos_totales = 0;
+            if (isset($total->imp)) {
+                foreach ($total->imp as $value) {
+                    if ($value->tipo == 1) {
+                        $impuestos_totales += $value->total;
+                    }
+                }
+            }
+
+            $nombre_cliente = $factura->nombrecliente . ' ' . $factura->ape1cliente . ' ' . $factura->ape2cliente;
+            $identificacion_cliente = ($factura->clienteObj) ? $factura->clienteObj->tip_iden('true') . ' ' . $factura->nitcliente : $factura->nitcliente;
+
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0].$i, $factura->codigo)
                 ->setCellValue($letras[1].$i, date('d-m-Y', strtotime($factura->fecha)))
-                ->setCellValue($letras[2].$i, $factura->nombrecliente.' '.$factura->ape1cliente.' '.$factura->ape2cliente)
-                ->setCellValue($letras[3].$i, $factura->cliente()->tip_iden('true').' '.$factura->nitcliente)
-                ->setCellValue($letras[4].$i, $moneda.' '.$factura->parsear(($total->subtotal)))
-                ->setCellValue($letras[5].$i, $moneda.' '.$factura->parsear(($factura->impuestos_totales())))
-                ->setCellValue($letras[6].$i, $moneda.' '.$factura->parsear(($total->total)))
-                ->setCellValue($letras[7].$i, $moneda.' '.$factura->parsear(($factura->pagado)))
-                ->setCellValue($letras[8].$i, $moneda.' '.$factura->parsear(($factura->porpagar)))
+                ->setCellValue($letras[2].$i, $nombre_cliente)
+                ->setCellValue($letras[3].$i, $identificacion_cliente)
+                ->setCellValue($letras[4].$i, $moneda.' '.number_format($total->subtotal, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[5].$i, $moneda.' '.number_format($impuestos_totales, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[6].$i, $moneda.' '.number_format($total->total, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[7].$i, $moneda.' '.number_format($factura->pagado, $precision, $sep_dec, $sep_mil))
+                ->setCellValue($letras[8].$i, $moneda.' '.number_format($factura->porpagar, $precision, $sep_dec, $sep_mil))
                 ->setCellValue($letras[9].$i, ($factura->cuenta_id) ?$factura->formaPago()->nombre:'');
             $i++;
         }

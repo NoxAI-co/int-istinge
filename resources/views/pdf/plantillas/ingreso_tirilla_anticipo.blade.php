@@ -244,6 +244,9 @@
     <span class="tirilla-label">Fecha del Pago:</span> {{ date('d/m/Y', strtotime($ingreso->fecha)) }}<br>
     <span class="tirilla-label">Cuenta:</span> {{ $ingreso->cuenta()->nombre }}<br>
     <span class="tirilla-label">Método de Pago:</span> {{ $ingreso->metodo_pago() }}<br>
+    @if(isset($saldo_inicial) && $saldo_inicial > 0)
+    <span class="tirilla-label">Saldo Inicial:</span> {{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($saldo_inicial)}}<br>
+    @endif
     @if($ingreso->notas) <span class="tirilla-label">Notas:</span> {{ $ingreso->notas }} @endif
 </div>
 <hr class="tirilla-hr">

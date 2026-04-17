@@ -340,6 +340,9 @@
                         <br>{{$empresa->web}}
                     @endif
                     <br> <a href="mailto:{{$empresa->email}}" target="_top">{{$empresa->email}}</a>
+                    @if($empresa->responsabilidades->first())
+                        <br>{{$empresa->responsabilidades->first()->responsabilidad}}
+                    @endif
                 </p>
             @endif
         </div>
@@ -414,8 +417,8 @@
                 <td colspan="">{{$factura->ordencompra}}</td>
             </tr>
             <tr>
-                <th class="right smalltd" width="10%">ORDEN DE SERVICIO</th>
-                <td colspan="">{{$factura->ordenservicio}}</td>
+                <th class="right smalltd" width="10%">FORMA PAGO</th>
+                <td colspan="">{{$factura->forma_pago() == 1 ? 'De Contado' : 'Crédito'}}</td>
             </tr>
             <tr>
                 <th class="right smalltd" width="10%">PLAZO</th>
@@ -998,11 +1001,11 @@
     <div style="width: 100%;height:auto;">
         <div style="width: 60%; display: inline-block; text-align:left;">
             @if(isset($codqr))
-            <img style="width:75%; height:auto; position:absolute; bottom:20px" src="https://gestoru.com/images/cadena_oficial.png">
+            <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://gestordepartes.net/images/btw.png">
             @endif
         </div>
         <div style="width: 40%; display: inline-block; text-align:left;">
-            <img style="width:15%; height:auto; position:absolute; bottom:20px" src="{{asset('images/logo_integra.png')}}">
+            <!-- <img style="width:20%; height:auto; position:absolute; bottom:20px" src="https://integracolombia.com/assets/images/logoIntegra-simple.png"> -->
         </div>
     </div>
 @endsection
