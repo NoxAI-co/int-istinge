@@ -1232,6 +1232,14 @@ class CronController extends Controller
                                                             )
                                                         );
 
+                                                        $mov = new MovimientoLOG;
+                                                        $mov->contrato    = $contrato->id;
+                                                        $mov->modulo      = 5;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->created_by  = 1;
+                                                        $mov->empresa     = $contrato->empresa;
+                                                        $mov->save();
+
                                                         #ELIMINAMOS DE IP_AUTORIZADAS#
                                                         $API->write('/ip/firewall/address-list/print', false);
                                                         $API->write('?address='.$contrato->ip, false);
@@ -1242,6 +1250,14 @@ class CronController extends Controller
                                                             $API->write('/ip/firewall/address-list/remove', false);
                                                             $API->write('=.id='.$ARRAYS[0]['.id']);
                                                             $READ = $API->read();
+                                                            
+                                                            $mov = new MovimientoLOG;
+                                                            $mov->contrato    = $contrato->id;
+                                                            $mov->modulo      = 5;
+                                                            $mov->descripcion = '[CRON] Removido de ips_autorizadas la IP ' . $contrato->ip;
+                                                            $mov->created_by  = 1;
+                                                            $mov->empresa     = $contrato->empresa;
+                                                            $mov->save();
                                                         }
                                                         #ELIMINAMOS DE IP_AUTORIZADAS#
                                                     }
@@ -1265,6 +1281,14 @@ class CronController extends Controller
                                                                 $response = $API->read();
 
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Secret PPPoE deshabilitado</b> en MikroTik<br>';
+                                                                
+                                                                $mov = new MovimientoLOG;
+                                                                $mov->contrato    = $contrato->id;
+                                                                $mov->modulo      = 5;
+                                                                $mov->descripcion = '[CRON] Secret PPPoE "' . $contrato->usuario . '" deshabilitado en MikroTik.';
+                                                                $mov->created_by  = 1;
+                                                                $mov->empresa     = $contrato->empresa;
+                                                                $mov->save();
 
                                                             }
                                                         }
@@ -1282,6 +1306,14 @@ class CronController extends Controller
                                                                     ".id" => $response['0']['.id']
                                                                 ]);
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->usuario . ') removida</b><br>';
+                                                                
+                                                                $mov = new MovimientoLOG;
+                                                                $mov->contrato    = $contrato->id;
+                                                                $mov->modulo      = 5;
+                                                                $mov->descripcion = '[CRON] Conexión activa PPPoE "' . $contrato->usuario . '" removida en MikroTik.';
+                                                                $mov->created_by  = 1;
+                                                                $mov->empresa     = $contrato->empresa;
+                                                                $mov->save();
                                                             }
                                                             else{ //NUEVO CODIGO
 
@@ -1295,6 +1327,14 @@ class CronController extends Controller
                                                                         ".id" => $response['0']['.id']
                                                                     ]);
                                                                     $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->nro . ') removida</b><br>';
+                                                                    
+                                                                    $mov = new MovimientoLOG;
+                                                                    $mov->contrato    = $contrato->id;
+                                                                    $mov->modulo      = 5;
+                                                                    $mov->descripcion = '[CRON] Conexión activa PPPoE (Nro: ' . $contrato->nro . ') removida en MikroTik.';
+                                                                    $mov->created_by  = 1;
+                                                                    $mov->empresa     = $contrato->empresa;
+                                                                    $mov->save();
                                                                 }
                                                             }
 
@@ -1668,6 +1708,14 @@ class CronController extends Controller
                                                             )
                                                         );
 
+                                                        $mov = new MovimientoLOG;
+                                                        $mov->contrato    = $contrato->id;
+                                                        $mov->modulo      = 5;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->created_by  = 1;
+                                                        $mov->empresa     = $contrato->empresa;
+                                                        $mov->save();
+
                                                         #ELIMINAMOS DE IP_AUTORIZADAS#
                                                         $API->write('/ip/firewall/address-list/print', false);
                                                         $API->write('?address='.$contrato->ip, false);
@@ -1678,6 +1726,14 @@ class CronController extends Controller
                                                             $API->write('/ip/firewall/address-list/remove', false);
                                                             $API->write('=.id='.$ARRAYS[0]['.id']);
                                                             $READ = $API->read();
+                                                            
+                                                            $mov = new MovimientoLOG;
+                                                            $mov->contrato    = $contrato->id;
+                                                            $mov->modulo      = 5;
+                                                            $mov->descripcion = '[CRON] Removido de ips_autorizadas la IP ' . $contrato->ip;
+                                                            $mov->created_by  = 1;
+                                                            $mov->empresa     = $contrato->empresa;
+                                                            $mov->save();
                                                         }
                                                         #ELIMINAMOS DE IP_AUTORIZADAS#
                                                     }
@@ -1701,6 +1757,14 @@ class CronController extends Controller
                                                                 $response = $API->read();
 
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Secret PPPoE deshabilitado</b> en MikroTik<br>';
+                                                                
+                                                                $mov = new MovimientoLOG;
+                                                                $mov->contrato    = $contrato->id;
+                                                                $mov->modulo      = 5;
+                                                                $mov->descripcion = '[CRON] Secret PPPoE "' . $contrato->usuario . '" deshabilitado en MikroTik.';
+                                                                $mov->created_by  = 1;
+                                                                $mov->empresa     = $contrato->empresa;
+                                                                $mov->save();
 
                                                             }
                                                         }
@@ -1718,6 +1782,14 @@ class CronController extends Controller
                                                                     ".id" => $response['0']['.id']
                                                                 ]);
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->usuario . ') removida</b><br>';
+                                                                
+                                                                $mov = new MovimientoLOG;
+                                                                $mov->contrato    = $contrato->id;
+                                                                $mov->modulo      = 5;
+                                                                $mov->descripcion = '[CRON] Conexión activa PPPoE "' . $contrato->usuario . '" removida en MikroTik.';
+                                                                $mov->created_by  = 1;
+                                                                $mov->empresa     = $contrato->empresa;
+                                                                $mov->save();
                                                             }
                                                             else{ //NUEVO CODIGO
 
@@ -1731,6 +1803,14 @@ class CronController extends Controller
                                                                         ".id" => $response['0']['.id']
                                                                     ]);
                                                                     $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->nro . ') removida</b><br>';
+                                                                    
+                                                                    $mov = new MovimientoLOG;
+                                                                    $mov->contrato    = $contrato->id;
+                                                                    $mov->modulo      = 5;
+                                                                    $mov->descripcion = '[CRON] Conexión activa PPPoE (Nro: ' . $contrato->nro . ') removida en MikroTik.';
+                                                                    $mov->created_by  = 1;
+                                                                    $mov->empresa     = $contrato->empresa;
+                                                                    $mov->save();
                                                                 }
                                                             }
 
