@@ -1197,12 +1197,15 @@ class CronController extends Controller
                             if(isset($contrato->server_configuration_id) || $promesaExtendida == 0){
 
                                     $descripcion = "";
+                                    $mikrotik_failed = false;
+                                    $olt_executed = false;
 
                                     // Lógica de Smart OLT
                                     if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                        $olt_executed = true;
                                         
                                         if($contrato->state == 'enabled'){
                                             $i++;
@@ -1305,10 +1308,31 @@ class CronController extends Controller
                                                     }
                                                 }
                                                 $API->disconnect();
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                            } else {
+                                                $mikrotik_failed = true;
                                             }
-                                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                         }
                                     }
+
+                                // 4. Procesamiento final, decidir si actualizar estado en DB
+                                if ($mikrotik_failed && !$olt_executed) {
+                                    $descripcion .= '<i class="fas fa-times text-danger"></i> <b>Contrato no desactivado:</b> Falló conexión a Mikrotik<br>';
+                                    if (isset($descripcion) && $descripcion != '') {
+                                        $movimiento = new MovimientoLOG();
+                                        $movimiento->contrato    = $contrato->id;
+                                        $movimiento->modulo      = 5;
+                                        $movimiento->descripcion = $descripcion;
+                                        $movimiento->created_by  = 1;
+                                        $movimiento->empresa     = $contrato->empresa;
+                                        $movimiento->save();
+                                    }
+                                    continue;
+                                }
+
+                                if ($mikrotik_failed) {
+                                    $descripcion .= '<i class="fas fa-exclamation-triangle text-warning"></i> <b>Contrato desactivado en OLT, pero falló conexión a Mikrotik</b><br>';
+                                }
 
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
@@ -1609,12 +1633,15 @@ class CronController extends Controller
                             if(isset($contrato->server_configuration_id) || $promesaExtendida == 0){
 
                                     $descripcion = "";
+                                    $mikrotik_failed = false;
+                                    $olt_executed = false;
 
                                     // Lógica de Smart OLT
                                     if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
+                                        $olt_executed = true;
                                         
                                         if($contrato->state == 'enabled'){
                                             $i++;
@@ -1717,10 +1744,31 @@ class CronController extends Controller
                                                     }
                                                 }
                                                 $API->disconnect();
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                            } else {
+                                                $mikrotik_failed = true;
                                             }
-                                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                         }
                                     }
+
+                                // 4. Procesamiento final, decidir si actualizar estado en DB
+                                if ($mikrotik_failed && !$olt_executed) {
+                                    $descripcion .= '<i class="fas fa-times text-danger"></i> <b>Contrato no desactivado:</b> Falló conexión a Mikrotik<br>';
+                                    if (isset($descripcion) && $descripcion != '') {
+                                        $movimiento = new MovimientoLOG();
+                                        $movimiento->contrato    = $contrato->id;
+                                        $movimiento->modulo      = 5;
+                                        $movimiento->descripcion = $descripcion;
+                                        $movimiento->created_by  = 1;
+                                        $movimiento->empresa     = $contrato->empresa;
+                                        $movimiento->save();
+                                    }
+                                    continue;
+                                }
+
+                                if ($mikrotik_failed) {
+                                    $descripcion .= '<i class="fas fa-exclamation-triangle text-warning"></i> <b>Contrato desactivado en OLT, pero falló conexión a Mikrotik</b><br>';
+                                }
 
                                 $contrato->state = 'disabled';
                                 $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
