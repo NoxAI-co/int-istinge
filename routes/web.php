@@ -1268,6 +1268,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::get('pagosrecurrentes/{id}/act_des', 'PagosRecurrentesController@act_des')->name('pagosrecurrentes.act_des');
 
 	Route::group(['prefix' => 'categorias'], function () {
+		Route::get('/create/{id}', 'CategoriasController@create')->name('categorias.create_id');
 		Route::post('/create/{id}/act_desc', 'CategoriasController@act_desc')->name('categorias.act_desc');
 		Route::post('/default/{id}', 'CategoriasController@default')->name('categorias.default');
 		Route::post('/quitar', 'CategoriasController@quitar')->name('categorias.quitar');
