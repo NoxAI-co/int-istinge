@@ -1249,7 +1249,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::get('/bancos/datatable/cliente/{cliente}', 'BancosController@datatable_movimientos_cliente')->name('bancos.cliente.movimientos.cuenta');
 	Route::get('/bancos/transferencia/{id}', 'BancosController@create_transferencia')->name('bancos.transferencia');
 	Route::post('/bancos/transferencia/{id}', 'BancosController@store_transferencia')->name('bancos.transferencia');
-	Route::post('/bancos/act_desac/{id}', 'CategoriasController@default')->name('bancos.act_desac');
+	Route::post('/bancos/act_desac/{id}', 'BancosController@act_desac')->name('bancos.act_desac');
 	Route::get('/bancos/ocultar/{id}', 'BancosController@ocultar')->name('bancos.ocultar');
 	Route::get('bancos/{bancos}/destroy_lote', 'BancosController@destroy_lote')->name('bancos.destroy_lote');
 	Route::get('/bancos/{id}/edit_limited', 'BancosController@edit_limited')->name('bancos.edit_limited');

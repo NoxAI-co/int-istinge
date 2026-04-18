@@ -233,7 +233,7 @@ class BancosController extends Controller
                 $banco->estatus=0;
                 $mensaje='Se ha desactivado satisfactoriamente el banco';
             }else{
-                $banco->estatus=0;
+                $banco->estatus=1;
                 $mensaje='Se ha activado satisfactoriamente el banco';
             }
             $banco->save();

@@ -3729,7 +3729,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de caja ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre;
             $caja = $banco->nombre;
         }else{
@@ -3803,6 +3812,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
@@ -4267,7 +4278,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de Punto de Venta ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre." (Ganancias)";
             $caja = $banco->nombre;
         }else{
@@ -4308,7 +4328,11 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -4326,6 +4350,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
@@ -4379,7 +4405,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de Punto de Venta ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre. "(Recaudos)";
             $caja = $banco->nombre;
         }else{
@@ -4420,7 +4455,11 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -4438,6 +4477,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
