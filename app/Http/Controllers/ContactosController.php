@@ -48,6 +48,13 @@ class ContactosController extends Controller
     {
         $this->middleware('auth');
         set_time_limit(300);
+        $this->middleware(function ($request, $next) {
+            $this->getAllPermissions(Auth::user()->id);
+            if (!isset($_SESSION['permisos']['1']) && !isset($_SESSION['permisos']['2']) && !isset($_SESSION['permisos']['3']) && !isset($_SESSION['permisos']['4']) && !isset($_SESSION['permisos']['5']) && !isset($_SESSION['permisos']['6']) && !isset($_SESSION['permisos']['7'])) {
+                return redirect('empresa')->with('danger', 'No tiene permisos para acceder a este módulo');
+            }
+            return $next($request);
+        });
         view()->share(['inicio' => 'master', 'seccion' => 'contactos', 'title' => 'Clientes', 'icon' => 'fas fa-users']);
     }
 

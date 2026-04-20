@@ -578,12 +578,16 @@ class Controller extends BaseController
         if(Auth::user()->rol>=2){
             if (DB::table('permisos_usuarios')->select('id_permiso')->where('id_usuario', $id)->count() > 0 ) {
                 $permisos = DB::table('permisos_usuarios')->select('id_permiso')->where('id_usuario', $id)->get();
+                $_SESSION['permisos'] = [];
                 foreach ($permisos as $key => $value) {
                     $_SESSION['permisos'][$permisos[$key]->id_permiso] = '1';
                 }
                 return $_SESSION['permisos'];
             }
-            else return null;
+            else {
+                $_SESSION['permisos'] = [];
+                return null;
+            }
         }
     }
 
