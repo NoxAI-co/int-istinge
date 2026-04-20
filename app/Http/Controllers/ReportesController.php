@@ -87,6 +87,7 @@ class ReportesController extends Controller
             $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)->get();
             if (Auth::user()->rol == 8) {
                 $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->whereIn('id', auth()->user()->cuentas())->get();
+                $cajasUsuario = $cajas->pluck('id')->toArray();
             } else {
                 $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->get();
             }
