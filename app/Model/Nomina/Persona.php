@@ -67,8 +67,7 @@ class Persona extends Model
 
     public function getValorAttribute($value)
     {
-        $valor = doubleval($value);
-        return round($valor, 4);
+        return doubleval($value);
     }
 
     public function nombre()

@@ -43,14 +43,12 @@ class NominaDetalleUno extends Model
 
     public function getValorHoraOrdinariaAttribute($value)
     {
-        $valor = doubleval($value);
-        return round($valor, 4);
+        return doubleval($value);
     }
 
     public function getValorCategoriaAttribute($value)
     {
-        $valor = doubleval($value);
-        return round($valor, 4);
+        return doubleval($value);
     }
 
 

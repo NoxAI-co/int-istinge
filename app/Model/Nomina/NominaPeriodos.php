@@ -608,7 +608,7 @@ class NominaPeriodos extends Model
             $valorPeriodo = $subFijo->valor / $this->mini_periodo;
             $valorMensual = $subFijo->valor;
             $valorDiario = $valorMensual / 30;
-            $sub = round($valorDiario * ($diasTrabajados - $diasVacacionesOtraNomina), 0); // o usar 2 decimales si prefieres
+            $sub = round($valorDiario * ($diasTrabajados - $diasVacacionesOtraNomina), 4); // o usar 2 decimales si prefieres
             // 3. Actualizar el modelo
             $subsidio->valor = $sub;
             $subsidio->save();
@@ -749,9 +749,9 @@ class NominaPeriodos extends Model
             $saludFijo = $calculofijo->where('nombre','Retención en salud')->first();
             $pensionFijo = $calculofijo->where('nombre','Retención en pensión')->first();
 
-            $periodoSalud->valor = $totalidad['pago']['salario'] * (round($saludFijo->valor) / 100);
+            $periodoSalud->valor = $totalidad['pago']['salario'] * ($saludFijo->valor / 100);
             $periodoSalud->save();
-            $periodoPension->valor = $totalidad['pago']['salario'] * (round($saludFijo->valor) / 100);
+            $periodoPension->valor = $totalidad['pago']['salario'] * ($saludFijo->valor / 100);
             $periodoPension->save();
         }
 

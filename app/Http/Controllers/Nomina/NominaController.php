@@ -1801,11 +1801,7 @@ class NominaController extends Controller
             $arrayPost['status'] = 'OK';
             $arrayPost['refresh'] = $refresh;
             $arrayPost['id'] = $request->id;
-            $arrayPost['horas'] = NominaDetalleUno::where(
-                'fk_nominaperiodo',
-                $request->id
-            )->whereIn('fk_nomina_cuenta_tipo', [1, 2, 3])->sum('numero_horas');
-            $arrayPost['valor_total'] = Funcion::precision($nominaPeriodo->valor_total);
+            $arrayPost['valor_total'] = $nominaPeriodo->valor_total;
             return json_encode($arrayPost);
         } else {
             $arrayPost['status'] = 'error';
@@ -2050,7 +2046,7 @@ class NominaController extends Controller
             $arrayPost['status'] = 'OK';
             $arrayPost['id'] = $request->id;
             $arrayPost['horas'] = $dias;
-            $arrayPost['valor_total'] = isset($valor_pago_vacaciones) ? $valor_pago_vacaciones : Funcion::precision($nominaPeriodo->valor_total);
+            $arrayPost['valor_total'] = isset($valor_pago_vacaciones) ? $valor_pago_vacaciones : $nominaPeriodo->valor_total;
             return json_encode($arrayPost);
         } else {
             $arrayPost['status'] = 'error';
@@ -2242,12 +2238,7 @@ class NominaController extends Controller
 
         if ($nominaPeriodo) {
             $arrayPost['status'] = 'OK';
-            $arrayPost['id'] = $request->id;
-            $arrayPost['ingresos'] = NominaDetalleUno::where(
-                'fk_nominaperiodo',
-                $request->id
-            )->whereIn('fk_nomina_cuenta_tipo', [7, 8, 9])->sum('valor_categoria');
-            $arrayPost['valor_total'] = Funcion::precision($nominaPeriodo->valor_total);
+            $arrayPost['valor_total'] = $nominaPeriodo->valor_total;
             return json_encode($arrayPost);
         } else {
             $arrayPost['status'] = 'error';
@@ -2414,12 +2405,7 @@ class NominaController extends Controller
 
         if ($nominaPeriodo) {
             $arrayPost['status'] = 'OK';
-            $arrayPost['id'] = $request->id;
-            $arrayPost['deducciones'] = NominaDetalleUno::where(
-                'fk_nominaperiodo',
-                $request->id
-            )->whereIn('fk_nomina_cuenta_tipo', [10, 11, 12])->sum('valor_categoria');
-            $arrayPost['valor_total'] = Funcion::precision($nominaPeriodo->valor_total);
+            $arrayPost['valor_total'] = $nominaPeriodo->valor_total;
             return json_encode($arrayPost);
         } else {
             $arrayPost['status'] = 'error';
