@@ -658,7 +658,47 @@
 	}
 
 	function exportar() {
-	    window.location.href = window.location.pathname+'/exportar?celular='+$('#celular').val()+'&email='+$('#email').val()+'&direccion='+$('#direccion').val()+'&barrio='+$('#barrio').val()+'&ip='+$('#ip').val()+'&mac='+$('#mac').val()+'&client_id='+$('#client_id').val()+'&plan='+$('#plan').val()+'&plan_tv='+$('#plan_tv').val()+'&state='+$('#state').val()+'&state_olt_catv='+$('#state_olt_catv').val()+'&grupo_cort='+$('#grupo_cort').val()+'&conexion_s='+$('#conexion_s').val()+'&server_configuration_id_s='+$('#server_configuration_id_s').val()+'&nodo_s='+$('#nodo_s').val()+'&ap_s='+$('#ap_s').val()+'&vendedor='+$('#vendedor').val()+'&canal='+$('#canal').val()+'&tecnologia_s='+$('#tecnologia_s').val()+'&facturacion_s='+$('#facturacion_s').val()+'&desde='+$('#desde').val()+'&hasta='+$('#hasta').val()+'&tipo_contrato='+$('#tipo_contrato').val()+'&nro='+$('#nro').val()+'&sn='+$('#sn').val()+'&otra_opcion='+$('#otra_opcion').val()+'&catv='+$('#catv').val();
+	    var query = {
+	        filtro: true,
+	        nro: $('#nro').val(),
+	        cliente_id: $('#client_id').val(),
+	        etiqueta_id: $('#etiqueta').val(),
+	        linea: $('#linea').val(),
+	        c_estrato: $('#c_estrato').val(),
+	        plan: $('#plan').val(),
+	        plan_tv: $('#plan_tv').val(),
+	        catv: $('#catv').val(),
+	        state: $('#state').val(),
+	        state_olt_catv: $('#state_olt_catv').val(),
+	        grupo_corte: $('#grupo_cort').val(),
+	        ip: $('#ip').val(),
+	        sn: $('#sn').val(),
+	        mac: $('#mac').val(),
+	        conexion: $("#conexion_s").val(),
+	        server_configuration_id: $("#server_configuration_id_s").val(),
+	        interfaz: $("#interfaz_s").val(),
+	        nodo: $("#nodo_s").val(),
+	        ap: $("#ap_s").val(),
+	        c_barrio: $("#barrio").val(),
+	        c_direccion: $("#direccion").val(),
+	        c_direccion_precisa: $("#direccion_precisa").val(),
+	        c_celular: $("#celular").val(),
+	        c_email: $("#email").val(),
+	        vendedor: $("#vendedor").val(),
+	        canal: $("#canal").val(),
+	        tecnologia: $("#tecnologia_s").val(),
+	        facturacion: $("#facturacion_s").val(),
+	        desde: $("#desde").val(),
+	        hasta: $("#hasta").val(),
+	        tipo_contrato: $("#tipo_contrato").val(),
+	        otra_opcion: $("#otra_opcion").val(),
+	        fecha_corte: $("#fecha-corte").val(),
+	        fecha_sin_facturas: $('#fecha_sin_facturas').val(),
+	        cajanap_id: $('#cajanap_id').val()
+	    };
+
+	    var queryString = $.param(query);
+	    window.location.href = window.location.pathname + '/exportar?' + queryString;
 	}
 
     function states(state){
