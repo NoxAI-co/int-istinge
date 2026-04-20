@@ -281,20 +281,30 @@ class ContratosController extends Controller
                     ->groupBy('contracts.id');
             }
 
-            // Filtro para contratos cuya última factura creada esté vencida
+            // Filtro para contratos cuya última factura creada esté vencida (Reflejo del Cronjob Cortarfacturas)
             if ($request->otra_opcion && $request->otra_opcion == "opcion_6") {
-                $contratos->join('facturas_contratos as fc_ultima', function($join) {
-                    $join->on('fc_ultima.contrato_nro', '=', 'contracts.nro')
-                         ->whereRaw('fc_ultima.factura_id = (
-                             SELECT MAX(fc2.factura_id)
-                             FROM facturas_contratos as fc2
-                             WHERE fc2.contrato_nro = contracts.nro
-                         )');
-                })
-                ->join('factura as f_ultima', 'f_ultima.id', '=', 'fc_ultima.factura_id')
-                ->where('f_ultima.vencimiento', '<=', Carbon::now()->format('Y-m-d'))
-                ->where('f_ultima.estatus', '=', 1)
-                ->groupBy('contracts.id');
+                $contratos->join('facturas_contratos as fcs', 'fcs.contrato_nro', '=', 'contracts.nro')
+                    ->join('factura as f', 'f.id', '=', 'fcs.factura_id')
+                    ->where('f.estatus', 1)
+                    ->whereIn('f.tipo', [1, 2])
+                    ->where('contactos.status', 1)
+                    ->whereNotNull('contracts.server_configuration_id')
+                    ->where(function($sub) {
+                        $sub->whereNull('contracts.fecha_suspension')
+                            ->orWhere('contracts.fecha_suspension', 0);
+                    })
+                    ->whereDate('f.vencimiento', '<=', now())
+                    ->whereIn('f.id', function ($subquery) {
+                        $subquery->selectRaw('MAX(fc.factura_id)')
+                            ->from('facturas_contratos as fc')
+                            ->join('factura as f2', 'f2.id', '=', 'fc.factura_id')
+                            ->whereColumn('f2.cliente', 'contactos.id')
+                            ->where('f2.estatus', 1)
+                            ->whereIn('f2.tipo', [1, 2])
+                            ->whereDate('f2.vencimiento', '<=', now())
+                            ->groupBy('fc.contrato_nro');
+                    })
+                    ->groupBy('contracts.id');
             }
 
             // Aplica el filtro de facturas si el usuario lo selecciona
