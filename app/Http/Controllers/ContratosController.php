@@ -7295,8 +7295,11 @@ class ContratosController extends Controller
                             if ($plan && $plan->item) {
                                 $item = Inventario::find($plan->item);
                                 if ($item) {
-                                    $item->contrato_nro = $co->nro;
-                                    $items[] = $item;
+                                    $item_arr = $item->toArray();
+                                    $item_arr['contrato_nro'] = $co->nro;
+                                    $item_arr['precio_personalizado'] = $co->precio_personalizado_internet;
+                                    $item_arr['tipo_plan'] = 'internet';
+                                    $items[] = (object)$item_arr;
                                 }
                             }
                         }
@@ -7304,16 +7307,20 @@ class ContratosController extends Controller
                         if ($co->servicio_tv) {
                             $item = Inventario::find($co->servicio_tv);
                             if ($item) {
-                                $item->contrato_nro = $co->nro;
-                                $items[] = $item;
+                                $item_arr = $item->toArray();
+                                $item_arr['contrato_nro'] = $co->nro;
+                                $item_arr['precio_personalizado'] = $co->precio_personalizado_tv;
+                                $item_arr['tipo_plan'] = 'tv';
+                                $items[] = (object)$item_arr;
                             }
                         }
 
                         if ($co->servicio_otro) {
                             $item = Inventario::find($co->servicio_otro);
                             if ($item) {
-                                $item->contrato_nro = $co->nro;
-                                $items[] = $item;
+                                $item_arr = $item->toArray();
+                                $item_arr['contrato_nro'] = $co->nro;
+                                $items[] = (object)$item_arr;
                             }
                         }
                     }

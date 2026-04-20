@@ -8,13 +8,39 @@
         {{Session::get('error')}}
     </div>
 
-    <script type="text/javascript">
-        setTimeout(function(){
-            $('.alert').hide();
-            $('.active_table').attr('class', ' ');
-        }, 8000);
-    </script>
+
     @endif
+
+    <script>
+      function opcionFacturaMes(id){
+          if(typeof $ !== 'undefined') {
+              $("#div-fact-mes").removeClass("d-none");
+          } else {
+              var el = document.getElementById("div-fact-mes");
+              if(el) el.classList.remove("d-none");
+          }
+      }
+  
+      function toggleBotonEliminarContrato(value){
+          if(typeof $ === 'undefined') return;
+          if(value && value !== '' && value.length > 0){
+              $('#btn-eliminar-contrato').show();
+          } else {
+              $('#btn-eliminar-contrato').hide();
+          }
+      }
+  
+      function eliminarContrato(){
+          if(typeof $ === 'undefined') return;
+          if(confirm('¿Está seguro que desea eliminar la relación del contrato con esta factura?')){
+              $('#contratos_json').val([]).selectpicker('refresh');
+              // También limpiar el campo hidden de contratos asociados si existe
+              $('#contratos_asociados').val('');
+              // Ocultar el botón de eliminar
+              $('#btn-eliminar-contrato').hide();
+          }
+      }
+    </script>
 
     <div class="paper">
         <!-- Membrete -->
@@ -653,30 +679,22 @@
           </div>
       </div>
   </div>
+  </div>
   {{--/Modal Editar Código Factura  --}}
 
-  <script>
-    function opcionFacturaMes(id){
-        $("#div-fact-mes").removeClass("d-none");
-    }
 
-    function toggleBotonEliminarContrato(value){
-        if(value && value !== '' && value.length > 0){
-            $('#btn-eliminar-contrato').show();
-        } else {
-            $('#btn-eliminar-contrato').hide();
-        }
-    }
 
-    function eliminarContrato(){
-        if(confirm('¿Está seguro que desea eliminar la relación del contrato con esta factura?')){
-            $('#contratos_json').val([]).selectpicker('refresh');
-            // También limpiar el campo hidden de contratos asociados si existe
-            $('#contratos_asociados').val('');
-            // Ocultar el botón de eliminar
-            $('#btn-eliminar-contrato').hide();
-        }
-    }
+@endsection
+
+@section('scripts')
+<script>
+    @if(Session::has('error'))
+        setTimeout(function(){
+            $('.alert').hide();
+            $('.active_table').attr('class', ' ');
+        }, 8000);
+    @endif
+
 
     // Ejecutar al cargar la página para verificar el estado inicial
     $(document).ready(function(){
@@ -916,6 +934,85 @@
             }
         });
     }
+
+    // --- Hook AJAX para manejo de Precios Personalizados de los Contratos ---
+    window.pendingCustomPrices = window.pendingCustomPrices || [];
+
+    $(document).ready(function() {
+        $(document).ajaxComplete(function (event, xhr, settings) {
+            // 1. Escuchar cuando obtenemos los items del contrato
+            if (settings.url.includes('/contratos/rowitem')) {
+                let res = xhr.responseJSON;
+                if(!res && xhr.responseText) {
+                    try { res = JSON.parse(xhr.responseText); } catch(e){}
+                }
+                
+                if (res && res.code == 200) {
+                    // Agregar nuevos precios al pool (sin borrar los anteriores por si hay rellenados pendientes)
+                    res.data.forEach(item => {
+                        let customPrice = parseFloat(item.precio_personalizado);
+                        if (!isNaN(customPrice) && customPrice > 0) {
+                            window.pendingCustomPrices.push({
+                                id: String(item.id),
+                                precio_personalizado: customPrice,
+                                contrato_nro: item.contrato_nro,
+                                tipo_plan: item.tipo_plan,
+                                usado: false
+                            });
+                        }
+                    });
+                }
+            }
+
+            // 2. Escuchar cuando la funcion rellenar() de function.js obtiene la info genérica del inventario
+            if (settings.url.includes('/empresa/inventario/') && settings.url.includes('/json')) {
+                let parts = settings.url.split('/empresa/inventario/');
+                let itemId = String(parts[1].split('/')[0]);
+                
+                let attempts = 0;
+                let interval = setInterval(function() {
+                    attempts++;
+                    
+                    // Buscar en el pool un precio para este ID que no haya sido usado
+                    let customPriceIndex = window.pendingCustomPrices.findIndex(p => p.id == itemId && !p.usado);
+                    
+                    if (customPriceIndex !== -1) {
+                        let customPriceInfo = window.pendingCustomPrices[customPriceIndex];
+                        let appliedInThisInterval = false;
+
+                        $('#table-form tbody tr').each(function() {
+                            let idRow = $(this).attr('id');
+                            let currentVal = String($('#item' + idRow).val());
+                            
+                            if (currentVal == itemId && !$(this).data('custom-price-applied')) {
+                                
+                                $('#precio' + idRow).val(customPriceInfo.precio_personalizado);
+                                
+                                if (typeof total === 'function') total(idRow);
+                                if (typeof totalall === 'function') totalall();
+                                
+                                if ($('#custom_msg_' + idRow).length == 0) {
+                                    $('#precio' + idRow).after('<small id="custom_msg_' + idRow + '" class="text-success" style="font-size:11px; display:block; margin-top:2px;"><b>Precio personalizado (' + customPriceInfo.contrato_nro + ')</b></small>');
+                                }
+                                
+                                $(this).data('custom-price-applied', true);
+                                window.pendingCustomPrices[customPriceIndex].usado = true;
+                                appliedInThisInterval = true;
+                                return false; 
+                            }
+                        });
+                        
+                        if (appliedInThisInterval || attempts > 10) {
+                            clearInterval(interval);
+                        }
+                    } else {
+                        if (attempts > 10) clearInterval(interval);
+                    }
+                }, 300);
+            }
+        });
+    });
+
     </script>
 
 @endsection

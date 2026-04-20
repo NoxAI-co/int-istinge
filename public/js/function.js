@@ -728,6 +728,8 @@ function rowItemsContrato(contrato) {
 
         success: function (data) {
 
+            console.log(data);
+
 
             if (data.code == 200) {
 
@@ -740,7 +742,7 @@ function rowItemsContrato(contrato) {
                     createRow()
 
                     $('#item' + it).val(item.id).selectpicker('refresh')
-                    rellenar(it, item.id)
+                    rellenar(it, item.id, false, item.precio_personalizado)
                     it = it + 1
 
                     if (!arrayContratos.includes(item.contrato_nro)) {
@@ -1468,9 +1470,9 @@ function camposextras(id) {
 }
 
 /* Rellena la columna segun el item seleccionado (facturas) */
-function rellenar(id, selected, producto = false) {
+function rellenar(id, selected, producto = false, precio_personalizado = null) {
     var pathname = window.location.pathname;
-    //if (!$.isNumeric( selected )) { $('#precio'+id).focus(); return false;  }
+    //if (!$.isNumeric( selected )) { $('#precio'+id).focus(); return false;  
 
     data = { 'precios': $('#lista_precios').val(), 'bodega': $('#bodega').val() };
 
@@ -1527,6 +1529,10 @@ function rellenar(id, selected, producto = false) {
                     $('#precio' + id).val('1');
                 } else {
                     $('#precio' + id).val(parseFloat(data.precio));
+                }
+
+                if (precio_personalizado) {
+                    $('#precio' + id).val(parseFloat(precio_personalizado));
                 }
             }
 
@@ -5735,3 +5741,12 @@ $('#searchMAC').click(function () {
         })
     }
 });
+
+function opcionFacturaMes(id) {
+    if (typeof $ !== 'undefined') {
+        $("#div-fact-mes").removeClass("d-none");
+    } else {
+        var el = document.getElementById("div-fact-mes");
+        if (el) el.classList.remove("d-none");
+    }
+}
