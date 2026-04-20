@@ -2664,6 +2664,9 @@ class ContratosController extends Controller
 
     public function show($id)
     {
+        if (!isset($_SESSION['permisos']['860'])) {
+            return redirect()->back()->with('danger', 'No cuenta con los permisos necesarios para realizar esta acción');
+        }
         $this->getAllPermissions(Auth::user()->id);
         view()->share(['middel' => true]);
         $inventario = false;
