@@ -30,6 +30,15 @@
 		        	<strong>{{ $errors->first('linea') }}</strong>
 		        </span>
 			</div>
+		</div>
+		<div class="row">
+			<div class="form-group col-md-3">
+	  			<label class="control-label">Nro Serial</label>
+				<input type="text" class="form-control" name="nro_serial" id="nro_serial" maxlength="200" value="{{old('nro_serial')}}">
+				<span class="help-block error">
+		        	<strong>{{ $errors->first('nro_serial') }}</strong>
+		        </span>
+			</div>
 			<div class="form-group col-md-3">
 				<label class="control-label">Impuesto <span class="text-danger">*</span></label>
 				<select class="form-control selectpicker" name="impuesto" id="impuesto" required="" title="Seleccione">

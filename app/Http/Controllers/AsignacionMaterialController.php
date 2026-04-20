@@ -62,7 +62,7 @@ class AsignacionMaterialController extends Controller
             'inventario.ref',
             'inventario.linea',
             DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
-            DB::raw("(Select meta_value from inventario_meta where id_producto=inventario.id and meta_key='nro_serial' limit 1) as serial")
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
@@ -178,7 +178,7 @@ class AsignacionMaterialController extends Controller
             'inventario.ref',
             'inventario.linea',
             DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
-            DB::raw("(Select meta_value from inventario_meta where id_producto=inventario.id and meta_key='nro_serial' limit 1) as serial")
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
@@ -297,7 +297,7 @@ class AsignacionMaterialController extends Controller
             'inventario.ref',
             'inventario.linea',
             DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
-            DB::raw("(Select meta_value from inventario_meta where id_producto=inventario.id and meta_key='nro_serial' limit 1) as serial")
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)

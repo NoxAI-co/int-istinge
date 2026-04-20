@@ -172,9 +172,9 @@
             const item = items.find(i => i.id == itemId);
 
             // Rellenar la referencia
-            document.getElementById('ref' + rowId).value = item.ref;
-            document.getElementById('serial' + rowId).value = item.serial;
-            document.getElementById('linea' + rowId).value = item.linea;
+            document.getElementById('ref' + rowId).value = item.ref ?? '';
+            document.getElementById('serial' + rowId).value = item.serial ?? '';
+            document.getElementById('linea' + rowId).value = item.linea ?? '';
 
             if(parseInt(item.nro) < 0){
                 Swal.fire({
