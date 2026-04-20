@@ -99,8 +99,10 @@
                     <table class="table table-striped table-sm" id="table-form" width="100%">
                         <thead class="thead-dark">
                             <tr>
-                                <th width="24%">Material</th>
-                                <th width="10%">Referencia - Material</th>
+                                <th width="20%">Material</th>
+                                <th width="10%">Referencia</th>
+                                <th width="10%">Nro Serial</th>
+                                <th width="10%">Linea</th>
                                 <th width="13%">Descripción</th>
                                 <th width="7%">Cantidad</th>
                                 <th width="2%"></th>
@@ -115,10 +117,15 @@
                                    @endforeach
                                   </select>
                                 </td>
-                            <td>
-                                <div class="resp-refer">
+                                <td>
                                     <input type="text" class="form-control form-control-sm" id="ref1" name="ref[]" placeholder="Referencia" required="">
-                                </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" id="serial1" name="serial[]" placeholder="Nro Serial">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" id="linea1" name="linea_item[]" placeholder="Linea">
+                                </td>
                                 <td  style="padding-top: 1% !important;">
                                     <div class="resp-descripcion">
                                         <textarea  class="form-control form-control-sm" id="descripcion1" name="descripcion[]" placeholder="Descripción" ></textarea>
@@ -166,6 +173,9 @@
 
             // Rellenar la referencia
             document.getElementById('ref' + rowId).value = item.ref;
+            document.getElementById('serial' + rowId).value = item.serial;
+            document.getElementById('linea' + rowId).value = item.linea;
+
             if(parseInt(item.nro) < 0){
                 Swal.fire({
                     position: 'top-center',
@@ -210,6 +220,12 @@
           </td>
           <td>
               <input type="text" class="form-control form-control-sm" id="ref${rowCount}" name="ref[]" placeholder="Referencia" required>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" id="serial${rowCount}" name="serial[]" placeholder="Nro Serial">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" id="linea${rowCount}" name="linea_item[]" placeholder="Linea">
             </td>
             <td>
                 <textarea class="form-control form-control-sm" id="descripcion${rowCount}" name="descripcion[]" placeholder="Descripción"></textarea>
