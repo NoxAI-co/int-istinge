@@ -121,7 +121,18 @@ class OnePayService
             if ($httpCode >= 200 && $httpCode < 300) {
                 // Guardar onepay_invoice_id en la factura
                 if (isset($responseData['id'])) {
-                    $factura->onepay_invoice_id = $responseData['id'];
+                    $nuevoId = $responseData['id'];
+                    
+                    // Asegurar que el ID no haya sido tomado accidentalmente por otra factura en el sistema (evita duplicados de UUIDs provistos por Onepay).
+                    $idExistente = Factura::where('onepay_invoice_id', $nuevoId)
+                        ->where('id', '!=', $factura->id)
+                        ->first();
+                        
+                    if ($idExistente) {
+                        throw new \Exception("Alerta: El ID de OnePay devuelto ({$nuevoId}) ya existe asignado a la factura interna ID {$idExistente->id}. Probablemente se deba a un código ($factura->codigo) duplicado en ambos registros.");
+                    }
+                    
+                    $factura->onepay_invoice_id = $nuevoId;
                     $factura->save();
                 }
 

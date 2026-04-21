@@ -85,11 +85,11 @@ class ReportesController extends Controller
         }else{
 
             $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)->get();
-            $cajas = Banco::where('estatus',1)->get();
-            $cajasUsuario = auth()->user()->cuentas();
-
-            if(Auth::user()->rol > 1 && auth()->user()->rol == 8){
-                $cajas = Banco::whereIn('id', $cajasUsuario)->get();
+            if (Auth::user()->rol == 8) {
+                $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->whereIn('id', auth()->user()->cuentas())->get();
+                $cajasUsuario = $cajas->pluck('id')->toArray();
+            } else {
+                $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->get();
             }
 
             view()->share(['seccion' => 'reportes', 'title' => 'Reporte de Facturas Pagadas', 'icon' =>'fas fa-chart-line']);
@@ -2131,7 +2131,11 @@ class ReportesController extends Controller
             $totales['entrada']  += $movimiento->tipo==1?$movimiento->saldo:0;
         }
 
-        $cajas = Banco::where('estatus',1)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', $empresa)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', $empresa)->get();
+        }
 
         $servidores = Mikrotik::where('status', 1)->where('empresa', $empresa)->get();
 
@@ -2186,7 +2190,11 @@ class ReportesController extends Controller
             $totales['entrada']  += $movimiento->tipo==1?$movimiento->saldo:0;
         }
 
-        $cajas = Banco::where('estatus',1)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->get();
+        }
 
         return view('reportes.instalacion.index')
             ->with('movimientos', $movimientos)
@@ -2426,7 +2434,11 @@ class ReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -2472,7 +2484,11 @@ class ReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -2504,7 +2520,11 @@ class ReportesController extends Controller
 
         $movimientos=  $movimientos->orderBy('fecha', 'DESC')->paginate(25)->appends($appends);
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
 
         return view('reportes.punto_venta_recaudo.index')
             ->with('movimientos', $movimientos)
@@ -2519,7 +2539,11 @@ class ReportesController extends Controller
 
 
         $numeraciones=NumeracionFactura::where('empresa',Auth::user()->empresa)->get();
-        $cajas = Banco::where('estatus',1)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->get();
+        }
         view()->share(['seccion' => 'reportes', 'title' => 'Reporte de Planes Facturados', 'icon' =>'fas fa-chart-line']);
         $campos=array( '','nombrecliente', 'factura.fecha', 'factura.vencimiento', 'nro', 'nro', 'nro', 'nro');
         if (!$request->orderby) {

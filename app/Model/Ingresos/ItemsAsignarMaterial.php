@@ -19,7 +19,7 @@ class ItemsAsignarMaterial extends Model
      * @var array
      */
     protected $fillable = [
-        'id_asignacion_material', 'id_material', 'cantidad','created_at', 'updated_at'
+        'id_factura_materials', 'id_material', 'cant','serial','linea','created_at', 'updated_at'
     ];
 
     public function asignacion()

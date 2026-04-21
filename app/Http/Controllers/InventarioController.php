@@ -427,6 +427,7 @@ class InventarioController extends Controller{
         $inventario->ref=$request->ref;
         $inventario->descripcion=mb_strtolower($request->descripcion);
         $inventario->linea = $request->linea;
+        $inventario->nro_serial = $request->nro_serial;
         $inventario->precio=$request->precio;
         $inventario->id_impuesto=$request->impuesto;
         $inventario->type=$request->type;
@@ -927,6 +928,7 @@ class InventarioController extends Controller{
             $inventario->ref=$request->ref;
             $inventario->descripcion=mb_strtolower($request->descripcion);
             $inventario->linea = $request->linea;
+            $inventario->nro_serial = $request->nro_serial;
             $inventario->precio=$request->precio;
             $inventario->tipo_producto=$request->tipo_producto;
             $inventario->categoria=$request->categoria;

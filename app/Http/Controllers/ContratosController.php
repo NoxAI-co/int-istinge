@@ -281,20 +281,30 @@ class ContratosController extends Controller
                     ->groupBy('contracts.id');
             }
 
-            // Filtro para contratos cuya última factura creada esté vencida
+            // Filtro para contratos cuya última factura creada esté vencida (Reflejo del Cronjob Cortarfacturas)
             if ($request->otra_opcion && $request->otra_opcion == "opcion_6") {
-                $contratos->join('facturas_contratos as fc_ultima', function($join) {
-                    $join->on('fc_ultima.contrato_nro', '=', 'contracts.nro')
-                         ->whereRaw('fc_ultima.factura_id = (
-                             SELECT MAX(fc2.factura_id)
-                             FROM facturas_contratos as fc2
-                             WHERE fc2.contrato_nro = contracts.nro
-                         )');
-                })
-                ->join('factura as f_ultima', 'f_ultima.id', '=', 'fc_ultima.factura_id')
-                ->where('f_ultima.vencimiento', '<=', Carbon::now()->format('Y-m-d'))
-                ->where('f_ultima.estatus', '=', 1)
-                ->groupBy('contracts.id');
+                $contratos->join('facturas_contratos as fcs', 'fcs.contrato_nro', '=', 'contracts.nro')
+                    ->join('factura as f', 'f.id', '=', 'fcs.factura_id')
+                    ->where('f.estatus', 1)
+                    ->whereIn('f.tipo', [1, 2])
+                    ->where('contactos.status', 1)
+                    ->whereNotNull('contracts.server_configuration_id')
+                    ->where(function($sub) {
+                        $sub->whereNull('contracts.fecha_suspension')
+                            ->orWhere('contracts.fecha_suspension', 0);
+                    })
+                    ->whereDate('f.vencimiento', '<=', now())
+                    ->whereIn('f.id', function ($subquery) {
+                        $subquery->selectRaw('MAX(fc.factura_id)')
+                            ->from('facturas_contratos as fc')
+                            ->join('factura as f2', 'f2.id', '=', 'fc.factura_id')
+                            ->whereColumn('f2.cliente', 'contactos.id')
+                            ->where('f2.estatus', 1)
+                            ->whereIn('f2.tipo', [1, 2])
+                            ->whereDate('f2.vencimiento', '<=', now())
+                            ->groupBy('fc.contrato_nro');
+                    })
+                    ->groupBy('contracts.id');
             }
 
             // Aplica el filtro de facturas si el usuario lo selecciona
@@ -2657,7 +2667,10 @@ class ContratosController extends Controller
         $this->getAllPermissions(Auth::user()->id);
         view()->share(['middel' => true]);
         $inventario = false;
-
+        if (!isset($_SESSION['permisos']['860'])) {
+            return redirect()->back()->with('danger', 'No cuenta con los permisos necesarios para realizar esta acción');
+        }
+        
 
         // Buscar por id o por nro según el parámetro recibido
         $baseQuery = Contrato::
@@ -3566,12 +3579,14 @@ class ContratosController extends Controller
                 'contracts.longitude as c_longitude',
                 'municipios.nombre as c_nombre_municipio',
                 'e.nombre as c_etiqueta',
-                'barrio.nombre as nombre_barrio'
+                'barrio.nombre as nombre_barrio',
+                'cn.nombre as cajanap_nombre'
             )
             ->join('contactos', 'contracts.client_id', '=', 'contactos.id')
             ->leftJoin('municipios', 'contactos.fk_idmunicipio', '=', 'municipios.id')
             ->leftJoin('etiquetas as e', 'e.id', '=', 'contracts.etiqueta_id')
             ->leftJoin('barrios as barrio', 'barrio.id', 'contactos.barrio_id')
+            ->leftJoin('caja_naps as cn', 'cn.id', '=', 'contracts.cajanap_id')
             ->where('contracts.empresa', Auth::user()->empresa)
             ->where('contracts.status', '!=', 0)
             ->orderBy('nro', 'desc');
@@ -3588,162 +3603,222 @@ class ContratosController extends Controller
             });
         }
 
-        if ($request->client_id != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.client_id', $request->client_id);
-            });
+        if ($request->cliente_id) {
+            $contratos->where('contracts.client_id', $request->cliente_id);
         }
-        if ($request->catv != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhereNotNull('contracts.olt_sn_mac')
-                    ->whereIn('contracts.state_olt_catv', [$request->catv]);
+
+        if ($request->fecha_sin_facturas) {
+            $fechaFiltro = Carbon::parse($request->fecha_sin_facturas)->format('Y-m-d');
+            $inicioDia = Carbon::parse($fechaFiltro)->startOfDay();
+            $finDia = Carbon::parse($fechaFiltro)->endOfDay();
+            $contratos->whereDoesntHave('facturas', function ($query) use ($inicioDia, $finDia) {
+                $query->whereBetween('factura.fecha', [$inicioDia, $finDia]);
             });
-        }
-        if ($request->plan != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.plan_id', $request->plan);
-            });
-        }
-        if ($request->ip != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.ip', 'like', "%{$request->ip}%");
+            $contratos->whereDoesntHave('facturasDirectas', function ($query) use ($inicioDia, $finDia) {
+                $query->whereBetween('factura.fecha', [$inicioDia, $finDia]);
             });
         }
 
-        if ($request->mac != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.mac_address', 'like', "%{$request->mac}%");
-            });
-        }
-        if ($request->grupo_cort != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.grupo_corte', $request->grupo_cort);
-            });
-        }
-        if ($request->state != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.state', $request->state)
-                    ->whereIn('contracts.status', [1]);
-            });
-        }
-        if ($request->conexion_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.conexion', $request->conexion_s);
-            });
-        }
-        if ($request->server_configuration_id_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.server_configuration_id', $request->server_configuration_id_s);
-            });
-        }
-        if ($request->nodo_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.nodo', $request->nodo_s);
-            });
-        }
-        if ($request->ap_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.ap', $request->ap_s);
-            });
-        }
-        if ($request->direccion != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contactos.direccion', 'like', "%{$request->direccion}%");
-            });
+        if ($request->plan) {
+            $contratos->where('contracts.plan_id', $request->plan);
         }
 
-        if ($request->direccion_precisa != null) {
+        if ($request->ip) {
+            $contratos->where('contracts.ip', 'like', "%{$request->ip}%");
+        }
+
+        if ($request->mac) {
+            $contratos->where('contracts.mac_address', 'like', "%{$request->mac}%");
+        }
+
+        if ($request->grupo_corte) {
+            $contratos->where('contracts.grupo_corte', $request->grupo_corte);
+        }
+
+        if ($request->state) {
+            $contratos->where('contracts.state', $request->state)
+                ->whereIn('contracts.status', [0, 1]);
+        }
+
+        if ($request->state_olt_catv) {
+            if($request->state_olt_catv == 1){
+                $contratos->where('contracts.state_olt_catv', $request->state_olt_catv);
+            }else{
+                $contratos->where('contracts.state_olt_catv', $request->state_olt_catv)->where('contracts.olt_sn_mac', '!=', null);
+            }
+        }
+
+        if ($request->conexion) {
+            $contratos->where('contracts.conexion', $request->conexion);
+        }
+
+        if ($request->server_configuration_id) {
+            $contratos->where('contracts.server_configuration_id', $request->server_configuration_id);
+        }
+
+        if ($request->nodo) {
+            $contratos->where('contracts.nodo', $request->nodo);
+        }
+
+        if ($request->ap) {
+            $contratos->where('contracts.ap', $request->ap);
+        }
+
+        if ($request->c_direccion) {
+            $direccion = $request->c_direccion;
+            $direccionParams = explode(' ', $direccion);
+            foreach ($direccionParams as $dir) {
+                $dir = strtolower($dir);
+                $dir = str_replace("#", "", $dir);
+                $contratos->where(function ($query) use ($dir) {
+                    $query->orWhere('contactos.direccion', 'like', "%{$dir}%");
+                    $query->orWhere('contracts.address_street', 'like', "%{$dir}%");
+                });
+            }
+        }
+
+        if ($request->c_direccion_precisa) {
             $contratos->where(function ($query) use ($request) {
                 $query->orWhere('contracts.address_street', 'like', "%{$request->c_direccion_precisa}%");
                 $query->orWhere('contactos.direccion', 'like', "%{$request->c_direccion_precisa}%");
             });
         }
-        if($request->barrio != null){
-            $contratos->where(function ($query) use ($request,$barrios) {
-                $query->orWhereIn('contactos.barrio_id',$barrios);
-            });
+
+        if ($request->c_barrio) {
+            $contratos->whereIn('contactos.barrio_id', (array)$request->c_barrio);
         }
-        if ($request->celular != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contactos.celular', 'like', "%{$request->celular}%");
-            });
+
+        if ($request->c_celular) {
+            $contratos->where('contactos.celular', 'like', "%{$request->c_celular}%");
         }
-        if ($request->email != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contactos.email', 'like', "%{$request->email}%");
-            });
+
+        if ($request->c_email) {
+            $contratos->where('contactos.email', 'like', "%{$request->c_email}%");
         }
-        if ($request->vendedor != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.vendedor', $request->vendedor);
-            });
+
+        if ($request->vendedor) {
+            $contratos->where('contracts.vendedor', $request->vendedor);
         }
-        if ($request->canal != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.canal', $request->canal);
-            });
+
+        if ($request->canal) {
+            $contratos->where('contracts.canal', $request->canal);
         }
-        if ($request->tecnologia_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.tecnologia', $request->tecnologia_s);
-            });
+
+        if ($request->tecnologia) {
+            $contratos->where('contracts.tecnologia', $request->tecnologia);
         }
-        if ($request->facturacion_s != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.facturacion', $request->facturacion_s);
-            });
+
+        if ($request->facturacion) {
+            $contratos->where('contracts.facturacion', $request->facturacion);
         }
-        if ($request->desde != null) {
+
+        if ($request->desde) {
+            $contratos->whereDate('contracts.created_at', '>=', Carbon::parse($request->desde)->format('Y-m-d'));
+        }
+
+        if ($request->hasta) {
+            $contratos->whereDate('contracts.created_at', '<=', Carbon::parse($request->hasta)->format('Y-m-d'));
+        }
+
+        if ($request->tipo_contrato) {
+            $contratos->where('contracts.tipo_contrato', $request->tipo_contrato);
+        }
+
+        if ($request->nro) {
+            $contratos->where('contracts.nro', 'like', "%{$request->nro}%");
+        }
+
+        if ($request->sn) {
             $contratos->where(function ($query) use ($request) {
-                $query->whereDate('contracts.created_at', '>=', Carbon::parse($request->desde)->format('Y-m-d'));
+                $query->orWhere('contracts.olt_sn_mac', 'like', "%{$request->sn}%")
+                ->orWhere('contracts.serial_onu', 'like', "%{$request->sn}%");
             });
         }
 
-        if ($request->hasta != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->whereDate('contracts.created_at', '<=', Carbon::parse($request->hasta)->format('Y-m-d'));
-            });
+        if ($request->etiqueta_id) {
+            $contratos->where('contracts.etiqueta_id', $request->etiqueta_id);
         }
 
-        if ($request->tipo_contrato != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.tipo_contrato', $request->tipo_contrato);
-            });
-        }
-        if ($request->nro != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.nro', 'like', "%{$request->nro}%");
-            });
-        }
-        if ($request->etiqueta != null) {
-            $contratos->where(function ($query) use ($request) {
-                $query->orWhere('contracts.etiqueta_id', $request->etiqueta);
-            });
+        if ($request->linea) {
+            $contratos->where('contracts.linea', 'like', "%{$request->linea}%");
         }
 
-        if ($request->otra_opcion && $request->otra_opcion == "opcion_5") {
-            $contratos->leftJoin('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
-                ->leftJoin('factura as f', 'fc.factura_id', '=', 'f.id')
-                ->whereNull('f.id')
+        if ($request->c_estrato) {
+            $contratos->where('contracts.estrato', 'like', "%{$request->c_estrato}%");
+        }
+
+        if ($request->cajanap_id) {
+            $contratos->where('contracts.cajanap_id', $request->cajanap_id);
+        }
+
+        if ($request->plan_tv) {
+            $contratos->whereIn('contracts.servicio_tv', (array)$request->plan_tv);
+        }
+        
+        if ($request->catv) {
+            $contratos->whereIn('contracts.state_olt_catv', (array)$request->catv);
+        }
+
+        if ($request->fecha_corte) {
+            $idContratos = Contrato::select('contracts.id')
+                ->join('contactos', 'contactos.id', '=', 'contracts.client_id')
+                ->join('factura as f', 'f.cliente', '=', 'contactos.id')
+                ->whereDate('f.vencimiento', Carbon::parse($request->fecha_corte)->format('Y-m-d'))
+                ->groupBy('contracts.id')
+                ->pluck('id')
+                ->toArray();
+
+            $contratos->whereIn('contracts.id', $idContratos);
+        }
+
+        // --- Opciones Especiales ---
+        if ($request->otra_opcion && $request->otra_opcion == "opcion_6") {
+            $contratos->join('facturas_contratos as fcs6', 'fcs6.contrato_nro', '=', 'contracts.nro')
+                ->join('factura as f6', 'f6.id', '=', 'fcs6.factura_id')
+                ->where('f6.estatus', 1)
+                ->whereIn('f6.tipo', [1, 2])
+                ->where('contactos.status', 1)
+                ->whereNotNull('contracts.server_configuration_id')
+                ->where(function($sub) {
+                    $sub->whereNull('contracts.fecha_suspension')
+                        ->orWhere('contracts.fecha_suspension', 0);
+                })
+                ->whereDate('f6.vencimiento', '<=', now())
+                ->whereIn('f6.id', function ($subquery) {
+                    $subquery->selectRaw('MAX(fc6.factura_id)')
+                        ->from('facturas_contratos as fc6')
+                        ->join('factura as f62', 'f62.id', '=', 'fc6.factura_id')
+                        ->whereColumn('f62.cliente', 'contactos.id')
+                        ->where('f62.estatus', 1)
+                        ->whereIn('f62.tipo', [1, 2])
+                        ->whereDate('f62.vencimiento', '<=', now())
+                        ->groupBy('fc6.contrato_nro');
+                })
                 ->groupBy('contracts.id');
         }
 
-        // Aplica el filtro de facturas si el usuario lo selecciona
+        if ($request->otra_opcion && $request->otra_opcion == "opcion_5") {
+            $contratos->leftJoin('facturas_contratos as fc5', 'fc5.contrato_nro', '=', 'contracts.nro')
+                ->leftJoin('factura as f5', 'fc5.factura_id', '=', 'f5.id')
+                ->whereNull('f5.id')
+                ->groupBy('contracts.id');
+        }
+
         if ($request->otra_opcion && $request->otra_opcion == "opcion_4") {
-            $contratos->join('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
-                ->join('factura as f', 'fc.factura_id', '=', 'f.id')
-                ->where('f.estatus', '=', 1)
-                ->where('f.vencimiento', '<=', Carbon::now()->format('Y-m-d'))
+            $contratos->join('facturas_contratos as fc4', 'fc4.contrato_nro', '=', 'contracts.nro')
+                ->join('factura as f4', 'fc4.factura_id', '=', 'f4.id')
+                ->where('f4.estatus', '=', 1)
+                ->where('f4.vencimiento', '<=', Carbon::now()->format('Y-m-d'))
                 ->groupBy('contracts.id')
-                ->havingRaw('COUNT(f.id) > 1');
+                ->havingRaw('COUNT(f4.id) > 1');
         }
 
         if ($request->otra_opcion && $request->otra_opcion == "opcion_3") {
-            $contratos->join('facturas_contratos as fc', 'fc.contrato_nro', '=', 'contracts.nro')
-                ->join('factura as f', 'fc.factura_id', '=', 'f.id')
-                ->where('f.estatus', '=', 1)
+            $contratos->join('facturas_contratos as fc3', 'fc3.contrato_nro', '=', 'contracts.nro')
+                ->join('factura as f3', 'fc3.factura_id', '=', 'f3.id')
+                ->where('f3.estatus', '=', 1)
                 ->groupBy('contracts.id')
-                ->havingRaw('COUNT(f.id) > 1');
+                ->havingRaw('COUNT(f3.id) > 1');
         }
 
         if ($request->otra_opcion && $request->otra_opcion == "opcion_2") {
@@ -3753,54 +3828,22 @@ class ContratosController extends Controller
             });
         }
 
-        //Esta opción es para mirar los contratos deshabilitados con su ultima factura pagada.
         if ($request->otra_opcion && $request->otra_opcion == "opcion_1") {
-            $contratos = Contrato::where('state', 'disabled')->get();
-            $i = 0;
+            $contratosDisabled = Contrato::where('state', 'disabled')->get();
             $arrayContratos = array();
-            foreach ($contratos as $contrato) {
-
+            foreach ($contratosDisabled as $contratoD) {
                 $facturaContratos = DB::table('facturas_contratos')
-                    ->where('contrato_nro', $contrato->nro)->orderBy('id', 'DESC')->first();
-
+                    ->where('contrato_nro', $contratoD->nro)->orderBy('id', 'DESC')->first();
                 if ($facturaContratos) {
-                    $ultFactura = Factura::Find($facturaContratos->factura_id);
+                    $ultFactura = Factura::find($facturaContratos->factura_id);
                     if (isset($ultFactura->estatus) && $ultFactura->estatus == 0) {
-                        array_push($arrayContratos, $contrato->id);
+                        array_push($arrayContratos, $contratoD->id);
                     }
                 }
             }
-            $contratos = Contrato::select(
-                'contracts.*',
-                'contactos.id as c_id',
-                'contactos.nombre as c_nombre',
-                'contactos.apellido1 as c_apellido1',
-                'municipios.nombre as nombre_municipio',
-                'contactos.apellido2 as c_apellido2',
-                'contactos.nit as c_nit',
-                'contactos.celular as c_telefono',
-                'contactos.email as c_email',
-                'contactos.barrio as c_barrio',
-                'contactos.direccion',
-                'contactos.celular as c_celular',
-                'contactos.fk_idmunicipio',
-                'contactos.email as c_email',
-                'contactos.id as c_id',
-                'contactos.firma_isp',
-                'contracts.estrato',
-                'contracts.latitude as c_latitude',
-                'contracts.longitude as c_longitude',
-                'barrio.nombre as barrio_nombre',
-                DB::raw('(select fecha from ingresos where ingresos.cliente = contracts.client_id and ingresos.tipo = 1 LIMIT 1) AS pago')
-            )
-                ->selectRaw('INET_ATON(contracts.ip) as ipformat')
-                ->join('contactos', 'contracts.client_id', '=', 'contactos.id')
-                ->join('municipios', 'contactos.fk_idmunicipio', '=', 'municipios.id')
-                ->leftJoin('barrios as barrio', 'barrio.id', 'contactos.barrio_id')
-                ->whereIn('contracts.id', $arrayContratos);
+            $contratos->whereIn('contracts.id', $arrayContratos);
         }
 
-        // $contratos = $contratos->where('contracts.status', 1)->get();
         $contratos = $contratos->get();
 
         // ===== BATCH PRE-LOADING (elimina N+1 queries) =====
@@ -7295,8 +7338,11 @@ class ContratosController extends Controller
                             if ($plan && $plan->item) {
                                 $item = Inventario::find($plan->item);
                                 if ($item) {
-                                    $item->contrato_nro = $co->nro;
-                                    $items[] = $item;
+                                    $item_arr = $item->toArray();
+                                    $item_arr['contrato_nro'] = $co->nro;
+                                    $item_arr['precio_personalizado'] = $co->precio_personalizado_internet;
+                                    $item_arr['tipo_plan'] = 'internet';
+                                    $items[] = (object)$item_arr;
                                 }
                             }
                         }
@@ -7304,16 +7350,20 @@ class ContratosController extends Controller
                         if ($co->servicio_tv) {
                             $item = Inventario::find($co->servicio_tv);
                             if ($item) {
-                                $item->contrato_nro = $co->nro;
-                                $items[] = $item;
+                                $item_arr = $item->toArray();
+                                $item_arr['contrato_nro'] = $co->nro;
+                                $item_arr['precio_personalizado'] = $co->precio_personalizado_tv;
+                                $item_arr['tipo_plan'] = 'tv';
+                                $items[] = (object)$item_arr;
                             }
                         }
 
                         if ($co->servicio_otro) {
                             $item = Inventario::find($co->servicio_otro);
                             if ($item) {
-                                $item->contrato_nro = $co->nro;
-                                $items[] = $item;
+                                $item_arr = $item->toArray();
+                                $item_arr['contrato_nro'] = $co->nro;
+                                $items[] = (object)$item_arr;
                             }
                         }
                     }

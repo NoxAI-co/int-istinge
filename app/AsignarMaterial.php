@@ -27,7 +27,7 @@ class AsignarMaterial extends Model
 
     public function items()
     {
-        return $this->hasMany(ItemsAsignarMaterial::class, 'id_asignacion_material');
+        return $this->hasMany(ItemsAsignarMaterial::class, 'id_factura_materials');
     }
 
     public function tecnico()
@@ -37,7 +37,7 @@ class AsignarMaterial extends Model
 
     public function materiales()
     {
-        return $this->belongsToMany(Inventario::class, 'items_asignar_materials', 'id_asignacion_material', 'id_material')
-            ->withPivot('cantidad');
+        return $this->belongsToMany(Inventario::class, 'items_asignar_materials', 'id_factura_materials', 'id_material')
+            ->withPivot('cant');
     }
 }

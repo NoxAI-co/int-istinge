@@ -99,8 +99,10 @@
                             <thead class="thead-dark">
                             <tr>
                                 <th hidden=""></th>
-                                <th width="24%">Material</th>
-                                <th width="10%">Referencia - Material</th>
+                                <th width="20%">Material</th>
+                                <th width="10%">Referencia</th>
+                                <th width="10%">Nro Serial</th>
+                                <th width="10%">Linea</th>
                                 <th width="13%">Descripción</th>
                                 <th width="7%">Cantidad</th>
                                 <th width="2%"></th>
@@ -123,6 +125,13 @@
                                         <div class="resp-refer">
                                             <input type="text" class="form-control form-control-sm" id="ref{{$key + 1}}" name="ref[]" placeholder="Referencia" required="" value="{{ $item->material ? $item->material->ref : '' }}">
                                         </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="serial{{$key + 1}}" name="serial[]" placeholder="Nro Serial" value="{{ $item->serial ?? '' }}">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="linea{{$key + 1}}" name="linea_item[]" placeholder="Linea" value="{{ $item->linea ?? '' }}">
+                                    </td>
                                     <td  style="padding-top: 1% !important;">
                                         <div class="resp-descripcion">
                                             <textarea  class="form-control form-control-sm" id="descripcion{{$key + 1}}" name="descripcion[]" placeholder="Descripción"></textarea>
@@ -171,11 +180,11 @@
     <script>
         const items = @json($inventario);
         function setReference(rowId, itemId){
-            console.log(rowId)
             const item = items.find(i => i.id == itemId);
             // Rellenar la referencia
-            console.log(document.getElementById('ref' + rowId))
-            document.getElementById('ref' + rowId).value = item.ref;
+            document.getElementById('ref' + rowId).value = item.ref ?? '';
+            document.getElementById('serial' + rowId).value = item.serial ?? '';
+            document.getElementById('linea' + rowId).value = item.linea ?? '';
             if(parseInt(item.nro) < 0){
                 Swal.fire({
                     position: 'top-center',
@@ -220,6 +229,12 @@
           </td>
           <td>
               <input type="text" class="form-control form-control-sm" id="ref${rowCount}" name="ref[]" placeholder="Referencia" required>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" id="serial${rowCount}" name="serial[]" placeholder="Nro Serial">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" id="linea${rowCount}" name="linea_item[]" placeholder="Linea">
             </td>
             <td>
                 <textarea class="form-control form-control-sm" id="descripcion${rowCount}" name="descripcion[]" placeholder="Descripción"></textarea>

@@ -548,15 +548,19 @@ class SiigoController extends Controller
                 "customer" => $customerData,
                 "seller"   => $request->usuario,
                 "items"    => $array_items_factura,
-    
-                "payments" => [
+            ];
+
+            // Si la factura está pagada (estatus 0), enviamos los pagos a Siigo.
+            // Si está abierta (estatus 1), no enviamos el nodo payments para que Siigo la deje como pendiente de pago.
+            if ($factura->estatus == 0) {
+                $data["payments"] = [
                     [
                         "id"       => $request->tipos_pago,
                         "value"    => number_format($totalFactura, 2, '.', ''),
                         "due_date" => $factura->vencimiento
                     ]
-                ]
-            ];
+                ];
+            }
     
             if (!$draft) {
                 $data["stamp"] = ["send" => true];

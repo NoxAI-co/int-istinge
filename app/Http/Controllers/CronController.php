@@ -6778,10 +6778,42 @@ class CronController extends Controller
         $enviadas = 0;
         $errores  = 0;
         $detalle  = [];
+        $codigosProcesados = [];
 
         foreach ($facturas as $factura) {
             try {
+                // VALIDACIÓN 1: Prevenir el procesamiento de códigos duplicados en el mismo lote
+                if (in_array($factura->codigo, $codigosProcesados)) {
+                    throw new \Exception("El código de factura {$factura->codigo} está duplicado en este bloque de sincronización.");
+                }
+                $codigosProcesados[] = $factura->codigo;
+
+                // VALIDACIÓN 2: Prevenir sincronización si ya existe otra factura en DB con el mismo código vinculada a OnePay
+                $facturaDuplicada = Factura::where('codigo', $factura->codigo)
+                    ->where('id', '!=', $factura->id)
+                    ->where(function ($q) {
+                        $q->whereNotNull('onepay_invoice_id')
+                          ->where('onepay_invoice_id', '!=', '');
+                    })
+                    ->first();
+
+                if ($facturaDuplicada) {
+                    throw new \Exception("Ya existe otra factura (ID: {$facturaDuplicada->id}) con el código {$factura->codigo} vinculada a OnePay. ¡Verificar duplicados!");
+                }
+
                 $onePayService->createInvoice($factura, $empresa->id);
+                
+                // VALIDACIÓN 3: Verificación extra post-retorno para garantizar que la ID generada y guardada no esté compartida con otra
+                $idGuardado = $factura->fresh()->onepay_invoice_id;
+                if ($idGuardado) {
+                    $existenciasId = Factura::where('onepay_invoice_id', $idGuardado)->count();
+                    if ($existenciasId > 1) {
+                        // En caso de que se haya colado, revertimos e informamos del peligro
+                        $factura->onepay_invoice_id = null;
+                        $factura->save();
+                        throw new \Exception("Alerta de ID duplicado devuelto por OnePay ({$idGuardado}). Se reversó el ID para la factura actual para evitar daños.");
+                    }
+                }
                 $enviadas++;
                 $detalle[] = [
                     'factura_id' => $factura->id,

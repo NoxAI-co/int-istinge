@@ -60,7 +60,9 @@ class AsignacionMaterialController extends Controller
             'inventario.type',
             'inventario.producto',
             'inventario.ref',
-            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro')
+            'inventario.linea',
+            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
@@ -124,9 +126,11 @@ class AsignacionMaterialController extends Controller
 
             foreach ($items as $key => $value) {
                 ItemsAsignarMaterial::create([
-                    "id_asignacion_material" => $asignacion_material->id,
+                    "id_factura_materials" => $asignacion_material->id,
                     "id_material" => $value,
-                    "cantidad" => $cant[$key],
+                    "cant" => $cant[$key],
+                    "serial" => $request->serial[$key] ?? null,
+                    "linea" => $request->linea_item[$key] ?? null,
                     "created_at" => Carbon::now()
                 ]);
 
@@ -172,7 +176,9 @@ class AsignacionMaterialController extends Controller
             'inventario.type',
             'inventario.producto',
             'inventario.ref',
-            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro')
+            'inventario.linea',
+            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
@@ -226,11 +232,13 @@ class AsignacionMaterialController extends Controller
 
                     $material = ProductosBodega::where("producto", $items[$key])->first();
 
-                    $cantidad = round($material->nro) + $item_asignar->cantidad;
+                    $cantidad = round($material->nro) + $item_asignar->cant;
 
                     $item_asignar->update([
                         "id_material" => $items[$key],
-                        "cantidad" => $cant[$key],
+                        "cant" => $cant[$key],
+                        "serial" => $request->serial[$key] ?? null,
+                        "linea" => $request->linea_item[$key] ?? null,
                     ]);
 
                     $material->update([
@@ -242,9 +250,11 @@ class AsignacionMaterialController extends Controller
             foreach ($items as $key => $value) {
                 if ($key + 1 > count($request->itemId)) {
                     ItemsAsignarMaterial::create([
-                        "id_asignacion_material" => $material_asignado->id,
+                        "id_factura_materials" => $material_asignado->id,
                         "id_material" => $value,
-                        "cantidad" => $cant[$key],
+                        "cant" => $cant[$key],
+                        "serial" => $request->serial[$key] ?? null,
+                        "linea" => $request->linea_item[$key] ?? null,
                         "created_at" => Carbon::now()
                     ]);
 
@@ -285,7 +295,9 @@ class AsignacionMaterialController extends Controller
             'inventario.type',
             'inventario.producto',
             'inventario.ref',
-            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro')
+            'inventario.linea',
+            DB::raw('(Select nro from productos_bodegas where bodega=' . $bodega->id . ' and producto=inventario.id) as nro'),
+            'inventario.nro_serial as serial'
         )
             ->where('empresa', $empresa->id)
             ->where('status', 1)
@@ -309,7 +321,7 @@ class AsignacionMaterialController extends Controller
             foreach ($material_asignado->items as $item) {
                 $material = ProductosBodega::where("producto", $item->id_material)->first();
                 $material->update([
-                    "nro" => $material->nro + $item->cantidad
+                    "nro" => $material->nro + $item->cant
                 ]);
 
                 $item->delete();
@@ -334,7 +346,7 @@ class AsignacionMaterialController extends Controller
             $material = ProductosBodega::where("producto", $item->id_material)->first();
 
             $material->update([
-                "nro" => $material->nro + $item->cantidad
+                "nro" => $material->nro + $item->cant
             ]);
 
             $item->delete();
@@ -369,7 +381,7 @@ class AsignacionMaterialController extends Controller
         $asignacion = AsignarMaterial::with(['tecnico', 'materiales'])->findOrFail($id);
 
         if ($asignacion) {
-            $items = ItemsAsignarMaterial::where('id_asignacion_material', $asignacion->id)
+            $items = ItemsAsignarMaterial::where('id_factura_materials', $asignacion->id)
                 ->join('inventario', 'inventario.id', '=', 'items_asignar_materials.id_material')
                 ->select('items_asignar_materials.*', 'inventario.producto as nombre', 'inventario.descripcion')
                 ->get();

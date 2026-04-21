@@ -7,12 +7,7 @@
     {{Session::get('success')}}
   </div>
 
-  <script type="text/javascript">
-    setTimeout(function(){
-        $('.alert').hide();
-        $('.active_table').attr('class', ' ');
-    }, 5000);
-  </script>
+
 @endif
 
 @if(Session::has('error'))
@@ -20,12 +15,7 @@
     {{Session::get('error')}}
   </div>
 
-  <script type="text/javascript">
-    setTimeout(function(){
-        $('.alert').hide();
-        $('.active_table').attr('class', ' ');
-    }, 5000);
-  </script>
+
 @endif
 
 @if(Session::has('success-newcontact'))
@@ -33,12 +23,7 @@
   {{Session::get('success-newcontact')}}
 </div>
 
-<script type="text/javascript">
-  setTimeout(function(){
-    $('.alert').hide();
-    $('.active_table').attr('class', ' ');
-  }, 5000);
-</script>
+
 @endif
 
 <style>
@@ -109,10 +94,8 @@
             <div class="col-sm-8">
             <div class="input-group">
                 <select class="form-control selectpicker" name="contratos_json" id="contratos_json" required=""
-                title="Seleccione un contrato" plac data-live-search="true" data-size="5"
-                onchange="rowItemsContrato(this.value),opcionFacturaMes(this.value)"
-                >
-
+                title="Seleccione un contrato" data-live-search="true" data-size="5"
+                onchange="rowItemsContrato(this.value);opcionFacturaMes(this.value)">
                 </select>
             </div>
 
@@ -319,11 +302,7 @@
              <span aria-hidden="true">&times;</span> </button></div>';
                         echo $alert;
                     @endphp
-                    <script>
-                        setTimeout(function(){
-                            $('#alertInventario').remove();
-                        }, 5000);
-                    </script>
+
                 @endif
             @endif
         </div>
@@ -652,76 +631,99 @@
   </div>
   {{--/Modal Editar Código Factura  --}}
 
-  <script>
-    function opcionFacturaMes(id){
-        $("#div-fact-mes").removeClass("d-none");
-    }
-    </script>
 
-    <script>
-        $(document).ready(function() {
-            function actualizarFechasCalculadas() {
-                var dias = $('#plazo option:selected').attr('dias');
-                var fechaBase = $('#fecha').val();
-                
-                if ($.isNumeric(dias) && fechaBase) {
-                    var nDias = parseInt(dias);
-                    var momentBase = moment(fechaBase, "DD-MM-YYYY");
-                    if (!momentBase.isValid()) {
-                        momentBase = moment(fechaBase, "YYYY-MM-DD");
-                    }
-                    
-                    if (momentBase.isValid()) {
-                        var nuevaFecha = momentBase.clone().add(nDias, 'days');
-                        var nuevaFechaFormatted = nuevaFecha.format('YYYY-MM-DD'); 
-                        var nuevaFechaPicker = nuevaFecha.format('DD-MM-YYYY');     
 
-                        // 1. Actualizar Vencimiento
-                        $('#vencimiento_new').val(nuevaFechaFormatted);
-                        actualizarWidgetGijgo('#vencimiento_new', nuevaFechaPicker);
-
-                        // 2. Actualizar Pago Oportuno
-                        $('#pago_oportuno').val(nuevaFechaFormatted);
-                        actualizarWidgetGijgo('#pago_oportuno', nuevaFechaPicker);
-                    }
-                }
-            }
-
-            function actualizarWidgetGijgo(selector, valor) {
-                try {
-                    if (typeof $(selector).datepicker === 'function') {
-                        var picker = $(selector).datepicker();
-                        if (picker && typeof picker.value === 'function') {
-                            picker.value(valor);
-                        }
-                    }
-                } catch (e) { }
-            }
-
-            // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
-            $('#form-factura').on('submit', function() {
-                $('#vencimiento_new').removeAttr('disabled');
-                $('#fecha').removeAttr('disabled');
-            });
-
-            // Evento change del plazo
-            $('#plazo').on('change', function() {
-                actualizarFechasCalculadas();
-            });
-
-            // Evento change de la fecha base
-            $('#fecha').on('change', function() {
-                actualizarFechasCalculadas();
-            });
-
-            // Ejecución inicial
-            setTimeout(actualizarFechasCalculadas, 500);
-        });
-    </script>
 @endsection
 
 @section('scripts')
 <script>
+    function opcionFacturaMes(id){
+        console.log('opcionFacturaMes called with id:', id);
+        if(typeof $ !== 'undefined') {
+            $("#div-fact-mes").removeClass("d-none");
+        } else {
+            var el = document.getElementById("div-fact-mes");
+            if(el) el.classList.remove("d-none");
+        }
+    }
+    // Scripts trasladados del cuerpo
+    @if(Session::has('success') || Session::has('error') || Session::has('success-newcontact'))
+        setTimeout(function(){
+            $('.alert').hide();
+            $('.active_table').attr('class', ' ');
+        }, 5000);
+    @endif
+
+
+    // Alerta de inventario
+    // Alerta de inventario
+    if ($('#alertInventario').length > 0) {
+        setTimeout(function(){
+            $('#alertInventario').remove();
+        }, 5000);
+    }
+
+
+    $(document).ready(function() {
+        function actualizarFechasCalculadas() {
+            var dias = $('#plazo option:selected').attr('dias');
+            var fechaBase = $('#fecha').val();
+            
+            if ($.isNumeric(dias) && fechaBase) {
+                var nDias = parseInt(dias);
+                var momentBase = moment(fechaBase, "DD-MM-YYYY");
+                if (!momentBase.isValid()) {
+                    momentBase = moment(fechaBase, "YYYY-MM-DD");
+                }
+                
+                if (momentBase.isValid()) {
+                    var nuevaFecha = momentBase.clone().add(nDias, 'days');
+                    var nuevaFechaFormatted = nuevaFecha.format('YYYY-MM-DD'); 
+                    var nuevaFechaPicker = nuevaFecha.format('DD-MM-YYYY');     
+
+                    // 1. Actualizar Vencimiento
+                    $('#vencimiento_new').val(nuevaFechaFormatted);
+                    actualizarWidgetGijgo('#vencimiento_new', nuevaFechaPicker);
+
+                    // 2. Actualizar Pago Oportuno
+                    $('#pago_oportuno').val(nuevaFechaFormatted);
+                    actualizarWidgetGijgo('#pago_oportuno', nuevaFechaPicker);
+                }
+            }
+        }
+
+        function actualizarWidgetGijgo(selector, valor) {
+            try {
+                if (typeof $(selector).datepicker === 'function') {
+                    var picker = $(selector).datepicker();
+                    if (picker && typeof picker.value === 'function') {
+                        picker.value(valor);
+                    }
+                }
+            } catch (e) { }
+        }
+
+        // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
+        $('#form-factura').on('submit', function() {
+            $('#vencimiento_new').removeAttr('disabled');
+            $('#fecha').removeAttr('disabled');
+        });
+
+        // Evento change del plazo
+        $('#plazo').on('change', function() {
+            actualizarFechasCalculadas();
+        });
+
+        // Evento change de la fecha base
+        $('#fecha').on('change', function() {
+            actualizarFechasCalculadas();
+        });
+
+        // Ejecución inicial
+        setTimeout(actualizarFechasCalculadas, 500);
+    });
+
+
     var facturaIdCodigo = null;
     var numeracionIdCodigo = null;
 
@@ -885,4 +887,88 @@
             }
         });
     }
+
+    // --- Hook AJAX para manejo de Precios Personalizados de los Contratos ---
+    window.pendingCustomPrices = window.pendingCustomPrices || [];
+
+    $(document).ready(function() {
+        $(document).ajaxComplete(function (event, xhr, settings) {
+          console.log("AJAX Complete:", settings.url);
+      alert("ok");
+        // 1. Escuchar cuando obtenemos los items del contrato
+        if (settings.url.includes('/contratos/rowitem')) {
+            let res = xhr.responseJSON;
+            if (res && res.code == 200) {
+                console.log("------ RESPUESTA COMPLETA DE ROWITEM -----", res.data);
+                // Agregar nuevos precios al pool (sin borrar los anteriores por si hay rellenados pendientes)
+                res.data.forEach(item => {
+                    let customPrice = parseFloat(item.precio_personalizado);
+                    console.log("Analizando item.id=" + item.id + ", precio_personalizado=" + item.precio_personalizado + ", parsed=" + customPrice);
+                    if (!isNaN(customPrice) && customPrice > 0) {
+                        window.pendingCustomPrices.push({
+                            id: String(item.id),
+                            precio_personalizado: customPrice,
+                            contrato_nro: item.contrato_nro,
+                            tipo_plan: item.tipo_plan,
+                            usado: false
+                        });
+                        console.log("Agregado al pool ->", String(item.id), customPrice);
+                    }
+                });
+                console.log("Pool de precios personalizados (actualizado):", window.pendingCustomPrices);
+            }
+        }
+
+        // 2. Escuchar cuando la funcion rellenar() de function.js obtiene la info genérica del inventario
+        if (settings.url.includes('/empresa/inventario/') && settings.url.includes('/json')) {
+            let parts = settings.url.split('/empresa/inventario/');
+            let itemId = String(parts[1].split('/')[0]);
+            
+            console.log("Inventario cargado para ID: " + itemId + ". Buscando en pool...");
+            
+            let attempts = 0;
+            let interval = setInterval(function() {
+                attempts++;
+                
+                // Buscar en el pool un precio para este ID que no haya sido usado
+                let customPriceIndex = window.pendingCustomPrices.findIndex(p => p.id == itemId && !p.usado);
+                
+                if (customPriceIndex !== -1) {
+                    let customPriceInfo = window.pendingCustomPrices[customPriceIndex];
+                    let appliedInThisInterval = false;
+
+                    $('#table-form tbody tr').each(function() {
+                        let idRow = $(this).attr('id');
+                        let currentVal = String($('#item' + idRow).val());
+                        
+                        if (currentVal == itemId && !$(this).data('custom-price-applied')) {
+                            console.log("¡Match encontrado! Aplicando " + customPriceInfo.precio_personalizado + " a fila " + idRow);
+                            
+                            $('#precio' + idRow).val(customPriceInfo.precio_personalizado);
+                            
+                            if (typeof total === 'function') total(idRow);
+                            if (typeof totalall === 'function') totalall();
+                            
+                            if ($('#custom_msg_' + idRow).length == 0) {
+                                $('#precio' + idRow).after('<small id="custom_msg_' + idRow + '" class="text-success" style="font-size:11px; display:block; margin-top:2px;"><b>Precio personalizado (' + customPriceInfo.contrato_nro + ')</b></small>');
+                            }
+                            
+                            $(this).data('custom-price-applied', true);
+                            window.pendingCustomPrices[customPriceIndex].usado = true;
+                            appliedInThisInterval = true;
+                            return false; 
+                        }
+                    });
+                    
+                        if (appliedInThisInterval || attempts > 10) {
+                            clearInterval(interval);
+                        }
+                    } else {
+                        if (attempts > 10) clearInterval(interval);
+                    }
+                }, 300);
+            }
+        });
+    });
 </script>
+@endsection

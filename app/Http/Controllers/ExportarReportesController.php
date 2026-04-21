@@ -82,7 +82,7 @@ class ExportarReportesController extends Controller
             $objPHPExcel = new PHPExcel();
             $tituloReporte = "Reporte de Facturas electrónicas desde ".$request->fecha." hasta ".$request->hasta;
 
-            $titulosColumnas = array('Cliente', 'nit', 'fecha', 'vencimiento', 'producto','referencia','email','precio','impuesto','direccion','telefono','codigo','Cantidad','items');
+            $titulosColumnas = array('Cliente', 'nit', 'Estrato', 'fecha', 'vencimiento', 'producto','referencia','email','precio','impuesto','direccion','telefono','codigo','Cantidad','items');
             $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
             $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
@@ -93,17 +93,17 @@ class ExportarReportesController extends Controller
             ->setCategory("Reporte excel"); //Categorias
             // Se combinan las celdas A1 hasta D1, para colocar ah��� el titulo del reporte
             $objPHPExcel->setActiveSheetIndex(0)
-                ->mergeCells('A1:N1');
+                ->mergeCells('A1:O1');
             // Se agregan los titulos del reporte
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue('A1',$tituloReporte);
             $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman' ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
             ));
-            $objPHPExcel->getActiveSheet()->getStyle('A1:N1')->applyFromArray($estilo);
+            $objPHPExcel->getActiveSheet()->getStyle('A1:O1')->applyFromArray($estilo);
             $estilo =array('fill' => array(
                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
                 'color' => array('rgb' => 'd08f50')));
-            $objPHPExcel->getActiveSheet()->getStyle('A3:N3')->applyFromArray($estilo);
+            $objPHPExcel->getActiveSheet()->getStyle('A3:O3')->applyFromArray($estilo);
 
 
             for ($i=0; $i <count($titulosColumnas) ; $i++) {
@@ -113,9 +113,12 @@ class ExportarReportesController extends Controller
 
             $facturas = Factura::where('factura.empresa',Auth::user()->empresa)
             ->join('contactos as c', 'factura.cliente', '=', 'c.id')
+            ->leftJoin('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+            ->leftJoin('contracts as ct', 'ct.nro', '=', 'fc.contrato_nro')
             ->select('factura.id', 'factura.codigo', 'factura.nro','factura.cot_nro', DB::raw('c.nombre as nombrecliente'),
-                    'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa')
-            ->where('factura.tipo', 2);
+                    'factura.cliente', 'factura.fecha', 'factura.vencimiento', 'factura.estatus', 'factura.empresa', 'ct.estrato as contrato_estrato')
+            ->where('factura.tipo', 2)
+            ->groupBy('factura.id');
 
             $ides=array();
             $factures=$facturas->get();
@@ -147,18 +150,19 @@ class ExportarReportesController extends Controller
                 $objPHPExcel->setActiveSheetIndex(0)
                     ->setCellValue($letras[0].$i, $factura->cliente()->nombre.' '.$factura->cliente()->apellidos())
                     ->setCellValue($letras[1].$i, $factura->cliente()->nit)
-                    ->setCellValue($letras[2].$i, $factura->fecha)
-                    ->setCellValue($letras[3].$i, $factura->vencimiento)
-                    ->setCellValue($letras[4].$i, $factura->itemsFactura->first()->ref)
+                    ->setCellValue($letras[2].$i, $factura->contrato_estrato)
+                    ->setCellValue($letras[3].$i, $factura->fecha)
+                    ->setCellValue($letras[4].$i, $factura->vencimiento)
                     ->setCellValue($letras[5].$i, $factura->itemsFactura->first()->ref)
-                    ->setCellValue($letras[6].$i, $factura->cliente()->email)
-                    ->setCellValue($letras[7].$i, $factura->itemsFactura->first()->precio)
-                    ->setCellValue($letras[8].$i, $factura->itemsFactura->first()->impuesto)
-                    ->setCellValue($letras[9].$i, $factura->cliente()->direccion)
-                    ->setCellValue($letras[10].$i, $factura->cliente()->celular)
-                    ->setCellValue($letras[11].$i, $factura->codigo)
-                    ->setCellValue($letras[12].$i, $factura->itemsFactura->first()->cant)
-                    ->setCellValue($letras[13].$i, $factura->listItems());
+                    ->setCellValue($letras[6].$i, $factura->itemsFactura->first()->ref)
+                    ->setCellValue($letras[7].$i, $factura->cliente()->email)
+                    ->setCellValue($letras[8].$i, $factura->itemsFactura->first()->precio)
+                    ->setCellValue($letras[9].$i, $factura->itemsFactura->first()->impuesto)
+                    ->setCellValue($letras[10].$i, $factura->cliente()->direccion)
+                    ->setCellValue($letras[11].$i, $factura->cliente()->celular)
+                    ->setCellValue($letras[12].$i, $factura->codigo)
+                    ->setCellValue($letras[13].$i, $factura->itemsFactura->first()->cant)
+                    ->setCellValue($letras[14].$i, $factura->listItems());
                 $i++;
             }
             $objPHPExcel->setActiveSheetIndex(0)
@@ -271,7 +275,7 @@ class ExportarReportesController extends Controller
                 'c.nombre as cliente_nombre',
                 DB::raw("CONCAT(IFNULL(c.apellido1,''), ' ', IFNULL(c.apellido2,'')) as cliente_apellidos"),
                 'c.nit as cliente_nit',
-                DB::raw("(SELECT GROUP_CONCAT(COALESCE(cs.estrato, c.estrato)) FROM facturas_contratos fc2 INNER JOIN contracts cs ON cs.nro = fc2.contrato_nro WHERE fc2.factura_id = factura.id) as cliente_estrato"),
+                DB::raw("(SELECT GROUP_CONCAT(cs.estrato) FROM facturas_contratos fc2 INNER JOIN contracts cs ON cs.nro = fc2.contrato_nro WHERE fc2.factura_id = factura.id) as cliente_estrato"),
                 'c.celular as cliente_celular',
                 'c.direccion as cliente_direccion',
                 'c.email as cliente_email',
@@ -477,6 +481,7 @@ class ExportarReportesController extends Controller
             $join->on('factura.id', '=', 'fc.factura_id')
                  ->whereRaw('fc.id = (SELECT MIN(id) FROM facturas_contratos WHERE factura_id = factura.id)');
         })
+        ->leftJoin('contracts as ct', 'ct.nro', '=', 'fc.contrato_nro')
         ->leftJoin('barrios as b', 'c.barrio_id', '=', 'b.id')
         ->leftJoin('municipios as m', 'c.fk_idmunicipio', '=', 'm.id')
         ->select(
@@ -494,7 +499,7 @@ class ExportarReportesController extends Controller
             'c.nombre as cliente_nombre',
             DB::raw("CONCAT(c.apellido1, ' ', c.apellido2) as cliente_apellidos"),
             'c.nit as cliente_nit',
-            'c.estrato as cliente_estrato',
+            'ct.estrato as contrato_estrato',
             'c.celular as cliente_celular',
             'c.direccion as cliente_direccion',
             'c.vereda as vereda',
@@ -608,7 +613,7 @@ class ExportarReportesController extends Controller
             ->setCellValue($letras[1].$i, $clienteNombre)
             ->setCellValue($letras[2].$i, $facturaRow->cliente_nit ?? '')
             ->setCellValue($letras[3].$i, $facturaRow->contrato_nro ?? '')
-            ->setCellValue($letras[4].$i, $facturaRow->cliente_estrato ?? '')
+            ->setCellValue($letras[4].$i, $facturaRow->contrato_estrato ?? '')
             ->setCellValue($letras[5].$i, $facturaRow->municipio_nombre ?? '')
             ->setCellValue($letras[6].$i, $facturaRow->cliente_celular ?? '')
             ->setCellValue($letras[7].$i, $facturaRow->cliente_direccion ?? '')
@@ -844,7 +849,7 @@ class ExportarReportesController extends Controller
 
             $facturas = Factura::where('factura.empresa', Auth::user()->empresa)
                 ->leftjoin('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
-                ->leftjoin('contracts as ctr', 'ctr.id', '=', 'fc.contrato_nro') // ✅ ESTE FALTABA
+                ->leftjoin('contracts as ctr', 'ctr.nro', '=', 'fc.contrato_nro') 
                 ->join('contactos as c', 'factura.cliente', '=', 'c.id')
                 ->join('municipios as municipio','municipio.id','=','c.fk_idmunicipio')
                 ->join('ingresos_factura as ig', 'factura.id', '=', 'ig.factura')
@@ -868,7 +873,8 @@ class ExportarReportesController extends Controller
                     'c.vereda',
                     'factura.empresa',
                     'pagos.totalPagado as pagadoTotal',
-                    'fc.contrato_nro'
+                    'fc.contrato_nro',
+                    'ctr.estrato as contrato_estrato'
                 )
                 ->whereIn('factura.tipo', [1,2])
                 ->where('factura.estatus','<>',2)
@@ -949,7 +955,7 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[1].$i, $cliente->nombre.' '.$cliente->apellidos())
                 ->setCellValue($letras[2].$i, $cliente->nit)
                 ->setCellValue($letras[3].$i, $factura->contrato_nro)
-                ->setCellValue($letras[4].$i, $cliente->estrato)
+                ->setCellValue($letras[4].$i, $factura->contrato_estrato)
                 ->setCellValue($letras[5].$i, $factura->municipioNombre)
                 ->setCellValue($letras[6].$i, $factura->vereda)
                 ->setCellValue($letras[7].$i, $cliente->barrio()->nombre)
@@ -3729,7 +3735,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de caja ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre;
             $caja = $banco->nombre;
         }else{
@@ -3803,6 +3818,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
@@ -4267,7 +4284,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de Punto de Venta ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre." (Ganancias)";
             $caja = $banco->nombre;
         }else{
@@ -4308,7 +4334,11 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -4326,6 +4356,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);
@@ -4379,7 +4411,16 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
 
         if($request->caja){
-            $banco = Banco::where('id',$request->caja)->first();
+            $banco = Banco::where('id',$request->caja)->where('empresa', Auth::user()->empresa);
+            if (Auth::user()->rol == 8) {
+                $banco = $banco->whereIn('id', auth()->user()->cuentas());
+            }
+            $banco = $banco->first();
+
+            if (!$banco) {
+                return redirect()->back()->with('error', 'No tiene permisos para exportar esta caja');
+            }
+
             $tituloReporte = "Reporte de Punto de Venta ".$request->fecha." hasta ".$request->hasta." | ".$banco->nombre. "(Recaudos)";
             $caja = $banco->nombre;
         }else{
@@ -4420,7 +4461,11 @@ class ExportarReportesController extends Controller
 
         //Código base tomado de datatable_movimientos
 
-        $cajas = Banco::where('estatus',1)->where('tipo_cta',4)->get();
+        if (Auth::user()->rol == 8) {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->whereIn('id', auth()->user()->cuentas())->get();
+        } else {
+            $cajas = Banco::where('estatus', 1)->where('empresa', Auth::user()->empresa)->where('tipo_cta', 4)->get();
+        }
         $puntos = [];
 
         foreach($cajas as $caja){
@@ -4438,6 +4483,8 @@ class ExportarReportesController extends Controller
 
         if($request->caja){
             $movimientos->where('banco',$banco->id);
+        } else if (Auth::user()->rol == 8) {
+            $movimientos->whereIn('movimientos.banco', auth()->user()->cuentas());
         }
         if($request->tipo>0){
             $movimientos->where('movimientos.tipo',$request->tipo);

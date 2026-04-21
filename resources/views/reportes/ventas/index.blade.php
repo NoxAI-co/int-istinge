@@ -122,7 +122,11 @@
                         <td><a href="{{route('facturas.show',$factura->id)}}" target="_blank">{{$factura->codigo}}</a> </td>
                         <td>
                             @if($factura->cliente)
-                            <a href="{{route('contactos.show',$factura->cliente()->id)}}" target="_blank">{{$factura->cliente()->nombre}} {{$factura->cliente()->apellidos()}}</a>
+                                @if(isset($_SESSION['permisos']['4']))
+                                    <a href="{{route('contactos.show',$factura->cliente()->id)}}" target="_blank">{{$factura->cliente()->nombre}} {{$factura->cliente()->apellidos()}}</a>
+                                @else
+                                    {{$factura->cliente()->nombre}} {{$factura->cliente()->apellidos()}}
+                                @endif
                             @endif
                         </td>
                         {{-- <td>{{date('d-m-Y', strtotime($factura->fecha))}}</td>
