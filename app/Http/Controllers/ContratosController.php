@@ -3082,7 +3082,7 @@ class ContratosController extends Controller
         $mensaje = 'EL CONTRATO NRO. ' . $contrato->nro . ' HA SIDO ' . ($new_state == 'enabled' ? 'Habilitado' : 'Deshabilitado');
 
         // 2. Lógica de Smart OLT
-        if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+        if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
             $olt_executed = true;
             $oltController = app('App\Http\Controllers\OltController');
             if ($new_state == 'enabled') {
@@ -4902,7 +4902,7 @@ class ContratosController extends Controller
             }
 
             // 2. Bloque Smart OLT (independiente de Mikrotik)
-            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                 $oltController = app('App\Http\Controllers\OltController');
                 if ($state == 'enabled') {
                     $oltController->enableOnu($contrato->serial_onu);

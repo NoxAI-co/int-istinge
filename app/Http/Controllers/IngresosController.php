@@ -1266,7 +1266,7 @@ class IngresosController extends Controller
 
             /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
             // Si queries_dhcp_smartolt es 1, usamos OLT para DHCP
-            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
+            $condicionOLT = ($contrato !== null && ($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
             Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
             
             if ($condicionOLT) {

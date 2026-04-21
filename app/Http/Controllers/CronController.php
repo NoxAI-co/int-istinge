@@ -1201,7 +1201,7 @@ class CronController extends Controller
                                     $olt_executed = false;
 
                                     // Lógica de Smart OLT
-                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
@@ -1343,7 +1343,7 @@ class CronController extends Controller
                                                     }
 
                                                     // Evitamos doble conteo de $i si ambos se aplican y ya sumó Smart OLT
-                                                    if (!($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
+                                                    if (!(($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
                                                         $i++;
                                                     }
                                                 }
@@ -1677,7 +1677,7 @@ class CronController extends Controller
                                     $olt_executed = false;
 
                                     // Lógica de Smart OLT
-                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
@@ -1819,7 +1819,7 @@ class CronController extends Controller
                                                     }
 
                                                     // Evitamos doble conteo de $i si ambos se aplican y ya sumó Smart OLT
-                                                    if (!($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
+                                                    if (!(($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
                                                         $i++;
                                                     }
                                                 }
@@ -2238,7 +2238,7 @@ class CronController extends Controller
             }
 
             // 2. Bloque OLT independiente
-            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                 $oltController = app('App\Http\Controllers\OltController');
                 $oltController->disableOnu($contrato->serial_onu);
 
