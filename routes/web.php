@@ -493,6 +493,14 @@ Route::group(['prefix' => 'master', 'middleware' => ['auth', 'master']], functio
 		Route::get('ingresar/{email}', 'UsuariosController@ingresar')->name('usuario.ingresar');
 	});
 	Route::resource('usuarios', 'UsuariosController');
+
+	Route::group(['prefix' => 'integrapay'], function () {
+		Route::get('sensibilizacion', 'SensibilizacionController@index')->name('integrapay.sensibilizacion');
+		Route::post('sensibilizacion/upload-image', 'SensibilizacionController@uploadImage')->name('integrapay.sensibilizacion.upload');
+		Route::get('sensibilizacion/contactos', 'SensibilizacionController@getContactos')->name('integrapay.sensibilizacion.contactos');
+		Route::post('sensibilizacion/send', 'SensibilizacionController@sendCampaign')->name('integrapay.sensibilizacion.send');
+		Route::get('sensibilizacion/history', 'SensibilizacionController@campaignHistory')->name('integrapay.sensibilizacion.history');
+	});
 });
 
 Route::group(['prefix' => 'tecnico', 'middleware' => ['auth']], function () {

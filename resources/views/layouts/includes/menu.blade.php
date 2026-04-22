@@ -17,6 +17,20 @@
         <span class="menu-title">Atención a Soporte</span>
     </a>
 </li>
+<li class="nav-item" id="integrapay">
+    <a class="nav-link" data-toggle="collapse" href="#ui-integrapay" aria-expanded="false" aria-controls="ui-integrapay">
+        <i class="menu-icon fas fa-credit-card"></i>
+        <span class="menu-title">IntegraPay</span>
+        <i class="menu-arrow"></i>
+    </a>
+    <div class="collapse" id="ui-integrapay">
+        <ul class="nav flex-column sub-menu">
+            <li class="nav-item" id="sensibilizacion">
+                <a class="nav-link" href="{{ route('integrapay.sensibilizacion') }}">Sensibilización</a>
+            </li>
+        </ul>
+    </div>
+</li>
 <li class="nav-item" id="logout-lateral">
     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">{{ csrf_field() }}</form>
     <a class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

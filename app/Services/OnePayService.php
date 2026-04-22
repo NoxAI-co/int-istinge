@@ -491,5 +491,74 @@ class OnePayService
 
         return $servicio !== null;
     }
+    /**
+     * Enviar campaña de sensibilización masiva
+     */
+    public function sendSensibilizacionCampaign($phones, $template, $imageUrl, $idempotencyKey, $optional1 = null, $optional2 = null, $optional3 = null)
+    {
+        try {
+            if (!$this->token) {
+                throw new \Exception('No hay token configurado para Integra Pay');
+            }
+
+            $data = [
+                'template' => $template,
+                'image_url' => $imageUrl,
+                'phones' => $phones,
+                'optional_1' => $optional1,
+                'optional_2' => $optional2,
+                'optional_3' => $optional3,
+            ];
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $this->baseUri . '/campaigns/import-messages',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $this->token,
+                    'Content-Type: application/json',
+                    'x-idempotency: ' . $idempotencyKey
+                ],
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error = curl_error($curl);
+            curl_close($curl);
+
+            if ($error) {
+                Log::error('Integra Pay Campaign Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay (Campaign): ' . $error);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return [
+                    'success' => true,
+                    'data' => $responseData,
+                    'http_code' => $httpCode
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'data' => $responseData,
+                    'http_code' => $httpCode,
+                    'message' => $responseData['message'] ?? 'Error desconocido en la API de campañas'
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('Integra Pay sendSensibilizacionCampaign Exception: ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }
+
 
