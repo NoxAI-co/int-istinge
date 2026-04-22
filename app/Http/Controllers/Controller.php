@@ -2758,8 +2758,8 @@ class Controller extends BaseController
 
             //>>>>Posible aplicación de Prorrateo al total<<<<//
             $dias = $factura->diasCobradosProrrateo(1,$facturaInicio); //forzamos el prorrateo asi la opcion de empresa este off
-            //si es diferente de 30 es por que se cobraron menos dias y hay prorrateo
-            if($dias != 30){
+            //si es menor de 30 es por que se cobraron menos dias y hay prorrateo
+            if($dias < 30){
 
                 if($facturaInicio != null){
                     DB::table('factura')->where('id',$factura->id)->update([

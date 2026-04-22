@@ -1772,11 +1772,8 @@ class Factura extends Model
                 // Si la facturación es acumulada, cobramos los días extra (ej: 14 de marzo + 30 de abril = 44 días).
                 // De lo contrario, respetamos el comportamiento original o lo limitamos según la configuración.
                 if ($diasCobrados > 30 && $diasdeMas == 0) {
-                    if (self::$acumular_prorrateo_mes_siguiente === false) {
-                        // Si no acumulamos, restamos el mes actual para quedarnos solo con el proporcional pendiente.
-                        $diasProporcionalesPendientes = $diasCobrados - 30;
-                        $diasCobrados = $diasProporcionalesPendientes > 0 ? $diasProporcionalesPendientes : 30;
-                    }
+                    // En base de mes comercial de 30 días, nunca se debe cobrar más de 30
+                    $diasCobrados = 30;
                 }
                 // $diasCobrados=$diasCobrados; // Redundante
             }else{
@@ -1796,12 +1793,15 @@ class Factura extends Model
 
                 if($diasCobrados == 0){return 30;}
                 if($fechaInicio->endOfMonth()->day <=28 && $diasCobrados >= 28){$diasCobrados=30;}
-                $diasCobrados=$diasCobrados;
+                // En base de mes comercial de 30 días, nunca se debe cobrar más de 30
+                if($diasCobrados > 30){ $diasCobrados = 30; }
             }
             }
             if($pdf && $this->prorrateo_aplicado ==0){
                 return 30;
             }
+            // Tope global: nunca cobrar más de 30 días (mes comercial)
+            if($diasCobrados > 30){ $diasCobrados = 30; }
             return $diasCobrados;
         }
     }
