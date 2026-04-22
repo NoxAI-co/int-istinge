@@ -1678,7 +1678,8 @@ class Factura extends Model
             }
 
             if($factura && $contrato && (($factura->id == $this->id && $empresa->prorrateo == 1 && $contrato->prorrateo == 1) ||
-                ($factura->id == $this->id && $forzar_prorrateo == 1 && $contrato->prorrateo == 1)) && $esMismoPeriodo){
+                ($factura->id == $this->id && $forzar_prorrateo == 1) ||
+                ($factura->id == $this->id && $this->prorrateo_aplicado != 0)) && $esMismoPeriodo){
 
 
 
