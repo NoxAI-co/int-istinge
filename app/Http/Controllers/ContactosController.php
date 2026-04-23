@@ -49,7 +49,7 @@ class ContactosController extends Controller
         $this->middleware('auth');
         set_time_limit(300);
         $this->middleware(function ($request, $next) {
-            if ($request->route()->getName() == 'cliente.contratos') {
+            if ($request->route()->getName() == 'cliente.contratos' || $request->route()->getName() == 'contactos.show') {
                 return $next($request);
             }
             $this->getAllPermissions(Auth::user()->id);
