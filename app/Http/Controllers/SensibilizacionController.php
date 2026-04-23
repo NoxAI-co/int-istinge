@@ -66,6 +66,59 @@ class SensibilizacionController extends Controller
     }
 
 
+    public function sendTest(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string',
+            'template' => 'required|in:sensibilizacion_primera_comunicacion,sensibilizacion_primera_comunicacion_v2',
+            'optional_1' => 'nullable|string',
+        ]);
+
+        if (!File::exists(public_path('images/sensibilizacion.png'))) {
+            return response()->json(['success' => false, 'message' => 'Primero debes subir la imagen de sensibilización.'], 422);
+        }
+
+        $formattedPhone = $this->formatPhone($request->phone);
+        if (!$formattedPhone || !$this->isValidE164($formattedPhone)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Número inválido. Debe ser un celular colombiano de 10 dígitos (ej: 3218404118).'
+            ], 422);
+        }
+
+        $imageUrl = asset('images/sensibilizacion.png');
+        $idempotencyKey = 'test-sensibilizacion-' . md5($formattedPhone . time() . uniqid());
+
+        try {
+            $onePayService = new OnePayService();
+            $response = $onePayService->sendSensibilizacionCampaign(
+                [$formattedPhone],
+                $request->template,
+                $imageUrl,
+                $idempotencyKey,
+                $request->optional_1
+            );
+
+            if ($response['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Mensaje de prueba enviado exitosamente.',
+                    'phone' => $formattedPhone
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $response['message'] ?? 'Error al enviar el mensaje de prueba.'
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getContactos()
     {
         // Obtener contactos que tengan celular

@@ -499,6 +499,7 @@ Route::group(['prefix' => 'master', 'middleware' => ['auth', 'master']], functio
 		Route::post('sensibilizacion/upload-image', 'SensibilizacionController@uploadImage')->name('integrapay.sensibilizacion.upload');
 		Route::get('sensibilizacion/contactos', 'SensibilizacionController@getContactos')->name('integrapay.sensibilizacion.contactos');
 		Route::post('sensibilizacion/send', 'SensibilizacionController@sendCampaign')->name('integrapay.sensibilizacion.send');
+		Route::post('sensibilizacion/test', 'SensibilizacionController@sendTest')->name('integrapay.sensibilizacion.test');
 		Route::get('sensibilizacion/history', 'SensibilizacionController@campaignHistory')->name('integrapay.sensibilizacion.history');
 	});
 });

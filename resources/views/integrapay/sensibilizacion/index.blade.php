@@ -65,10 +65,21 @@
                                 </div>
                             @endif
                         </div>
+                        <div id="url-display" class="mb-3" style="{{ $imageUrl ? '' : 'display:none;' }}">
+                            <label class="font-weight-bold mb-1"><i class="fas fa-link mr-1"></i>URL Pública:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-sm bg-light" id="image-public-url" value="{{ $imageUrl ? asset('images/sensibilizacion.png') : '' }}" readonly>
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-copy-url" title="Copiar URL">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label for="image-input">Seleccionar nueva imagen</label>
                             <input type="file" class="form-control-file" id="image-input" name="image" accept="image/jpeg,image/png">
-                            <small class="text-danger">Importante: Dimensiones exactas 1280x960px, máximo 2MB.</small>
+                            <small class="text-muted">Se redimensiona automáticamente a 1280x960px.</small>
                         </div>
                         <button type="submit" class="btn btn-primary btn-block" id="btn-upload">
                             <i class="fas fa-upload mr-1"></i> Subir Imagen
@@ -110,6 +121,24 @@
                             <i class="fab fa-whatsapp mr-2"></i> Iniciar Envío Masivo
                         </button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Envío de Prueba -->
+            <div class="card card-sensibilizacion mt-4">
+                <div class="card-header bg-warning text-dark" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="mb-0"><i class="fas fa-vial mr-2"></i>Envío de Prueba</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">Envía un mensaje de prueba a un número específico antes del envío masivo.</p>
+                    <div class="form-group mb-2">
+                        <label for="test-phone">Número de prueba</label>
+                        <input type="text" class="form-control" id="test-phone" placeholder="Ej: 3218404118 ó +573218404118">
+                    </div>
+                    <button type="button" class="btn btn-warning btn-block" id="btn-send-test">
+                        <i class="fas fa-paper-plane mr-1"></i> Enviar Prueba
+                    </button>
+                    <div id="test-result" class="mt-3" style="display:none;"></div>
                 </div>
             </div>
         </div>
@@ -209,6 +238,10 @@
                 success: function(response) {
                     if(response.success) {
                         $('#image-preview').html('<img src="' + response.url + '" alt="Preview">');
+                        // Mostrar la URL pública (sin query string de cache)
+                        let cleanUrl = response.url.split('?')[0];
+                        $('#image-public-url').val(cleanUrl);
+                        $('#url-display').show();
                         swal("Éxito", response.message, "success");
                     } else {
                         swal("Error", response.message, "error");
@@ -220,6 +253,55 @@
                 },
                 complete: function() {
                     $('#btn-upload').prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Subir Imagen');
+                }
+            });
+        });
+
+        // Copiar URL al portapapeles
+        $('#btn-copy-url').on('click', function() {
+            var input = document.getElementById('image-public-url');
+            input.select();
+            document.execCommand('copy');
+            $(this).html('<i class="fas fa-check"></i>');
+            setTimeout(() => { $(this).html('<i class="fas fa-copy"></i>'); }, 1500);
+        });
+
+        // Envío de Prueba
+        $('#btn-send-test').on('click', function() {
+            let phone = $('#test-phone').val().trim();
+            if(!phone) {
+                swal("Atención", "Ingresa un número de teléfono para la prueba.", "warning");
+                return;
+            }
+
+            let template = $('#template-select').val();
+            let optional1 = $('#optional-1').val();
+
+            $('#btn-send-test').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...');
+            $('#test-result').hide();
+
+            $.ajax({
+                url: "{{ route('integrapay.sensibilizacion.test') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    phone: phone,
+                    template: template,
+                    optional_1: optional1
+                },
+                success: function(response) {
+                    if(response.success) {
+                        $('#test-result').html('<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i> ' + response.message + '<br><small class="text-muted">Enviado a: <b>' + response.phone + '</b></small></div>').show();
+                    } else {
+                        $('#test-result').html('<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i> ' + response.message + '</div>').show();
+                    }
+                },
+                error: function(xhr) {
+                    let msg = xhr.responseJSON ? xhr.responseJSON.message : "Error al enviar la prueba";
+                    $('#test-result').html('<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i> ' + msg + '</div>').show();
+                },
+                complete: function() {
+                    $('#btn-send-test').prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Enviar Prueba');
                 }
             });
         });
