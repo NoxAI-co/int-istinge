@@ -350,12 +350,12 @@
                     case 'JPEG':
                     case 'PNG':
                     case 'PDF':
-                    case: 'mp3'
+                    case 'mp3':
                         break;
                     default:
                         this.value = '';
                         Swal.fire({
-                            title: 'La documentación adjuntada debe poseer una extensión apropiada. Sólo se aceptan archivos jpg, png o pdf',
+                            title: 'La documentación adjuntada debe poseer una extensión apropiada. Sólo se aceptan archivos jpg, png, pdf o mp3',
                             text: 'Intente nuevamente',
                             type: 'error',
                             showCancelButton: false,
@@ -442,7 +442,11 @@
                     selectContrato.setAttribute('required', '');
 
                     // Agregar nuevas opciones basadas en la respuesta del contrato
-                    contratos.forEach(function(contrato) {
+                    var contractsArray = Array.isArray(contratos) ? contratos : Object.values(contratos).filter(function(item) {
+                        return typeof item === 'object' && item !== null && item.hasOwnProperty('id');
+                    });
+
+                    contractsArray.forEach(function(contrato) {
                         var option = document.createElement('option');
                         option.value = contrato.id;
                         option.textContent = 'contrato nro '+ contrato.nro;
