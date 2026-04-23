@@ -135,6 +135,10 @@
                         <label for="test-phone">Número de prueba</label>
                         <input type="text" class="form-control" id="test-phone" placeholder="Ej: 3218404118 ó +573218404118">
                     </div>
+                    <div class="form-group mb-2">
+                        <label for="test-optional-1">Nombre de la empresa</label>
+                        <input type="text" class="form-control" id="test-optional-1" value="{{ Auth::user()->empresa() ? Auth::user()->empresa()->nombre : '' }}" placeholder="Ej: Mi Empresa">
+                    </div>
                     <button type="button" class="btn btn-warning btn-block" id="btn-send-test">
                         <i class="fas fa-paper-plane mr-1"></i> Enviar Prueba
                     </button>
@@ -275,7 +279,7 @@
             }
 
             let template = $('#template-select').val();
-            let optional1 = $('#optional-1').val();
+            let optional1 = $('#test-optional-1').val();
 
             $('#btn-send-test').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...');
             $('#test-result').hide();
