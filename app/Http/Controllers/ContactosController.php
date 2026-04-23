@@ -49,6 +49,9 @@ class ContactosController extends Controller
         $this->middleware('auth');
         set_time_limit(300);
         $this->middleware(function ($request, $next) {
+            if ($request->route()->getName() == 'cliente.contratos') {
+                return $next($request);
+            }
             $this->getAllPermissions(Auth::user()->id);
             if (!isset($_SESSION['permisos']['1']) && !isset($_SESSION['permisos']['2']) && !isset($_SESSION['permisos']['3']) && !isset($_SESSION['permisos']['4']) && !isset($_SESSION['permisos']['5']) && !isset($_SESSION['permisos']['6']) && !isset($_SESSION['permisos']['7'])) {
                 return redirect('empresa')->with('danger', 'No tiene permisos para acceder a este módulo');
