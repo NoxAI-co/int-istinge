@@ -39,15 +39,6 @@ class SensibilizacionController extends Controller
         ]);
 
         $image = $request->file('image');
-        
-        // Validar dimensiones exactas: 1280 x 960 píxeles
-        list($width, $height) = getimagesize($image);
-        if ($width != 1280 || $height != 960) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Las dimensiones de la imagen deben ser exactamente 1280x960 píxeles. Dimensiones actuales: ' . $width . 'x' . $height
-            ], 422);
-        }
 
         try {
             // Asegurar que el directorio existe
@@ -56,12 +47,14 @@ class SensibilizacionController extends Controller
                 File::makeDirectory($path, 0755, true);
             }
 
-            // Guardar con nombre genérico accesible
-            $image->move($path, 'sensibilizacion.png');
+            // Redimensionar a 1280x960 usando Intervention Image
+            $img = \Image::make($image);
+            $img->fit(1280, 960);
+            $img->save($path . '/sensibilizacion.png', 90);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Imagen subida exitosamente.',
+                'message' => 'Imagen subida y redimensionada a 1280x960px exitosamente.',
                 'url' => asset('images/sensibilizacion.png') . '?v=' . time()
             ]);
         } catch (\Exception $e) {
@@ -71,6 +64,7 @@ class SensibilizacionController extends Controller
             ], 500);
         }
     }
+
 
     public function getContactos()
     {
