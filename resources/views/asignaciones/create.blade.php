@@ -383,6 +383,9 @@
             var preSelectedContrato = '{{ request()->contrato ?? '' }}';
             if (preSelectedClient) {
                 var url = window.routeContratos.replace(':id', preSelectedClient);
+                if (window.location.pathname.split("/")[1] === "software" && !url.includes('/software/')) {
+                    url = '/software' + url;
+                }
                 $.ajax({
                     url: url,
                     type: 'GET',
@@ -410,6 +413,9 @@
             // Obtén el valor seleccionado del cliente
             var selectedClientId = document.getElementById('idCliente').value;
             var url = window.routeContratos.replace(':id', selectedClientId);
+            if (window.location.pathname.split("/")[1] === "software" && !url.includes('/software/')) {
+                url = '/software' + url;
+            }
             // Realiza la llamada al contrato utilizando AJAX
             $.ajax({
                 url: url,
@@ -436,16 +442,17 @@
             if (selectContrato) {
                 selectContrato.innerHTML = ''; // Limpiar opciones existentes
 
-                if (contratos.length > 0) {
+                // Determinar el array de contratos
+                var contractsArray = Array.isArray(contratos) ? contratos : Object.values(contratos).filter(function(item) {
+                    return typeof item === 'object' && item !== null && item.hasOwnProperty('id');
+                });
+
+                if (contractsArray.length > 0) {
                     divContrato.classList.remove('d-none');
                     divNoContrato.classList.add('d-none');
                     selectContrato.setAttribute('required', '');
 
                     // Agregar nuevas opciones basadas en la respuesta del contrato
-                    var contractsArray = Array.isArray(contratos) ? contratos : Object.values(contratos).filter(function(item) {
-                        return typeof item === 'object' && item !== null && item.hasOwnProperty('id');
-                    });
-
                     contractsArray.forEach(function(contrato) {
                         var option = document.createElement('option');
                         option.value = contrato.id;
