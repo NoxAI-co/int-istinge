@@ -302,6 +302,7 @@ Route::post('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionContr
 Route::post('configuracion/whatsapp-business-id', 'ConfiguracionController@guardarWhatsappBusinessId');
 Route::post('configuracion/obtener-plantillas-whatsapp', 'ConfiguracionController@obtenerPlantillasWhatsappMeta');
 Route::post('configuracion/registrar-numero-whatsapp-meta', 'ConfiguracionController@registrarNumeroWhatsappMeta');
+Route::post('configuracion/suscribirse-canal-whatsapp', 'ConfiguracionController@suscribirseCanalWhatsapp');
 
 Route::post('prorrateo', 'ConfiguracionController@actDescProrrateo');
 Route::post('efecty', 'ConfiguracionController@actDescEfecty');
