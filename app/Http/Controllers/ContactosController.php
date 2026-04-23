@@ -1718,9 +1718,9 @@ class ContactosController extends Controller
         dd($request);
     }
 
-    public function clientes_contratos(Request $request){
+    public function clientes_contratos(Request $request, $id){
 
-        $contratos = Contrato::where('client_id',$request->id)->get();
+        $contratos = Contrato::where('client_id', $id)->get();
         return response()->json($contratos);
     }
 
