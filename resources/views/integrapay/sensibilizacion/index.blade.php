@@ -92,7 +92,7 @@
                         </div>
                         <div class="form-group">
                             <label for="optional-1">Nombre de la Compañía (optional_1)</label>
-                            <input type="text" class="form-control" id="optional-1" name="optional_1" value="{{ Auth::user()->empresa()->nombre }}" placeholder="Ej: Mi Empresa">
+                            <input type="text" class="form-control" id="optional-1" name="optional_1" value="{{ Auth::user()->empresa() ? Auth::user()->empresa()->nombre : '' }}" placeholder="Ej: Mi Empresa">
                             <small class="text-muted">Este nombre aparecerá en el cuerpo del mensaje.</small>
                         </div>
                         <hr>
