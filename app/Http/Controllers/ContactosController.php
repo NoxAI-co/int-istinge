@@ -1718,9 +1718,22 @@ class ContactosController extends Controller
         dd($request);
     }
 
-    public function clientes_contratos(Request $request, $id){
+    public function clientes_contratos(Request $request, $id = null){
+        $id = $id ?: $request->id;
+        
+        // Buscamos los contratos del cliente filtrando por la empresa del usuario autenticado
+        $contratos = Contrato::where('client_id', $id)
+            ->where('empresa', Auth::user()->empresa)
+            ->get();
 
-        $contratos = Contrato::where('client_id', $id)->get();
+        // Fallback en caso de que Eloquent tenga algún problema con scopes o relaciones
+        if ($contratos->count() == 0) {
+            $contratos = DB::table('contracts')
+                ->where('client_id', $id)
+                ->where('empresa', Auth::user()->empresa)
+                ->get();
+        }
+
         return response()->json($contratos);
     }
 

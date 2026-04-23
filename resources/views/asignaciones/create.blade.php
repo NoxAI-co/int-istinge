@@ -410,8 +410,8 @@
     <script>
          function cargarContratos() {
 
-            // Obtén el valor seleccionado del cliente
-            var selectedClientId = document.getElementById('idCliente').value;
+            // Obtén el valor seleccionado del cliente usando jQuery para mayor compatibilidad con selectpicker
+            var selectedClientId = $('#idCliente').val();
             var url = window.routeContratos.replace(':id', selectedClientId);
             if (window.location.pathname.split("/")[1] === "software" && !url.includes('/software/')) {
                 url = '/software' + url;
