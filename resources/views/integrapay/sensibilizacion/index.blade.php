@@ -322,9 +322,8 @@
                 confirmButtonColor: "#28a745",
                 confirmButtonText: "Sí, iniciar envío",
                 cancelButtonText: "Cancelar",
-                closeOnConfirm: true
-            }, function(isConfirm) {
-                if (isConfirm) {
+            }).then((result) => {
+                if (result.value) {
                     startCampaignExecution();
                 }
             });
@@ -387,10 +386,17 @@
         let optional1 = $('#optional-1').val();
         let phones = contactosValidos.map(c => c.celular_formateado);
         
-        sendNextBatch(0, phones, template, optional1, {sent: 0, failed: 0});
+        sendNextBatch(0, phones, template, optional1, {sent: 0, failed: 0}, uuidv4());
     }
 
-    function sendNextBatch(startIndex, allPhones, template, optional1, accumulated) {
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function sendNextBatch(startIndex, allPhones, template, optional1, accumulated, batchId) {
         let batchSize = 250;
         let chunk = allPhones.slice(startIndex, startIndex + batchSize);
         let progress = Math.round((startIndex / allPhones.length) * 100);
@@ -405,7 +411,9 @@
                 _token: "{{ csrf_token() }}",
                 template: template,
                 optional_1: optional1,
-                contactos: chunk
+                contactos: chunk,
+                batch_id: batchId,
+                batch_index: Math.floor(startIndex / batchSize) + 1
             },
             success: function(response) {
                 accumulated.sent += response.results.total_sent;
@@ -413,10 +421,8 @@
                 
                 let nextIndex = startIndex + batchSize;
                 if(nextIndex < allPhones.length) {
-                    // Agregamos un pequeño retraso de 2 segundos entre lotes para no saturar la API
-                    // y permitir que el usuario vea el progreso real
                     setTimeout(function() {
-                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated, batchId);
                     }, 2000);
                 } else {
                     finishCampaign(accumulated);
@@ -427,7 +433,7 @@
                 let nextIndex = startIndex + batchSize;
                 if(nextIndex < allPhones.length) {
                     setTimeout(function() {
-                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated, batchId);
                     }, 2000);
                 } else {
                     finishCampaign(accumulated);

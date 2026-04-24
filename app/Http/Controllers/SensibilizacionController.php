@@ -174,14 +174,16 @@ class SensibilizacionController extends Controller
 
         $template = $request->template;
         $optional1 = $request->optional_1;
-        $phones = $request->contactos; // Array de strings formatados +57...
+        $phones = $request->contactos;
         
         $imageUrl = asset('images/sensibilizacion.png');
         if (!File::exists(public_path('images/sensibilizacion.png'))) {
             return response()->json(['success' => false, 'message' => 'Primero debes subir la imagen de sensibilización.'], 422);
         }
 
-        $batchId = (string) Str::uuid();
+        $batchId = $request->batch_id ?: (string) Str::uuid();
+        $batchIndexOffset = $request->batch_index ? ($request->batch_index - 1) : 0;
+        
         $onePayService = new OnePayService();
         $batchSize = 250;
         $chunks = array_chunk($phones, $batchSize);
@@ -193,7 +195,7 @@ class SensibilizacionController extends Controller
         ];
 
         foreach ($chunks as $index => $chunk) {
-            $batchNumber = $index + 1;
+            $batchNumber = $index + 1 + $batchIndexOffset;
             $idempotencyKey = "campaign-sensibilizacion-{$batchId}-{$batchNumber}";
 
             try {
