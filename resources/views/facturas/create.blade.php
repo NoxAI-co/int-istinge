@@ -176,7 +176,35 @@
   			<div class="form-group row">
   				<label class="col-sm-4 col-form-label">Plazo <a><i data-tippy-content="Tiempo maximo para realizar el pago, puedes agregar nuevos plazos haciendo <a href='#'>clíck aquí</a>" class="icono far fa-question-circle"></i></a></label>
 	  			<div class="col-sm-8">
-	  				<select name="plazo" id="plazo" class="form-control " title="Seleccione">
+	  				<script>
+	  				window.recalcularVencimientoPorPlazo = function () {
+	  				    var sel = document.getElementById('plazo');
+	  				    if (!sel) return;
+	  				    var opt = sel.options[sel.selectedIndex];
+	  				    if (!opt) return;
+	  				    var dias = opt.getAttribute('dias');
+	  				    if (dias === null || dias === '' || isNaN(parseInt(dias, 10))) {
+	  				        var m = (opt.textContent || opt.innerText || '').match(/\d+/);
+	  				        dias = m ? m[0] : null;
+	  				    }
+	  				    var nDias = parseInt(dias, 10);
+	  				    if (isNaN(nDias)) return;
+	  				    var base = new Date();
+	  				    base.setHours(0, 0, 0, 0);
+	  				    base.setDate(base.getDate() + nDias);
+	  				    var yyyy = base.getFullYear();
+	  				    var mm = String(base.getMonth() + 1);
+	  				    if (mm.length < 2) { mm = '0' + mm; }
+	  				    var dd = String(base.getDate());
+	  				    if (dd.length < 2) { dd = '0' + dd; }
+	  				    var nueva = yyyy + '-' + mm + '-' + dd;
+	  				    var venc = document.getElementById('vencimiento_new');
+	  				    var pago = document.getElementById('pago_oportuno');
+	  				    if (venc) venc.value = nueva;
+	  				    if (pago) pago.value = nueva;
+	  				};
+	  				</script>
+	  				<select name="plazo" id="plazo" class="form-control " title="Seleccione" onchange="window.recalcularVencimientoPorPlazo && window.recalcularVencimientoPorPlazo();">
               @foreach($terminos as $termino)
                 <option value="{{$termino->id}}" dias="{{$termino->dias}}">{{$termino->nombre}}</option>
               @endforeach
@@ -664,64 +692,20 @@
     }
 
 
-    $(document).ready(function() {
-        function actualizarFechasCalculadas() {
-            var dias = $('#plazo option:selected').attr('dias');
-            var fechaBase = $('#fecha').val();
-            
-            if ($.isNumeric(dias) && fechaBase) {
-                var nDias = parseInt(dias);
-                var momentBase = moment(fechaBase, "DD-MM-YYYY");
-                if (!momentBase.isValid()) {
-                    momentBase = moment(fechaBase, "YYYY-MM-DD");
-                }
-                
-                if (momentBase.isValid()) {
-                    var nuevaFecha = momentBase.clone().add(nDias, 'days');
-                    var nuevaFechaFormatted = nuevaFecha.format('YYYY-MM-DD'); 
-                    var nuevaFechaPicker = nuevaFecha.format('DD-MM-YYYY');     
-
-                    // 1. Actualizar Vencimiento
-                    $('#vencimiento_new').val(nuevaFechaFormatted);
-                    actualizarWidgetGijgo('#vencimiento_new', nuevaFechaPicker);
-
-                    // 2. Actualizar Pago Oportuno
-                    $('#pago_oportuno').val(nuevaFechaFormatted);
-                    actualizarWidgetGijgo('#pago_oportuno', nuevaFechaPicker);
-                }
-            }
-        }
-
-        function actualizarWidgetGijgo(selector, valor) {
-            try {
-                if (typeof $(selector).datepicker === 'function') {
-                    var picker = $(selector).datepicker();
-                    if (picker && typeof picker.value === 'function') {
-                        picker.value(valor);
-                    }
-                }
-            } catch (e) { }
-        }
-
-        // Asegurar que el formulario se envíe correctamente habilitando los campos antes del submit
-        $('#form-factura').on('submit', function() {
-            $('#vencimiento_new').removeAttr('disabled');
-            $('#fecha').removeAttr('disabled');
-        });
-
-        // Evento change del plazo
-        $('#plazo').on('change', function() {
-            actualizarFechasCalculadas();
-        });
-
-        // Evento change de la fecha base
-        $('#fecha').on('change', function() {
-            actualizarFechasCalculadas();
-        });
-
-        // Ejecución inicial
-        setTimeout(actualizarFechasCalculadas, 500);
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+            if (window.recalcularVencimientoPorPlazo) window.recalcularVencimientoPorPlazo();
+        }, 300);
     });
+
+    if (window.jQuery) {
+        jQuery(function ($) {
+            $('#form-factura').on('submit', function () {
+                $('#vencimiento_new').removeAttr('disabled');
+                $('#fecha').removeAttr('disabled');
+            });
+        });
+    }
 
 
     var facturaIdCodigo = null;
@@ -893,8 +877,6 @@
 
     $(document).ready(function() {
         $(document).ajaxComplete(function (event, xhr, settings) {
-          console.log("AJAX Complete:", settings.url);
-      alert("ok");
         // 1. Escuchar cuando obtenemos los items del contrato
         if (settings.url.includes('/contratos/rowitem')) {
             let res = xhr.responseJSON;
