@@ -83,6 +83,16 @@ class Contrato extends Model
 		return $plan;
 	}
 
+    public function getPlanDetallesApiAttribute() {
+        $plan = $this->plan();
+        if (is_object($plan)) {
+            $planArr = method_exists($plan, 'toArray') ? $plan->toArray() : (array) $plan;
+            unset($planArr['id']); // Quitar el id
+            return $planArr;
+        }
+        return $plan;
+    }
+
     public function usado(){
         $tmp        = 0;
         $tmp        += Factura::where('cliente', $this->id)->count();

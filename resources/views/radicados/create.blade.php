@@ -129,7 +129,7 @@
             </div>
             <div class="col-md-3 form-group">
                 <label class="control-label">Hora</label>
-                <input type="time" class="form-control"  id="hora" name="hora" value="" >
+                <input type="time" class="form-control"  id="hora" name="hora" value="{{ date('H:i') }}" >
                 <span class="help-block error">
                     <strong>{{ $errors->first('hora') }}</strong>
                 </span>

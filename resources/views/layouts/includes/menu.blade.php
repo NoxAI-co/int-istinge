@@ -403,7 +403,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
 </li>
 @endif
 
-@if(isset($_SESSION['permisos']['429']) || isset($_SESSION['permisos']['438']))
+@if(isset($_SESSION['permisos']['x']) || isset($_SESSION['permisos']['438']))
 <li class="nav-item" id="mikrotik">
     <a class="nav-link" data-toggle="collapse" href="#ui-mikrotik" aria-expanded="false" aria-controls="ui-mikrotik">
         <i class="menu-icon fas fa-server"></i>

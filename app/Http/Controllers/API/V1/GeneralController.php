@@ -27,6 +27,8 @@ class GeneralController extends Controller
             if ($contrato) {
                 $deuda = "$" . \App\Funcion::Parsear($contrato->deudaFacturas());
                 $contrato->deuda = $deuda;
+                
+                $contrato->setAttribute('plan_detalles', $contrato->plan_detalles_api);
 
                 return response()->json(['data' => $contrato, 'status' => 200, 'multicontratos' => false]);
             } else {
@@ -41,6 +43,11 @@ class GeneralController extends Controller
 
                 if (count($contratos) == 0) {
                     return response()->json(['status' => 400, 'message' => 'No se encontraron datos']);
+                }
+
+                // Attach plans to all contracts for multicontrato case
+                foreach ($contratos as $c) {
+                    $c->setAttribute('plan_detalles', $c->plan_detalles_api);
                 }
 
                 if (count($contratos) > 1) {
