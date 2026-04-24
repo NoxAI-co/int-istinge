@@ -323,8 +323,10 @@
                 confirmButtonText: "Sí, iniciar envío",
                 cancelButtonText: "Cancelar",
                 closeOnConfirm: true
-            }, function() {
-                startCampaignExecution();
+            }, function(isConfirm) {
+                if (isConfirm) {
+                    startCampaignExecution();
+                }
             });
         });
     });
@@ -383,13 +385,7 @@
         
         let template = $('#template-select').val();
         let optional1 = $('#optional-1').val();
-        let total = contactosValidos.length;
-        let batchSize = 250;
         let phones = contactosValidos.map(c => c.celular_formateado);
-        
-        // Simplemente enviamos todo al backend y el backend maneja los lotes
-        // Pero para mostrar progreso real, el backend enviará respuesta parcial? No, laravel es síncrono.
-        // Simulamos envío por lotes desde aquí para control de progreso visual real
         
         sendNextBatch(0, phones, template, optional1, {sent: 0, failed: 0});
     }
@@ -400,7 +396,7 @@
         let progress = Math.round((startIndex / allPhones.length) * 100);
         
         $('#campaign-progress-bar').css('width', progress + '%').text(progress + '%');
-        $('#progress-text').text(`Enviando números del ${startIndex + 1} al ${Math.min(startIndex + batchSize, allPhones.length)} de ${allPhones.length}...`);
+        $('#progress-text').html(`<i class="fas fa-spinner fa-spin mr-1"></i> Enviando números del <b>${startIndex + 1}</b> al <b>${Math.min(startIndex + batchSize, allPhones.length)}</b> de ${allPhones.length}...`);
 
         $.ajax({
             url: "{{ route('integrapay.sensibilizacion.send') }}",
@@ -417,7 +413,11 @@
                 
                 let nextIndex = startIndex + batchSize;
                 if(nextIndex < allPhones.length) {
-                    sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                    // Agregamos un pequeño retraso de 2 segundos entre lotes para no saturar la API
+                    // y permitir que el usuario vea el progreso real
+                    setTimeout(function() {
+                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                    }, 2000);
                 } else {
                     finishCampaign(accumulated);
                 }
@@ -426,7 +426,9 @@
                 accumulated.failed += chunk.length;
                 let nextIndex = startIndex + batchSize;
                 if(nextIndex < allPhones.length) {
-                    sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                    setTimeout(function() {
+                        sendNextBatch(nextIndex, allPhones, template, optional1, accumulated);
+                    }, 2000);
                 } else {
                     finishCampaign(accumulated);
                 }
