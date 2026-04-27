@@ -1458,6 +1458,7 @@ class CronController extends Controller
                 'f.estatus',
                 'f.suspension',
                 'cs.state',
+                'cs.id as idcontrato',
                 'f.contrato_id',
                 'cs.grupo_corte'
             )
@@ -1520,7 +1521,7 @@ class CronController extends Controller
                 }
 
                 if(isset($grupo_corte->nro_factura_vencida) && $grupo_corte->nro_factura_vencida > 1){
-                    $contrato = Contrato::Find($contacto->contrato_id);
+                    $contrato = Contrato::Find($contacto->idcontrato);
                     if($contrato){
                         $cantFacturasVencidas = $contrato->cantidadFacturasVencidas();
                     }else{
@@ -1571,10 +1572,11 @@ class CronController extends Controller
                 $ultimaFacturaRegistrada = DB::table('facturas_contratos')
                     ->join('factura', 'facturas_contratos.factura_id', '=', 'factura.id')
                     ->whereIn('facturas_contratos.contrato_nro', $contratosNro)
-                    ->where('factura.estatus','!=',2)
+                    ->where('factura.estatus', '!=', 2)
                     ->select('factura.*')
                     ->orderBy('factura.created_at', 'desc')
-                ->value('id');
+                    ->orderBy('factura.id', 'desc') // desempate por ID
+                    ->value('id');
 
                 //manera antigua de buscar el contrato.
                 if(!$ultimaFacturaRegistrada){
@@ -1595,7 +1597,7 @@ class CronController extends Controller
                         if($factura->contrato_id != null){
                             $contratos = Contrato::where('id',$factura->contrato_id)->get();
                         }else{
-                            $contratos = Contrato::where('id',$contacto->contrato_id)->get();
+                            $contratos = Contrato::where('id',$contacto->idcontrato)->get();
                         }
                     }
 
@@ -1940,6 +1942,7 @@ class CronController extends Controller
                 'f.estatus',
                 'f.suspension',
                 'cs.state',
+                'cs.id as idcontrato',
                 'f.contrato_id',
                 'gc.prorroga_tv', // Seleccionamos prorroga_tv
                 'gc.id as grupo_corte',
@@ -2033,7 +2036,7 @@ class CronController extends Controller
                         if($factura->contrato_id != null){
                             $contratos = Contrato::where('id',$factura->contrato_id)->get();
                         }else{
-                            $contratos = Contrato::where('id',$contacto->contrato_id)->get();
+                            $contratos = Contrato::where('id',$contacto->idcontrato)->get();
                         }
                     }
 
