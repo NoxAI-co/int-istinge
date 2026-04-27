@@ -62,7 +62,7 @@ class DianAuditController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'archivo' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+            'archivo' => 'required|file|max:20480',
             'periodo' => 'required|string|max:100'
         ]);
 
@@ -94,12 +94,27 @@ class DianAuditController extends Controller
     private function procesarArchivoDian(DianAuditSession $session)
     {
         $path = storage_path('app/' . $session->filename);
-        $spreadsheet = IOFactory::load($path);
-        $worksheet = $spreadsheet->getActiveSheet();
+        
+        try {
+            $spreadsheet = IOFactory::load($path);
+        } catch (\Exception $e) {
+            // Intentar cargar como CSV con delimitador de punto y coma, común en exportaciones colombianas
+            try {
+                $reader = IOFactory::createReader('Csv');
+                $reader->setDelimiter(';');
+                $spreadsheet = $reader->load($path);
+            } catch (\Exception $e2) {
+                throw new \Exception("No se pudo interpretar el archivo. Verifique el formato. Detalle: " . $e->getMessage());
+            }
+        }
+
+        $worksheet = $spreadsheet->getSheet(0);
         $rows = $worksheet->toArray();
 
-        // Columnas esperadas segun requerimiento:
-        // Tipo [0] | CUFE [1] | Folio [2] | Prefijo [3] | ... | Receptor NIT [11] | Receptor Nombre [12] | ... | Total [29]
+        // Si el archivo está vacío o solo tiene cabecera
+        if (count($rows) <= 1) {
+            throw new \Exception("El archivo parece estar vacío o no contiene datos válidos.");
+        }
         
         $total_records = 0;
         $matched = 0;
@@ -110,15 +125,19 @@ class DianAuditController extends Controller
         // Saltamos la primera fila (encabezados)
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
-            if (empty($row[1])) continue; // Si no hay CUFE, saltar
+            
+            // Verificación mínima de columnas para evitar "Undefined offset"
+            if (count($row) < 13 || empty($row[1])) {
+                continue;
+            }
 
             $cufe = trim($row[1]);
-            $folio = trim($row[2]);
-            $prefijo = trim($row[3]);
-            $nit_dian = $this->normalizarNit($row[11]);
-            $nombre_dian = trim($row[12]);
-            $total = $this->parseMonto($row[29]);
-            $fecha = $this->parseFecha($row[7]);
+            $folio = trim($row[2] ?? '');
+            $prefijo = trim($row[3] ?? '');
+            $nit_dian = $this->normalizarNit($row[11] ?? '');
+            $nombre_dian = trim($row[12] ?? '');
+            $total = $this->parseMonto($row[29] ?? ($row[count($row)-1] ?? 0)); // Intentar la 29 o la última si no hay tantas
+            $fecha = $this->parseFecha($row[7] ?? '');
 
             // Buscar factura en sistema
             $factura = Factura::where(self::COL_CUFE, $cufe)->first();
@@ -140,17 +159,23 @@ class DianAuditController extends Controller
             if ($factura) {
                 $factura_id = $factura->id;
                 $cliente = $factura->cliente();
-                $nit_sistema = $this->normalizarNit($cliente->nit);
-                $nombre_sistema = $cliente->nombre;
-                $cliente_id_sistema = $cliente->id;
+                
+                if ($cliente) {
+                    $nit_sistema = $this->normalizarNit($cliente->nit ?? '');
+                    $nombre_sistema = trim(($cliente->nombre ?? '') . ' ' . ($cliente->apellido1 ?? '') . ' ' . ($cliente->apellido2 ?? ''));
+                    if (empty($nombre_sistema)) $nombre_sistema = $cliente->empresa ?? 'Cliente sin nombre';
+                    $cliente_id_sistema = $cliente->id;
 
-                if ($nit_dian === $nit_sistema) {
-                    $status = 'matched';
-                    $matched++;
+                    if ($nit_dian === $nit_sistema) {
+                        $status = 'matched';
+                        $matched++;
+                    } else {
+                        $status = 'discrepancy';
+                        $discrepancies++;
+                        $monto_total_discrepancia += $total;
+                    }
                 } else {
-                    $status = 'discrepancy';
-                    $discrepancies++;
-                    $monto_total_discrepancia += $total;
+                    $not_found++;
                 }
             } else {
                 $not_found++;
@@ -158,20 +183,20 @@ class DianAuditController extends Controller
 
             DianAuditRecord::create([
                 'session_id' => $session->id,
-                'tipo_documento' => $row[0],
+                'tipo_documento' => $row[0] ?? 'N/A',
                 'cufe' => $cufe,
                 'folio' => $folio,
                 'prefijo' => $prefijo,
-                'nit_receptor_dian' => $row[11],
-                'nombre_receptor_dian' => $row[12],
-                'nit_emisor' => $row[9],
-                'nombre_emisor' => $row[10],
+                'nit_receptor_dian' => $row[11] ?? '',
+                'nombre_receptor_dian' => $row[12] ?? '',
+                'nit_emisor' => $row[9] ?? '',
+                'nombre_emisor' => $row[10] ?? '',
                 'fecha_emision' => $fecha,
                 'total' => $total,
                 'status' => $status,
                 'factura_id' => $factura_id,
-                'nit_receptor_sistema' => $factura ? $nit_sistema : null,
-                'nombre_receptor_sistema' => $factura ? $nombre_sistema : null,
+                'nit_receptor_sistema' => $nit_sistema,
+                'nombre_receptor_sistema' => $nombre_sistema,
                 'cliente_id_sistema' => $cliente_id_sistema
             ]);
 
