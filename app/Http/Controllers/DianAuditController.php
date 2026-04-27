@@ -109,7 +109,7 @@ class DianAuditController extends Controller
         }
 
         $worksheet = $spreadsheet->getSheet(0);
-        $rows = $worksheet->toArray();
+        $rows = $worksheet->toArray(null, false, false, false);
 
         // Si el archivo está vacío o solo tiene cabecera
         if (count($rows) <= 1) {
