@@ -69,11 +69,9 @@
                                 <i class="fas fa-calculator"></i> Ver Cálculo de Prorrateo
                             </button>
                         @endif
-                        @if($factura->tipo != 2)
                             <button type="button" class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#modalPeriodoCobrado">
                                 <i class="fas fa-calendar-alt"></i> Ver cálculo periodo cobrado
                             </button>
-                        @endif
                         @if($empresa->estado_dian != 1 || $factura->estatus == 2)
                             <form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
                                 {{ csrf_field() }}
