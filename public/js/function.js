@@ -5093,7 +5093,7 @@ function modificarPromesa(id) {
                     format: 'dd-mm-yyyy',
                     minDate: fecha,
                 });
-                $(".selectpicker").selectpicker('refresh');
+                $('#hora_pago-' + id).selectpicker();
             }
         }
     });
