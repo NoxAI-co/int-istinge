@@ -25,12 +25,22 @@ class ServidorCorreoController extends Controller
     public function index(Request $request){
         $this->getAllPermissions(Auth::user()->id);
         $servidor = ServidorCorreo::where('empresa', Auth::user()->empresa)->first();
+        if(!$servidor){
+            $servidor = new ServidorCorreo;
+            $servidor->id = 0;
+            $servidor->estado = 0;
+            $servidor->seguridad = 'ssl';
+        }
         return view('servidor-correo.index')->with(compact('servidor'));
     }
 
     public function update(Request $request, $id){
         $servidor = ServidorCorreo::where('empresa', Auth::user()->empresa)->first();
         
+        if (!$servidor) {
+            $servidor = new ServidorCorreo;
+        }
+
         if ($servidor) {
             if($request->estado == 1){
                 $request->validate([
