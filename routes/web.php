@@ -746,6 +746,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/datatable/cliente/{producto}', 'FacturasController@datatable_cliente')->name('factura.datatable.cliente');
 		Route::post('{id}/anular', 'FacturasController@anular')->name('factura.anular');
 		Route::post('{id}/cerrar', 'FacturasController@cerrar')->name('factura.cerrar');
+		Route::post('{id}/abrir', 'FacturasController@abrir')->name('factura.abrir');
 		Route::get('/{id}/mensaje', 'FacturasController@mensaje')->name('facturas.mensaje');
 		Route::get('/{id}/whatsapp', 'FacturasController@whatsapp')->name('facturas.whatsapp');
 		Route::get('/temp/{id}/{token}', 'FacturasController@getFacturaTemp')->name('facturas.temp');

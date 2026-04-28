@@ -78,8 +78,15 @@
                             <form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
                                 {{ csrf_field() }}
                             </form>
+                            <form action="{{ route('factura.abrir',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="abrir-factura{{$factura->id}}">
+                                {{ csrf_field() }}
+                            </form>
                             @if(Auth::user()->rol == 3 && $factura->emitida != 1)
-                                 <a class="btn btn-outline-danger btn-sm" href="#" onclick="confirmar('anular-factura{{$factura->id}}', '¿Está seguro de que desea anular la factura?', ' ');"><i class="fas fa-minus"></i> Anular</a>
+                                @if($factura->estatus == 1)
+                                    <a class="btn btn-outline-danger btn-sm" href="#" onclick="confirmar('anular-factura{{$factura->id}}', '¿Está seguro de que desea anular la factura?', ' ');"><i class="fas fa-minus"></i> Anular</a>
+                                @elseif($factura->estatus == 2 || $factura->estatus == 0)
+                                    <a class="btn btn-outline-success btn-sm" href="#" onclick="confirmar('abrir-factura{{$factura->id}}', '¿Está seguro de que desea abrir esta factura?', ' ');"><i class="fas fa-unlock"></i> Abrir</a>
+                                @endif
                             @endif
                         @endif
 

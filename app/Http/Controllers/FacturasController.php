@@ -3508,6 +3508,31 @@ class FacturasController extends Controller{
         return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
     }
 
+    public function abrir($id){
+        $factura = Factura::where('empresa',Auth::user()->empresa)->where('id', $id)->first();
+        if ($factura) {
+            if ($factura->estatus==2 || $factura->estatus==0) {
+                $factura->estatus=1;
+                $factura->observaciones = $factura->observaciones.' | Factura Abierta por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
+                $factura->save();
+
+                // Crear factura en OnePay si está habilitado
+                $onePayService = new \App\Services\OnePayService();
+                if (\App\Services\OnePayService::isEnabled()) {
+                    try {
+                        $onePayService->createInvoice($factura, Auth::user()->empresa);
+                    } catch (\Exception $e) {
+                         \Log::error('Error al recrear factura en OnePay al abrir: ' . $e->getMessage());
+                    }
+                }
+
+                return back()->with('success', 'Se ha reabierto la factura');
+            }
+            return redirect('empresa/facturas/facturas_electronica')->with('success', 'La factura ya esta abierta');
+        }
+        return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
+    }
+
     public function datatable_producto(Request $request, $producto=null){
         // storing  request (ie, get/post) global array to a variable
         $requestData =  $request;
