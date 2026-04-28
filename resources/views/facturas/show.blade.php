@@ -74,14 +74,14 @@
                                 <i class="fas fa-calendar-alt"></i> Ver cálculo periodo cobrado
                             </button>
                         @endif
-                        @if($empresa->estado_dian != 1)
+                        @if($empresa->estado_dian != 1 || $factura->estatus == 2)
                             <form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
                                 {{ csrf_field() }}
                             </form>
                             <form action="{{ route('factura.abrir',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="abrir-factura{{$factura->id}}">
                                 {{ csrf_field() }}
                             </form>
-                            @if(Auth::user()->rol == 3 && $factura->emitida != 1)
+                            @if($factura->emitida != 1)
                                 @if($factura->estatus == 1)
                                     <a class="btn btn-outline-danger btn-sm" href="#" onclick="confirmar('anular-factura{{$factura->id}}', '¿Está seguro de que desea anular la factura?', ' ');"><i class="fas fa-minus"></i> Anular</a>
                                 @elseif($factura->estatus == 2 || $factura->estatus == 0)
