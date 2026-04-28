@@ -667,7 +667,7 @@
     </div>
 
     {{-- Modal de Cálculo Periodo Cobrado --}}
-    @if($factura->tipo != 2)
+
     <div class="modal fade" id="modalPeriodoCobrado" tabindex="-1" role="dialog" aria-labelledby="modalPeriodoCobradoLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
@@ -767,7 +767,6 @@
             </div>
         </div>
     </div>
-    @endif
 
     {{-- Modal de Cálculo de Prorrateo --}}
     @if($factura->prorrateo_aplicado == 1 || $factura->prorrateo_aplicado == 2)
