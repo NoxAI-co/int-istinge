@@ -1235,7 +1235,7 @@ class CronController extends Controller
                                                         $mov = new MovimientoLOG;
                                                         $mov->contrato    = $contrato->id;
                                                         $mov->modulo      = 5;
-                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip . ' | Factura: ' . $contacto->factura;
                                                         $mov->created_by  = 1;
                                                         $mov->empresa     = $contrato->empresa;
                                                         $mov->save();
@@ -1713,7 +1713,7 @@ class CronController extends Controller
                                                         $mov = new MovimientoLOG;
                                                         $mov->contrato    = $contrato->id;
                                                         $mov->modulo      = 5;
-                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip . ' | Factura: ' . $contacto->factura;
                                                         $mov->created_by  = 1;
                                                         $mov->empresa     = $contrato->empresa;
                                                         $mov->save();
