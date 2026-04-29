@@ -2008,6 +2008,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
             Route::get('/datatables/{sessionId}', 'DianAuditController@datatables')->name('datatables');
             Route::get('/corregir/{recordId}', 'DianAuditController@corregir')->name('corregir');
             Route::post('/aplicar/{recordId}', 'DianAuditController@aplicarCorreccion')->name('aplicar');
+            Route::post('/crear-factura/{recordId}', 'DianAuditController@crearFactura')->name('crear-factura');
             Route::get('/logs/{sessionId}', 'DianAuditController@logsSesion')->name('logs');
             Route::get('/pdf/{sessionId}', 'DianAuditController@exportarDiscrepanciasPdf')->name('pdf');
             Route::get('/buscar-cliente', 'DianAuditController@buscarCliente')->name('buscar-cliente');

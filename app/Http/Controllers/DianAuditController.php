@@ -18,6 +18,10 @@ use Yajra\DataTables\Facades\DataTables;
 use Barryvdh\DomPDF\Facade as PDF;
 use App\Contrato;
 use App\FacturaContratos;
+use App\Inventario;
+use App\Model\Ingresos\ItemsFactura;
+use App\PlanesVelocidad;
+use App\Producto;
 
 class DianAuditController extends Controller
 {
@@ -262,6 +266,8 @@ class DianAuditController extends Controller
                 $btn = '';
                 if ($row->status == 'discrepancy') {
                     $btn .= '<button onclick="abrirModalCorreccion('.$row->id.')" class="btn btn-xs btn-danger"><i class="fas fa-edit"></i> Corregir</button>';
+                } elseif ($row->status == 'not_found') {
+                    $btn .= '<button onclick="abrirModalCrearFactura('.$row->id.')" class="btn btn-xs btn-success"><i class="fas fa-plus"></i> Crear Factura</button>';
                 } elseif ($row->status == 'corrected') {
                     $btn .= '<button onclick="verHistorial('.$row->id.')" class="btn btn-xs btn-info"><i class="fas fa-history"></i> Historial</button>';
                 }
@@ -370,6 +376,275 @@ class DianAuditController extends Controller
                 'percentage' => $session->porcentaje_ok
             ]
         ]);
+    }
+
+    public function crearFactura(Request $request, $recordId)
+    {
+        $request->validate([
+            'cliente_id' => 'required|exists:contactos,id',
+            'contrato_id' => 'required|exists:contracts,id'
+        ]);
+
+        $record = DianAuditRecord::findOrFail($recordId);
+        if ($record->status != 'not_found') {
+            return response()->json(['success' => false, 'message' => 'El registro ya no está en estado "No encontrado".'], 400);
+        }
+
+        $clienteNuevo = Contacto::findOrFail($request->cliente_id);
+        $contrato = Contrato::findOrFail($request->contrato_id);
+        $empresa = Auth::user()->empresaObj;
+
+        try {
+            DB::beginTransaction();
+
+            $fecha = Carbon::parse($record->fecha_emision)->format('Y-m-d');
+            $date_suspension = Carbon::parse($fecha)->addDays(30)->format('Y-m-d'); // Predeterminado 30 días
+            $date_pagooportuno = $date_suspension;
+
+            $factura = new Factura;
+            $factura->nro           = $record->folio;
+            $factura->codigo        = ($record->prefijo ?? '') . $record->folio;
+            $factura->numeracion    = 1; // Un valor fallback, si aplica en el sistema.
+            $factura->term_cond     = $empresa->terminos_cond ?? '';
+            $factura->facnotas      = $empresa->notas_fact ?? '';
+            $factura->empresa       = $empresa->id ?? 1;
+            $factura->cliente       = $clienteNuevo->id;
+            $factura->fecha         = $fecha;
+            $factura->created_at    = Carbon::now();
+            $factura->tipo          = 2; // Electrónica
+            $factura->vencimiento   = $date_suspension;
+            $factura->suspension    = $date_suspension;
+            $factura->pago_oportuno = $date_pagooportuno;
+            $factura->observaciones = 'Factura creada automáticamente desde Auditoría DIAN';
+            $factura->bodega        = 1;
+            $factura->vendedor      = $contrato->vendedor ?? 1;
+            $factura->estatus       = 1; // Abierta
+            $factura->emitida       = 1; // Emitida
+            $factura->uuid          = $record->cufe;
+
+            // Compatibilidad de DB
+            $columns = DB::connection()->getSchemaBuilder()->getColumnListing('factura');
+            if (in_array('contrato_id', $columns)) {
+                $factura->contrato_id = $contrato->id;
+            }
+            if (in_array('facturacion_automatica', $columns)) {
+                $factura->facturacion_automatica = 0;
+            }
+            if (in_array('factura_mes_manual', $columns)) {
+                $factura->factura_mes_manual = 1;
+            }
+
+            $factura->save();
+
+            // Guardar en facturas_contratos
+            DB::table('facturas_contratos')->insert([
+                'factura_id' => $factura->id,
+                'contrato_nro' => $contrato->nro,
+                'created_by' => Auth::id(),
+                'client_id' => $factura->cliente,
+                'created_at' => Carbon::now()
+            ]);
+
+            // Copiar ítems del contrato
+            $cm = $contrato;
+            $fechaActual = Carbon::now()->format('Y-m-d');
+            $descuentoHasta = isset($cm->fecha_hasta_desc) ? $cm->fecha_hasta_desc : null;
+            $descuentoPesos = 0;
+
+            if ($cm->plan_id) {
+                $plan = PlanesVelocidad::find($cm->plan_id);
+                if ($plan) {
+                    $item = Inventario::find($plan->item);
+                    if ($item) {
+                        $item_reg = new ItemsFactura;
+                        $item_reg->factura     = $factura->id;
+                        $item_reg->producto    = $item->id;
+                        $item_reg->ref         = $item->ref;
+                        $item_reg->precio      = $item->precio;
+
+                        if (isset($cm->precio_personalizado_internet) && $cm->precio_personalizado_internet > 0) {
+                            $item_reg->precio = $cm->precio_personalizado_internet;
+                        }
+
+                        $item_reg->descripcion = $plan->name;
+                        $item_reg->id_impuesto = $item->id_impuesto;
+                        $item_reg->impuesto    = $item->impuesto;
+                        if ($cm->iva_factura == 1) {
+                            $item_reg->id_impuesto = 1;
+                            $item_reg->impuesto = 19;
+                        }
+                        $item_reg->cant        = 1;
+
+                        if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                            $item_reg->desc        = $cm->descuento;
+                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                $descuentoPesos = 1;
+                            }
+                        } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                            $item_reg->desc        = $cm->descuento;
+                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                $descuentoPesos = 1;
+                            }
+                        }
+                        $item_reg->save();
+                    }
+                }
+            }
+
+            if ($cm->servicio_tv) {
+                $item = Inventario::find($cm->servicio_tv);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+
+                    if (isset($cm->precio_personalizado_tv) && $cm->precio_personalizado_tv > 0) {
+                        $item_reg->precio = $cm->precio_personalizado_tv;
+                    }
+
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+                    $item_reg->desc        = $cm->descuento;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+                    $item_reg->save();
+                }
+            }
+
+            if ($cm->servicio_otro) {
+                $item = Inventario::find($cm->servicio_otro);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } elseif ($descuentoHasta == null || $descuentoHasta == "") {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+
+                    if ($cm->rd_item_vencimiento == 1) {
+                        if ($cm->dt_item_hasta >= now()) {
+                            $item_reg->save();
+                        }
+                    } else {
+                        $item_reg->save();
+                    }
+                }
+            }
+
+            $asignacion = Producto::where('contrato', $cm->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
+            if ($asignacion) {
+                $item = Inventario::find($asignacion->producto);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = ($asignacion->precio / $asignacion->cuotas);
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } elseif ($descuentoHasta == null || $descuentoHasta == "") {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+                    $item_reg->save();
+                }
+            }
+
+            // Log Inmutable
+            DianAuditLog::create([
+                'audit_record_id' => $record->id,
+                'session_id' => $record->session_id,
+                'factura_id' => $factura->id,
+                'folio' => $record->folio,
+                'cufe' => $record->cufe,
+                'nit_anterior' => '',
+                'nombre_anterior' => '',
+                'cliente_id_anterior' => null,
+                'nit_nuevo' => $clienteNuevo->nit,
+                'nombre_nuevo' => $clienteNuevo->nombre . ' ' . $clienteNuevo->apellido1 . ' ' . $clienteNuevo->apellido2,
+                'cliente_id_nuevo' => $clienteNuevo->id,
+                'motivo' => "Creación Automática de Factura a partir de Contrato Nro: {$contrato->nro}",
+                'usuario_id' => Auth::id(),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+
+            // Actualizar Record
+            $record->update([
+                'status' => 'corrected',
+                'factura_id' => $factura->id,
+                'nit_receptor_sistema' => $clienteNuevo->nit,
+                'nombre_receptor_sistema' => $clienteNuevo->nombre . ' ' . $clienteNuevo->apellido1 . ' ' . $clienteNuevo->apellido2,
+                'cliente_id_sistema' => $clienteNuevo->id
+            ]);
+
+            // Actualizar Contadores
+            $session = $record->session;
+            $session->increment('corrected');
+            $session->decrement('not_found');
+            $session->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Factura creada exitosamente y registro vinculado.',
+                'factura_id' => $factura->id
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la factura.',
+                'error' => $e->getMessage() . ' - Linea: ' . $e->getLine()
+            ], 500);
+        }
     }
 
     public function buscarCliente(Request $request)
