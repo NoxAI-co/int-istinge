@@ -97,6 +97,12 @@ class CronDianController extends Controller
         // Empresa
         $empresa = Empresa::find(1);
 
+        $numeracion = NumeracionFactura::where('empresa', 1)
+            ->where('estado', 1)
+            ->where('tipo', 2)
+            ->where('preferida', 1)
+            ->first();
+
         // Pendientes total
         $queryPendientes = Factura::where('empresa', 1)
             ->where('tipo', 2)
