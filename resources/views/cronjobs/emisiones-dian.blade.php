@@ -267,8 +267,8 @@
             </div>
             <div class="col-md-2 text-center">
                 <h6 class="text-muted font-weight-bold mb-0 small uppercase">Pendientes</h6>
-                <h2 class="text-warning font-weight-bold mb-0" id="pendientes-header" style="font-size: 2.5rem;">{{ $pendientes }}</h2>
-                <small class="text-muted font-weight-bold uppercase" style="font-size: 0.65rem;">Facturas Tipo 2</small>
+                <h2 class="text-warning font-weight-bold mb-0" id="pendientes-header" style="font-size: 2.5rem;" title="Procesables: {{ $pendientesProcesables }} / Total: {{ $pendientesTotal }}">{{ $pendientesProcesables }}</h2>
+                <small class="text-muted font-weight-bold uppercase" style="font-size: 0.65rem;">De {{ $pendientesTotal }} Totales</small>
             </div>
         </div>
     </div>
@@ -377,6 +377,36 @@
         </div>
     </div>
 
+
+    {{-- ═══════════════════════════════════════════════════════════════
+         FACTURAS PENDIENTES DE EMISIÓN (DataTables)
+         ═══════════════════════════════════════════════════════════════ --}}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="premium-container" style="padding: 0; overflow: hidden; border-top: 4px solid var(--warning);">
+                <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="m-0 font-weight-bold text-dark"><i class="fas fa-clock mr-2 text-warning"></i> Facturas Pendientes de Emisión</h5>
+                        <p class="text-muted small mb-0">Listado de facturas que esperan ser enviadas a la DIAN</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-premium" id="table-pendientes" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Total</th>
+                                <th>Válida para Cron</th>
+                                <th class="text-right">Acción</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
     {{-- ═══════════════════════════════════════════════════════════════
          HISTORIAL DE EJECUCIONES (DataTables)
@@ -493,6 +523,30 @@ $(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');
     var pollingInterval = null;
     var baseUrl = '{{ url('/empresa') }}/';
+
+    // ─── DataTable Pendientes ───
+    var dtPendientes = $('#table-pendientes').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: baseUrl + 'api/cron-dian/pendientes',
+        columns: [
+            { data: 'codigo', name: 'codigo', className: 'font-weight-bold' },
+            { data: 'fecha', name: 'fecha' },
+            { data: 'nombre_cliente', name: 'contactos.nombre', render: function(d, t, row) {
+                return '<strong>' + (row.nit_cliente || '') + '</strong><br><small class="text-muted">' + (d || 'Sin nombre') + '</small>';
+            }},
+            { data: 'total', name: 'total', render: function(d) { return '$ ' + new Intl.NumberFormat().format(d); } },
+            { data: 'numeracion_match', name: 'numeracion_match', render: function(d) {
+                var cls = d === 'SI' ? 'badge-success' : 'badge-danger';
+                return '<span class="badge ' + cls + '">' + d + '</span>';
+            }},
+            { data: 'acciones', name: 'acciones', orderable: false, searchable: false, className: 'text-right' }
+        ],
+        order: [[1, 'desc']],
+        pageLength: 5,
+        dom: '<"top"f>rt<"bottom"lip><"clear">',
+        language: { "url": "//cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json" }
+    });
 
     // ─── DataTable Historial ───
     var dtHistorial = $('#table-historial').DataTable({
@@ -623,7 +677,9 @@ $(function() {
             }
         }
 
-        $('#pendientes-header').text(data.pendientes_total);
+        $('#pendientes-header').text(data.pendientes_procesables || 0);
+        $('#pendientes-header').attr('title', 'Procesables: ' + (data.pendientes_procesables || 0) + ' / Total: ' + (data.pendientes_total || 0));
+        if (typeof dtPendientes !== 'undefined') dtPendientes.ajax.reload(null, false);
 
         // Alertas
         if (data.alertas_numeracion && data.alertas_numeracion.length > 0) {
@@ -684,6 +740,7 @@ $(function() {
                         } else {
                             fetchEstado(); 
                             dtHistorial.ajax.reload(); 
+                            if (typeof dtPendientes !== 'undefined') dtPendientes.ajax.reload();
                         }
                     },
                     error: function() { Swal.fire('Error', 'No se pudo iniciar el proceso.', 'error'); },
@@ -816,7 +873,11 @@ $(function() {
         });
     });
 
-    $('#btn-refresh').on('click', function() { fetchEstado(); dtHistorial.ajax.reload(); });
+    $('#btn-refresh').on('click', function() { 
+        fetchEstado(); 
+        dtHistorial.ajax.reload(); 
+        if (typeof dtPendientes !== 'undefined') dtPendientes.ajax.reload();
+    });
     fetchEstado(); 
     pollingInterval = setInterval(fetchEstado, 15000);
 });

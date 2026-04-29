@@ -56,12 +56,18 @@ class CronDianController extends Controller
             ->where('preferida', 1)
             ->first();
 
-        $pendientes = Factura::where('empresa', 1)
+        $queryPendientes = Factura::where('empresa', 1)
             ->where('tipo', 2)
             ->where('emitida', 0)
             ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
+            });
+
+        $pendientesTotal = (clone $queryPendientes)->count();
+        
+        // Pendientes que coinciden con la numeración preferida (los que realmente se procesarán)
+        $pendientesProcesables = (clone $queryPendientes)
+            ->where('numeracion', $numeracion->id ?? 0)
             ->count();
 
         view()->share([
@@ -71,7 +77,7 @@ class CronDianController extends Controller
             'subseccion' => 'emisiones-dian',
         ]);
 
-        return view('cronjobs.emisiones-dian', compact('empresa', 'numeracion', 'pendientes'));
+        return view('cronjobs.emisiones-dian', compact('empresa', 'numeracion', 'pendientesTotal', 'pendientesProcesables'));
     }
 
     // =========================================================================
@@ -92,12 +98,16 @@ class CronDianController extends Controller
         $empresa = Empresa::find(1);
 
         // Pendientes total
-        $pendientesTotal = Factura::where('empresa', 1)
+        $queryPendientes = Factura::where('empresa', 1)
             ->where('tipo', 2)
             ->where('emitida', 0)
             ->when($empresa && $empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
                 return $q->where('fecha', '>=', $empresa->fecha_inicio_emision_dian);
-            })
+            });
+
+        $pendientesTotal = (clone $queryPendientes)->count();
+        $pendientesProcesables = (clone $queryPendientes)
+            ->where('numeracion', $numeracion->id ?? 0)
             ->count();
 
         // Última ejecución completada
@@ -147,15 +157,52 @@ class CronDianController extends Controller
         }
 
         return response()->json([
-            'ejecucion_activa'    => $ejecucionActiva,
-            'log_actual'          => $logActual,
-            'pendientes_total'    => $pendientesTotal,
-            'ultima_ejecucion'    => $ultimaEjecucion,
-            'alertas_numeracion'  => $alertas,
-            'progreso_porcentaje' => $progresoPorcentaje,
-            'detalles_actuales'   => $detallesActuales,
-            'emision_automatica'  => $empresa ? $empresa->emision_automatica : 0,
+            'ejecucion_activa'      => $ejecucionActiva,
+            'log_actual'            => $logActual,
+            'pendientes_total'      => $pendientesTotal,
+            'pendientes_procesables' => $pendientesProcesables,
+            'ultima_ejecucion'      => $ultimaEjecucion,
+            'alertas_numeracion'    => $alertas,
+            'progreso_porcentaje'   => $progresoPorcentaje,
+            'detalles_actuales'     => $detallesActuales,
+            'emision_automatica'    => $empresa ? $empresa->emision_automatica : 0,
         ]);
+    }
+
+    // =========================================================================
+    // DATATABLES PENDIENTES — /api/cron-dian/pendientes
+    // =========================================================================
+    public function facturasPendientes(Request $request)
+    {
+        $empresa = Empresa::find(1);
+        $numeracion = NumeracionFactura::where('empresa', 1)
+            ->where('estado', 1)
+            ->where('tipo', 2)
+            ->where('preferida', 1)
+            ->first();
+
+        $query = Factura::where('factura.empresa', 1)
+            ->where('factura.tipo', 2)
+            ->where('factura.emitida', 0)
+            ->when($empresa->fecha_inicio_emision_dian, function ($q) use ($empresa) {
+                return $q->where('factura.fecha', '>=', $empresa->fecha_inicio_emision_dian);
+            })
+            ->leftJoin('contactos', 'contactos.id', '=', 'factura.cliente')
+            ->select('factura.*', 'contactos.nombre as nombre_cliente', 'contactos.nit as nit_cliente');
+
+        return datatables()->of($query)
+            ->editColumn('fecha', function ($row) {
+                return Carbon::parse($row->fecha)->format('d-m-Y');
+            })
+            ->addColumn('numeracion_match', function ($row) use ($numeracion) {
+                if (!$numeracion) return 'Sin resolución activa';
+                return $row->numeracion == $numeracion->id ? 'SI' : 'NO (ID: ' . $row->numeracion . ')';
+            })
+            ->addColumn('acciones', function ($row) {
+                return '<a href="' . route('facturas.show', $row->id) . '" class="btn btn-xs btn-outline-primary border-0" target="_blank"><i class="fas fa-eye"></i></a>';
+            })
+            ->rawColumns(['acciones'])
+            ->make(true);
     }
 
     // =========================================================================

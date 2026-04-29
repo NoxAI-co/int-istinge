@@ -786,6 +786,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 	// ─── Emisiones DIAN (CronDian) ───
 	Route::get('cronjobs/emisiones-dian', 'CronDianController@vista')->name('cronjobs.emisiones-dian');
+	Route::get('api/cron-dian/pendientes', 'CronDianController@facturasPendientes');
 	Route::get('api/cron-dian/estado', 'CronDianController@estado');
 	Route::get('api/cron-dian/logs', 'CronDianController@logs');
 	Route::get('api/cron-dian/detalle/{log_id}', 'CronDianController@detalle');
