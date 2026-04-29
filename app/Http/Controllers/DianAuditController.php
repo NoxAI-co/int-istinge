@@ -97,6 +97,9 @@ class DianAuditController extends Controller
 
     private function procesarArchivoDian(DianAuditSession $session)
     {
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
         $path = storage_path('app/' . $session->filename);
         
         try {
@@ -126,6 +129,44 @@ class DianAuditController extends Controller
         $not_found = 0;
         $monto_total_discrepancia = 0;
 
+        // PRE-FETCHING DATA TO AVOID N+1 QUERIES
+        $allCufes = [];
+        $allCodigos = [];
+        $allFolios = [];
+        
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (count($row) < 13 || empty($row[1])) continue;
+            
+            $cufe = trim($row[1]);
+            $folio = trim($row[2] ?? '');
+            $prefijo = trim($row[3] ?? '');
+            
+            $allCufes[] = $cufe;
+            if (!empty($folio)) {
+                $allCodigos[] = $prefijo . $folio;
+                $allFolios[] = $folio;
+            }
+        }
+
+        $facturasByCufe = collect();
+        $facturasByCodigo = collect();
+        $facturasByFolio = collect();
+
+        // Procesar en chunks de 1000 para evitar errores en IN clause de SQL
+        foreach (array_chunk($allCufes, 1000) as $chunk) {
+            $facturasByCufe = $facturasByCufe->merge(Factura::whereIn(self::COL_CUFE, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CUFE));
+        }
+        foreach (array_chunk($allCodigos, 1000) as $chunk) {
+            $facturasByCodigo = $facturasByCodigo->merge(Factura::whereIn(self::COL_CODIGO, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CODIGO));
+        }
+        foreach (array_chunk($allFolios, 1000) as $chunk) {
+            $facturasByFolio = $facturasByFolio->merge(Factura::whereIn(self::COL_CODIGO, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CODIGO));
+        }
+
+        $recordsToInsert = [];
+        $now = Carbon::now();
+
         // Saltamos la primera fila (encabezados)
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
@@ -143,15 +184,12 @@ class DianAuditController extends Controller
             $total = $this->parseMonto($row[29] ?? ($row[count($row)-1] ?? 0)); // Intentar la 29 o la última si no hay tantas
             $fecha = $this->parseFecha($row[7] ?? '');
 
-            // Buscar factura en sistema
-            $factura = Factura::where(self::COL_CUFE, $cufe)->first();
+            // Buscar factura en memoria en lugar de DB
+            $factura = $facturasByCufe->get($cufe);
             
             if (!$factura && !empty($folio)) {
-                // Intento alternativo por prefijo + folio (ej: FE10) o solo folio
                 $codigo_completo = $prefijo . $folio;
-                $factura = Factura::where(self::COL_CODIGO, $codigo_completo)
-                    ->orWhere(self::COL_CODIGO, $folio)
-                    ->first();
+                $factura = $facturasByCodigo->get($codigo_completo) ?? $facturasByFolio->get($folio);
             }
 
             $status = 'not_found';
@@ -162,13 +200,29 @@ class DianAuditController extends Controller
 
             if ($factura) {
                 $factura_id = $factura->id;
-                $cliente = $factura->cliente();
+                
+                // Usamos la relación pre-cargada
+                $cliente = $factura->clienteObj;
+                
+                // Si no tiene cliente ID asignado (factura vieja sin contacto ID)
+                if (!$cliente && $factura->cliente == null) {
+                    $clienteDb = DB::table('factura_contacto')->where('factura', $factura->id)->first();
+                    if ($clienteDb) {
+                        $cliente = new \stdClass;
+                        $cliente->id = null;
+                        $cliente->nombre = $clienteDb->nombre;
+                        $cliente->apellido1 = '';
+                        $cliente->apellido2 = '';
+                        $cliente->nit = 'N/A';
+                        $cliente->empresa = '';
+                    }
+                }
                 
                 if ($cliente) {
                     $nit_sistema = $this->normalizarNit($cliente->nit ?? '');
                     $nombre_sistema = trim(($cliente->nombre ?? '') . ' ' . ($cliente->apellido1 ?? '') . ' ' . ($cliente->apellido2 ?? ''));
                     if (empty($nombre_sistema)) $nombre_sistema = $cliente->empresa ?? 'Cliente sin nombre';
-                    $cliente_id_sistema = $cliente->id;
+                    $cliente_id_sistema = $cliente->id ?? null;
 
                     if ($nit_dian === $nit_sistema) {
                         $status = 'matched';
@@ -185,7 +239,7 @@ class DianAuditController extends Controller
                 $not_found++;
             }
 
-            DianAuditRecord::create([
+            $recordsToInsert[] = [
                 'session_id' => $session->id,
                 'tipo_documento' => $row[0] ?? 'N/A',
                 'cufe' => $cufe,
@@ -201,10 +255,23 @@ class DianAuditController extends Controller
                 'factura_id' => $factura_id,
                 'nit_receptor_sistema' => $nit_sistema,
                 'nombre_receptor_sistema' => $nombre_sistema,
-                'cliente_id_sistema' => $cliente_id_sistema
-            ]);
+                'cliente_id_sistema' => $cliente_id_sistema,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+
+            // Batch insert cada 500 registros para no agotar la memoria
+            if (count($recordsToInsert) >= 500) {
+                DianAuditRecord::insert($recordsToInsert);
+                $recordsToInsert = [];
+            }
 
             $total_records++;
+        }
+
+        // Insertar los registros restantes
+        if (count($recordsToInsert) > 0) {
+            DianAuditRecord::insert($recordsToInsert);
         }
 
         $session->update([
