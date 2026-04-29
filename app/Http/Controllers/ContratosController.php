@@ -3149,7 +3149,7 @@ class ContratosController extends Controller
                                     }
                                 }
                             }
-                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Deshabilitado<br>';
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Deshabilitado<br>';
                             break;
 
                         case 'enabled':
@@ -3163,7 +3163,7 @@ class ContratosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[STATE] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
+                            $movimiento->descripcion = '[Manual] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
                             $movimiento->created_by  = Auth::user()->id;
                             $movimiento->empresa     = Auth::user()->empresa;
                             $movimiento->save();
@@ -3174,7 +3174,7 @@ class ContratosController extends Controller
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[STATE] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
+                                $movimiento->descripcion = '[Manual] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
                                 $movimiento->created_by  = Auth::user()->id;
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
@@ -3191,8 +3191,8 @@ class ContratosController extends Controller
                                 $verificacion = $API->read();
 
                                 $descVerif = empty($verificacion)
-                                    ? '[STATE] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
-                                    : '[STATE] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                                    ? '[Manual] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                    : '[Manual] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
 
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
@@ -3205,7 +3205,7 @@ class ContratosController extends Controller
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[STATE] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
+                                $movimiento->descripcion = '[Manual] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
                                 $movimiento->created_by  = Auth::user()->id;
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
@@ -3225,7 +3225,7 @@ class ContratosController extends Controller
                                         $movimiento = new MovimientoLOG;
                                         $movimiento->contrato    = $id;
                                         $movimiento->modulo      = 5;
-                                        $movimiento->descripcion = '[STATE] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                        $movimiento->descripcion = '[Manual] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
                                         $movimiento->created_by  = Auth::user()->id;
                                         $movimiento->empresa     = Auth::user()->empresa;
                                         $movimiento->save();
@@ -3242,12 +3242,12 @@ class ContratosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[STATE] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->descripcion = '[Manual] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
                             $movimiento->created_by  = Auth::user()->id;
                             $movimiento->empresa     = Auth::user()->empresa;
                             $movimiento->save();
 
-                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Habilitado<br>';
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Habilitado<br>';
                             break;
                     }
                     $API->disconnect();
@@ -4880,7 +4880,7 @@ class ContratosController extends Controller
                                         }
                                     }
                                 }
-                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Deshabilitado<br>';
+                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Deshabilitado<br>';
                                 break;
 
                             case 'enabled':
@@ -4975,7 +4975,7 @@ class ContratosController extends Controller
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
 
-                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Habilitado<br>';
+                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Habilitado<br>';
                                 break;
                         }
 

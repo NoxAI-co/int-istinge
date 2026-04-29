@@ -1348,7 +1348,7 @@ class CronController extends Controller
                                                     }
                                                 }
                                                 $API->disconnect();
-                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[CRON] Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                             } else {
                                                 $mikrotik_failed = true;
                                             }
@@ -1826,7 +1826,7 @@ class CronController extends Controller
                                                     }
                                                 }
                                                 $API->disconnect();
-                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[CRON] Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                             } else {
                                                 $mikrotik_failed = true;
                                             }
