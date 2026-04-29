@@ -18,7 +18,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Barryvdh\DomPDF\Facade as PDF;
 use App\Contrato;
 use App\FacturaContratos;
-use App\Inventario;
+use App\Model\Inventario\Inventario;
 use App\Model\Ingresos\ItemsFactura;
 use App\PlanesVelocidad;
 use App\Producto;
