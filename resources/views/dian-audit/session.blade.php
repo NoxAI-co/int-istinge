@@ -482,45 +482,50 @@
         $('#cliente_id_crear').on('select2:select', function (e) {
             var clienteId = e.params.data.id;
             var recordId = $('#record_id_crear_input').val();
-            
-            $.get("{{ route('auditoria.dian.contratos-cliente') }}", { cliente_id: clienteId, record_id: recordId }, function(data) {
-                var html = '';
-                if(data.length === 0) {
-                    html = '<div class="alert alert-warning w-100">Este cliente no tiene contratos registrados. No se pueden generar los ítems.</div>';
-                    $('#contrato_id_crear').val('');
-                } else {
-                    data.forEach(function(c) {
-                        var badge = c.estado === 'Habilitado' ? 'success' : 'secondary';
-                        var isSelected = c.recomendado ? 'selected' : '';
-                        
-                        html += '<div class="contract-card ' + isSelected + '" onclick="seleccionarContratoCrear(this, ' + c.id + ')">';
-                        if(c.recomendado) {
-                            html += '<span class="recommendation-badge">RECOMENDADO</span>';
-                        }
-                        html += '<div class="font-weight-bold text-dark">Contrato Nro: ' + c.nro + '</div>';
-                        html += '<div class="small text-muted mb-1">Plan: ' + c.plan + '</div>';
-                        html += '<span class="badge badge-' + badge + ' badge-sm">' + c.estado + '</span>';
-                        html += '</div>';
-                        
-                        if(c.recomendado) {
-                            $('#contrato_id_crear').val(c.id);
-                        }
-                    });
+            fetchContratosCrear(clienteId, recordId);
+        });
+    }
+
+    function fetchContratosCrear(clienteId, recordId) {
+        $.get("{{ route('auditoria.dian.contratos-cliente') }}", { cliente_id: clienteId, record_id: recordId }, function(data) {
+            var html = '';
+            if(data.length === 0) {
+                html = '<div class="alert alert-warning w-100">Este cliente no tiene contratos registrados. No se pueden generar los ítems.</div>';
+                $('#contrato_id_crear').val('');
+            } else {
+                data.forEach(function(c) {
+                    var badge = c.estado === 'Habilitado' ? 'success' : 'secondary';
+                    var isSelected = c.recomendado ? 'selected' : '';
                     
-                    // Si no hubo recomendado, seleccionar el primero por defecto
-                    if($('#contrato_id_crear').val() === '' && data.length > 0) {
-                        $('#contrato_id_crear').val(data[0].id);
+                    html += '<div class="contract-card ' + isSelected + '" onclick="seleccionarContratoCrear(this, ' + c.id + ')">';
+                    if(c.recomendado) {
+                        html += '<span class="recommendation-badge">RECOMENDADO</span>';
                     }
-                }
+                    html += '<div class="font-weight-bold text-dark">Contrato Nro: ' + c.nro + '</div>';
+                    html += '<div class="small text-muted mb-1">Plan: ' + c.plan + '</div>';
+                    html += '<span class="badge badge-' + badge + ' badge-sm">' + c.estado + '</span>';
+                    html += '</div>';
+                    
+                    if(c.recomendado) {
+                        $('#contrato_id_crear').val(c.id);
+                    }
+                });
                 
-                $('#contratos_crear_list').html(html);
-                $('#contratos_crear_container').slideDown();
-                
-                // Asegurar visualmente que el primer no-recomendado quede seleccionado si no hubo recomendado
-                if($('.contract-card.selected').length === 0 && $('.contract-card').length > 0) {
-                    $('.contract-card').first().addClass('selected');
+                // Si no hubo recomendado, seleccionar el primero por defecto
+                if($('#contrato_id_crear').val() === '' && data.length > 0) {
+                    $('#contrato_id_crear').val(data[0].id);
                 }
-            });
+            }
+            
+            $('#contratos_crear_list').html(html);
+            $('#contratos_crear_container').slideDown();
+            
+            // Asegurar visualmente que el primer no-recomendado quede seleccionado si no hubo recomendado
+            if($('.contract-card.selected').length === 0 && $('.contract-card').length > 0) {
+                $('.contract-card').first().addClass('selected');
+                var firstId = $('.contract-card').first().attr('onclick').match(/\d+/)[0];
+                $('#contrato_id_crear').val(firstId);
+            }
         });
     }
 
@@ -532,7 +537,7 @@
 
     function abrirModalCrearFactura(id) {
         // Reset form
-        $('#cliente_id_crear').val(null).trigger('change');
+        $('#cliente_id_crear').empty().val(null).trigger('change');
         $('#contratos_crear_container').hide();
         $('#contrato_id_crear').val('');
         
@@ -565,6 +570,8 @@
                     if(data && data.length > 0) {
                         var option = new Option(data[0].text, data[0].id, true, true);
                         $('#cliente_id_crear').append(option).trigger('change');
+                        // Forzar la carga de contratos para el cliente preseleccionado
+                        fetchContratosCrear(data[0].id, r.id);
                     }
                 });
             }
