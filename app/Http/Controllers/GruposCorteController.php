@@ -223,40 +223,38 @@ class GruposCorteController extends Controller
             //Si es diferente es por que hubo un cambio y vamos a actualizar la fecha de suspension de las ultimas facturas creadas
             if($grupo->fecha_suspension != $request->fecha_suspension){
 
-                // 1. Identificar la fecha de emisión del último lote de facturas para este grupo
-                $ultimaFecha = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
-                    ->join('contracts as c', 'c.nro', '=', 'fc.contrato_nro')
-                    ->where('c.grupo_corte', $grupo->id)
-                    ->max('factura.fecha');
+                // 1. Obtener todos los contratos pertenecientes a este grupo de corte
+                $contratos = \App\Contrato::where('grupo_corte', $grupo->id)->get();
+                $facturasActualizadas = [];
 
-                if ($ultimaFecha) {
-                    // 2. Obtener únicamente las facturas pertenecientes a ese último lote
-                    $facturasGrupo = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
-                        ->join('contracts as c', 'c.nro', '=' ,'fc.contrato_nro')
+                foreach($contratos as $contrato){
+                    // 2. Tomar la última factura generada para este contrato que esté abierta (estatus = 1)
+                    $ultimaFacturaAbierta = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                        ->where('fc.contrato_nro', $contrato->nro)
+                        ->where('factura.estatus', 1) // Solo tomar estado abierta
                         ->select('factura.*')
-                        ->where('factura.fecha', $ultimaFecha)
-                        ->where('c.grupo_corte', $grupo->id)
-                        ->groupBy('factura.id')
-                        ->get();
+                        ->orderBy('factura.id', 'desc')
+                        ->first();
 
-                    foreach($facturasGrupo as $fg){
+                    // Evitar actualizar la misma factura múltiple veces si pertenece a múltiples contratos
+                    if($ultimaFacturaAbierta && !in_array($ultimaFacturaAbierta->id, $facturasActualizadas)){
+                        $facturasActualizadas[] = $ultimaFacturaAbierta->id;
+
                         // 3. Conservar el mes y año originales del vencimiento para evitar
                         // dañar facturas que se emitieron para el mes siguiente.
-                        if ($fg->vencimiento) {
-                            $vencimientoOriginal = Carbon::parse($fg->vencimiento);
-                            $year = $vencimientoOriginal->format('Y');
-                            $month = $vencimientoOriginal->format('m');
-                            
-                            // Asegurar que el día no exceda el máximo de días del mes (ej. Febrero 30 -> 28/29)
-                            $ultimoDiaMes = Carbon::createFromDate($year, $month, 1)->endOfMonth()->day;
-                            $diaSuspension = $request->fecha_suspension > $ultimoDiaMes ? $ultimoDiaMes : $request->fecha_suspension;
+                        $vencimientoOriginal = Carbon::parse($ultimaFacturaAbierta->vencimiento);
+                        $year = $vencimientoOriginal->format('Y');
+                        $month = $vencimientoOriginal->format('m');
+                        
+                        // Asegurar que el día no exceda el máximo de días del mes (ej. Febrero 30 -> 28/29)
+                        $ultimoDiaMes = Carbon::createFromDate($year, $month, 1)->endOfMonth()->day;
+                        $diaSuspension = $request->fecha_suspension > $ultimoDiaMes ? $ultimoDiaMes : $request->fecha_suspension;
 
-                            $nuevaFecha = $year . "-" . $month . "-" . str_pad($diaSuspension, 2, '0', STR_PAD_LEFT);
+                        $nuevaFecha = $year . "-" . $month . "-" . str_pad($diaSuspension, 2, '0', STR_PAD_LEFT);
 
-                            $fg->vencimiento = $nuevaFecha;
-                            $fg->suspension = $nuevaFecha;
-                            $fg->save();
-                        }
+                        $ultimaFacturaAbierta->vencimiento = $nuevaFecha;
+                        $ultimaFacturaAbierta->suspension = $nuevaFecha;
+                        $ultimaFacturaAbierta->save();
                     }
                 }
             }
