@@ -205,7 +205,7 @@ class CronDianController extends Controller
                 return $row->numeracion == $numeracion->id ? 'SI' : 'NO (ID: ' . $row->numeracion . ')';
             })
             ->addColumn('total', function ($row) {
-                return $row->total()->total;
+                return \App\Funcion::Parsear($row->total()->total);
             })
             ->addColumn('acciones', function ($row) {
                 return '<a href="' . route('facturas.show', $row->id) . '" class="btn btn-xs btn-outline-primary border-0" target="_blank"><i class="fas fa-eye"></i></a>';

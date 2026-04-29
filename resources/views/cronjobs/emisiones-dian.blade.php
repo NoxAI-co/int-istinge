@@ -535,7 +535,7 @@ $(function() {
             { data: 'nombre_cliente', name: 'contactos.nombre', render: function(d, t, row) {
                 return '<strong>' + (row.nit_cliente || '') + '</strong><br><small class="text-muted">' + (d || 'Sin nombre') + '</small>';
             }},
-            { data: 'total', name: 'total', render: function(d) { return '$ ' + new Intl.NumberFormat().format(d); } },
+            { data: 'total', name: 'total', render: function(d) { return '$ ' + d; } },
             { data: 'numeracion_match', name: 'numeracion_match', render: function(d) {
                 var cls = d === 'SI' ? 'badge-success' : 'badge-danger';
                 return '<span class="badge ' + cls + '">' + d + '</span>';
