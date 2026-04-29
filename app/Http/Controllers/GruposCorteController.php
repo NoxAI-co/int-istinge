@@ -223,23 +223,41 @@ class GruposCorteController extends Controller
             //Si es diferente es por que hubo un cambio y vamos a actualizar la fecha de suspension de las ultimas facturas creadas
             if($grupo->fecha_suspension != $request->fecha_suspension){
 
-                $mesActual = date('m');
-                $yearActual = date('Y');
+                // 1. Identificar la fecha de emisión del último lote de facturas para este grupo
+                $ultimaFecha = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                    ->join('contracts as c', 'c.nro', '=', 'fc.contrato_nro')
+                    ->where('c.grupo_corte', $grupo->id)
+                    ->max('factura.fecha');
 
-                $facturasGrupo = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
-                ->join('contracts as c', 'c.nro', '=' ,'fc.contrato_nro')
-                ->join('grupos_corte as gc','gc.id','=','c.grupo_corte')
-                ->select('factura.*','gc.id as grupo_id')
-                ->whereRaw("DATE_FORMAT(factura.vencimiento, '%m')=" .$mesActual)
-                ->whereRaw("DATE_FORMAT(factura.vencimiento, '%Y')=" .$yearActual)
-                ->where('gc.id',$grupo->id)
-                ->groupBy('factura.id')
-                ->get();
+                if ($ultimaFecha) {
+                    // 2. Obtener únicamente las facturas pertenecientes a ese último lote
+                    $facturasGrupo = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                        ->join('contracts as c', 'c.nro', '=' ,'fc.contrato_nro')
+                        ->select('factura.*')
+                        ->where('factura.fecha', $ultimaFecha)
+                        ->where('c.grupo_corte', $grupo->id)
+                        ->groupBy('factura.id')
+                        ->get();
 
-                foreach($facturasGrupo as $fg){
-                    $fg->vencimiento = $yearActual . "-" . $mesActual . "-" . $request->fecha_suspension;
-                    $fg->suspension = $yearActual . "-" . $mesActual . "-" . $request->fecha_suspension;
-                    $fg->save();
+                    foreach($facturasGrupo as $fg){
+                        // 3. Conservar el mes y año originales del vencimiento para evitar
+                        // dañar facturas que se emitieron para el mes siguiente.
+                        if ($fg->vencimiento) {
+                            $vencimientoOriginal = Carbon::parse($fg->vencimiento);
+                            $year = $vencimientoOriginal->format('Y');
+                            $month = $vencimientoOriginal->format('m');
+                            
+                            // Asegurar que el día no exceda el máximo de días del mes (ej. Febrero 30 -> 28/29)
+                            $ultimoDiaMes = Carbon::createFromDate($year, $month, 1)->endOfMonth()->day;
+                            $diaSuspension = $request->fecha_suspension > $ultimoDiaMes ? $ultimoDiaMes : $request->fecha_suspension;
+
+                            $nuevaFecha = $year . "-" . $month . "-" . str_pad($diaSuspension, 2, '0', STR_PAD_LEFT);
+
+                            $fg->vencimiento = $nuevaFecha;
+                            $fg->suspension = $nuevaFecha;
+                            $fg->save();
+                        }
+                    }
                 }
             }
 
