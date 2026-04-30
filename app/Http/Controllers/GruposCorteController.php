@@ -919,9 +919,17 @@ class GruposCorteController extends Controller
             }
 
             // Eliminar dependencias
+            DB::table('items_factura')->where('factura', $factura->id)->delete();
+            DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
+            DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
+            DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
+            DB::table('notas_factura')->where('factura', $factura->id)->delete();
+            DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+            DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
             DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-            ItemsFactura::where('factura', $factura->id)->delete();
+            DB::table('descuentos')->where('factura', $factura->id)->delete();
             DB::table('crm')->where('factura', $factura->id)->delete();
+            DB::table('promesa_pago')->where('factura', $factura->id)->delete();
 
             // Eliminar factura en OnePay si existe
             if ($factura->onepay_invoice_id) {
@@ -1038,9 +1046,17 @@ class GruposCorteController extends Controller
                     }
 
                     // Eliminar dependencias
+                    DB::table('items_factura')->where('factura', $factura->id)->delete();
+                    DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
+                    DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
+                    DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
+                    DB::table('notas_factura')->where('factura', $factura->id)->delete();
+                    DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+                    DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
                     DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-                    ItemsFactura::where('factura', $factura->id)->delete();
+                    DB::table('descuentos')->where('factura', $factura->id)->delete();
                     DB::table('crm')->where('factura', $factura->id)->delete();
+                    DB::table('promesa_pago')->where('factura', $factura->id)->delete();
 
                     // Eliminar factura en OnePay si existe
                     if ($factura->onepay_invoice_id) {
@@ -1322,9 +1338,17 @@ class GruposCorteController extends Controller
                 }
 
                 // Borrado de dependencias
+                DB::table('items_factura')->where('factura', $factura->id)->delete();
+                DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
+                DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
+                DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
+                DB::table('notas_factura')->where('factura', $factura->id)->delete();
+                DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+                DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
                 DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-                ItemsFactura::where('factura', $factura->id)->delete();
+                DB::table('descuentos')->where('factura', $factura->id)->delete();
                 DB::table('crm')->where('factura', $factura->id)->delete();
+                DB::table('promesa_pago')->where('factura', $factura->id)->delete();
                 
                 // Eliminar factura en OnePay si existe
                 if ($factura->onepay_invoice_id) {
