@@ -1016,22 +1016,19 @@ class GruposCorteController extends Controller
                 });
             }
 
+            $idsParaBorrar = [];
+            $facturasParaOnePay = [];
+
             foreach ($contratos_duplicados as $dup) {
                 // Ordenar facturas para determinar cuál conservar (Índice 0)
-                // Criterios:
-                // 1. Estatus: Preferir facturas NO anuladas (estatus != 2)
-                // 2. Fecha: Preferir la más reciente
-                // 3. ID: En caso de empate, preferir ID mayor
                 $facturas = collect($dup['facturas'])->sort(function($a, $b) {
                     $aAnulada = (isset($a['estatus']) && $a['estatus'] == 2);
                     $bAnulada = (isset($b['estatus']) && $b['estatus'] == 2);
                     
-                    // Si una está anulada y la otra no, la NO anulada va primero
                     if ($aAnulada !== $bAnulada) {
                         return $aAnulada ? 1 : -1;
                     }
                     
-                    // Si ambas tienen mismo status, la más reciente va primero
                     if ($a['fecha'] != $b['fecha']) {
                         return ($a['fecha'] > $b['fecha']) ? -1 : 1;
                     }
@@ -1039,47 +1036,63 @@ class GruposCorteController extends Controller
                     return $b['id'] - $a['id'];
                 })->values();
                 
-                // Procesar facturas a eliminar
+                // Procesar facturas a eliminar (todas menos la primera)
                 $facturasAProcesar = $facturas->slice(1);
                 foreach ($facturasAProcesar as $fData) {
                     $factura = Factura::find($fData['id']);
-                    if (!$factura || $factura->pagado() > 0) {
-                        if ($factura && $factura->pagado() > 0) $noPudoEliminar++;
+                    if (!$factura) continue;
+
+                    if ($factura->pagado() > 0) {
+                        $noPudoEliminar++;
                         continue;
                     }
 
-                    // Eliminar OnePay (FUERA de transacción)
+                    $idsParaBorrar[] = $factura->id;
                     if ($factura->onepay_invoice_id) {
-                        try {
-                            $empresa_id = Auth::user() ? Auth::user()->empresa : $factura->empresa;
-                            $onePayService = new \App\Services\OnePayService($empresa_id);
-                            $onePayService->deleteInvoice($factura);
-                        } catch (\Exception $e) {
-                            Log::warning('Error OnePay: ' . $e->getMessage());
-                        }
-                    }
-
-                    DB::beginTransaction();
-                    try {
-                        DB::table('items_factura')->where('factura', $factura->id)->delete();
-                        DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
-                        DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
-                        DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
-                        DB::table('notas_factura')->where('factura', $factura->id)->delete();
-                        DB::table('factura_contacto')->where('factura', $factura->id)->delete();
-                        DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
-                        DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-                        DB::table('descuentos')->where('factura', $factura->id)->delete();
-                        DB::table('crm')->where('factura', $factura->id)->delete();
-                        DB::table('promesa_pago')->where('factura', $factura->id)->delete();
-                        $factura->delete();
-                        DB::commit();
-                        $eliminadas++;
-                    } catch (\Exception $e) {
-                        DB::rollBack();
-                        Log::error('Error al eliminar duplicada masiva: ' . $e->getMessage());
+                        $facturasParaOnePay[] = $factura;
                     }
                 }
+            }
+
+            if (empty($idsParaBorrar)) {
+                return response()->json(['success' => true, 'message' => 'No se encontraron duplicados para eliminar']);
+            }
+
+            // 1. Eliminar de OnePay (FUERA de transacción)
+            foreach ($facturasParaOnePay as $factura) {
+                try {
+                    $empresa_id = Auth::user() ? Auth::user()->empresa : $factura->empresa;
+                    $onePayService = new \App\Services\OnePayService($empresa_id);
+                    $onePayService->deleteInvoice($factura);
+                } catch (\Exception $e) {
+                    Log::warning('Error OnePay en duplicados masivos: ' . $e->getMessage());
+                }
+            }
+
+            // 2. Borrado masivo en DB
+            DB::beginTransaction();
+            try {
+                $chunks = array_chunk($idsParaBorrar, 100);
+                foreach ($chunks as $chunk) {
+                    DB::table('items_factura')->whereIn('factura', $chunk)->delete();
+                    DB::table('factura_retenciones')->whereIn('factura', $chunk)->delete();
+                    DB::table('ingresos_retenciones')->whereIn('factura', $chunk)->delete();
+                    DB::table('ingresos_factura')->whereIn('factura', $chunk)->delete();
+                    DB::table('notas_factura')->whereIn('factura', $chunk)->delete();
+                    DB::table('factura_contacto')->whereIn('factura', $chunk)->delete();
+                    DB::table('puc_movimiento')->whereIn('documento_id', $chunk)->where('tipo_comprobante', 3)->delete();
+                    DB::table('facturas_contratos')->whereIn('factura_id', $chunk)->delete();
+                    DB::table('descuentos')->whereIn('factura', $chunk)->delete();
+                    DB::table('crm')->whereIn('factura', $chunk)->delete();
+                    DB::table('promesa_pago')->whereIn('factura', $chunk)->delete();
+                    Factura::whereIn('id', $chunk)->delete();
+                    $eliminadas += count($chunk);
+                }
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error masivo duplicados DB: ' . $e->getMessage());
+                return response()->json(['success' => false, 'message' => 'Error al eliminar duplicados de la base de datos: ' . $e->getMessage()], 500);
             }
 
             // Limpiar caché
