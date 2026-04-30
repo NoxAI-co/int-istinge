@@ -22,9 +22,11 @@ class IngresosCategoria extends Model
 
     
     public function categoria($name=false){
-        $categoria = Puc::where('id',$this->categoria)->first();
-        return $name ? Puc::where('id',$this->categoria)->first()->nombre
-            : Puc::where('id',$this->categoria)->first();
+        $categoria = Puc::find($this->categoria);
+        if ($name) {
+            return $categoria ? $categoria->nombre : '';
+        }
+        return $categoria;
     }
 
     public function impuesto(){
@@ -35,8 +37,8 @@ class IngresosCategoria extends Model
         return '';
         
     }
-    public function detalle(){
-        return $this->categoria();
+    public function detalle($pdf=false){
+        return $this->categoria(true) . ($this->descripcion ? ': '.$this->descripcion : '');
     }
     public function total(){
         return $this->valor*$this->cant;
