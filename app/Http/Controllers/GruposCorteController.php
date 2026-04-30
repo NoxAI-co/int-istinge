@@ -918,35 +918,44 @@ class GruposCorteController extends Controller
                 ], 400);
             }
 
-            // Eliminar dependencias
-            DB::table('items_factura')->where('factura', $factura->id)->delete();
-            DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
-            DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
-            DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
-            DB::table('notas_factura')->where('factura', $factura->id)->delete();
-            DB::table('factura_contacto')->where('factura', $factura->id)->delete();
-            DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
-            DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-            DB::table('descuentos')->where('factura', $factura->id)->delete();
-            DB::table('crm')->where('factura', $factura->id)->delete();
-            DB::table('promesa_pago')->where('factura', $factura->id)->delete();
-
-            // Eliminar factura en OnePay si existe
+            // 1. Eliminar factura en OnePay si existe (FUERA de transacción de DB)
             if ($factura->onepay_invoice_id) {
                 try {
-                    $empresa_id = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->empresa : $factura->empresa;
+                    $empresa_id = Auth::user() ? Auth::user()->empresa : $factura->empresa;
                     $onePayService = new \App\Services\OnePayService($empresa_id);
                     $onePayService->deleteInvoice($factura);
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
+                    Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
                         'factura_id' => $factura->id,
                         'empresa_id' => $empresa_id
                     ]);
                 }
             }
 
-            // Eliminar factura
-            $factura->delete();
+            DB::beginTransaction();
+            try {
+                // 2. Eliminar dependencias
+                DB::table('items_factura')->where('factura', $factura->id)->delete();
+                DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
+                DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
+                DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
+                DB::table('notas_factura')->where('factura', $factura->id)->delete();
+                DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+                DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
+                DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
+                DB::table('descuentos')->where('factura', $factura->id)->delete();
+                DB::table('crm')->where('factura', $factura->id)->delete();
+                DB::table('promesa_pago')->where('factura', $factura->id)->delete();
+
+                // 3. Eliminar factura
+                $factura->delete();
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error al eliminar factura duplicada: ' . $e->getMessage());
+                return response()->json(['success' => false, 'message' => 'Error al eliminar de base de datos'], 500);
+            }
 
             // Limpiar caché
             if ($request->has('idGrupo') && $request->has('periodo')) {
@@ -1030,51 +1039,46 @@ class GruposCorteController extends Controller
                     return $b['id'] - $a['id'];
                 })->values();
                 
-                // Saltar la primera (más reciente, la mantenemos)
-                for ($i = 1; $i < $facturas->count(); $i++) {
-                    $facturaId = $facturas[$i]['id'];
-                    $factura = Factura::find($facturaId);
-                    
-                    if (!$factura) {
+                // Procesar facturas a eliminar
+                $facturasAProcesar = $facturas->slice(1);
+                foreach ($facturasAProcesar as $fData) {
+                    $factura = Factura::find($fData['id']);
+                    if (!$factura || $factura->pagado() > 0) {
+                        if ($factura && $factura->pagado() > 0) $noPudoEliminar++;
                         continue;
                     }
 
-                    // Validar que no tenga pagos
-                    if ($factura->pagado() > 0) {
-                        $noPudoEliminar++;
-                        continue;
-                    }
-
-                    // Eliminar dependencias
-                    DB::table('items_factura')->where('factura', $factura->id)->delete();
-                    DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
-                    DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
-                    DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
-                    DB::table('notas_factura')->where('factura', $factura->id)->delete();
-                    DB::table('factura_contacto')->where('factura', $factura->id)->delete();
-                    DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
-                    DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-                    DB::table('descuentos')->where('factura', $factura->id)->delete();
-                    DB::table('crm')->where('factura', $factura->id)->delete();
-                    DB::table('promesa_pago')->where('factura', $factura->id)->delete();
-
-                    // Eliminar factura en OnePay si existe
+                    // Eliminar OnePay (FUERA de transacción)
                     if ($factura->onepay_invoice_id) {
                         try {
-                            $empresa_id = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->empresa : $factura->empresa;
+                            $empresa_id = Auth::user() ? Auth::user()->empresa : $factura->empresa;
                             $onePayService = new \App\Services\OnePayService($empresa_id);
                             $onePayService->deleteInvoice($factura);
                         } catch (\Exception $e) {
-                            \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
-                                'factura_id' => $factura->id,
-                                'empresa_id' => $empresa_id
-                            ]);
+                            Log::warning('Error OnePay: ' . $e->getMessage());
                         }
                     }
 
-                    // Eliminar factura
-                    $factura->delete();
-                    $eliminadas++;
+                    DB::beginTransaction();
+                    try {
+                        DB::table('items_factura')->where('factura', $factura->id)->delete();
+                        DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
+                        DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
+                        DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
+                        DB::table('notas_factura')->where('factura', $factura->id)->delete();
+                        DB::table('factura_contacto')->where('factura', $factura->id)->delete();
+                        DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
+                        DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
+                        DB::table('descuentos')->where('factura', $factura->id)->delete();
+                        DB::table('crm')->where('factura', $factura->id)->delete();
+                        DB::table('promesa_pago')->where('factura', $factura->id)->delete();
+                        $factura->delete();
+                        DB::commit();
+                        $eliminadas++;
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Log::error('Error al eliminar duplicada masiva: ' . $e->getMessage());
+                    }
                 }
             }
 
@@ -1298,28 +1302,26 @@ class GruposCorteController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
             $analyzer = new BillingCycleAnalyzer();
             // Obtenemos las facturas usando el query builder del analyzer
-            $facturas = $analyzer->getGeneratedInvoicesQuery($idGrupo, $periodo)->get()
+            $facturasRaw = $analyzer->getGeneratedInvoicesQuery($idGrupo, $periodo)->get()
                 ->where('factura_mes_manual', 1)
                 ->where('facturacion_automatica', 1);
 
-            if ($facturas->count() == 0) {
+            if ($facturasRaw->count() == 0) {
                 return response()->json(['success' => false, 'message' => 'No se encontraron facturas para eliminar en este ciclo.'], 400);
             }
 
-            // 1. Procesamiento y Eliminación
-            $count = 0;
+            // 1. Filtrar facturas que se pueden eliminar y recolectar IDs
+            $facturasValidas = [];
+            $idsValidos = [];
             $errores = [];
             $tiposNumeracionAfectados = [];
 
-            foreach ($facturas as $f) {
+            foreach ($facturasRaw as $f) {
                 $factura = Factura::find($f->id);
                 if (!$factura) continue;
 
-                // Validaciones de bloqueo
                 $bloqueo = null;
                 if ($factura->emitida == 1) {
                     $bloqueo = "Factura {$factura->codigo} ya fue emitida a la DIAN.";
@@ -1332,72 +1334,63 @@ class GruposCorteController extends Controller
                     continue;
                 }
 
-                // Guardar tipo para reset de numeración
+                $facturasValidas[] = $factura;
+                $idsValidos[] = $factura->id;
+
                 if ($factura->numeracion && !in_array($factura->numeracion, $tiposNumeracionAfectados)) {
                     $tiposNumeracionAfectados[] = $factura->numeracion;
                 }
+            }
 
-                // Borrado de dependencias
-                DB::table('items_factura')->where('factura', $factura->id)->delete();
-                DB::table('factura_retenciones')->where('factura', $factura->id)->delete();
-                DB::table('ingresos_retenciones')->where('factura', $factura->id)->delete();
-                DB::table('ingresos_factura')->where('factura', $factura->id)->delete();
-                DB::table('notas_factura')->where('factura', $factura->id)->delete();
-                DB::table('factura_contacto')->where('factura', $factura->id)->delete();
-                DB::table('puc_movimiento')->where('documento_id', $factura->id)->where('tipo_comprobante', 3)->delete();
-                DB::table('facturas_contratos')->where('factura_id', $factura->id)->delete();
-                DB::table('descuentos')->where('factura', $factura->id)->delete();
-                DB::table('crm')->where('factura', $factura->id)->delete();
-                DB::table('promesa_pago')->where('factura', $factura->id)->delete();
-                
-                // Eliminar factura en OnePay si existe
+            if (empty($idsValidos)) {
+                $mensaje = "No se pudo eliminar ninguna factura. Se encontraron " . count($errores) . " bloqueos. <br>" . implode("<br>", array_slice($errores, 0, 5));
+                if (count($errores) > 5) $mensaje .= "<br>...";
+                return response()->json(['success' => false, 'message' => $mensaje], 400);
+            }
+
+            // 2. Eliminar de OnePay (FUERA de transacción para evitar Lock Wait Timeout)
+            foreach ($facturasValidas as $factura) {
                 if ($factura->onepay_invoice_id) {
                     try {
                         $onePayService = new \App\Services\OnePayService($empresa);
                         $onePayService->deleteInvoice($factura);
                     } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
-                            'factura_id' => $factura->id,
-                            'empresa_id' => $empresa
-                        ]);
+                        Log::warning("Error OnePay al borrar factura {$factura->id}: " . $e->getMessage());
                     }
                 }
-                
-                // Borrado de la factura
-                $factura->delete();
-                $count++;
             }
 
-            if ($count == 0 && count($errores) > 0) {
-                DB::rollBack();
-                // Retornar solo los primeros 5 errores para no saturar
-                $mensaje = "No se pudo eliminar ninguna factura. Se encontraron " . count($errores) . " bloqueos. <br>" . implode("<br>", array_slice($errores, 0, 5));
-                if (count($errores) > 5) $mensaje .= "<br>...";
-                
-                return response()->json(['success' => false, 'message' => $mensaje], 400);
+            // 3. Borrado masivo de dependencias y facturas en DB
+            DB::beginTransaction();
+            
+            $chunks = array_chunk($idsValidos, 100);
+            foreach ($chunks as $chunk) {
+                DB::table('items_factura')->whereIn('factura', $chunk)->delete();
+                DB::table('factura_retenciones')->whereIn('factura', $chunk)->delete();
+                DB::table('ingresos_retenciones')->whereIn('factura', $chunk)->delete();
+                DB::table('ingresos_factura')->whereIn('factura', $chunk)->delete();
+                DB::table('notas_factura')->whereIn('factura', $chunk)->delete();
+                DB::table('factura_contacto')->whereIn('factura', $chunk)->delete();
+                DB::table('puc_movimiento')->whereIn('documento_id', $chunk)->where('tipo_comprobante', 3)->delete();
+                DB::table('facturas_contratos')->whereIn('factura_id', $chunk)->delete();
+                DB::table('descuentos')->whereIn('factura', $chunk)->delete();
+                DB::table('crm')->whereIn('factura', $chunk)->delete();
+                DB::table('promesa_pago')->whereIn('factura', $chunk)->delete();
+                Factura::whereIn('id', $chunk)->delete();
             }
 
-            // 2. Reset de Numeración
-            if ($count > 0) {
-                $numeracionesAfectadas = array_unique($tiposNumeracionAfectados);
-                
-                foreach ($numeracionesAfectadas as $numeracionId) {
-                    $numeracion = NumeracionFactura::find($numeracionId);
-                    if ($numeracion) {
-                        $prefijo = $numeracion->prefijo ?? '';
-                        
-                        // Buscar el máximo número (consecutivo) actualmente en uso para esta resolución
-                        // Se extrae del campo 'codigo' quitando el prefijo
-                        $maxNumero = Factura::where('empresa', $empresa)
-                            ->where('numeracion', $numeracionId)
-                            ->selectRaw("MAX(CAST(REPLACE(codigo, ?, '') AS UNSIGNED)) as max_nro", [$prefijo])
-                            ->value('max_nro');
-                        
-                        if ($maxNumero) {
-                             $numeracion->inicio = $maxNumero + 1;
-                             $numeracion->save();
-                        }
-                    }
+            // 4. Reset de Numeración
+            foreach ($tiposNumeracionAfectados as $numeracionId) {
+                $numeracion = NumeracionFactura::find($numeracionId);
+                if ($numeracion) {
+                    $prefijo = $numeracion->prefijo ?? '';
+                    $maxNumero = Factura::where('empresa', $empresa)
+                        ->where('numeracion', $numeracionId)
+                        ->selectRaw("MAX(CAST(REPLACE(codigo, ?, '') AS UNSIGNED)) as max_nro", [$prefijo])
+                        ->value('max_nro');
+                    
+                    $numeracion->inicio = ($maxNumero !== null) ? $maxNumero + 1 : 1;
+                    $numeracion->save();
                 }
             }
 
@@ -1406,22 +1399,17 @@ class GruposCorteController extends Controller
             // Limpiar caché
             $analyzer->clearCycleCache($idGrupo, $periodo);
 
-            $mensajeFinal = "Se eliminaron {$count} facturas correctamente.";
-            if (count($errores) > 0) {
-                $mensajeFinal .= " Se saltaron " . count($errores) . " facturas por presentar bloqueos.";
-            }
-
             return response()->json([
                 'success' => true,
-                'message' => $mensajeFinal
+                'message' => "Se eliminaron " . count($idsValidos) . " facturas correctamente." . (count($errores) > 0 ? " (" . count($errores) . " omitidas)" : "")
             ]);
-
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) DB::rollBack();
             Log::error("Error eliminando ciclo: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error fatal: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error al eliminar facturas: ' . $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Obtener contratos deshabilitados elegibles para habilitación
