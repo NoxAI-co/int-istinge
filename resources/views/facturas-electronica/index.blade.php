@@ -91,7 +91,7 @@
 
     @endif
 
-    @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
+    @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']) && 1==2)
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
