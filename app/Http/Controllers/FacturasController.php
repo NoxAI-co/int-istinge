@@ -672,6 +672,7 @@ class FacturasController extends Controller{
             'factura.promesa_pago',
             'factura.id',
             'factura.correo',
+            'factura.whatsapp',
             'factura.mensaje',
             'factura.estatus',
             'factura.codigo',
@@ -792,6 +793,16 @@ class FacturasController extends Controller{
                     // Si se selecciona "No" (valor 0), también incluir NULLs
                     if(in_array('0', $correoValues)){
                         $query->orWhereNull('factura.correo');
+                    }
+                });
+            }
+            if($request->whatsapp && is_array($request->whatsapp) && count($request->whatsapp) > 0){
+                $whatsappValues = $request->whatsapp;
+                $facturas->where(function ($query) use ($whatsappValues) {
+                    $query->whereIn('factura.whatsapp', $whatsappValues);
+                    // Si se selecciona "No" (valor 0), también incluir NULLs
+                    if(in_array('0', $whatsappValues)){
+                        $query->orWhereNull('factura.whatsapp');
                     }
                 });
             }

@@ -246,6 +246,12 @@
 								<option value="400">Error envío</option>
 							</select>
 						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp" multiple data-live-search="false">
+								<option value="1">Si</option>
+								<option value="0">No</option>
+							</select>
+						</div>
 					</div>
 
 					<div class="row">
@@ -466,6 +472,7 @@
 			data.fact_siigo = $('#fact_siigo').val();
 			data.emision = $('#emision').val();
 			data.correo = $('#correo').val();
+			data.whatsapp = $('#whatsapp').val();
 			data.plan = $('#plan').val();
 			data.plan_tv = $('#plan_tv').val();
 			data.otras_opciones = $('#otras_opciones').val();
@@ -491,7 +498,7 @@
             }
         });
 
-		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
+		$('#cliente, #municipio, #estado, #correo, #whatsapp, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
             getDataTable();
             return false;
         });
