@@ -749,17 +749,23 @@ class GruposCorteController extends Controller
      */
     public function generarFacturasFaltantes(Request $request)
     {
+        Log::info("Iniciando generarFacturasFaltantes", ['idGrupo' => $request->idGrupo, 'periodo' => $request->periodo]);
+
         $idGrupo = $request->idGrupo;
         $periodo = $request->periodo;
         
         if (!$idGrupo || !$periodo) {
+            Log::warning("Faltan parámetros en generarFacturasFaltantes", ['idGrupo' => $idGrupo, 'periodo' => $periodo]);
             return response()->json(['success' => false, 'message' => 'Faltan parámetros requeridos.'], 400);
         }
 
         $grupo = GrupoCorte::find($idGrupo);
         if (!$grupo) {
+            Log::warning("Grupo no encontrado en generarFacturasFaltantes", ['idGrupo' => $idGrupo]);
             return response()->json(['success' => false, 'message' => 'Grupo no encontrado.'], 404);
         }
+
+        Log::info("Grupo encontrado", ['grupo_id' => $grupo->id, 'nombre' => $grupo->nombre, 'fecha_factura' => $grupo->fecha_factura]);
 
         list($year, $month) = explode('-', $periodo);
         $dia = $grupo->fecha_factura;
@@ -770,14 +776,28 @@ class GruposCorteController extends Controller
         
         $fechaRef = Carbon::create($year, $month, $dia)->format('Y-m-d');
         
+        Log::info("Fechas calculadas para generarFacturasFaltantes", [
+            'year' => $year,
+            'month' => $month,
+            'dia_original' => $grupo->fecha_factura,
+            'dia_calculado' => $dia,
+            'ultimoDiaMes' => $ultimoDiaMes,
+            'fechaRef' => $fechaRef
+        ]);
+        
         try {
+            Log::info("Llamando a CronController::CrearFactura", ['fechaRef' => $fechaRef, 'idGrupo' => $idGrupo]);
             CronController::CrearFactura($fechaRef, $idGrupo);
+            Log::info("CronController::CrearFactura finalizado correctamente");
             
             // Invalidar caché
             // Invalidar caché usando el analyzer (Re- aplicado)
+            Log::info("Iniciando invalidación de caché con BillingCycleAnalyzer");
             $analyzer = new \App\Services\BillingCycleAnalyzer();
             $analyzer->clearCycleCache($idGrupo, $periodo);
+            Log::info("Invalidación de caché finalizada");
             
+            Log::info("Proceso exitoso en generarFacturasFaltantes");
             return response()->json([
                 'success' => true, 
                 'message' => 'Proceso de generación de facturas finalizado para el grupo ' . $grupo->nombre
