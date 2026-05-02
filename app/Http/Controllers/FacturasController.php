@@ -8317,7 +8317,7 @@ class FacturasController extends Controller{
             // Paso 4a: Asignar códigos temporales únicos a TODAS las facturas del batch
             // para liberar los códigos actuales y evitar colisiones intra-batch
             foreach ($facturasIds as $facturaId) {
-                $codigoTemporal = '__TMP_' . $facturaId . '__';
+                $codigoTemporal = 'T' . $facturaId;
                 Factura::where('id', $facturaId)->update(['codigo' => $codigoTemporal]);
             }
 
