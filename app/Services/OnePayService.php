@@ -559,6 +559,93 @@ class OnePayService
             throw $e;
         }
     }
+
+    /**
+     * Obtener listado de pagos de OnePay con filtros y paginación.
+     * Usado por el CRON de conciliación (syncIntegraPay).
+     *
+     * @param array $filters Filtros opcionales: page, sort, filter[status], etc.
+     * @return array Respuesta decodificada de la API
+     * @throws \Exception
+     */
+    public function getPayments(array $filters = [])
+    {
+        try {
+            if (!$this->token) {
+                throw new \Exception('No hay token configurado para Integra Pay');
+            }
+
+            // Construir query params
+            $params = [];
+
+            if (!empty($filters['page'])) {
+                $params['page'] = (int) $filters['page'];
+            }
+
+            if (!empty($filters['sort'])) {
+                $params['sort'] = $filters['sort'];
+            } else {
+                $params['sort'] = '-created_at';
+            }
+
+            if (!empty($filters['filter_status'])) {
+                $params['filter[status]'] = $filters['filter_status'];
+            }
+
+            if (!empty($filters['filter_id'])) {
+                $params['filter[id]'] = $filters['filter_id'];
+            }
+
+            if (!empty($filters['filter_external_id'])) {
+                $params['filter[external_id]'] = $filters['filter_external_id'];
+            }
+
+            $url = $this->baseUri . '/payments';
+            if (!empty($params)) {
+                $url .= '?' . http_build_query($params);
+            }
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $this->token,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error    = curl_error($curl);
+            curl_close($curl);
+
+            if ($error) {
+                Log::error('Integra Pay getPayments Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return $responseData;
+            } else {
+                $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
+                Log::error('Integra Pay getPayments API Error: ' . $errorMessage, ['response' => $responseData]);
+                throw new \Exception('Error al obtener pagos de Integra Pay: ' . $errorMessage);
+            }
+        } catch (\Exception $e) {
+            Log::error('Integra Pay getPayments Exception: ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }
 
 
