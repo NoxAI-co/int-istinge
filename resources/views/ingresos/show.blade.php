@@ -41,7 +41,7 @@
 
 		@if($ingreso->tipo!=3 && $ingreso->tipo!=4)
 		    @if(isset($_SESSION['permisos']['49']))
-		        <form action="{{ route('ingresos.anular',$ingreso->id) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
+		        <form action="{{ route('ingresos.anular',$ingreso->nro) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
 		        	{{ csrf_field() }}
 		        </form>
 		        @if($ingreso->estatus==1)
