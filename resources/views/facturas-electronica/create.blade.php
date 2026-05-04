@@ -528,16 +528,6 @@
         var mm   = String(result.getMonth()+1).padStart(2,'0');
         var dd   = String(result.getDate()).padStart(2,'0');
         var iso  = yyyy+'-'+mm+'-'+dd;        // YYYY-MM-DD  (for type="date" inputs)
-        var dmy  = dd+'-'+mm+'-'+yyyy;        // DD-MM-YYYY  (for Gijgo datepicker)
-
-        // Fecha (Gijgo datepicker — needs DD-MM-YYYY)
-        var elF = document.getElementById('fecha');
-        if (elF) {
-            elF.value = dmy;
-            if (typeof $ !== 'undefined' && typeof $.fn.datepicker !== 'undefined') {
-                try { $('#fecha').datepicker().value(dmy); } catch(e) {}
-            }
-        }
 
         // Vencimiento and Pago Oportuno (type="date" — needs YYYY-MM-DD)
         var elV = document.getElementById('vencimiento_new');
