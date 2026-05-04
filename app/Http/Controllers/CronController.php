@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use StdClass;
 use Illuminate\Http\Request;
+use App\Http\Controllers\IngresosController;
 use Carbon\Carbon;
 use App\Funcion;
 use Illuminate\Support\Facades\Hash;
@@ -3133,8 +3134,11 @@ class CronController extends Controller
                     $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
 
                     if($contrato){
-                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
+                        # DELEGAMOS LAS FUNCIONES DE MIKROTIK Y OLT AL CONTROLADOR DE INGRESOS
+                        $ingresosController = new IngresosController();
+                        $ingresosController->funcionesPagoMK($contrato, $empresa, $ingreso);
 
+                        // Actualizar cuotas de asignación de producto
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
                         if ($asignacion) {
@@ -3144,53 +3148,6 @@ class CronController extends Controller
                                 $asignacion->status = 1;
                             }
                             $asignacion->save();
-                        }
-
-                        # API MK
-                        if($contrato->server_configuration_id){
-                            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-
-                            $API = new RouterosAPI();
-                            $API->port = $mikrotik->puerto_api;
-
-                            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                $API->write('/ip/firewall/address-list/print', TRUE);
-                                $ARRAYS = $API->read();
-
-                                #ELIMINAMOS DE MOROSOS#
-                                $API->write('/ip/firewall/address-list/print', false);
-                                $API->write('?address='.$contrato->ip, false);
-                                $API->write("?list=morosos",false);
-                                $API->write('=.proplist=.id');
-                                $ARRAYS = $API->read();
-
-                                if(count($ARRAYS)>0){
-
-                                    $API->write('/ip/firewall/address-list/remove', false);
-                                    $API->write('=.id='.$ARRAYS[0]['.id']);
-                                    $READ = $API->read();
-
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "list" => 'ips_autorizadas'
-                                        )
-                                    );
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-
-                                    $ingreso->revalidacion_enable_internet = 1;
-                                    $ingreso->save();
-
-                                    $contrato->state = 'enabled';
-                                    $contrato->save();
-                                }
-                                #ELIMINAMOS DE MOROSOS#
-                                $API->disconnect();
-
-                            }
-                        }else{
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
                         }
                     }
 
