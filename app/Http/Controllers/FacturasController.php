@@ -2077,6 +2077,20 @@ class FacturasController extends Controller{
 
         $request->validate([
             'vendedor' => 'required',
+            'cliente' => 'required',
+            'fecha' => 'required',
+            'vencimiento' => 'required',
+            'item' => 'required|array|min:1',
+            'item.*' => 'required',
+            'cant' => 'required|array|min:1',
+            'cant.*' => 'required|numeric|min:0.0001',
+            'precio' => 'required|array|min:1',
+            'precio.*' => 'required|numeric|min:0',
+        ], [
+            'item.*.required' => 'Debe seleccionar un producto en todas las líneas.',
+            'cant.*.required' => 'La cantidad es obligatoria en todas las líneas.',
+            'cant.*.min' => 'La cantidad debe ser mayor a 0.',
+            'precio.*.required' => 'El precio es obligatorio en todas las líneas.',
         ]);
 
         DB::beginTransaction();
@@ -2291,7 +2305,7 @@ class FacturasController extends Controller{
             $items->descripcion=$request->descripcion[$i];
             $items->id_impuesto=$request->impuesto[$i];
             $items->impuesto=$impuesto->porcentaje;
-            $items->cant=$request->cant[$i];
+            $items->cant=$request->cant[$i] ?? 1;
             //$items->desc=$request->desc[$i];
             $desc=$request->desc[$i];
             $items->save();
@@ -2480,6 +2494,23 @@ class FacturasController extends Controller{
   * @return redirect
   */
     public function update(Request $request, $id){
+        $request->validate([
+            'vendedor' => 'required',
+            'cliente' => 'required',
+            'fecha' => 'required',
+            'vencimiento' => 'required',
+            'item' => 'required|array|min:1',
+            'item.*' => 'required',
+            'cant' => 'required|array|min:1',
+            'cant.*' => 'required|numeric|min:0.0001',
+            'precio' => 'required|array|min:1',
+            'precio.*' => 'required|numeric|min:0',
+        ], [
+            'item.*.required' => 'Debe seleccionar un producto en todas las líneas.',
+            'cant.*.required' => 'La cantidad es obligatoria en todas las líneas.',
+            'cant.*.min' => 'La cantidad debe ser mayor a 0.',
+            'precio.*.required' => 'El precio es obligatorio en todas las líneas.',
+        ]);
 
         $factura =Factura::find($id);
 
@@ -2677,7 +2708,7 @@ class FacturasController extends Controller{
                     $items->descripcion=$request->descripcion[$i];
                     $items->id_impuesto=$request->impuesto[$i];
                     $items->impuesto=$impuesto->porcentaje;
-                    $items->cant=$request->cant[$i];
+                    $items->cant=$request->cant[$i] ?? 1;
 
                     //El descuneto no se debe aplicar sin ser aprobado.
                     if(isset($request->desc[$i])){
