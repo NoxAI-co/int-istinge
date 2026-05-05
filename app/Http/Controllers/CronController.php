@@ -1352,6 +1352,7 @@ class CronController extends Controller
         ->where('status', 1)
         ->whereTime('hora_suspension', '<=', $horaActual)
         ->where('fecha_suspension','!=',0)
+        ->where('nro_factura_vencida', '>', 0)
         ->orderby('nro_factura_vencida','asc')
         ->get();
 
@@ -1448,9 +1449,6 @@ class CronController extends Controller
                     }else{
                         continue;
                     }
-                }
-                else if($grupo_corte->nro_factura_vencida == 0){
-                    continue;
                 }
                 //** Fin desarrollo nuevo
 
