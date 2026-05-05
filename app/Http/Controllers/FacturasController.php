@@ -7339,7 +7339,7 @@ class FacturasController extends Controller{
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas de Ventas";
-        $titulosColumnas = array('Codigo', 'Fecha', 'Cliente', 'Identificacion', 'Subtotal', 'Impuesto', 'Total', 'Abono', 'Saldo', 'Forma de Pago');
+        $titulosColumnas = array('Codigo', 'Fecha', 'Fecha Pago', 'Cliente', 'Identificacion', 'Subtotal', 'Impuesto', 'Total', 'Abono', 'Saldo', 'Forma de Pago');
 
         $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
 
@@ -7420,6 +7420,7 @@ class FacturasController extends Controller{
             )
             ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
             ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
+            ->leftJoin(DB::raw('(SELECT inf.factura, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ult_pago'), 'ult_pago.factura', '=', 'factura.id')
             ->select(
                 'factura.tipo',
                 'factura.promesa_pago',
@@ -7435,6 +7436,7 @@ class FacturasController extends Controller{
                 'factura.vendedor',
                 'factura.emitida',
                 'factura.cuenta_id',
+                'ult_pago.fecha_pago',
                 DB::raw('c.nombre as nombrecliente'),
                 DB::raw('c.apellido1 as ape1cliente'),
                 DB::raw('c.apellido2 as ape2cliente'),
@@ -7444,9 +7446,11 @@ class FacturasController extends Controller{
                 DB::raw('v.nombre as nombrevendedor'),
                 DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'),
                 DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),
-                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar')
+                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar'),
+                DB::raw('COALESCE(cs1.nro, cs2.nro) as nro_contrato')
             )
-            ->groupBy('factura.id');
+            ->groupBy('factura.id')
+            ->havingRaw('nro_contrato IS NOT NULL AND nro_contrato <> "0" AND nro_contrato <> 0');
 
         // Filtro por servidores del usuario
         if ($user->servidores->count() > 0) {

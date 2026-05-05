@@ -1036,6 +1036,20 @@ class ContactosController extends Controller
             }
         }
 
+        // Excluir contactos cuyos únicos contratos están eliminados (status=0)
+        $query->where(function ($q) {
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('contracts')
+                    ->whereRaw('contactos.id = contracts.client_id');
+            })->orWhereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('contracts')
+                    ->whereRaw('contactos.id = contracts.client_id')
+                    ->where('status', 1);
+            });
+        });
+
         if ($tipo != 2) {
             $query->whereIn('contactos.tipo_contacto', [$tipo, 2]);
         }
