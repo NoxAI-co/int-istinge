@@ -31,11 +31,14 @@ class OnePayService
     }
 
     /**
-     * Generar x-idempotency como hash único basado en la factura
+     * Generar x-idempotency como hash único determinista basado en la factura y operación.
+     * Esto evita que múltiples invocaciones produzcan claves distintas para el mismo recurso.
      */
-    protected function generateIdempotencyKey($facturaId)
+    protected function generateIdempotencyKey(Factura $factura, $operation, $empresaId)
     {
-        return hash('sha256', $facturaId . '_' . time() . '_' . uniqid());
+        // Se deriva de datos estables: ID de factura, código y empresa.
+        // Incluye un prefijo semántico por operación para diferenciar eventos (create vs update).
+        return hash('sha256', 'invoice_' . $operation . '_' . $factura->id . '_' . $factura->codigo . '_' . $empresaId);
     }
 
     /**
@@ -44,6 +47,12 @@ class OnePayService
     public function createInvoice(Factura $factura, $empresaId)
     {
         try {
+            // Guard de duplicado: Si la factura ya tiene un ID de OnePay asignado,
+            // no intentamos crearla de nuevo sino que redirigimos a actualización.
+            if ($factura->onepay_invoice_id) {
+                return $this->updateInvoice($factura, $empresaId);
+            }
+
             $empresa = Empresa::find($empresaId);
             $cliente = Contacto::find($factura->cliente);
 
@@ -51,8 +60,11 @@ class OnePayService
                 throw new \Exception('Empresa o cliente no encontrado');
             }
 
-            // Generar x-idempotency
-            $idempotencyKey = $this->generateIdempotencyKey($factura->id);
+            // Generar x-idempotency determinista. 
+            // Se prefiere reutilizar la almacenada si existe por robustez en reintentos.
+            $idempotencyKey = !empty($factura->onepay_idempotency_key) 
+                ? $factura->onepay_idempotency_key 
+                : $this->generateIdempotencyKey($factura, 'create', $empresaId);
 
             // Construir URL del documento
             $documentUrl = url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
@@ -65,10 +77,6 @@ class OnePayService
             if ($amount < 5000 || $amount > 100000000) {
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
-
-            //para efectos de prueba:
-            // $cliente->celular = '573002457118';
-            // $empresa->nombre = 'Vivecomunicaciones';
 
             // Preparar datos
             $data = [
@@ -119,25 +127,26 @@ class OnePayService
             $responseData = json_decode($response, true);
 
             if ($httpCode >= 200 && $httpCode < 300) {
-                // Guardar onepay_invoice_id en la factura
+                // Guardar onepay_invoice_id y la idempotency key en la factura
                 if (isset($responseData['id'])) {
                     $nuevoId = $responseData['id'];
                     
-                    // Asegurar que el ID no haya sido tomado accidentalmente por otra factura en el sistema (evita duplicados de UUIDs provistos por Onepay).
+                    // Asegurar que el ID no haya sido tomado accidentalmente por otra factura
                     $idExistente = Factura::where('onepay_invoice_id', $nuevoId)
                         ->where('id', '!=', $factura->id)
                         ->first();
                         
                     if ($idExistente) {
-                        throw new \Exception("Alerta: El ID de OnePay devuelto ({$nuevoId}) ya existe asignado a la factura interna ID {$idExistente->id}. Probablemente se deba a un código ($factura->codigo) duplicado en ambos registros.");
+                        throw new \Exception("Alerta: El ID de OnePay devuelto ({$nuevoId}) ya existe asignado a la factura interna ID {$idExistente->id}.");
                     }
                     
                     $factura->onepay_invoice_id = $nuevoId;
+                    $factura->onepay_idempotency_key = $idempotencyKey;
                     $factura->save();
                 }
 
-                // Registrar log de éxito
-                $montoFormateado = Funcion::ParsearAPI($amount/100, $empresaId);
+                // Registrar log de éxito - Corregido: $amount ya está en pesos enteros
+                $montoFormateado = Funcion::ParsearAPI($amount, $empresaId);
                 $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura creada en Integra Pay</b> exitosamente. ID Integra Pay: <b>' . ($responseData['id'] ?? 'N/A') . '</b>. Monto: <b>' . $montoFormateado . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
@@ -180,6 +189,9 @@ class OnePayService
                 throw new \Exception('Empresa o cliente no encontrado');
             }
 
+            // Generar x-idempotency para actualización
+            $idempotencyKey = $this->generateIdempotencyKey($factura, 'update', $empresaId);
+
             // Calcular total de la factura
             $total = $factura->totalAPI($empresaId);
             $amount = (int) round($total->total);
@@ -188,10 +200,6 @@ class OnePayService
             if ($amount < 5000 || $amount > 100000000) {
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
-
-            //para efectos de prueba:
-            // $cliente->celular = '573002457118';
-            // $empresa->nombre = 'Vivecomunicaciones';
 
             // Preparar datos
             $data = [
@@ -217,7 +225,8 @@ class OnePayService
                 CURLOPT_POSTFIELDS => json_encode($data),
                 CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $this->token,
-                    'Content-Type: application/json'
+                    'Content-Type: application/json',
+                    'x-idempotency: ' . $idempotencyKey
                 ],
             ]);
 
@@ -227,7 +236,7 @@ class OnePayService
             curl_close($curl);
 
             if ($error) {
-                Log::error('In  tegra Pay Error: ' . $error);
+                Log::error('Integra Pay Error: ' . $error); // Corregido el typo "In  tegra"
                 throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
             }
 
@@ -240,8 +249,8 @@ class OnePayService
                     $factura->save();
                 }
 
-                // Registrar log de éxito
-                $montoFormateado = Funcion::ParsearAPI($amount/100, $empresaId);
+                // Registrar log de éxito - Corregido: $amount ya está en pesos enteros
+                $montoFormateado = Funcion::ParsearAPI($amount, $empresaId);
                 $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura actualizada en OnePay</b> exitosamente. ID OnePay: <b>' . ($responseData['id'] ?? $factura->onepay_invoice_id) . '</b>. Nuevo monto: <b>' . $montoFormateado . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
