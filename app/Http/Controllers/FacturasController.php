@@ -652,6 +652,7 @@ class FacturasController extends Controller{
         ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
         ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
+        ->leftJoin(DB::raw('(SELECT inf.factura, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ult_pago'), 'ult_pago.factura', '=', 'factura.id')
         ->select(
             'barrio.nombre as barrio',
             DB::raw('COALESCE(mk.nombre, mk2.nombre) as servidor'),
@@ -681,6 +682,7 @@ class FacturasController extends Controller{
             'factura.siigo_id',
             'factura.siigo_name',
             'em.api_key_siigo as api_key_siigo',
+            'ult_pago.fecha_pago',
             DB::raw('v.nombre as nombrevendedor'),
               DB::raw('
             SUM((if.cant * if.precio) - (if.precio * (if(if.desc, if.desc, 0) / 100) * if.cant) + (if.precio - (if.precio * (if(if.desc, if.desc, 0) / 100))) * (if.impuesto / 100) * if.cant) as total
@@ -981,6 +983,9 @@ class FacturasController extends Controller{
         ->editColumn('fecha', function (Factura $factura) {
             return date('d-m-Y', strtotime($factura->fecha));
         })
+        ->addColumn('fecha_pago', function ($factura) {
+            return $factura->fecha_pago ? date('d-m-Y', strtotime($factura->fecha_pago)) : 'sin pago';
+        })
         ->editColumn('vencimiento', function (Factura $factura) {
             return (date('Y-m-d') > $factura->vencimiento && $factura->estatus == 1) ? '<span class="text-danger">' . date('d-m-Y', strtotime($factura->vencimiento)) . '</span>' : date('d-m-Y', strtotime($factura->vencimiento));
         })
@@ -1108,7 +1113,7 @@ class FacturasController extends Controller{
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
         ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
         // Optimización: Agregaciones más eficientes usando COALESCE directamente
-        ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_pago FROM ingresos_factura GROUP BY factura) as ing_fact'), 'ing_fact.factura', '=', 'factura.id')
+        ->leftJoin(DB::raw('(SELECT inf.factura, COALESCE(SUM(inf.pago), 0) as total_pago, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ing_fact'), 'ing_fact.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(valor), 0) as total_retencion FROM ingresos_retenciones GROUP BY factura) as ing_ret'), 'ing_ret.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_nota FROM notas_factura GROUP BY factura) as notas_fact'), 'notas_fact.factura', '=', 'factura.id')
         ->select(
@@ -1141,6 +1146,7 @@ class FacturasController extends Controller{
             'factura.siigo_name',
             'factura.vencimiento',
             'em.api_key_siigo as api_key_siigo',
+            'ing_fact.fecha_pago',
             DB::raw('v.nombre as nombrevendedor'),
             // Cálculo del total optimizado
             DB::raw('
@@ -1728,6 +1734,9 @@ class FacturasController extends Controller{
         })
         ->editColumn('fecha', function ($factura) {
             return $factura->fecha ? date('d-m-Y', strtotime($factura->fecha)) : '';
+        })
+        ->addColumn('fecha_pago', function ($factura) {
+            return $factura->fecha_pago ? date('d-m-Y', strtotime($factura->fecha_pago)) : 'sin pago';
         })
         ->editColumn('vencimiento', function ($factura) {
             if(!$factura->vencimiento) return '';
