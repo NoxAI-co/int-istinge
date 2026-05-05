@@ -1441,13 +1441,16 @@ class CronController extends Controller
                     $cant_fac_grupo_corte = $grupo_corte->nro_factura_vencida;
                 }
 
-                if(isset($grupo_corte->nro_factura_vencida) && $grupo_corte->nro_factura_vencida > 1){
+                if($grupo_corte->nro_factura_vencida > 1){
                     $contrato = Contrato::Find($contacto->idcontrato);
                     if($contrato){
                         $cantFacturasVencidas = $contrato->cantidadFacturasVencidas();
                     }else{
                         continue;
                     }
+                }
+                else if($grupo_corte->nro_factura_vencida == 0){
+                    continue;
                 }
                 //** Fin desarrollo nuevo
 
