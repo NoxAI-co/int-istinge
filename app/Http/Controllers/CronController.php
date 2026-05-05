@@ -2983,33 +2983,46 @@ class CronController extends Controller
                 $payments = $response['data'] ?? [];
                 if (empty($payments)) { break; }
 
-                $foundExisting = false;
+                // Contadores por página para la paginación inteligente
+                $yaConocidosEnPagina = 0;
+                $totalAprobadosEnPagina = 0;
 
                 foreach ($payments as $payment) {
-                    $paymentId = $payment['id'] ?? null;
+                    $paymentId  = $payment['id'] ?? null;
                     $externalId = $payment['external_id'] ?? null;
-                    $amount = $payment['amount'] ?? 0;
-                    $status = $payment['status'] ?? '';
+                    $amount     = $payment['amount'] ?? 0;
+                    $status     = $payment['status'] ?? '';
 
                     if ($status !== 'approved') { continue; }
+                    $totalAprobadosEnPagina++;
 
-                    // PAGINACIÓN INTELIGENTE: pago ya procesado → detener
+                    // Pago ya registrado: contar pero NO romper el loop todavía
                     if ($paymentId && Ingreso::where('onepay_payment_id', $paymentId)->exists()) {
                         $duplicados++;
-                        $foundExisting = true;
-                        break;
+                        $yaConocidosEnPagina++;
+                        continue; // ← solo saltar este ítem, seguir con los demás
                     }
 
                     if (!$externalId) { $sinFactura++; continue; }
 
+                    // Buscar factura por external_id (código)
                     $factura = Factura::where('codigo', $externalId)->first();
+
+                    // Fallback: buscar por onepay_invoice_id si el external_id no coincide
+                    if (!$factura && $paymentId) {
+                        $factura = Factura::where('onepay_invoice_id', $paymentId)->first();
+                    }
+
                     if (!$factura) {
                         $sinFactura++;
-                        Log::info('[SyncIntegraPay] Factura no encontrada', ['external_id' => $externalId]);
+                        Log::info('[SyncIntegraPay] Factura no encontrada', [
+                            'external_id' => $externalId,
+                            'payment_id'  => $paymentId,
+                        ]);
                         continue;
                     }
 
-                    if ($factura->estatus != 1) { $duplicados++; continue; }
+                    if ($factura->estatus != 1) { $duplicados++; $yaConocidosEnPagina++; continue; }
 
                     try {
                         $resultado = $this->procesarPagoFactura($factura, $paymentId, $amount, $pasarela);
@@ -3022,7 +3035,14 @@ class CronController extends Controller
                     }
                 }
 
-                if ($foundExisting) { break; }
+                // PAGINACIÓN INTELIGENTE: detener solo cuando TODA la página ya fue procesada
+                // Esto evita saltar pagos nuevos intercalados con duplicados en la misma página.
+                if ($totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
+                    Log::info('[SyncIntegraPay] Página completa de duplicados, deteniendo', [
+                        'page' => $page, 'yaConocidos' => $yaConocidosEnPagina
+                    ]);
+                    break;
+                }
 
                 $lastPage = $response['meta']['last_page'] ?? $response['last_page'] ?? $page;
                 if ($page >= $lastPage) { break; }
