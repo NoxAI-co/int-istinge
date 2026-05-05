@@ -300,6 +300,12 @@
     .message-content {
         margin-bottom: 5px;
         word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    .message-content p {
+        margin: 0;
+        white-space: pre-wrap;
     }
     
     .message-image {
