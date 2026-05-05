@@ -241,12 +241,12 @@
 
         // refrescar selects cuando el fragmento se inyecte
         // (si el modal se carga por AJAX, esto ayuda)
-        document.addEventListener('DOMNodeInserted', function(e) {
+        /* document.addEventListener('DOMNodeInserted', function(e) {
             refreshSelects();
-        });
+        }); */
 
         // intento inmediato de refresh (por si el create se carga directamente)
-        refreshSelects();
+        setTimeout(refreshSelects, 100);
 
     })();
 </script>
