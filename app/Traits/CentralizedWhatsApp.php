@@ -65,7 +65,7 @@ trait CentralizedWhatsApp
 
             Http::withHeaders([
                 'X-Instance-Token' => $phoneNumberId,
-            ])->post('http://whatsapp.integracolombia.com/api/v1/messages/register', $data);
+            ])->post('https://wpp.integracolombia.com/api/v1/messages/register', $data);
         } catch (\Exception $e) {
             Log::error('Error syncing WhatsApp message to central chat: ' . $e->getMessage());
         }

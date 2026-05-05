@@ -50,6 +50,9 @@ class ContactosController extends Controller
         set_time_limit(300);
         $this->middleware(function ($request, $next) {
             $this->getAllPermissions(Auth::user()->id);
+            if ($request->route()->getName() == 'cliente.contratos' || $request->route()->getName() == 'contactos.show') {
+                return $next($request);
+            }
             if (!isset($_SESSION['permisos']['1']) && !isset($_SESSION['permisos']['2']) && !isset($_SESSION['permisos']['3']) && !isset($_SESSION['permisos']['4']) && !isset($_SESSION['permisos']['5']) && !isset($_SESSION['permisos']['6']) && !isset($_SESSION['permisos']['7'])) {
                 return redirect('empresa')->with('danger', 'No tiene permisos para acceder a este módulo');
             }
@@ -1718,9 +1721,22 @@ class ContactosController extends Controller
         dd($request);
     }
 
-    public function clientes_contratos(Request $request){
+    public function clientes_contratos(Request $request, $id = null){
+        $id = $id ?: $request->id;
+        
+        // Buscamos los contratos del cliente filtrando por la empresa del usuario autenticado
+        $contratos = Contrato::where('client_id', $id)
+            ->where('empresa', Auth::user()->empresa)
+            ->get();
 
-        $contratos = Contrato::where('client_id',$request->id)->get();
+        // Fallback en caso de que Eloquent tenga algún problema con scopes o relaciones
+        if ($contratos->count() == 0) {
+            $contratos = DB::table('contracts')
+                ->where('client_id', $id)
+                ->where('empresa', Auth::user()->empresa)
+                ->get();
+        }
+
         return response()->json($contratos);
     }
 

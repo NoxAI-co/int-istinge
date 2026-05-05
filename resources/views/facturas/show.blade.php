@@ -69,17 +69,22 @@
                                 <i class="fas fa-calculator"></i> Ver Cálculo de Prorrateo
                             </button>
                         @endif
-                        @if($factura->tipo != 2)
                             <button type="button" class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#modalPeriodoCobrado">
                                 <i class="fas fa-calendar-alt"></i> Ver cálculo periodo cobrado
                             </button>
-                        @endif
-                        @if($empresa->estado_dian != 1)
+                        @if($empresa->estado_dian != 1 || $factura->estatus == 2)
                             <form action="{{ route('factura.anular',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="anular-factura{{$factura->id}}">
                                 {{ csrf_field() }}
                             </form>
-                            @if(Auth::user()->rol == 3 && $factura->emitida != 1)
-                                 <a class="btn btn-outline-danger btn-sm" href="#" onclick="confirmar('anular-factura{{$factura->id}}', '¿Está seguro de que desea anular la factura?', ' ');"><i class="fas fa-minus"></i> Anular</a>
+                            <form action="{{ route('factura.abrir',$factura->id) }}" method="POST" class="delete_form" style="display: none;" id="abrir-factura{{$factura->id}}">
+                                {{ csrf_field() }}
+                            </form>
+                            @if($factura->emitida != 1)
+                                @if($factura->estatus == 1)
+                                    <a class="btn btn-outline-danger btn-sm" href="#" onclick="confirmar('anular-factura{{$factura->id}}', '¿Está seguro de que desea anular la factura?', ' ');"><i class="fas fa-minus"></i> Anular</a>
+                                @elseif($factura->estatus == 2 || $factura->estatus == 0)
+                                    <a class="btn btn-outline-success btn-sm" href="#" onclick="confirmar('abrir-factura{{$factura->id}}', '¿Está seguro de que desea abrir esta factura?', ' ');"><i class="fas fa-unlock"></i> Abrir</a>
+                                @endif
                             @endif
                         @endif
 
@@ -662,7 +667,7 @@
     </div>
 
     {{-- Modal de Cálculo Periodo Cobrado --}}
-    @if($factura->tipo != 2)
+
     <div class="modal fade" id="modalPeriodoCobrado" tabindex="-1" role="dialog" aria-labelledby="modalPeriodoCobradoLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
@@ -762,7 +767,6 @@
             </div>
         </div>
     </div>
-    @endif
 
     {{-- Modal de Cálculo de Prorrateo --}}
     @if($factura->prorrateo_aplicado == 1 || $factura->prorrateo_aplicado == 2)

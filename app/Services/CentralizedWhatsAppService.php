@@ -13,7 +13,7 @@ class CentralizedWhatsAppService
 
     public function __construct()
     {
-        $this->baseUri = rtrim(env('WAPP_CENTRAL_URL', 'http://whatsapp.integracolombia.com/api/v1'), '/') . '/';
+        $this->baseUri = rtrim(env('WAPP_CENTRAL_URL', 'https://wpp.integracolombia.com/api/v1'), '/') . '/';
     }
 
     /**

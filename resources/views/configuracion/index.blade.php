@@ -563,6 +563,7 @@
             <a href="#" data-toggle="modal" data-target="#config_plantilla_factura_whatsapp">Configurar plantilla por defecto para facturas</a><br>
             <a href="#" data-toggle="modal" data-target="#config_plantilla_tirilla_whatsapp">Configurar plantilla por defecto tirilla</a><br>
             <a href="javascript:registrarNumeroWhatsappMeta()">Registrar número de teléfono WhatsApp</a><br>
+            <a href="javascript:suscribirseCanalWhatsapp()">Suscribirse al canal</a><br>
             <a href="{{ route('instances.index') }}">Instancia</a><br>
         </div>
 
@@ -2673,6 +2674,60 @@
                         } catch(e) {
                             // Mantener el mensaje por defecto
                         }
+                    }
+                    Swal.fire({
+                        type: 'error',
+                        title: 'Error',
+                        text: errorMessage
+                    })
+                }
+            });
+        }
+
+        function suscribirseCanalWhatsapp() {
+            Swal.fire({
+                title: 'Suscribiendo al canal...',
+                text: 'Por favor espera',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/configuracion/suscribirse-canal-whatsapp';
+            } else {
+                var url = '/configuracion/suscribirse-canal-whatsapp';
+            }
+
+            $.ajax({
+                url: url,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                method: 'post',
+                success: function(data) {
+                    if (data.success == 1) {
+                        Swal.fire({
+                            type: 'success',
+                            title: 'Éxito',
+                            text: data.message || 'Suscripción al canal exitosa',
+                            showConfirmButton: true
+                        })
+                    } else {
+                        Swal.fire({
+                            type: 'error',
+                            title: 'Error al suscribirse',
+                            text: data.message || 'Intente nuevamente'
+                        })
+                    }
+                },
+                error: function(xhr) {
+                    var errorMessage = 'Error al suscribirse al canal';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
                     }
                     Swal.fire({
                         type: 'error',

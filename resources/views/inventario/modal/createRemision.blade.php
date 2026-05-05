@@ -4,14 +4,14 @@
   		<div class="row">
 			<div class="form-group col-md-4">
 	  			<label class="control-label">Nombre del Producto <span class="text-danger">*</span></label>
-				<input type="text" class="form-control" name="producto" id="producto" required="" maxlength="200" value="{{old('producto')}}">
+				<input type="text" class="form-control" name="producto" id="producto" required="" maxlength="200" value="{{ !is_array(old('producto')) ? old('producto') : '' }}">
 				<span class="help-block error">
 		        	<strong>{{ $errors->first('producto') }}</strong>
 		        </span>
 			</div>
 			<div class="form-group col-md-4">
 	  			<label class="control-label">Referencia <span class="text-danger">*</span></label>
-				<input type="text" class="form-control" name="ref" id="ref" maxlength="200" value="{{old('ref')}}">
+				<input type="text" class="form-control" name="ref" id="ref" maxlength="200" value="{{ !is_array(old('ref')) ? old('ref') : '' }}">
 				<span class="help-block error">
 		        	<strong>{{ $errors->first('ref') }}</strong>
 		        </span>
@@ -37,7 +37,7 @@
 			                  		@endif
 			                  		@foreach($categoria3->hijos(true) as $categoria4)
 			                  			@if($categoria4->estatus==1)
-				                  			<option {{old('categoria')==$categoria4->id?'selected':( Auth::user()->empresa()->categoria_default==$categoria4->id?'selected':'')}} value="{{$categoria4->id}}">{{$categoria4->nombre}}</option>
+				                  			<option {{ (is_array(old('categoria')) ? false : old('categoria')) == $categoria4->id ? 'selected' : ( Auth::user()->empresa()->categoria_default==$categoria4->id?'selected':'')}} value="{{$categoria4->id}}">{{$categoria4->nombre}}</option>
 				                  		@endif
 
 			                  		@endforeach
@@ -61,7 +61,7 @@
 	  			<label class="control-label">Impuesto <span class="text-danger">*</span></label>
 	  			<select class="form-control selectpicker" name="impuesto" id="impuesto" required="" title="Seleccione">
 	  				@foreach($impuestos2 as $impuesto)
-                  		<option {{old('impuesto')==$impuesto->id?'selected':''}} value="{{$impuesto->id}}">{{$impuesto->nombre}} - {{$impuesto->porcentaje}} %</option>
+                  		<option {{ (is_array(old('impuesto')) ? false : old('impuesto')) == $impuesto->id ? 'selected' : ''}} value="{{$impuesto->id}}">{{$impuesto->nombre}} - {{$impuesto->porcentaje}} %</option>
 	  				@endforeach
                 </select>
 				<span class="help-block error">
@@ -94,7 +94,7 @@
   		<div class="row">
 			<div class="form-group col-md-8">
 	  			<label class="control-label" for="email">Descripción</label>
-				<input type="text" class="form-control" id="email" name="descripcion" maxlength="255"  value="{{old('descripcion')}}">
+				<input type="text" class="form-control" id="email" name="descripcion" maxlength="255"  value="{{ !is_array(old('descripcion')) ? old('descripcion') : '' }}">
 				<div class="help-block error with-errors"></div>
 				<span class="help-block error">
 					<strong>{{ $errors->first('descripcion') }}</strong>

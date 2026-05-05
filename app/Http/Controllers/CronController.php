@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use StdClass;
 use Illuminate\Http\Request;
+use App\Http\Controllers\IngresosController;
 use Carbon\Carbon;
 use App\Funcion;
 use Illuminate\Support\Facades\Hash;
@@ -829,86 +830,6 @@ class CronController extends Controller
                 $fechaInvoice = Carbon::now()->format('Y-m').'-'.substr(str_repeat(0, 2).$grupo_corte->fecha_factura, - 2);
                 self::sendInvoices($fechaInvoice);
             }
-
-            ## ENVIO SMS ##
-            if($empresa->factura_sms_auto){
-                $servicio = Integracion::where('empresa', 1)->where('tipo', 'SMS')->where('status', 1)->first();
-                if($servicio){
-                    if(isset($bulksms) && $bulksms != ''){
-                        $mensaje = $bulksms;
-                    }else{
-                        $mensaje = 'Hola, '.$empresa->nombre.' le informa que su factura de internet ha sido generada. '.$empresa->slogan;
-                    }
-                    if($servicio->nombre == 'Hablame SMS'){
-                        if($servicio->api_key && $servicio->user && $servicio->pass){
-                            $curl = curl_init();
-                            curl_setopt_array($curl, [
-                                CURLOPT_URL => "https://api103.hablame.co/api/sms/v3/send/marketing/bulk",
-                                CURLOPT_RETURNTRANSFER => true,
-                                CURLOPT_ENCODING => "",
-                                CURLOPT_MAXREDIRS => 10,
-                                CURLOPT_TIMEOUT => 30,
-                                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                CURLOPT_CUSTOMREQUEST => "POST",
-                                CURLOPT_POSTFIELDS => "{\n  \"bulk\": [\n    ".substr($bulk, 0, -1)."\n  ]\n}",
-                                CURLOPT_HTTPHEADER => [
-                                    'Content-Type: application/json',
-                                    'account: '.$servicio->user,
-                                    'apiKey: '.$servicio->api_key,
-                                    'token: '.$servicio->pass,
-                                    ],
-                            ]);
-
-                            $response = curl_exec($curl);
-                            $err = curl_error($curl);
-                            curl_close($curl);
-                        }
-                    }elseif($servicio->nombre == 'SmsEasySms'){
-                        if($servicio->user && $servicio->pass){
-                            $post['to'] = $numeros;
-                            $post['text'] = $mensaje;
-                            $post['from'] = "SMS";
-                            $login = $servicio->user;
-                            $password = $servicio->pass;
-
-                            $ch = curl_init();
-                            curl_setopt($ch, CURLOPT_URL, "https://sms.istsas.com/Api/rest/message");
-                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                            curl_setopt($ch, CURLOPT_POST, 1);
-                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                            curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                array(
-                                    "Accept: application/json",
-                                    "Authorization: Basic ".base64_encode($login.":".$password)));
-                            $result = curl_exec ($ch);
-                            $err  = curl_error($ch);
-                            curl_close($ch);
-                        }
-                    }else{
-                        if($servicio->user && $servicio->pass){
-                            $post['to'] = $numeros;
-                            $post['text'] = $mensaje;
-                            $post['from'] = "";
-                            $login = $servicio->user;
-                            $password = $servicio->pass;
-
-                            $ch = curl_init();
-                            curl_setopt($ch, CURLOPT_URL, "https://masivos.colombiared.com.co/Api/rest/message");
-                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                            curl_setopt($ch, CURLOPT_POST, 1);
-                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                            curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                array(
-                                    "Accept: application/json",
-                                    "Authorization: Basic ".base64_encode($login.":".$password)));
-                            $result = curl_exec ($ch);
-                            $err  = curl_error($ch);
-                            curl_close($ch);
-                        }
-                    }
-                }
-            }
-            ## ENVIO SMS ##
         }
     }
 }
@@ -1201,7 +1122,7 @@ class CronController extends Controller
                                     $olt_executed = false;
 
                                     // Lógica de Smart OLT
-                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
@@ -1235,7 +1156,7 @@ class CronController extends Controller
                                                         $mov = new MovimientoLOG;
                                                         $mov->contrato    = $contrato->id;
                                                         $mov->modulo      = 5;
-                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip . ' | Factura: ' . $contacto->factura;
                                                         $mov->created_by  = 1;
                                                         $mov->empresa     = $contrato->empresa;
                                                         $mov->save();
@@ -1343,12 +1264,12 @@ class CronController extends Controller
                                                     }
 
                                                     // Evitamos doble conteo de $i si ambos se aplican y ya sumó Smart OLT
-                                                    if (!($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
+                                                    if (!(($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
                                                         $i++;
                                                     }
                                                 }
                                                 $API->disconnect();
-                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[CRON] Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                             } else {
                                                 $mikrotik_failed = true;
                                             }
@@ -1458,6 +1379,7 @@ class CronController extends Controller
                 'f.estatus',
                 'f.suspension',
                 'cs.state',
+                'cs.id as idcontrato',
                 'f.contrato_id',
                 'cs.grupo_corte'
             )
@@ -1519,13 +1441,16 @@ class CronController extends Controller
                     $cant_fac_grupo_corte = $grupo_corte->nro_factura_vencida;
                 }
 
-                if(isset($grupo_corte->nro_factura_vencida) && $grupo_corte->nro_factura_vencida > 1){
-                    $contrato = Contrato::Find($contacto->contrato_id);
+                if($grupo_corte->nro_factura_vencida > 1){
+                    $contrato = Contrato::Find($contacto->idcontrato);
                     if($contrato){
                         $cantFacturasVencidas = $contrato->cantidadFacturasVencidas();
                     }else{
                         continue;
                     }
+                }
+                else if($grupo_corte->nro_factura_vencida == 0){
+                    continue;
                 }
                 //** Fin desarrollo nuevo
 
@@ -1571,10 +1496,11 @@ class CronController extends Controller
                 $ultimaFacturaRegistrada = DB::table('facturas_contratos')
                     ->join('factura', 'facturas_contratos.factura_id', '=', 'factura.id')
                     ->whereIn('facturas_contratos.contrato_nro', $contratosNro)
-                    ->where('factura.estatus','!=',2)
+                    ->where('factura.estatus', '!=', 2)
                     ->select('factura.*')
                     ->orderBy('factura.created_at', 'desc')
-                ->value('id');
+                    ->orderBy('factura.id', 'desc') // desempate por ID
+                    ->value('id');
 
                 //manera antigua de buscar el contrato.
                 if(!$ultimaFacturaRegistrada){
@@ -1595,7 +1521,7 @@ class CronController extends Controller
                         if($factura->contrato_id != null){
                             $contratos = Contrato::where('id',$factura->contrato_id)->get();
                         }else{
-                            $contratos = Contrato::where('id',$contacto->contrato_id)->get();
+                            $contratos = Contrato::where('id',$contacto->idcontrato)->get();
                         }
                     }
 
@@ -1677,7 +1603,7 @@ class CronController extends Controller
                                     $olt_executed = false;
 
                                     // Lógica de Smart OLT
-                                    if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+                                    if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                                         $oltController = app('App\Http\Controllers\OltController');
                                         $oltController->disableOnu($contrato->serial_onu);
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
@@ -1711,7 +1637,7 @@ class CronController extends Controller
                                                         $mov = new MovimientoLOG;
                                                         $mov->contrato    = $contrato->id;
                                                         $mov->modulo      = 5;
-                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip;
+                                                        $mov->descripcion = '[CRON] Ingreso a morosos para IP ' . $contrato->ip . ' | Factura: ' . $contacto->factura;
                                                         $mov->created_by  = 1;
                                                         $mov->empresa     = $contrato->empresa;
                                                         $mov->save();
@@ -1819,12 +1745,12 @@ class CronController extends Controller
                                                     }
 
                                                     // Evitamos doble conteo de $i si ambos se aplican y ya sumó Smart OLT
-                                                    if (!($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
+                                                    if (!(($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu))) {
                                                         $i++;
                                                     }
                                                 }
                                                 $API->disconnect();
-                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
+                                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[CRON] Cambiado en Mikrotik</b> a deshabilitado por cronjob de corte facturas<br>';
                                             } else {
                                                 $mikrotik_failed = true;
                                             }
@@ -1940,6 +1866,7 @@ class CronController extends Controller
                 'f.estatus',
                 'f.suspension',
                 'cs.state',
+                'cs.id as idcontrato',
                 'f.contrato_id',
                 'gc.prorroga_tv', // Seleccionamos prorroga_tv
                 'gc.id as grupo_corte',
@@ -2033,7 +1960,7 @@ class CronController extends Controller
                         if($factura->contrato_id != null){
                             $contratos = Contrato::where('id',$factura->contrato_id)->get();
                         }else{
-                            $contratos = Contrato::where('id',$contacto->contrato_id)->get();
+                            $contratos = Contrato::where('id',$contacto->idcontrato)->get();
                         }
                     }
 
@@ -2238,7 +2165,7 @@ class CronController extends Controller
             }
 
             // 2. Bloque OLT independiente
-            if ($contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
+            if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
                 $oltController = app('App\Http\Controllers\OltController');
                 $oltController->disableOnu($contrato->serial_onu);
 
@@ -2938,52 +2865,189 @@ class CronController extends Controller
         }
     }
 
-    public function eventosOnePay(Request $request){
+    /**
+     * ═══════════════════════════════════════════════════════════════════════════
+     * WEBHOOK: Recibe eventos de OnePay (invoice.paid / payment.approved)
+     * Delega toda la lógica de negocio a procesarPagoFactura().
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    public function eventosOnePayWebhook(Request $request){
         $requestData = $request->all();
 
-        // Verificar que el evento sea payment.approved o invoice.paid
-        if(isset($requestData['event']['type']) && in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
+        if(!isset($requestData['event']['type']) || !in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
+            return response('false', 200);
+        }
 
-            $factura = null;
-            $paymentId = null;
-            $montoPagado = 0;
+        $factura = null;
+        $paymentId = null;
+        $montoPagado = 0;
 
-            if ($requestData['event']['type'] == 'invoice.paid') {
-                $invoice = $requestData['invoice'] ?? [];
-                $payment = $invoice['payment'] ?? [];
+        if ($requestData['event']['type'] == 'invoice.paid') {
+            $invoice = $requestData['invoice'] ?? [];
+            $payment = $invoice['payment'] ?? [];
 
-                if(isset($invoice['provider_id'])){
-                    $factura = Factura::where('codigo', $invoice['provider_id'])->first();
-                }
-
-                if(!$factura && isset($invoice['metadata']['factura_id'])){
-                    $factura = Factura::find($invoice['metadata']['factura_id']);
-                }
-
-                if(!$factura && isset($invoice['payment_id'])){
-                    $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
-                }
-
-                $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
-                // En invoice.paid el monto viene en valor normal
-                $montoPagado = $payment['amount'] ?? 0;
-            } else {
-                $payment = $requestData['payment'] ?? [];
-
-                if(isset($payment['provider_id'])){
-                    $factura = Factura::where('codigo', $payment['provider_id'])->first();
-                }
-
-                if(!$factura && isset($payment['id'])){
-                    $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
-                }
-
-                $paymentId = $payment['id'] ?? null;
-                // En payment.approved (o implementacion previa) se dividía por 100
-                $montoPagado = isset($payment['amount']) ? ($payment['amount'] / 100) : 0;
+            if(!$factura && isset($invoice['metadata']['factura_id'])){
+                $factura = Factura::find($invoice['metadata']['factura_id']);
+            }
+            if(!$factura && isset($invoice['provider_id'])){
+                $factura = Factura::where('codigo', $invoice['provider_id'])->first();
+            }
+            if(!$factura && isset($invoice['payment_id'])){
+                $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
             }
 
-            if($factura && $factura->estatus == 1){
+            $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
+            $montoPagado = $payment['amount'] ?? 0;
+        } else {
+            $payment = $requestData['payment'] ?? [];
+
+            if(isset($payment['provider_id'])){
+                $factura = Factura::where('codigo', $payment['provider_id'])->first();
+            }
+            if(!$factura && isset($payment['id'])){
+                $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
+            }
+
+            $paymentId = $payment['id'] ?? null;
+            $montoPagado = isset($payment['amount']) ? ($payment['amount'] / 100) : 0;
+        }
+
+        if(!$factura || $factura->estatus != 1){
+            Log::info('[OnePay Webhook] Factura no encontrada o ya cerrada', ['paymentId' => $paymentId]);
+            return response('false', 200);
+        }
+
+        if($paymentId && Ingreso::where('onepay_payment_id', $paymentId)->exists()){
+            Log::info('[OnePay Webhook] Pago duplicado, skip', ['paymentId' => $paymentId]);
+            return response('success', 200);
+        }
+
+        $banco = Banco::where('nombre', 'ONEPAY')->where('estatus', 1)->where('lectura', 1)
+            ->orWhere('nombre', 'INTEGRAPAY')->where('estatus', 1)->where('lectura', 1)->first();
+        $pasarela = ($banco && $banco->nombre == 'ONEPAY') ? 'OnePay' : 'IntegraPay';
+
+        $resultado = $this->procesarPagoFactura($factura, $paymentId, $montoPagado, $pasarela);
+        return response($resultado ? 'success' : 'false', 200);
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════════
+     * CRON: Sincronización de pagos desde la API de OnePay
+     * Ejecutado vía cPanel cada 15 min: wget -q -O - https://url/software/syncintegrapay
+     * Paginación inteligente: se detiene al encontrar pago ya procesado.
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    public function syncIntegraPay()
+    {
+        $empresa = Empresa::find(1);
+
+        if(!OnePayService::isEnabled($empresa->id)){
+            return response()->json(['status' => 'disabled', 'message' => 'IntegraPay no está habilitado']);
+        }
+
+        $startTime = microtime(true);
+        $procesados = 0;
+        $duplicados = 0;
+        $errores = 0;
+        $sinFactura = 0;
+        $page = 1;
+        $maxPages = 50;
+
+        try {
+            $onePayService = new OnePayService($empresa->id);
+
+            $banco = Banco::where('nombre', 'ONEPAY')->where('estatus', 1)->where('lectura', 1)
+                ->orWhere('nombre', 'INTEGRAPAY')->where('estatus', 1)->where('lectura', 1)->first();
+            $pasarela = ($banco && $banco->nombre == 'ONEPAY') ? 'OnePay' : 'IntegraPay';
+
+            while ($page <= $maxPages) {
+                $response = $onePayService->getPayments([
+                    'page' => $page, 'sort' => '-created_at', 'filter_status' => 'approved'
+                ]);
+
+                $payments = $response['data'] ?? [];
+                if (empty($payments)) { break; }
+
+                $foundExisting = false;
+
+                foreach ($payments as $payment) {
+                    $paymentId = $payment['id'] ?? null;
+                    $externalId = $payment['external_id'] ?? null;
+                    $amount = $payment['amount'] ?? 0;
+                    $status = $payment['status'] ?? '';
+
+                    if ($status !== 'approved') { continue; }
+
+                    // PAGINACIÓN INTELIGENTE: pago ya procesado → detener
+                    if ($paymentId && Ingreso::where('onepay_payment_id', $paymentId)->exists()) {
+                        $duplicados++;
+                        $foundExisting = true;
+                        break;
+                    }
+
+                    if (!$externalId) { $sinFactura++; continue; }
+
+                    $factura = Factura::where('codigo', $externalId)->first();
+                    if (!$factura) {
+                        $sinFactura++;
+                        Log::info('[SyncIntegraPay] Factura no encontrada', ['external_id' => $externalId]);
+                        continue;
+                    }
+
+                    if ($factura->estatus != 1) { $duplicados++; continue; }
+
+                    try {
+                        $resultado = $this->procesarPagoFactura($factura, $paymentId, $amount, $pasarela);
+                        $resultado ? $procesados++ : $duplicados++;
+                    } catch (\Exception $e) {
+                        $errores++;
+                        Log::error('[SyncIntegraPay] Error procesando pago', [
+                            'payment_id' => $paymentId, 'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+
+                if ($foundExisting) { break; }
+
+                $lastPage = $response['meta']['last_page'] ?? $response['last_page'] ?? $page;
+                if ($page >= $lastPage) { break; }
+                $page++;
+            }
+        } catch (\Exception $e) {
+            Log::error('[SyncIntegraPay] Error general', ['error' => $e->getMessage(), 'page' => $page]);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+
+        $elapsed = round(microtime(true) - $startTime, 2);
+        Log::info('[SyncIntegraPay] Completado', compact('procesados','duplicados','sinFactura','errores','page','elapsed'));
+
+        return response()->json([
+            'status' => 'success', 'procesados' => $procesados, 'duplicados' => $duplicados,
+            'sin_factura' => $sinFactura, 'errores' => $errores, 'paginas' => $page, 'tiempo' => $elapsed.'s'
+        ]);
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════════
+     * MÉTODO CENTRALIZADO: Procesa el pago de una factura desde OnePay
+     * Contiene TODA la lógica de negocio (ingreso, factura, CRM, MK, SMS, logs)
+     * Llamado por: eventosOnePayWebhook() y syncIntegraPay()
+     * NUNCA duplica pagos: valida onepay_payment_id antes de procesar.
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    private function procesarPagoFactura($factura, $paymentId, $montoPagado, $pasarela = 'OnePay')
+    {
+        // GUARD: Validación de duplicados (OBLIGATORIO)
+        if ($paymentId && Ingreso::where('onepay_payment_id', $paymentId)->exists()) {
+            Log::info('[procesarPagoFactura] Pago duplicado, skip', ['paymentId' => $paymentId]);
+            return false;
+        }
+
+        if ($factura->estatus != 1) {
+            return false;
+        }
+
+        try {
                 $empresa = Empresa::find($factura->empresa);
                 $nro = Numeracion::where('empresa', $empresa->id)->first();
                 $caja = $nro->caja;
@@ -3018,6 +3082,7 @@ class CronController extends Controller
                 $ingreso->tipo          = 1;
                 $ingreso->fecha         = date('Y-m-d');
                 $ingreso->observaciones = 'Pago '.$pasarela.' ID: '.$paymentId;
+                $ingreso->onepay_payment_id = $paymentId;
                 $ingreso->save();
 
                 # REGISTRAMOS EL INGRESO_FACTURA
@@ -3072,8 +3137,11 @@ class CronController extends Controller
                     $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
 
                     if($contrato){
-                        $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
+                        # DELEGAMOS LAS FUNCIONES DE MIKROTIK Y OLT AL CONTROLADOR DE INGRESOS
+                        $ingresosController = new IngresosController();
+                        $ingresosController->funcionesPagoMK($contrato, $empresa, $ingreso);
 
+                        // Actualizar cuotas de asignación de producto
                         $asignacion = Producto::where('contrato', $contrato->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
 
                         if ($asignacion) {
@@ -3083,53 +3151,6 @@ class CronController extends Controller
                                 $asignacion->status = 1;
                             }
                             $asignacion->save();
-                        }
-
-                        # API MK
-                        if($contrato->server_configuration_id){
-                            $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-
-                            $API = new RouterosAPI();
-                            $API->port = $mikrotik->puerto_api;
-
-                            if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                                $API->write('/ip/firewall/address-list/print', TRUE);
-                                $ARRAYS = $API->read();
-
-                                #ELIMINAMOS DE MOROSOS#
-                                $API->write('/ip/firewall/address-list/print', false);
-                                $API->write('?address='.$contrato->ip, false);
-                                $API->write("?list=morosos",false);
-                                $API->write('=.proplist=.id');
-                                $ARRAYS = $API->read();
-
-                                if(count($ARRAYS)>0){
-
-                                    $API->write('/ip/firewall/address-list/remove', false);
-                                    $API->write('=.id='.$ARRAYS[0]['.id']);
-                                    $READ = $API->read();
-
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-                                    $API->comm("/ip/firewall/address-list/add", array(
-                                        "address" => $contrato->ip,
-                                        "list" => 'ips_autorizadas'
-                                        )
-                                    );
-                                    #AGREGAMOS A IP_AUTORIZADAS#
-
-                                    $ingreso->revalidacion_enable_internet = 1;
-                                    $ingreso->save();
-
-                                    $contrato->state = 'enabled';
-                                    $contrato->save();
-                                }
-                                #ELIMINAMOS DE MOROSOS#
-                                $API->disconnect();
-
-                            }
-                        }else{
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
                         }
                     }
 
@@ -3229,13 +3250,23 @@ class CronController extends Controller
                                 curl_close($ch);
                             }
                         }
-                    }
                 }
-                return response('success', 200);
-            }
-            return response('false', 200);
+                }
+
+            Log::info('[procesarPagoFactura] Pago procesado exitosamente', [
+                'paymentId' => $paymentId, 'factura_id' => $factura->id,
+                'factura_codigo' => $factura->codigo, 'monto' => $montoPagado, 'pasarela' => $pasarela
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('[procesarPagoFactura] Error al procesar pago', [
+                'paymentId' => $paymentId, 'factura_id' => $factura->id,
+                'error' => $e->getMessage()
+            ]);
+            return false;
         }
-        return response('false', 200);
     }
 
     public function eventosPayu(Request $request){

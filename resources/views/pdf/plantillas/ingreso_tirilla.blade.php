@@ -130,7 +130,7 @@
         </p>
     </div>
 
-    @php $factura = $ingreso->ingresofactura()->factura(); @endphp
+    @php $factura = $ingreso->ingresofactura() ? $ingreso->ingresofactura()->factura() : null; @endphp
 
     <div class="info-box">
         <p>
@@ -147,8 +147,11 @@
             @if(isset($saldo_inicial) && $saldo_inicial > 0)
             <span class="label">Saldo Inicial:</span> <span class="value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($saldo_inicial)}}</span><br>
             @endif
-            @if(isset(Auth::user()->empresa()->periodo_tirilla) && Auth::user()->empresa()->periodo_tirilla == 1)
-            <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobradoTexto()}}</span><br>
+            @if($ingreso->tipo == 1 && $factura)
+                <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobradoTexto()}}</span><br>
+                @if($factura->porpagar() > 0)
+                    <span class="label">Saldo por Pagar:</span> <span class="value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}}</span><br>
+                @endif
             @endif
             @if($ingreso->notas) <span class="label">Notas:</span> <span class="value">{{ $ingreso->notas }}</span> @endif
         </p>

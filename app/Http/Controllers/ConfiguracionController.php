@@ -3464,6 +3464,97 @@ class ConfiguracionController extends Controller
         }
     }
 
+    public function suscribirseCanalWhatsapp()
+    {
+        try {
+            $empresa = Empresa::find(Auth::user()->empresa);
+            $wabaId = $empresa->whatsapp_business_account_id;
+
+            if (empty($wabaId)) {
+                return response()->json([
+                    'success' => 0,
+                    'message' => 'El WhatsApp Business Account ID no está configurado'
+                ], 400);
+            }
+
+            // Obtener ACCESS_TOKEN_META del .env
+            $accessToken = env('ACCESS_TOKEN_META');
+            if (empty($accessToken)) {
+                return response()->json([
+                    'success' => 0,
+                    'message' => 'ACCESS_TOKEN_META no está configurado en el archivo .env'
+                ], 400);
+            }
+
+            // Construir URL de la API (v25.0 según solicitud del usuario)
+            $url = 'https://graph.facebook.com/v25.0/' . $wabaId . '/subscribed_apps';
+
+            // Hacer petición POST a Facebook Graph API
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_HTTPHEADER => array(
+                    'Authorization: Bearer ' . $accessToken,
+                    'Content-Type: application/json'
+                ),
+            ));
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($curl);
+            curl_close($curl);
+
+            if ($curlError) {
+                Log::error('Error cURL al suscribir canal WhatsApp: ' . $curlError);
+                return response()->json([
+                    'success' => 0,
+                    'message' => 'Error al conectar con la API de Facebook: ' . $curlError
+                ], 400);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode != 200) {
+                Log::error('Error HTTP al suscribir canal WhatsApp: ' . $httpCode . ' - ' . $response);
+                $errorMessage = 'Error al suscribirse al canal';
+                if (isset($responseData['error']['message'])) {
+                    $errorMessage = $responseData['error']['message'];
+                }
+                return response()->json([
+                    'success' => 0,
+                    'message' => $errorMessage
+                ], 400);
+            }
+
+            if (isset($responseData['success']) && $responseData['success'] === true) {
+                return response()->json([
+                    'success' => 1,
+                    'message' => 'Suscripción al canal exitosa'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => 0,
+                    'message' => 'La API no retornó success: true',
+                    'data' => $responseData
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error al suscribir canal WhatsApp: ' . $e->getMessage());
+            return response()->json([
+                'success' => 0,
+                'message' => 'Error inesperado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function generarProrrateoMasivo(Request $request){
         $request->validate([
             'fecha' => 'required|date',

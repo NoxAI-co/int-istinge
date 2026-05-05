@@ -33,10 +33,26 @@ class ContactosController extends Controller
         $perPage = $request->input('per_page', 15);
         $contactos = $query->paginate($perPage);
 
+        $mappedItems = [];
+        foreach ($contactos->items() as $contacto) {
+            $arr = $contacto->toArray();
+            if (isset($arr['contracts']) && is_array($arr['contracts'])) {
+                foreach ($arr['contracts'] as &$contratoArr) {
+                    if (isset($contratoArr['id'])) {
+                        $contratoModel = \App\Contrato::find($contratoArr['id']);
+                        if ($contratoModel) {
+                            $contratoArr['plan_detalles'] = $contratoModel->plan_detalles_api;
+                        }
+                    }
+                }
+            }
+            $mappedItems[] = $arr;
+        }
+
         return response()->json([
             'status' => 200,
             'message' => 'Lista de contactos',
-            'data' => $contactos->items(),
+            'data' => $mappedItems,
             'meta' => [
                 'current_page' => $contactos->currentPage(),
                 'last_page' => $contactos->lastPage(),

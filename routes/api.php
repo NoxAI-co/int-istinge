@@ -117,7 +117,7 @@ Route::post('pagos/combopay', 'CronController@eventosCombopay');
 Route::post('pagos/toppay', 'CronController@eventosTopPay');
 
 /** EVENTOS ONEPAY **/
-Route::post('pagos/onepay', 'CronController@eventosOnePay');
+Route::post('pagos/onepay', 'CronController@eventosOnePayWebhook');
 
 /**
  * Mostrar los datos de la factura mediante la llave unica asignada en el método

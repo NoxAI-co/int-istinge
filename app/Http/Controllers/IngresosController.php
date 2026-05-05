@@ -1266,7 +1266,7 @@ class IngresosController extends Controller
 
             /* * * Smart OLT - DHCP (independiente de Mikrotik y CATV) * * */
             // Si queries_dhcp_smartolt es 1, usamos OLT para DHCP
-            $condicionOLT = ($contrato !== null && $contrato->conexion == 2 && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
+            $condicionOLT = ($contrato !== null && ($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu));
             Log::debug("funcionesPagoMK: Verificando condición Smart OLT DHCP: " . ($condicionOLT ? 'CUMPLE' : 'NO CUMPLE') . " [Conexión: {$contrato->conexion}, DHCP OLT: " . ($empresa->queries_dhcp_smartolt ?? 'NULL') . ", Serial: " . ($contrato->serial_onu ?? 'VACÍO') . "]");
             
             if ($condicionOLT) {
@@ -1386,7 +1386,7 @@ class IngresosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[MIKROTIK] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
+                            $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
                             $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                             $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                             $movimiento->save();
@@ -1401,7 +1401,7 @@ class IngresosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[MIKROTIK] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
+                            $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
                             $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                             $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                             $movimiento->save();
@@ -1413,8 +1413,8 @@ class IngresosController extends Controller
                             $verificacion = $API->read();
 
                             $descVerif = empty($verificacion)
-                                ? '[MIKROTIK] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
-                                : '[MIKROTIK] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                                ? '[PAGO] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                : '[PAGO] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
                             Log::debug("funcionesPagoMK: {$descVerif}");
 
                             $movimiento = new MovimientoLOG;
@@ -1435,7 +1435,7 @@ class IngresosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[MIKROTIK] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
                             $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                             $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                             $movimiento->save();
@@ -1475,7 +1475,7 @@ class IngresosController extends Controller
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = "[MIKROTIK] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
+                            $movimiento->descripcion = "[PAGO] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
                             $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                             $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                             $movimiento->save();
