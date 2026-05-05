@@ -77,7 +77,7 @@
     			<a href="{{route('contactos.importar')}}" class="btn btn-success btn-sm"><i class="fas fa-file-upload"></i> Importar Contactos</a>
     			@endif
     			@if(isset($_SESSION['permisos']['829']))
-    			<a href="{{ route('contactos.exportar', 0) }}" class="btn mr-1 btn-success btn-sm" title="Exportar"><i class="fas fa-file-excel"></i> Exportar Contactos</a>
+    			<a href="javascript:exportar()" class="btn mr-1 btn-success btn-sm" title="Exportar"><i class="fas fa-file-excel"></i> Exportar Contactos</a>
     			@endif
     		</div>
     	</div>
@@ -265,6 +265,29 @@
 
 	function getDataTable() {
 		tabla.DataTable().ajax.reload();
+	}
+
+	function exportar() {
+		var url = '{{route('contactos.exportar', $tipo_usuario)}}';
+		var params = {
+			nombre: $('#nombre').val(),
+			apellido: $('#apellido').val(),
+			etiqueta_id: $('#etiqueta').val(),
+			identificacion: $('#identificacion').val(),
+			celular: $('#telefono').val(),
+			direccion: $('#direccion').val(),
+			barrio: $('#barrio').val(),
+			vereda: $('#vereda').val(),
+			email: $('#email').val(),
+			municipio: $('#municipio').val(),
+			t_contrato: $('#t_contrato').val(),
+			serial_onu: $('#serial_onu').val(),
+			otra_opcion: $("#otra_opcion").val(),
+			filtro: true
+		};
+
+		var queryString = $.param(params);
+		window.location.href = url + '?' + queryString;
 	}
 
 	function abrirFiltrador() {
