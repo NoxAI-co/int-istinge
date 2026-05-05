@@ -1469,19 +1469,51 @@ class IngresosController extends Controller
 
                             #ELIMINAMOS DE MOROSOS#
                         }else{
+                            // [FIX] Aunque la IP no estaba en morosos, se debe agregar a ips_autorizadas
+                            // para evitar que un CRON posterior encuentre state='enabled' con factura abierta
+                            // y vuelva a cortar el servicio por race condition.
+                            if ($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)) {
+                                $resultAddAut = $API->comm('/ip/firewall/address-list/add', [
+                                    'address' => $contrato->ip,
+                                    'list'    => 'ips_autorizadas'
+                                ]);
+                                Log::debug("funcionesPagoMK: [FIX] Agregando a ips_autorizadas (no estaba en morosos): " . json_encode($resultAddAut));
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[Manual] Resultado agregar a ips_autorizadas: ' . json_encode($resultAddAut);
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->save();
+                            }
+
+                            DB::reconnect();
+
+                            $ingreso->revalidacion_enable_internet = 1;
+                            $ingreso->save();
+
                             $contrato->state = 'enabled';
                             $contrato->save();
 
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = "[PAGO] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
+                            $movimiento->descripcion = "[Manual] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos. Se habilitó el contrato y se agregó a ips_autorizadas.";
                             $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
                             $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                             $movimiento->save();
 
-                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
-                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
+                            // Etiqueta automática: contrato habilitado por pago de factura
+                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                                $contrato->id,
+                                $empresa->id,
+                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                            );
+
+                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos. Habilitado y agregado a ips_autorizadas.');
+                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos. Habilitación completa aplicada.");
                         }
                     }
                     $API->disconnect();

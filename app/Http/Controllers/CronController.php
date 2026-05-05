@@ -1145,6 +1145,23 @@ class CronController extends Controller
                                                 $API->write('/ip/firewall/address-list/print', TRUE);
                                                 $ARRAYS = $API->read();
                                                 if($contrato->state == 'enabled'){
+                                                    // [FIX] Re-verificar que la factura sigue abierta en DB
+                                                    // en este punto exacto (puede haber sido pagada entre el
+                                                    // inicio del CRON y el momento de procesar este contrato).
+                                                    $facturaFresh = Factura::find($contacto->factura);
+                                                    if (!$facturaFresh || $facturaFresh->estatus == 0) {
+                                                        $mov = new MovimientoLOG;
+                                                        $mov->contrato    = $contrato->id;
+                                                        $mov->modulo      = 5;
+                                                        $mov->descripcion = '[CRON] Corte omitido: la factura ' . $contacto->factura . ' ya fue pagada (estatus=0) antes de ejecutar el corte. No se deshabilita el contrato.';
+                                                        $mov->created_by  = 1;
+                                                        $mov->empresa     = $contrato->empresa;
+                                                        $mov->save();
+                                                        Log::info("[CRON] Contrato #{$contrato->nro}: corte omitido porque la factura {$contacto->factura} ya está pagada.");
+                                                        $API->disconnect();
+                                                        continue 2; // sale del foreach($contratos) y del foreach($contactos)
+                                                    }
+
                                                     if($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)){
                                                         $API->comm("/ip/firewall/address-list/add", array(
                                                             "address" => $contrato->ip,
