@@ -79,6 +79,9 @@
     			@if(isset($_SESSION['permisos']['829']))
     			<a href="javascript:exportar()" class="btn mr-1 btn-success btn-sm" title="Exportar"><i class="fas fa-file-excel"></i> Exportar Contactos</a>
     			@endif
+                @if(isset($_SESSION['permisos']['7']))
+                <button type="button" class="btn btn-danger btn-sm" id="btn_delete_multiple" onclick="deleteMultiple()" style="display:none;"><i class="fas fa-trash"></i> Eliminar Selección</button>
+                @endif
     		</div>
     	</div>
     </div>
@@ -162,6 +165,12 @@
 			<table class="table table-striped table-hover w-100" id="tabla-contactos">
 				<thead class="thead-dark">
 					<tr>
+						<th>
+							<div class="custom-control custom-checkbox text-center">
+								<input type="checkbox" class="custom-control-input" id="select_all">
+								<label class="custom-control-label" for="select_all"></label>
+							</div>
+						</th>
 						@foreach($tabla as $campo)
 						    @if(isset($tipo_usuario) && $tipo_usuario == 1)
 						        @if($campo->nombre != 'Contrato')
@@ -195,7 +204,7 @@
 				'url': '{{asset("vendors/DataTables/es.json")}}'
 			},
 			order: [
-				[0, "asc"]
+				[1, "asc"]
 			],
 			"pageLength": {{ Auth::user()->empresa()->pageLength }},
 			ajax: '{{url("/contactos/$tipo_usuario")}}',
@@ -203,6 +212,7 @@
 				'X-CSRF-TOKEN': '{{csrf_token()}}'
 			},
 			columns: [
+				{data: 'select', orderable: false, searchable: false},
 			    @foreach($tabla as $campo)
 			        @if($tipo_usuario == 1)
 			            @if($campo->campo != 'contrato')
@@ -215,7 +225,12 @@
                 @endforeach
 
 				{data: 'acciones'},
-			]
+			],
+			drawCallback: function( settings ) {
+				$("#select_all").prop('checked', false);
+				$(".selected_ids").prop('checked', false);
+				$("#btn_delete_multiple").hide();
+			}
 		});
 
 
@@ -338,5 +353,68 @@
             }
         })
     }
+
+	$(document).on('change', '#select_all', function() {
+		if ($(this).is(':checked')) {
+			$('.selected_ids').prop('checked', true);
+		} else {
+			$('.selected_ids').prop('checked', false);
+		}
+		toggleDeleteButton();
+	});
+
+	$(document).on('change', '.selected_ids', function() {
+		toggleDeleteButton();
+	});
+
+	function toggleDeleteButton() {
+		if ($('.selected_ids:checked').length > 0) {
+			$('#btn_delete_multiple').show();
+		} else {
+			$('#btn_delete_multiple').hide();
+		}
+	}
+
+	function deleteMultiple() {
+		var ids = [];
+		$('.selected_ids:checked').each(function() {
+			ids.push($(this).val());
+		});
+
+		if (ids.length > 0) {
+			Swal.fire({
+				title: '¿Está seguro de que desea eliminar los clientes seleccionados?',
+				text: "Esta acción no se puede deshacer. Solo se eliminarán los clientes que no tengan transacciones asociadas.",
+				type: 'warning',
+				showCancelButton: true,
+				confirmButtonColor: '#d33',
+				cancelButtonColor: '#3085d6',
+				confirmButtonText: 'Sí, eliminar',
+				cancelButtonText: 'Cancelar'
+			}).then((result) => {
+				if (result.value) {
+					$.ajax({
+						url: '{{ route('contactos.destroyMultiple') }}',
+						method: 'POST',
+						data: {
+							_token: '{{ csrf_token() }}',
+							ids: ids
+						},
+						success: function(response) {
+							if (response.success) {
+								Swal.fire('Eliminados', response.message, 'success');
+								getDataTable();
+							} else {
+								Swal.fire('Error', response.message, 'error');
+							}
+						},
+						error: function() {
+							Swal.fire('Error', 'Ocurrió un error al intentar eliminar los clientes.', 'error');
+						}
+					});
+				}
+			});
+		}
+	}
 </script>
 @endsection

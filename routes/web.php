@@ -603,6 +603,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('importacion-saldos', 'ContactosController@importarSaldos')->name('saldos_favor.importar');
 		Route::post('importacion-saldos/cargando', 'ContactosController@cargandoSaldos')->name('saldos_favor.cargando');
 		Route::get('importacion-saldos/ejemplo', 'ContactosController@ejemploSaldos')->name('saldos_favor.ejemplo');
+		Route::post('destroyMultiple', 'ContactosController@destroyMultiple')->name('contactos.destroyMultiple');
 	});
 	Route::resource('contactos', 'ContactosController');
 

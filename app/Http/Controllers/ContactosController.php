@@ -256,8 +256,17 @@ class ContactosController extends Controller
                 }
                 return 'N/A';
             })
+            ->addColumn('select', function (Contacto $contacto) {
+                if ($contacto->usado == 0) {
+                    return '<div class="custom-control custom-checkbox text-center">
+                                <input type="checkbox" class="custom-control-input selected_ids" id="selected_id' . $contacto->id . '" name="selected_id[]" value="' . $contacto->id . '">
+                                <label class="custom-control-label" for="selected_id' . $contacto->id . '"></label>
+                            </div>';
+                }
+                return '';
+            })
             ->addColumn('acciones', $modoLectura ? '' : 'contactos.acciones-contactos')
-            ->rawColumns(['acciones', 'nombre', 'contrato', 'ip', 'state_olt_catv'])
+            ->rawColumns(['select', 'acciones', 'nombre', 'contrato', 'ip', 'state_olt_catv'])
             ->toJson();
     }
     public function clientes(Request $request)
@@ -800,6 +809,38 @@ class ContactosController extends Controller
             return redirect('empresa/contactos/'.$tipo_usuario)->with('success', $mensaje);
         } else {
             return redirect('empresa/contactos')->with('danger', 'CLIENTE NO ENCONTRADO, INTENTE NUEVAMENTE');
+        }
+    }
+
+    public function destroyMultiple(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        if (!isset($_SESSION['permisos']['7'])) {
+            return response()->json(['success' => false, 'message' => 'No tiene permisos para eliminar']);
+        }
+
+        if (!$request->ids || count($request->ids) == 0) {
+            return response()->json(['success' => false, 'message' => 'No se seleccionaron clientes']);
+        }
+
+        $eliminados = 0;
+        $errores = 0;
+
+        foreach ($request->ids as $id) {
+            $contacto = Contacto::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+            if ($contacto && $contacto->usado == 0) {
+                $contacto->status = 0;
+                $contacto->save();
+                $eliminados++;
+            } else {
+                $errores++;
+            }
+        }
+
+        if ($eliminados > 0) {
+            return response()->json(['success' => true, 'message' => "Se eliminaron $eliminados clientes correctamente." . ($errores > 0 ? " $errores no pudieron ser eliminados por tener transacciones asociadas." : "")]);
+        } else {
+            return response()->json(['success' => false, 'message' => "No se pudo eliminar ningún cliente. " . ($errores > 0 ? "$errores clientes tienen transacciones asociadas." : "")]);
         }
     }
 
