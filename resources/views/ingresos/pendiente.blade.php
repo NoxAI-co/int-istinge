@@ -17,7 +17,8 @@
       <th class="text-center">Total</th>
       <th class="text-center">Pagado</th>
       <th class="text-center">Por Pagar</th>
-      <th width="35%">Retenciones</th>
+      <th class="text-center">Descuento %</th>
+      <th width="30%">Retenciones</th>
       <th class="text-center">Monto Recibido</th>
     </tr>
   </thead>
@@ -67,6 +68,20 @@
           <input type="hidden" id="descuento{{$factura->id}}" value="{{$factura->total()->descuento}}">
           <input type="hidden" id="totalfact{{$factura->id}}" value="{{$factura->porpagar()}}">
         </td>
+        <td class="text-center" style="vertical-align: text-bottom;">
+          <input type="hidden" id="descuento_existente_{{$factura->id}}" value="{{ $factura->total()->descuento > 0 ? 1 : 0 }}">
+          <input type="number" class="form-control form-control-sm text-right" id="descuento_pct_{{$factura->id}}" name="descuento_pendiente[]" placeholder="0" min="0" max="99" step="0.01" value="0" onchange="aplicar_descuento_pendiente({{$factura->id}});" onkeyup="aplicar_descuento_pendiente({{$factura->id}});">
+          <small class="text-muted">-{{Auth::user()->empresa()->moneda}}<span id="descuento_valor_{{$factura->id}}">0</span></small>
+          @if($factura->total()->descuento > 0)
+            <small class="text-info d-block" style="font-size:11px;" title="Si ingresas un descuento aquí, reemplazará el descuento actual de la factura">
+              <i class="fas fa-info-circle"></i> Factura con descuento de {{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total()->descuento)}}
+            </small>
+          @endif
+          <p id="descuento_aviso_{{$factura->id}}" class="text-warning" style="font-size:11px; margin:0; display:none;">
+            <i class="fas fa-exclamation-triangle"></i> Se reemplazará el descuento actual de la factura al guardar.
+          </p>
+          <p id="descuento_error_{{$factura->id}}" class="text-danger" style="font-size:11px; margin:0;"></p>
+        </td>
         <td>
           <div id="retenciones_factura_{{$factura->id}}">
 
@@ -88,6 +103,7 @@
         <td class="text-center">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear(10000)}}</td>
         <td class="text-center">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear(0)}}</td>
         <td class="text-center">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear(10000)}}</td>
+        <td></td>
         <td></td>
         <td class="monetario text-center" style="vertical-align: text-bottom;">
           <input type="number" class="form-control form-control-sm" max="10000" maxlength="24" min="10000" value="10000" readonly>
@@ -138,6 +154,10 @@
             <td width="75%">Subtotal</td>
               <input type="hidden" id="subtotal_facturas_js" value="0">
             <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal">{{$factura->porpagar()}}</span></td>
+          </tr>
+          <tr id="row_descuento_pendiente_total" style="display:none;">
+            <td width="75%">Descuento</td>
+            <td>- {{Auth::user()->empresa()->moneda}} <span id="descuento_pendiente_total">0</span></td>
           </tr>
         </table>
 

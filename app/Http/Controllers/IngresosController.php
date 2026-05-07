@@ -731,10 +731,18 @@ class IngresosController extends Controller
                             }
                         }
 
+                        $descuentoPct = 0;
+                        if (is_array($request->descuento_pendiente) && isset($request->descuento_pendiente[$key])) {
+                            $descuentoPct = floatval($request->descuento_pendiente[$key]);
+                            if ($descuentoPct < 0) { $descuentoPct = 0; }
+                            if ($descuentoPct > 99) { $descuentoPct = 99; }
+                        }
+
                         $items = new IngresosFactura;
                         $items->ingreso = $ingreso->id;
                         $items->factura = $factura->id;
                         $items->pagado = $precio; //asi exista mas dinero del  pagado ese se debe usar.
+                        $items->descuento = $descuentoPct;
                         $items->puc_factura = $factura->cuenta_id;
                         $items->puc_banco = $request->saldofavor > 0 ? $request->forma_pago : $request->forma_pago;
                         $items->anticipo = $request->saldofavor > 0 ? $request->anticipo_factura : null;
@@ -766,6 +774,10 @@ class IngresosController extends Controller
                             }
 
                             $items->save();
+
+                            if ($descuentoPct > 0) {
+                                $this->aplicarDescuentoItemsFactura($factura->id, $descuentoPct);
+                            }
 
                             // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente
                             $pagoEmitirCliente = Contrato::where('client_id', $factura->cliente)->where('pago_emitir', 1)->exists();
@@ -4397,9 +4409,87 @@ class IngresosController extends Controller
     }
 
     /**
+     * Aplica el porcentaje de descuento a los ítems de la factura.
+     *
+     * - 1 ítem: se asigna el porcentaje directamente.
+     * - >1 ítems: se asigna el mismo porcentaje a todos; el último ítem absorbe
+     *   cualquier diferencia por redondeo para que la suma de descuentos
+     *   coincida exactamente con (subtotal * pct / 100).
+     */
+    private function aplicarDescuentoItemsFactura($facturaId, $descuentoPct)
+    {
+        $itemsFactura = ItemsFactura::where('factura', $facturaId)->get();
+        $totalItems = $itemsFactura->count();
+
+        if ($totalItems == 0) {
+            return;
+        }
+
+        if ($totalItems == 1) {
+            $item = $itemsFactura->first();
+            $item->desc = round($descuentoPct, 2);
+            $item->save();
+            $this->logDescuentoFactura($facturaId);
+            return;
+        }
+
+        $subtotalFactura = 0;
+        foreach ($itemsFactura as $item) {
+            $subtotalFactura += $item->precio * $item->cant;
+        }
+
+        $descuentoTotalEsperado = round($subtotalFactura * $descuentoPct / 100, 4);
+        $descuentoAcumulado = 0;
+        $idx = 0;
+
+        foreach ($itemsFactura as $item) {
+            $itemBase = $item->precio * $item->cant;
+
+            if ($idx < $totalItems - 1) {
+                $item->desc = round($descuentoPct, 2);
+                $descuentoAcumulado += $itemBase * $descuentoPct / 100;
+            } else {
+                $descuentoRestante = $descuentoTotalEsperado - $descuentoAcumulado;
+                if ($itemBase > 0) {
+                    $pctAjustado = ($descuentoRestante * 100) / $itemBase;
+                    if ($pctAjustado < 0) { $pctAjustado = 0; }
+                    if ($pctAjustado > 99) { $pctAjustado = 99; }
+                    $item->desc = round($pctAjustado, 2);
+                } else {
+                    $item->desc = round($descuentoPct, 2);
+                }
+            }
+
+            $item->save();
+            $idx++;
+        }
+
+        $this->logDescuentoFactura($facturaId);
+    }
+
+    private function logDescuentoFactura($facturaId)
+    {
+        $factura = Factura::find($facturaId);
+        if (!$factura) {
+            return;
+        }
+
+        $usuario = Auth::user();
+        $nombreUsuario = $usuario ? trim($usuario->nombres . ' ' . $usuario->apellidos) : 'Usuario APP';
+
+        $movimiento = new MovimientoLOG();
+        $movimiento->contrato    = $factura->id;
+        $movimiento->modulo      = 8;
+        $movimiento->descripcion = 'El usuario ' . $nombreUsuario . ' aplicó un descuento a la transacción y la factura.';
+        $movimiento->created_by  = $usuario ? $usuario->id : null;
+        $movimiento->empresa     = $factura->empresa;
+        $movimiento->save();
+    }
+
+    /**
      * Verifica si algún contrato del cliente tiene habilitada la opción pago_emitir
      * para auto-seleccionar la opción de emisión en el formulario de ingresos.
-     * 
+     *
      * @param int $cliente_id
      * @return \Illuminate\Http\JsonResponse
      */
