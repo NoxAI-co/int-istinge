@@ -2889,6 +2889,9 @@ class CronController extends Controller
     public function eventosOnePayWebhook(Request $request){
         $requestData = $request->all();
 
+        // Log inicial para trazar el inicio del procesamiento
+        Log::info('[OnePay Webhook] Recibido evento', ['type' => $requestData['event']['type'] ?? 'unknown']);
+
         if(!isset($requestData['event']['type']) || !in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
             return response('false', 200);
         }
@@ -2941,8 +2944,24 @@ class CronController extends Controller
             ->orWhere('nombre', 'INTEGRAPAY')->where('estatus', 1)->where('lectura', 1)->first();
         $pasarela = ($banco && $banco->nombre == 'ONEPAY') ? 'OnePay' : 'IntegraPay';
 
+        // OPTIMIZACIÓN: Si estamos en FPM, respondemos 'success' de inmediato
+        // para que OnePay no nos dé timeout de 10s mientras procesamos Mikrotik/SMS/OLT.
+        if (function_exists('fastcgi_finish_request')) {
+            Log::info('[OnePay Webhook] Respondiendo success anticipadamente (FPM)');
+            ignore_user_abort(true);
+            echo 'success';
+            header("Content-Type: text/plain");
+            header("Content-Length: " . strlen('success'));
+            header("Connection: close");
+            fastcgi_finish_request();
+        }
+
         $resultado = $this->procesarPagoFactura($factura, $paymentId, $montoPagado, $pasarela);
-        return response($resultado ? 'success' : 'false', 200);
+        
+        // Si no se usó fastcgi_finish_request, responder normalmente
+        if (!function_exists('fastcgi_finish_request')) {
+            return response($resultado ? 'success' : 'false', 200);
+        }
     }
 
     /**
