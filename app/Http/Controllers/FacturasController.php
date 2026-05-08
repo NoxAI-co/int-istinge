@@ -539,38 +539,63 @@ class FacturasController extends Controller{
         }
 
         $prefijo = $numeracionActual->prefijo;   // FE
-        $inicio  = (int) $numeracionActual->inicioverdadero; // 567
-        $final   = (int) $numeracionActual->final;  // 10000
+        $inicio  = (int) $numeracionActual->inicioverdadero; // Inicio autorizado por la DIAN
+        $final   = (int) $numeracionActual->final;           // Final autorizado por la DIAN
 
-        // 2. Consultar todas las facturas con ese prefijo
-        $facturas = Factura::where('codigo', 'like', $prefijo . '%')
-        ->where('tipo',2)
-        ->pluck('codigo')
-        ->toArray();
+        // 2. Consultar todas las facturas electrónicas con ese prefijo
+        $facturasCodigos = Factura::where('codigo', 'like', $prefijo . '%')
+            ->where('tipo', 2)
+            ->pluck('codigo')
+            ->toArray();
 
-        // 3. Extraer solo el número
+        // 3. Extraer solo el número de cada código de factura
         $usados = array_map(function($codigo) use ($prefijo) {
             return (int) str_replace($prefijo, '', $codigo);
-        }, $facturas);
+        }, $facturasCodigos);
+
+        // Filtrar solo los números dentro del rango válido de la resolución
+        $usados = array_filter($usados, function($n) use ($inicio, $final) {
+            return $n >= $inicio && $n <= $final;
+        });
 
         sort($usados);
 
-        // 4. Buscar el último consecutivo usado
-        $ultimoUsado = !empty($usados) ? max($usados) : $inicio - 1;
+        // 4. Punto de partida inteligente:
+        //    Usamos la primera factura realmente registrada en el sistema (min de $usados),
+        //    no el inicio de la resolución DIAN. Esto evita reportar como "faltantes" los
+        //    números anteriores al primero que ingresó el cliente (p.ej.: si la numeración
+        //    va de 1 a 1000 pero el cliente empezó a usar desde el 50, solo analizamos
+        //    desde el 50 en adelante).
+        $primerUsado = !empty($usados) ? min($usados) : null;
 
-        // 5. Generar todos los posibles consecutivos hasta el último usado
-        $todos = range($inicio, $ultimoUsado);
+        // 5. Buscar el último consecutivo usado
+        $ultimoUsado = !empty($usados) ? max($usados) : null;
 
-        // 6. Calcular los faltantes
-        $faltantes = array_diff($todos, $usados);
+        // 6. Si no hay facturas registradas, no hay nada que analizar
+        if ($primerUsado === null || $ultimoUsado === null) {
+            $reporteFaltantes = [
+                'prefijo'      => $prefijo,
+                'inicio'       => $inicio,
+                'final'        => $final,
+                'ultimo_usado' => 0,
+                'faltantes'    => [],
+            ];
+        } else {
+            // 7. Generar rango desde la primera factura REAL ingresada hasta la última
+            $todos = range($primerUsado, $ultimoUsado);
 
-        $reporteFaltantes =  [
-            'prefijo' => $prefijo,
-            'inicio' => $inicio,
-            'final' => $final,
-            'ultimo_usado' => $ultimoUsado,
-            'faltantes' => array_values($faltantes),
-        ];
+            // 8. Calcular los faltantes (números que deberían existir pero no están)
+            $faltantes = array_values(array_diff($todos, $usados));
+
+            $reporteFaltantes = [
+                'prefijo'           => $prefijo,
+                'inicio'            => $inicio,          // Inicio oficial de la resolución
+                'final'             => $final,           // Final oficial de la resolución
+                'primer_registrado' => $primerUsado,     // Primera factura real en el sistema
+                'ultimo_usado'      => $ultimoUsado,
+                'faltantes'         => $faltantes,
+            ];
+        }
 
 
 
