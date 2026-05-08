@@ -100,11 +100,15 @@
             Cerrar
         </button>
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
-        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b><br>
+        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b>
+        @if(isset($reporteFaltantes['numeracion_id']))
+        <small class="text-muted">(Numeración ID: {{ $reporteFaltantes['numeracion_id'] }} — preferida activa, tipo electrónica)</small>
+        @endif
+        <br>
         Rango autorizado DIAN: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
         @if(isset($reporteFaltantes['primer_registrado']))
         Primer consecutivo en sistema: <b>{{ $reporteFaltantes['primer_registrado'] }}</b>
-        <small class="text-muted">(análisis inteligente: parte desde aquí, no desde el inicio de la resolución)</small><br>
+        <small class="text-muted">(análisis inteligente desde aquí — no desde el inicio de la resolución)</small><br>
         @endif
         Último usado: <b>{{ $reporteFaltantes['ultimo_usado'] }}</b><br>
         Faltantes ({{ count($reporteFaltantes['faltantes']) }}):

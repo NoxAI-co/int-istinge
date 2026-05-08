@@ -538,60 +538,64 @@ class FacturasController extends Controller{
             return redirect()->route('configuracion.numeraciones_dian')->with('error', 'No hay una numeración de factura electrónica activa. Por favor configure una para continuar.');
         }
 
-        $prefijo = $numeracionActual->prefijo;   // FE
-        $inicio  = (int) $numeracionActual->inicioverdadero; // Inicio autorizado por la DIAN
-        $final   = (int) $numeracionActual->final;           // Final autorizado por la DIAN
+        $prefijo          = $numeracionActual->prefijo;          // Ej: "FE"
+        $numeracionId     = $numeracionActual->id;               // ID de la numeración preferida activa
+        $inicio           = (int) $numeracionActual->inicioverdadero; // Inicio autorizado por la DIAN
+        $final            = (int) $numeracionActual->final;           // Final autorizado por la DIAN
 
-        // 2. Consultar todas las facturas electrónicas con ese prefijo
-        $facturasCodigos = Factura::where('codigo', 'like', $prefijo . '%')
+        // 2. Consultar EXCLUSIVAMENTE las facturas que pertenecen a esta numeración preferida.
+        //    Se filtra por factura.numeracion = $numeracionId para no mezclar facturas
+        //    de otras numeraciones que pudieran compartir el mismo prefijo.
+        $facturasCodigos = Factura::where('numeracion', $numeracionId)
             ->where('tipo', 2)
             ->pluck('codigo')
             ->toArray();
 
-        // 3. Extraer solo el número de cada código de factura
+        // 3. Extraer solo la parte numérica de cada código (quitar el prefijo)
         $usados = array_map(function($codigo) use ($prefijo) {
             return (int) str_replace($prefijo, '', $codigo);
         }, $facturasCodigos);
 
-        // Filtrar solo los números dentro del rango válido de la resolución
+        // Filtrar solo los números dentro del rango válido de la resolución DIAN
         $usados = array_filter($usados, function($n) use ($inicio, $final) {
             return $n >= $inicio && $n <= $final;
         });
 
         sort($usados);
 
-        // 4. Punto de partida inteligente:
-        //    Usamos la primera factura realmente registrada en el sistema (min de $usados),
-        //    no el inicio de la resolución DIAN. Esto evita reportar como "faltantes" los
-        //    números anteriores al primero que ingresó el cliente (p.ej.: si la numeración
-        //    va de 1 a 1000 pero el cliente empezó a usar desde el 50, solo analizamos
-        //    desde el 50 en adelante).
+        // 4. Punto de partida INTELIGENTE:
+        //    Usamos el MÍNIMO número de factura realmente registrado en el sistema
+        //    para esta numeración (no el inicio de la resolución DIAN).
+        //    Ejemplo: resolución va de 1 a 1000, cliente empezó a facturar desde el 50
+        //    → analizamos faltantes solo desde 50 en adelante, ignorando el 1-49.
         $primerUsado = !empty($usados) ? min($usados) : null;
 
-        // 5. Buscar el último consecutivo usado
+        // 5. Último consecutivo usado
         $ultimoUsado = !empty($usados) ? max($usados) : null;
 
-        // 6. Si no hay facturas registradas, no hay nada que analizar
+        // 6. Si no hay facturas registradas bajo esta numeración, no hay nada que analizar
         if ($primerUsado === null || $ultimoUsado === null) {
             $reporteFaltantes = [
-                'prefijo'      => $prefijo,
-                'inicio'       => $inicio,
-                'final'        => $final,
-                'ultimo_usado' => 0,
-                'faltantes'    => [],
+                'numeracion_id' => $numeracionId,
+                'prefijo'       => $prefijo,
+                'inicio'        => $inicio,
+                'final'         => $final,
+                'ultimo_usado'  => 0,
+                'faltantes'     => [],
             ];
         } else {
-            // 7. Generar rango desde la primera factura REAL ingresada hasta la última
+            // 7. Rango real: desde la primera factura registrada hasta la última
             $todos = range($primerUsado, $ultimoUsado);
 
-            // 8. Calcular los faltantes (números que deberían existir pero no están)
+            // 8. Los faltantes son los números del rango real que no existen en el sistema
             $faltantes = array_values(array_diff($todos, $usados));
 
             $reporteFaltantes = [
+                'numeracion_id'     => $numeracionId,     // ID de la numeración evaluada
                 'prefijo'           => $prefijo,
-                'inicio'            => $inicio,          // Inicio oficial de la resolución
-                'final'             => $final,           // Final oficial de la resolución
-                'primer_registrado' => $primerUsado,     // Primera factura real en el sistema
+                'inicio'            => $inicio,            // Inicio oficial DIAN
+                'final'             => $final,             // Final oficial DIAN
+                'primer_registrado' => $primerUsado,       // Primera factura real en el sistema
                 'ultimo_usado'      => $ultimoUsado,
                 'faltantes'         => $faltantes,
             ];
