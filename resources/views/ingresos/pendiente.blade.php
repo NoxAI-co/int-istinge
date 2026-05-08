@@ -7,6 +7,7 @@
 <input type="hidden" id="errores" value="">
 <input type="hidden" id="cant_facturas" name="cant_facturas" value="{{ $total }}">
 <p>Nota: Solo apareceran en el recibo de caja las facturas con valores recibidos</p>
+<div class="table-responsive">
 <table class="table table-striped table-hover" id="table-facturas">
   <thead class="thead-dark">
     <tr>
@@ -114,6 +115,7 @@
     @endforeach
   </tbody>
 </table>
+</div>
 @if(isset($factura))
     <br>
     {{-- FORMAS DE PAGO Y RETENCIONES PARA CUANDO ENTRA DINERO (RECIBO DE CAJA) POR UNA CATEGORIA --}}

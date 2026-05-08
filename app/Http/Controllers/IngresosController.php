@@ -2315,6 +2315,13 @@ class IngresosController extends Controller
                     $factura = Factura::find($request->factura_pendiente[$key]);
                     $items = IngresosFactura::where('ingreso',$ingreso->id)->where('factura', $factura->id)->first();
                     $porpagar=$factura->porpagar();
+                    $descuentoAnterior = $items ? (float)$items->descuento : 0;
+                    $descuentoPct = 0;
+                    if (is_array($request->descuento_pendiente) && isset($request->descuento_pendiente[$key])) {
+                        $descuentoPct = floatval($request->descuento_pendiente[$key]);
+                        if ($descuentoPct < 0) { $descuentoPct = 0; }
+                        if ($descuentoPct > 99) { $descuentoPct = 99; }
+                    }
                     if ($request->precio[$key]) {
                         if (!$items) {
                             $items = new IngresosFactura;
@@ -2325,6 +2332,7 @@ class IngresosController extends Controller
                             $porpagar+=$this->precision($items->pago);
                         }
                         $items->pago=$this->precision($request->precio[$key]);
+                        $items->descuento=$descuentoPct;
                         $items->save();
                         $precio=$this->precision($request->precio[$key]);
                         $retencion='fact'.$factura->id.'_retencion';
@@ -2364,6 +2372,10 @@ class IngresosController extends Controller
                             $factura->estatus=1;
                         }
                         $factura->save();
+
+                        if ($descuentoPct > 0 && $descuentoPct != $descuentoAnterior) {
+                            $this->aplicarDescuentoItemsFactura($factura->id, $descuentoPct);
+                        }
                     }else{
                         if($items){
                             $items->delete();
