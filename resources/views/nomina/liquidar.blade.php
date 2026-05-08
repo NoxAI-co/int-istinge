@@ -1193,17 +1193,22 @@
 
 
     function refrescarPeriodo(idPeriodo, mostrarMensaje = true){
-        var urlTemplate = '{{ route("nomina.refrescar.periodo.individual", ["idNominaPeriodo" => ":idPeriodo"]) }}';
-        var url = urlTemplate.replace(':idPeriodo', idPeriodo);
+        var urlTemplate = "{{ route("nomina.refrescar.periodo.individual", ["idNominaPeriodo" => ":idPeriodo"]) }}";
+        var url = urlTemplate.replace(":idPeriodo", idPeriodo);
         $.get(url, function(response){
-            formatPago(response.valorTotal, response.idPeriodoNomina);
-            if (mostrarMensaje) {
-                refrescarCosto();
-                swal("Registro Actualizado", "El pago al empleado se ha actualizado correctamente, cálculos refrescados!", "success");
+            if (response.success) {
+                formatPago(response.valorTotal, response.idPeriodoNomina);
+                $("#extras" + response.idPeriodoNomina).text(response.extras);
+                $("#vacaciones" + response.idPeriodoNomina).text(response.vacaciones);
+                $("#ingresos" + response.idPeriodoNomina).text(response.ingresos);
+                $("#deducciones" + response.idPeriodoNomina).text(response.deducciones);
+                if (mostrarMensaje) {
+                    refrescarCosto();
+                    swal("Registro Actualizado", "Los calculos se han refrescado correctamente!", "success");
+                }
             }
         });
     }
-
     function formatPago(value, idNomina, formated = null) {
 
         let pagoFormat = '';
