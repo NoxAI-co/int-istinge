@@ -81,7 +81,7 @@
 						<th>Transaccional</th>
 						<th>Código Cuenta</th>
 						<th>Nombre Cuenta</th>
-						<th>ID</th>
+						<th>Identificación</th>
 						<th>Sucursal</th>
 						<th>Nombre Tercero</th>
 						<th>Saldo Inicial</th>
@@ -97,7 +97,7 @@
 							<td>{{$mov->transaccional}}</td>
 							<td>{{$mov->codigo_cuenta}}</td>
 							<td>{{$mov->cuentacontable}}</td>
-							<td>{{$mov->puc_id}}</td>
+							<td>{{$mov->identificacion_tercero}}</td>
 							<td>{{$mov->sucursal}}</td>
 							<td>{{$mov->tercero_nombre}}</td>
 							<td>{{Auth::user()->empresa()->moneda}} {{App\Funcion::Parsear($mov->saldo_inicial)}}</td>
