@@ -1313,7 +1313,6 @@ class CronController extends Controller
                                 }
 
                                 $contrato->state = 'disabled';
-                                $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();
 
                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte facturas<br>';
@@ -1792,7 +1791,6 @@ class CronController extends Controller
                                 }
 
                                 $contrato->state = 'disabled';
-                                $contrato->observaciones = $contrato->observaciones. " - Contrato deshabilitado automaticamente";
                                 $contrato->save();
 
                                 // Etiqueta automática: corte automático por falta de pago
