@@ -5044,7 +5044,7 @@ class ExportarReportesController extends Controller
          $sheet->mergeCells('A3:K3')->setCellValue('A3', $empresaNit);
          $sheet->mergeCells('A4:K4')->setCellValue('A4', $periodo);
 
-         $colorPrimario = '308EE0';
+         $colorPrimario = '000C34';
 
          $estiloTitulo = array(
              'font' => array('bold' => true, 'size' => 20, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
