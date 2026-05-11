@@ -9,6 +9,7 @@ use App\Instance;
 use App\WhatsAppConversation;
 use App\WhatsAppMessage;
 use App\Services\CentralizedWhatsAppService;
+use App\Services\MetaWhatsAppService;
 use App\Model\Ingresos\Factura;
 use App\Model\Ingresos\Ingreso;
 use App\Contrato;
@@ -280,12 +281,40 @@ class ChatController extends Controller
             }
         }
 
-        // Enviar mensaje vía API Centralizada
-        $result = $this->centralizedService->sendMessage(
-            $instance->phone_number_id,
-            $conversationId, // phone_number
-            $request->message
-        );
+        // Enviar mensaje vía API Centralizada o Local (Meta Direct)
+        if ($instance->type == 1 && $instance->meta == 0) {
+            $metaService = new MetaWhatsAppService();
+            $result = $metaService->sendMessage(
+                $instance->phone_number_id,
+                $conversationId,
+                $request->message
+            );
+
+            if (isset($result['success']) && $result['success']) {
+                $wamid = $result['data']['messages'][0]['id'] ?? null;
+                if ($wamid) {
+                    $this->centralizedService->registerMessage($instance->phone_number_id, [
+                        'to'      => $conversationId,
+                        'wamid'   => $wamid,
+                        'content' => $request->message,
+                        'type'    => 'text',
+                        'status'  => 'sent',
+                    ]);
+                }
+                $result = $result['data']['messages'][0] ?? $result['data'];
+            } else {
+                $result = [
+                    'errorMessage' => $result['error']['error']['message'] ?? ($result['error']['message'] ?? 'Error al enviar mensaje vía Meta Direct'),
+                    'statusCode' => 500
+                ];
+            }
+        } else {
+            $result = $this->centralizedService->sendMessage(
+                $instance->phone_number_id,
+                $conversationId, // phone_number
+                $request->message
+            );
+        }
 
         \Log::info('ChatController::sendMessage result', ['result' => $result]);
 
