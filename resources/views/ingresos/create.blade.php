@@ -606,6 +606,50 @@
 @section('scripts')
 <script src="{{asset('lowerScripts/ingreso/ingreso.js')}}"></script>
 <script>
+    // Se define directamente aquí para evitar problemas de caché en producción
+    function aplicar_descuento_pendiente(id) {
+        var $pct = $('#descuento_pct_' + id);
+        var $err = $('#descuento_error_' + id);
+        var $aviso = $('#descuento_aviso_' + id);
+        var raw = $pct.val();
+        var pct = parseFloat(raw);
+
+        if (raw === '' || isNaN(pct) || pct < 0) {
+            pct = 0;
+            $pct.val(0);
+        }
+
+        if (pct > 99) {
+            pct = 99;
+            $pct.val(99);
+            $err.html('Máx. 99%');
+        } else {
+            $err.html('');
+        }
+
+        var tieneDescuentoExistente = $('#descuento_existente_' + id).val() == 1;
+        if (tieneDescuentoExistente && pct > 0) {
+            $aviso.show();
+        } else {
+            $aviso.hide();
+        }
+
+        var porPagar = parseFloat($('#totalfact' + id).val()) || 0;
+        var descuentoValor = (porPagar * pct) / 100;
+        var nuevoMonto = porPagar - descuentoValor;
+        if (nuevoMonto < 0) nuevoMonto = 0;
+
+        $('#descuento_valor_' + id).text(number_format(descuentoValor));
+
+        $('#editmonto' + id).val(1);
+        $('#precio' + id).val(nuevoMonto.toFixed(2));
+        $('#precio' + id).data('gross', nuevoMonto);
+
+        if (typeof totales_ingreso === 'function') {
+            totales_ingreso();
+        }
+    }
+
   $(document).ready(function(){
     //validacion
     let cliente = $("#clienteseleccionado").val();

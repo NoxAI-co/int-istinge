@@ -3108,9 +3108,22 @@ class ReportesController extends Controller
         }
 
         $movimientosContables = PucMovimiento::join('puc as p','p.id','puc_movimiento.cuenta_id')
+            ->leftJoin('contactos as c', 'c.id', '=', 'puc_movimiento.cliente_id')
             ->select(
+                'p.id as puc_id',
                 'p.nombre as cuentacontable',
                 'p.codigo as codigo_cuenta',
+                'puc_movimiento.sucursal as sucursal',
+                'puc_movimiento.cliente_id as cliente_id',
+                DB::raw("TRIM(CONCAT_WS(' ', c.nombre, c.apellido1, c.apellido2)) as tercero_nombre"),
+                DB::raw("CASE
+                    WHEN CHAR_LENGTH(p.codigo) = 1 THEN 1
+                    WHEN CHAR_LENGTH(p.codigo) = 2 THEN 2
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 3 AND 4 THEN 3
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 5 AND 6 THEN 4
+                    ELSE 5
+                END as nivel"),
+                DB::raw("CASE WHEN CHAR_LENGTH(p.codigo) >= 6 THEN 'Sí' ELSE 'No' END as transaccional"),
                 DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion < '$desde' THEN (puc_movimiento.debito - puc_movimiento.credito) ELSE 0 END) as saldo_inicial"),
                 DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.debito ELSE 0 END) as totaldebito"),
                 DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.credito ELSE 0 END) as totalcredito"),
@@ -3121,7 +3134,7 @@ class ReportesController extends Controller
                     ->orWhere('p.codigo', 'LIKE', '2%')
                     ->orWhere('p.codigo', 'LIKE', '3%');
             })
-            ->groupBy('p.id','p.nombre','p.codigo')
+            ->groupBy('p.id','p.nombre','p.codigo','puc_movimiento.sucursal','puc_movimiento.cliente_id','c.nombre','c.apellido1','c.apellido2')
             ->orderByRaw("LEFT(p.codigo, 1) $order, p.codigo $order")
             ->get();
 

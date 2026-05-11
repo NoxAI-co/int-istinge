@@ -48,6 +48,7 @@ use Illuminate\Support\Facades\Log;
 use PHPExcel; use PHPExcel_IOFactory; use PHPExcel_Style_Alignment; use PHPExcel_Style_Fill;
 use PHPExcel_Style_Border;
 use PHPExcel_Style_NumberFormat;
+use PHPExcel_Cell_DataType;
 use ZipArchive;
 use PHPExcel_Shared_ZipArchive;
 class ExportarReportesController extends Controller
@@ -4987,75 +4988,6 @@ class ExportarReportesController extends Controller
          DB::enableQueryLog();
 
          $objPHPExcel = new PHPExcel();
-         $tituloReporte = "Reporte de Balances desde " . $request->fecha . " hasta " . $request->hasta;
-
-         $titulosColumnas = array(
-             'Nombre',
-             'Codigo',
-             'Debito',
-             'Credito',
-             'Saldo Final',
-         );
-         $letras = array(
-             'A',
-             'B',
-             'C',
-             'D',
-             'E',
-             'F',
-             'G',
-             'H',
-             'I',
-             'J',
-             'K',
-             'L',
-             'M',
-             'N',
-             'O',
-             'P',
-             'Q',
-             'R',
-             'S',
-             'T',
-             'U',
-             'V',
-             'W',
-             'X',
-             'Y',
-             'Z'
-         );
-         $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
-         ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
-         ->setTitle("Reporte Excel Balances") // Titulo
-         ->setSubject("Reporte Excel Balances") //Asunto
-         ->setDescription("Reporte de Balances") //Descripci���n
-         ->setKeywords("reporte Balances") //Etiquetas
-         ->setCategory("Reporte excel"); //Categorias
-         // Se combinan las celdas A1 hasta D1, para colocar ah��� el titulo del reporte
-         $objPHPExcel->setActiveSheetIndex(0)
-             ->mergeCells('A1:I1');
-         // Se agregan los titulos del reporte
-         $objPHPExcel->setActiveSheetIndex(0)
-             ->setCellValue('A1', $tituloReporte);
-         $estilo = array(
-             'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
-             'alignment' => array(
-                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
-             )
-         );
-         $objPHPExcel->getActiveSheet()->getStyle('A1:E1')->applyFromArray($estilo);
-         $estilo = array(
-             'fill' => array(
-                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
-                 'color' => array('rgb' => 'd08f50')
-             )
-         );
-         $objPHPExcel->getActiveSheet()->getStyle('A3:E3')->applyFromArray($estilo);
-
-
-         for ($i = 0; $i < count($titulosColumnas); $i++) {
-             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
-         }
 
          if($request->fechas != 8){
              if (!$request->fecha) {
@@ -5071,53 +5003,187 @@ class ExportarReportesController extends Controller
              $hasta = now()->format('Y-m-d');
          }
 
-        $movimientosContables = PucMovimiento::join('puc as p','p.id','puc_movimiento.cuenta_id')
-        ->select('puc_movimiento.*','p.nombre as cuentacontable',
-        DB::raw("SUM((`debito`)) as totaldebito"),
-        DB::raw("SUM((`credito`)) as totalcredito"),
-        DB::raw("ABS(SUM((`credito`)) -  SUM((`debito`))) as totalfinal"))
-        ->orderBy('id', 'DESC')
-        ->groupBy('cuenta_id')
-        ->get();
+         $empresa = Auth::user()->empresa();
+         $mesesEs = [1=>'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+         $desdeCarbon = Carbon::parse($desde);
+         $hastaCarbon = Carbon::parse($hasta);
+         $periodo = 'De ' . $mesesEs[$desdeCarbon->month] . ' ' . $desdeCarbon->year . ' a ' . $mesesEs[$hastaCarbon->month] . ' ' . $hastaCarbon->year;
 
+         $tituloReporte = 'Balance de prueba por tercero';
+         $empresaNombre = $empresa->nombre ?? '';
+         $empresaNit = $empresa->nit ?? '';
 
-         // Aquí se escribe en el archivo
-         $i = 4;
-         foreach ($movimientosContables as $mov) {
-             $objPHPExcel->setActiveSheetIndex(0)
-                 ->setCellValue($letras[0] . $i, $mov->cuentacontable)
-                 ->setCellValue($letras[1] . $i, $mov->codigo_cuenta)
-                 ->setCellValue($letras[2] . $i, Auth::user()->empresa()->moneda . Funcion::Parsear($mov->totaldebito))
-                 ->setCellValue($letras[3] . $i, Auth::user()->empresa()->moneda . Funcion::Parsear($mov->totalcredito))
-                 ->setCellValue($letras[4] . $i, Auth::user()->empresa()->moneda . Funcion::Parsear($mov->totalfinal));
-             $i++;
-         }
-
-         $estilo = array(
-             'font' => array('size' => 12, 'name' => 'Times New Roman'),
-             'borders' => array(
-                 'allborders' => array(
-                     'style' => PHPExcel_Style_Border::BORDER_THIN
-                 )
-             ),
-             'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,)
+         $titulosColumnas = array(
+             'Nivel',
+             'Transaccional',
+             'Código cuenta contable',
+             'Nombre cuenta contable',
+             'Identificación',
+             'Sucursal',
+             'Nombre tercero',
+             'Saldo inicial',
+             'Movimiento débito',
+             'Movimiento crédito',
+             'Saldo final',
          );
-         $objPHPExcel->getActiveSheet()->getStyle('A3:E' . $i)->applyFromArray($estilo);
+         $letras = range('A', 'Z');
 
+         $objPHPExcel->getProperties()->setCreator("Sistema")
+            ->setLastModifiedBy("Sistema")
+            ->setTitle("Reporte Excel Balances")
+            ->setSubject("Reporte Excel Balances")
+            ->setDescription("Reporte de Balances")
+            ->setKeywords("reporte Balances")
+            ->setCategory("Reporte excel");
 
-         for ($i = 'A'; $i <= $letras[20]; $i++) {
-             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(true);
+         $sheet = $objPHPExcel->setActiveSheetIndex(0);
+
+         // Bloque de encabezado: título, empresa, NIT, periodo (filas 1-4)
+         $sheet->mergeCells('A1:K1')->setCellValue('A1', $tituloReporte);
+         $sheet->mergeCells('A2:K2')->setCellValue('A2', $empresaNombre);
+         $sheet->mergeCells('A3:K3')->setCellValue('A3', $empresaNit);
+         $sheet->mergeCells('A4:K4')->setCellValue('A4', $periodo);
+
+         $colorPrimario = '308EE0';
+
+         $estiloTitulo = array(
+             'font' => array('bold' => true, 'size' => 20, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
+             'alignment' => array(
+                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+             ),
+             'fill' => array(
+                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                 'color' => array('rgb' => $colorPrimario)
+             ),
+         );
+         $sheet->getStyle('A1:K1')->applyFromArray($estiloTitulo);
+         $sheet->getRowDimension(1)->setRowHeight(34);
+
+         $estiloSub = array(
+             'font' => array('bold' => true, 'size' => 12, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
+             'alignment' => array(
+                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+             ),
+             'fill' => array(
+                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                 'color' => array('rgb' => $colorPrimario)
+             ),
+         );
+         $sheet->getStyle('A2:K4')->applyFromArray($estiloSub);
+
+         // Fila 5 espaciador
+         $sheet->getRowDimension(5)->setRowHeight(8);
+
+         // Encabezados de columnas (fila 6)
+         $estiloEncabezado = array(
+             'font' => array('bold' => true, 'size' => 11, 'name' => 'Calibri', 'color' => array('rgb' => 'FFFFFF')),
+             'alignment' => array(
+                 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+                 'wrap' => true,
+             ),
+             'fill' => array(
+                 'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                 'color' => array('rgb' => $colorPrimario)
+             ),
+             'borders' => array(
+                 'allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN, 'color' => array('rgb' => 'FFFFFF'))
+             ),
+         );
+         for ($c = 0; $c < count($titulosColumnas); $c++) {
+             $sheet->setCellValue($letras[$c] . '6', $titulosColumnas[$c]);
+         }
+         $sheet->getStyle('A6:K6')->applyFromArray($estiloEncabezado);
+         $sheet->getRowDimension(6)->setRowHeight(38);
+
+        $movimientosContables = PucMovimiento::join('puc as p','p.id','puc_movimiento.cuenta_id')
+            ->leftJoin('contactos as c', 'c.id', '=', 'puc_movimiento.cliente_id')
+            ->select(
+                'p.id as puc_id',
+                'p.nombre as cuentacontable',
+                'p.codigo as codigo_cuenta',
+                'puc_movimiento.sucursal as sucursal',
+                'puc_movimiento.cliente_id as cliente_id',
+                'puc_movimiento.identificacion_tercero as identificacion_tercero',
+                DB::raw("TRIM(CONCAT_WS(' ', c.nombre, c.apellido1, c.apellido2)) as tercero_nombre"),
+                DB::raw("CASE
+                    WHEN CHAR_LENGTH(p.codigo) = 1 THEN 'Clase'
+                    WHEN CHAR_LENGTH(p.codigo) = 2 THEN 'Grupo'
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 3 AND 4 THEN 'Cuenta'
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 5 AND 6 THEN 'Subcuenta'
+                    ELSE 'Auxiliar'
+                END as nivel"),
+                DB::raw("CASE WHEN CHAR_LENGTH(p.codigo) >= 6 THEN 'Sí' ELSE 'No' END as transaccional"),
+                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion < '$desde' THEN (puc_movimiento.debito - puc_movimiento.credito) ELSE 0 END) as saldo_inicial"),
+                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.debito ELSE 0 END) as totaldebito"),
+                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.credito ELSE 0 END) as totalcredito"),
+                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion <= '$hasta' THEN (puc_movimiento.debito - puc_movimiento.credito) ELSE 0 END) as saldo_final")
+            )
+            ->where(function($query) {
+                $query->where('p.codigo', 'LIKE', '1%')
+                    ->orWhere('p.codigo', 'LIKE', '2%')
+                    ->orWhere('p.codigo', 'LIKE', '3%');
+            })
+            ->groupBy('p.id','p.nombre','p.codigo','puc_movimiento.sucursal','puc_movimiento.cliente_id','puc_movimiento.identificacion_tercero','c.nombre','c.apellido1','c.apellido2')
+            ->orderByRaw("LEFT(p.codigo, 1) ASC, p.codigo ASC")
+            ->get();
+
+         // Datos (a partir de la fila 7)
+         $row = 7;
+         foreach ($movimientosContables as $mov) {
+             $sheet
+                 ->setCellValue($letras[0] . $row, $mov->nivel)
+                 ->setCellValue($letras[1] . $row, $mov->transaccional)
+                 ->setCellValueExplicit($letras[2] . $row, $mov->codigo_cuenta, PHPExcel_Cell_DataType::TYPE_STRING)
+                 ->setCellValue($letras[3] . $row, $mov->cuentacontable)
+                 ->setCellValueExplicit($letras[4] . $row, $mov->identificacion_tercero, PHPExcel_Cell_DataType::TYPE_STRING)
+                 ->setCellValue($letras[5] . $row, $mov->sucursal)
+                 ->setCellValue($letras[6] . $row, $mov->tercero_nombre)
+                 ->setCellValue($letras[7] . $row, (float) $mov->saldo_inicial)
+                 ->setCellValue($letras[8] . $row, (float) $mov->totaldebito)
+                 ->setCellValue($letras[9] . $row, (float) $mov->totalcredito)
+                 ->setCellValue($letras[10] . $row, (float) $mov->saldo_final);
+             $row++;
          }
 
-         // Se asigna el nombre a la hoja
-         $objPHPExcel->getActiveSheet()->setTitle('Reporte de Balances');
+         $ultimaFila = $row - 1;
+         if ($ultimaFila < 7) { $ultimaFila = 7; }
 
-         // Se activa la hoja para que sea la que se muestre cuando el archivo se abre
-         $objPHPExcel->setActiveSheetIndex(0);
+         // Estilo del cuerpo
+         $estiloCuerpo = array(
+             'font' => array('size' => 10, 'name' => 'Calibri'),
+             'borders' => array(
+                 'allborders' => array('style' => PHPExcel_Style_Border::BORDER_THIN, 'color' => array('rgb' => 'D9D9D9'))
+             ),
+             'alignment' => array(
+                 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+             )
+         );
+         $sheet->getStyle('A7:K' . $ultimaFila)->applyFromArray($estiloCuerpo);
 
-         // Inmovilizar paneles
-         $objPHPExcel->getActiveSheet(0)->freezePane('A2');
-         $objPHPExcel->getActiveSheet(0)->freezePaneByColumnAndRow(0, 4);
+         // Alinear texto a la izquierda y números a la derecha
+         $sheet->getStyle('A7:G' . $ultimaFila)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+         $sheet->getStyle('H7:K' . $ultimaFila)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+
+         // Formato numérico para columnas monetarias
+         $sheet->getStyle('H7:K' . $ultimaFila)->getNumberFormat()->setFormatCode('#,##0.00;-#,##0.00');
+
+         // Auto-filtro sobre los encabezados
+         $sheet->setAutoFilter('A6:K' . $ultimaFila);
+
+         // Auto ajustar ancho de columnas
+         foreach (range('A', 'K') as $col) {
+             $sheet->getColumnDimension($col)->setAutoSize(true);
+         }
+
+         // Hoja
+         $sheet->setTitle('Balance por tercero');
+
+         // Inmovilizar paneles para mantener el encabezado visible
+         $sheet->freezePane('A7');
+
          $objPHPExcel->setActiveSheetIndex(0);
          header("Pragma: no-cache");
          header('Content-type: application/vnd.ms-excel');
