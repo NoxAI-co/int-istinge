@@ -5170,9 +5170,6 @@ class ExportarReportesController extends Controller
          // Formato numérico para columnas monetarias
          $sheet->getStyle('H7:K' . $ultimaFila)->getNumberFormat()->setFormatCode('#,##0.00;-#,##0.00');
 
-         // Auto-filtro sobre los encabezados
-         $sheet->setAutoFilter('A6:K' . $ultimaFila);
-
          // Auto ajustar ancho de columnas
          foreach (range('A', 'K') as $col) {
              $sheet->getColumnDimension($col)->setAutoSize(true);
