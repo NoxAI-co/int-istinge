@@ -2056,38 +2056,35 @@ class CronController extends Controller
             foreach ($contactos as $contacto) {
 
                 $factura = Factura::find($contacto->factura);
+                if (!$factura) continue;
 
-                //ESto es lo que hay que refactorizar.
                 $facturaContratos = DB::table('facturas_contratos')
-                ->where('factura_id',$factura->id)->pluck('contrato_nro');
+                    ->where('factura_id', $factura->id)
+                    ->pluck('contrato_nro');
 
-                if(!DB::table('facturas_contratos')
-                ->where('factura_id',$factura->id)->first()){
-                    $facturaContratos = Contrato::where('id',$factura->contrato_id)->pluck('nro');
+                if ($facturaContratos->isEmpty()) {
+                    $facturaContratos = Contrato::where('id', $factura->contrato_id)->pluck('nro');
                 }
 
-                $contratosId = Contrato::whereIn('nro',$facturaContratos)
-                ->pluck('id');
+                $contratosId = Contrato::whereIn('nro', $facturaContratos)->pluck('id');
 
-                $ultimaFacturaRegistrada = Factura::
-                where('cliente',$factura->cliente)
-                ->where('estatus','<>',2)
-                ->whereIn('contrato_id',$contratosId)
-                ->orderBy('created_at', 'desc')
-                ->value('id');
+                $ultimaFacturaRegistrada = Factura::where('cliente', $factura->cliente)
+                    ->where('estatus', '<>', 2)
+                    ->whereIn('contrato_id', $contratosId)
+                    ->orderBy('created_at', 'desc')
+                    ->value('id');
 
                 //manera antigua de buscar el contrato.
                 if(!$ultimaFacturaRegistrada){
-                      $ultimaFacturaRegistrada = Factura::
-                        where('cliente',$factura->cliente)
-                        ->where('contrato_id',$factura->contrato_id)
+                      $ultimaFacturaRegistrada = Factura::where('cliente', $factura->cliente)
+                        ->where('contrato_id', $factura->contrato_id)
                         ->orderBy('created_at', 'desc')
                         ->value('id');
                 }
 
                 if($factura->id == $ultimaFacturaRegistrada){
-                    $itemReconexion = Inventario::where('type','RECONEXION')->first();
-                    $itemExiste = ItemsFactura::where('factura',$factura->id)->where('ref','RECONEXION')->first();
+                    $itemReconexion = Inventario::where('type', 'RECONEXION')->first();
+                    $itemExiste = ItemsFactura::where('factura', $factura->id)->where('ref', 'RECONEXION')->first();
                     if($itemReconexion && !$itemExiste){
                         $item = new ItemsFactura();
                         $item->factura     = $factura->id;
@@ -2100,6 +2097,25 @@ class CronController extends Controller
                         $item->cant        = 1;
                         $item->desc        = $itemReconexion->descuento;
                         $item->save();
+
+                        // Integración con OnePay si está habilitado
+                        if(OnePayService::isEnabled($empresa->id)){
+                            try {
+                                $onePayService = new OnePayService($empresa->id);
+                                // Forzar refresco del modelo factura para obtener el total actualizado
+                                $factura = Factura::find($factura->id);
+                                if(!$factura->onepay_invoice_id){
+                                    $onePayService->createInvoice($factura, $empresa->id);
+                                } else {
+                                    $onePayService->updateInvoice($factura, $empresa->id);
+                                }
+                            } catch (\Exception $e) {
+                                Log::error('Error al actualizar factura en OnePay (Reconexión): ' . $e->getMessage(), [
+                                    'factura_id' => $factura->id,
+                                    'empresa_id' => $empresa->id
+                                ]);
+                            }
+                        }
                     }
                 }
             }

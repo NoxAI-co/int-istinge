@@ -827,15 +827,23 @@ class FacturasController extends Controller{
                     }
                 });
             }
-            if($request->whatsapp && is_array($request->whatsapp) && count($request->whatsapp) > 0){
-                $whatsappValues = $request->whatsapp;
-                $facturas->where(function ($query) use ($whatsappValues) {
-                    $query->whereIn('factura.whatsapp', $whatsappValues);
-                    // Si se selecciona "No" (valor 0), también incluir NULLs
-                    if(in_array('0', $whatsappValues)){
-                        $query->orWhereNull('factura.whatsapp');
-                    }
-                });
+            if($request->whatsapp){
+                $whatsapp = ($request->whatsapp == 'A') ? 0 : $request->whatsapp;
+                if (is_array($whatsapp)) {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->whereIn('factura.whatsapp', $whatsapp);
+                        if(in_array('0', $whatsapp)){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                } else {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->where('factura.whatsapp', $whatsapp);
+                        if($whatsapp == 0){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                }
             }
             if($request->municipio){
                 $facturas->where(function ($query) use ($request) {
@@ -1282,15 +1290,23 @@ class FacturasController extends Controller{
                 $correo = ($request->correo == 'A') ? 0 : $request->correo;
                 $facturas->where('factura.correo', $correo);
             }
-            if($request->whatsapp && is_array($request->whatsapp) && count($request->whatsapp) > 0){
-                $whatsappValues = $request->whatsapp;
-                $facturas->where(function ($query) use ($whatsappValues) {
-                    $query->whereIn('factura.whatsapp', $whatsappValues);
-                    // Si se selecciona "No" (valor 0), también incluir NULLs
-                    if(in_array('0', $whatsappValues)){
-                        $query->orWhereNull('factura.whatsapp');
-                    }
-                });
+            if($request->whatsapp){
+                $whatsapp = ($request->whatsapp == 'A') ? 0 : $request->whatsapp;
+                if (is_array($whatsapp)) {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->whereIn('factura.whatsapp', $whatsapp);
+                        if(in_array('0', $whatsapp)){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                } else {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->where('factura.whatsapp', $whatsapp);
+                        if($whatsapp == 0){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                }
             }
             if($request->servidor){
                 $facturas->where(function ($query) use ($request) {

@@ -255,9 +255,9 @@
 							</select>
 						</div>
 						<div class="col-md-3 pl-1 pt-1">
-							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp" multiple data-live-search="false">
+							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp">
 								<option value="1">Si</option>
-								<option value="0">No</option>
+								<option value="A">No</option>
 							</select>
 						</div>
 					</div>
