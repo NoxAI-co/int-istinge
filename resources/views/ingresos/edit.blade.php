@@ -417,25 +417,8 @@
     <input type="hidden" id="formaspago" value="{{json_encode($relaciones)}}">
 
     <input type="hidden" id="allcategorias" value='@foreach($categorias as $categoria)
-    <optgroup label="{{$categoria->nombre}}">
-        @foreach($categoria->hijos(true) as $categoria1)
-          <option {{old('categoria')==$categoria1->id?'selected':''}} value="{{$categoria1->id}}" {{$categoria1->estatus==0?'disabled':''}}>{{$categoria1->nombre}}</option>
-          @foreach($categoria1->hijos(true) as $categoria2)
-              <option class="hijo" {{old('categoria')==$categoria2->id?'selected':''}} value="{{$categoria2->id}}" {{$categoria2->estatus==0?'disabled':''}}>{{$categoria2->nombre}}</option>
-            @foreach($categoria2->hijos(true) as $categoria3)
-              <option class="nieto" {{old('categoria')==$categoria3->id?'selected':''}} value="{{$categoria3->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria3->nombre}}</option>
-              @foreach($categoria3->hijos(true) as $categoria4)
-                <option class="bisnieto" {{old('categoria')==$categoria4->id?'selected':''}} value="{{$categoria4->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria4->nombre}}</option>
-
-              @endforeach
-
-            @endforeach
-
-          @endforeach
-        @endforeach
-    </optgroup>
-  @endforeach'>
-@endsection
+    <option {{old('categoria')==$categoria->id?'selected':''}} value="{{$categoria->id}}" {{$categoria->estatus==0?'disabled':''}}>{{$categoria->nombre}}</option>
+    @endforeach'>@endsection
 
 @section('scripts')
 <script src="{{asset('lowerScripts/ingreso/ingreso.js')}}"></script>

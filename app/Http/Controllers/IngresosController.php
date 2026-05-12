@@ -548,24 +548,13 @@ class IngresosController extends Controller
                 }
             }
 
-            if (Ingreso::where('empresa', $user->empresa)->count() > 0) {
-                Session::put('posttimer', Ingreso::where('empresa', $user->empresa)->get()->last()->created_at);
-                $sw = 1;
+            $ultimoingreso = Ingreso::where('empresa', $user->empresa)->latest('id')->value('created_at');
+            if ($ultimoingreso) {
+                $diasDiferencia = Carbon::now()->diffInSeconds(Carbon::parse($ultimoingreso));
 
-                foreach (Session::get('posttimer') as $key) {
-                    if ($sw == 1) {
-                        $ultimoingreso = $key;
-                        $sw = 0;
-                    }
-                }
-
-                if(isset($ultimoingreso)){
-                    $diasDiferencia = Carbon::now()->diffInseconds($ultimoingreso);
-
-                    if ($diasDiferencia <= 10) {
-                        $mensaje='EL PAGO NO HA SIDO PROCESADO, INTÉNTELO NUEVAMENTE';
-                        return back()->with('danger', $mensaje)->withInput();
-                    }
+                if ($diasDiferencia <= 10) {
+                    $mensaje='EL PAGO NO HA SIDO PROCESADO, INTÉNTELO NUEVAMENTE';
+                    return back()->with('danger', $mensaje)->withInput();
                 }
             }
 
