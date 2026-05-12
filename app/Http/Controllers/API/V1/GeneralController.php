@@ -37,12 +37,19 @@ class GeneralController extends Controller
         }
 
         if (isset($request->identificacion)) {
-            $cliente = Contacto::where('nit', $request->identificacion)->first();
-            if ($cliente) {
-                $contratos = Contrato::where('client_id', $cliente->id)->get();
+            $clientes = Contacto::where('nit', $request->identificacion)->get();
+            if ($clientes->count() > 0) {
+                $ids = $clientes->pluck('id');
+                $contratos_all = Contrato::whereIn('client_id', $ids)->get();
 
-                if (count($contratos) == 0) {
+                if (count($contratos_all) == 0) {
                     return response()->json(['status' => 400, 'message' => 'No se encontraron datos']);
+                }
+
+                // Filtrar por habilitados si existen, de lo contrario usar todos
+                $contratos = $contratos_all->where('state', 'enabled');
+                if ($contratos->count() == 0) {
+                    $contratos = $contratos_all;
                 }
 
                 // Attach plans to all contracts for multicontrato case
@@ -51,7 +58,7 @@ class GeneralController extends Controller
                 }
 
                 if (count($contratos) > 1) {
-                    return response()->json(['data' => $contratos, 'status' => 200, 'multicontratos' => true]);
+                    return response()->json(['data' => $contratos->values(), 'status' => 200, 'multicontratos' => true]);
                 } else {
                     $contrato = $contratos->first();
                     $deuda = "$" . \App\Funcion::Parsear($contrato->deudaFacturas());

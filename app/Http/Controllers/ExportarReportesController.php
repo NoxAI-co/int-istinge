@@ -23,6 +23,7 @@ use App\Model\Inventario\Inventario;
 use App\Model\Inventario\ProductosBodega;
 use App\Movimiento;
 use App\Vendedor;
+use App\Oficina;
 use App\Radicado;
 use App\PucMovimiento;
 use App\Puc;
@@ -1258,39 +1259,52 @@ class ExportarReportesController extends Controller
     public function contactos(Request $request, $tipo=2){
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Contactos de ".Auth::user()->empresa()->nombre;
-        $titulosColumnas = array('Nombres', 'Tipo de identificacion', 'Identificacion','Pais','Departamento','Municipio',
-            'Codigo postal','Telefono', 'Telefono 2', 'Fax', 'Celular', 'Direccion','Ciudad', 'Correo Electronico', 'Observaciones',
-            'Tipo de Empresa', 'Tipo de Contacto', 'Vendedor', 'DV', 'Tipo persona', 'Responsabilidad');
-        $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $titulosColumnas = array(
+            'ID', 'Nombre', 'Apellido 1', 'Apellido 2',
+            'Tipo de identificacion', 'Identificacion', 'DV',
+            'Tipo de persona', 'Responsabilidad IVA',
+            'Tipo de Empresa', 'Tipo de Contacto', 'Estatus',
+            'Pais', 'Departamento', 'Municipio', 'Codigo postal',
+            'Ciudad', 'Barrio', 'Direccion', 'Estrato',
+            'Telefono 1', 'Telefono 2', 'Celular', 'Fax', 'Correo Electronico',
+            'Vendedor', 'Lista de precio', 'Oficina', 'Etiqueta', 'Saldo a favor',
+            'Plan', 'Contrato', 'Serial ONU', 'Fecha contrato',
+            'Referencia asignacion', 'Referencia 1', 'Referencia 2', 'Refiere',
+            'Combo Internet/TV', 'Cierra venta', 'Boton emision', 'Monitoreo',
+            'Usuario WiFi', 'Contrasena WiFi', 'IP receptora', 'Puerto receptor', 'PPT',
+            'Factura electronica',
+            'Observaciones', 'Creado', 'Actualizado'
+        );
+        $letras = array();
+        foreach (range('A', 'Z') as $l) { $letras[] = $l; }
+        foreach (range('A', 'Z') as $l) { $letras[] = 'A'.$l; }
+        $totalCols = count($titulosColumnas);
+        $ultimaLetra = $letras[$totalCols - 1];
 
-        $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
-        ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
-        ->setTitle("Reporte Excel Contactos") // Titulo
-        ->setSubject("Reporte Excel Contactos") //Asunto
-        ->setDescription("Reporte de Contactos") //Descripci���n
-        ->setKeywords("reporte Contactos") //Etiquetas
-        ->setCategory("Reporte excel"); //Categorias
-        // Se combinan las celdas A1 hasta D1, para colocar ah��� el titulo del reporte
+        $objPHPExcel->getProperties()->setCreator("Sistema")
+        ->setLastModifiedBy("Sistema")
+        ->setTitle("Reporte Excel Contactos")
+        ->setSubject("Reporte Excel Contactos")
+        ->setDescription("Reporte de Contactos")
+        ->setKeywords("reporte Contactos")
+        ->setCategory("Reporte excel");
         $objPHPExcel->setActiveSheetIndex(0)
             ->mergeCells('A1:D1');
-        // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue('A1',$tituloReporte);
-        // Titulo del reporte
         $objPHPExcel->setActiveSheetIndex(0)
             ->mergeCells('A2:C2');
-        // Se agregan los titulos del reporte
         $objPHPExcel->setActiveSheetIndex(0)
-            ->setCellValue('A2','Fecha '.date('d-m-Y')); // Titulo del reporte
+            ->setCellValue('A2','Fecha '.date('d-m-Y'));
 
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman' ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
         ));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:U3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:'.$ultimaLetra.'3')->applyFromArray($estilo);
 
         $estilo =array('fill' => array(
             'type' => PHPExcel_Style_Fill::FILL_SOLID,
             'color' => array('rgb' => 'd08f50')));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:U3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:'.$ultimaLetra.'3')->applyFromArray($estilo);
 
 
         for ($i=0; $i <count($titulosColumnas) ; $i++) {
@@ -1299,39 +1313,86 @@ class ExportarReportesController extends Controller
         }
 
         $i=4;
-        $letra=0;
-        $dates = $this->setDateRequest($request);
-        $contactos = Contacto::where('empresa',Auth::user()->empresa)
-            ->where('created_at', '>=', $dates['inicio'])
-            ->where('created_at', '<=', $dates['fin'])
-            ->get();
+        $sinFiltro = $request->input('fechas') == 8;
+        $query = Contacto::where('empresa', Auth::user()->empresa);
+        if (!$sinFiltro) {
+            $dates = $this->setDateRequest($request);
+            $query->where('created_at', '>=', $dates['inicio'])
+                  ->where('created_at', '<=', $dates['fin']);
+        }
+        $contactos = $query->get();
         if ($tipo<>2) {
             $contactos=$contactos->whereIn('tipo_contacto',[$tipo,2]);
         }
-        $empresa        = Empresa::find(Auth::user()->empresa);
         foreach ($contactos as $contacto) {
-            $objPHPExcel->setActiveSheetIndex(0)
-                ->setCellValue($letras[0].$i, $contacto->nombre)
-                ->setCellValue($letras[1].$i, $contacto->tip_iden())
-                ->setCellValue($letras[2].$i, $contacto->nit)
-                ->setCellValue($letras[3].$i, $contacto->paisName)
-                ->setCellValue($letras[4].$i, $contacto->departamentoName)
-                ->setCellValue($letras[5].$i, $contacto->municipioName)
-                ->setCellValue($letras[6].$i, $contacto->cod_municipio)
-                ->setCellValue($letras[7].$i, $contacto->telefono1)
-                ->setCellValue($letras[8].$i, $contacto->telefono2)
-                ->setCellValue($letras[9].$i, $contacto->fax)
-                ->setCellValue($letras[10].$i, $contacto->celular)
-                ->setCellValue($letras[11].$i, $contacto->direccion)
-                ->setCellValue($letras[12].$i, $contacto->ciudad)
-                ->setCellValue($letras[13].$i, $contacto->email)
-                ->setCellValue($letras[14].$i, $contacto->observaciones)
-                ->setCellValue($letras[15].$i, $contacto->tipo_empresa())
-                ->setCellValue($letras[16].$i, $contacto->tipo_contacto())
-                ->setCellValue($letras[17].$i, $contacto->vendedor())
-                ->setCellValue($letras[18].$i, $contacto->dv)
-                ->setCellValue($letras[19].$i, $contacto->tipo_persona())
-                ->setCellValue($letras[20].$i, $contacto->responsableIva());
+            $etiquetaNombre = '';
+            if ($contacto->etiqueta_id) {
+                $etq = DB::table('etiquetas')->where('id', $contacto->etiqueta_id)->first();
+                $etiquetaNombre = $etq ? $etq->nombre : '';
+            }
+            $oficinaNombre = '';
+            if ($contacto->oficina) {
+                $of = Oficina::find($contacto->oficina);
+                $oficinaNombre = $of ? $of->nombre : '';
+            }
+            $estatusTxt = $contacto->status ? 'Activo' : 'Inactivo';
+            $row = [
+                $contacto->id,
+                $contacto->nombre,
+                $contacto->apellido1,
+                $contacto->apellido2,
+                $contacto->tip_iden ? $contacto->tip_iden() : '',
+                $contacto->nit,
+                $contacto->dv,
+                $contacto->tipo_persona(),
+                $contacto->responsableIva(),
+                $contacto->tipo_empresa(),
+                $contacto->tipo_contacto(),
+                $estatusTxt,
+                $contacto->paisName,
+                $contacto->departamentoName,
+                $contacto->municipioName,
+                $contacto->cod_municipio,
+                $contacto->ciudad,
+                $contacto->barrio()->nombre,
+                $contacto->direccion,
+                $contacto->estrato,
+                $contacto->telefono1,
+                $contacto->telefono2,
+                $contacto->celular,
+                $contacto->fax,
+                $contacto->email,
+                $contacto->vendedor(),
+                $contacto->lista_precios(),
+                $oficinaNombre,
+                $etiquetaNombre,
+                $contacto->saldo_favor,
+                $contacto->plan,
+                $contacto->getAttributes()['contrato'] ?? '',
+                $contacto->serial_onu,
+                $contacto->fecha_contrato,
+                $contacto->referencia_asignacion,
+                $contacto->referencia_1,
+                $contacto->referencia_2,
+                $contacto->refiere,
+                $contacto->combo_int_tv,
+                $contacto->cierra_venta,
+                $contacto->boton_emision,
+                $contacto->monitoreo,
+                $contacto->usuario_wifi,
+                $contacto->contrasena_wifi,
+                $contacto->ip_receptora,
+                $contacto->puerto_receptor,
+                $contacto->ppt,
+                $contacto->factura_est_elec ? 'Activo' : 'Inactivo',
+                $contacto->observaciones,
+                $contacto->created_at,
+                $contacto->updated_at,
+            ];
+            foreach ($row as $idx => $value) {
+                $objPHPExcel->setActiveSheetIndex(0)
+                    ->setCellValueExplicit($letras[$idx].$i, (string) $value, PHPExcel_Cell_DataType::TYPE_STRING);
+            }
             $i++;
         }
 
@@ -1341,10 +1402,10 @@ class ExportarReportesController extends Controller
                     'style' => PHPExcel_Style_Border::BORDER_THIN
                 )
             ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:U'.$i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:'.$ultimaLetra.$i)->applyFromArray($estilo);
 
-        for($i = 'A'; $i <= $letras[20]; $i++){
-            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        for ($c = 0; $c < $totalCols; $c++) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($letras[$c])->setAutoSize(TRUE);
         }
 
         // Se asigna el nombre a la hoja

@@ -1809,23 +1809,26 @@ class ReportesController extends Controller
     public function getReporteContactos(Request $request){
         $this->getAllPermissions(Auth::user()->id);
 
-        $dates  = $this->setDateRequest($request);
+        $sinFiltro = $request->input('fechas') == 8;
 
         $contactos=Contacto::join('tipos_empresa as te', 'te.id', '=', 'contactos.tipo_empresa')
             ->select('contactos.*', 'te.nombre as tipo_emp')
             ->where('contactos.empresa', Auth::user()->empresa)
-            ->where('contactos.created_at','>=', $dates['inicio'].' 00:00:00')
-            ->where('contactos.created_at','<=', $dates['fin'].' 00:00:00')
             ->orderBy('contactos.id','DESC');
 
+        if(!$sinFiltro){
+            $dates  = $this->setDateRequest($request);
+            $contactos->where('contactos.created_at','>=', $dates['inicio'].' 00:00:00')
+                      ->where('contactos.created_at','<=', $dates['fin'].' 00:00:00');
 
-        if($request->fecha){
-            $appends['fecha']=$request->fecha;
-            $contactos = $contactos->where('contactos.created_at', ">=", date('Y-m-d', strtotime($request->fecha)));
-        }
-        if($request->fecha){
-            $appends['hasta']=$request->hasta;
-            $contactos=$contactos->where('contactos.created_at', "<=", date('Y-m-d', strtotime($request->hasta)));
+            if($request->fecha){
+                $appends['fecha']=$request->fecha;
+                $contactos = $contactos->where('contactos.created_at', ">=", date('Y-m-d', strtotime($request->fecha)));
+            }
+            if($request->fecha){
+                $appends['hasta']=$request->hasta;
+                $contactos=$contactos->where('contactos.created_at', "<=", date('Y-m-d', strtotime($request->hasta)));
+            }
         }
 
         $contactos=$contactos->get();
