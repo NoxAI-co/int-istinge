@@ -655,7 +655,7 @@ class IngresosController extends Controller
 
                         Log::debug("IngresosController@store: Contrato asociado a factura #{$factura->codigo}: " . ($contrato ? "Contrato #{$contrato->nro}" : "Ninguno"));
 
-                        if($contrato){
+                        if($contrato && (!isset($request->tipo_electronica) || $request->tipo_electronica != 6)){
                             try {
                                 Log::debug("IngresosController@store: Validando ejecución MK para contrato #{$contrato->nro} (ID: {$contrato->id}). Consultas_mk: {$empresa->consultas_mk}");
                                 if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
