@@ -82,7 +82,7 @@ class IngresosController extends Controller
         } else {
             $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
         }
-        $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+        $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
         //$clientes = Contacto::where('empresa', auth()->user()->empresa)->orderBy('nombre','asc')->get();
         $metodos = DB::table('metodos_pago')->where('id', '!=', 8)->where('id', '!=', 7)->get();
         $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 5)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
@@ -255,7 +255,7 @@ class IngresosController extends Controller
             $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
         }
         // $clientes = (Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
-        $clientes = Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+        $clientes = Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
         //$clientes = Contacto::where('empresa',Auth::user()->empresa)->whereIn('tipo_contacto',[0,2])->where('status', 1)->get();
         $metodos_pago =DB::table('metodos_pago')->whereIn('id',[1,2,3,4,5,6,9])->orderby('orden','asc')->get();
         $inventario = Inventario::where('empresa',Auth::user()->empresa)->where('status', 1)->get();
@@ -2173,7 +2173,7 @@ class IngresosController extends Controller
             } else {
                 $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
             }
-            $clientes = (Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+            $clientes = (Auth::user()->empresa()->oficina) ? Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
             $metodos_pago =DB::table('metodos_pago')->get();
             $retenciones = Retencion::where('empresa',Auth::user()->empresa)->where('modulo',1)->get();
             $categorias = Puc::where('empresa',auth()->user()->empresa)
