@@ -2942,23 +2942,72 @@ class CronController extends Controller
             ->orWhere('nombre', 'INTEGRAPAY')->where('estatus', 1)->where('lectura', 1)->first();
         $pasarela = ($banco && $banco->nombre == 'ONEPAY') ? 'OnePay' : 'IntegraPay';
 
-        // OPTIMIZACIÓN: Si estamos en FPM, respondemos 'success' de inmediato
-        // para que OnePay no nos dé timeout de 10s mientras procesamos Mikrotik/SMS/OLT.
+        // ═══════════════════════════════════════════════════════════════════════
+        // OPTIMIZACIÓN: Respondemos HTTP 200 INMEDIATAMENTE a OnePay para evitar
+        // timeout de 10s. El procesamiento pesado (Mikrotik, SMS, OLT) continúa
+        // en background después de cerrar la conexión HTTP con el cliente.
+        // Compatible con PHP-FPM (fastcgi_finish_request) y Apache/mod_php
+        // (Connection: close + ob_flush).
+        // ═══════════════════════════════════════════════════════════════════════
+        ignore_user_abort(true);
+        set_time_limit(120); // Dar hasta 2 minutos para procesamiento en background
+
+        // Capturamos los IDs necesarios ANTES de cerrar la conexión
+        $facturaId = $factura->id;
+
         if (function_exists('fastcgi_finish_request')) {
-            Log::info('[OnePay Webhook] Respondiendo success anticipadamente (FPM)');
-            ignore_user_abort(true);
-            echo 'success';
+            // ── PHP-FPM: método más eficiente ──
+            Log::info('[OnePay Webhook] Respondiendo 200 anticipadamente (FPM)', [
+                'paymentId' => $paymentId, 'factura_id' => $facturaId
+            ]);
+            ob_end_clean();
+            header("HTTP/1.1 200 OK");
             header("Content-Type: text/plain");
-            header("Content-Length: " . strlen('success'));
+            header("Content-Length: 7");
             header("Connection: close");
+            echo 'success';
             fastcgi_finish_request();
+        } else {
+            // ── Apache/mod_php: flush + Connection: close ──
+            Log::info('[OnePay Webhook] Respondiendo 200 anticipadamente (Apache)', [
+                'paymentId' => $paymentId, 'factura_id' => $facturaId
+            ]);
+            ob_end_clean();
+            header("HTTP/1.1 200 OK");
+            header("Content-Type: text/plain");
+            header("Connection: close");
+            ob_start();
+            echo 'success';
+            $size = ob_get_length();
+            header("Content-Length: $size");
+            ob_end_flush();
+            flush();
+            // Dar un momento para que los buffers se vacíen al cliente
+            if (function_exists('litespeed_finish_request')) {
+                litespeed_finish_request(); // Soporte para LiteSpeed
+            }
         }
 
-        $resultado = $this->procesarPagoFactura($factura, $paymentId, $montoPagado, $pasarela);
-        
-        // Si no se usó fastcgi_finish_request, responder normalmente
-        if (!function_exists('fastcgi_finish_request')) {
-            return response($resultado ? 'success' : 'false', 200);
+        // ── PROCESAMIENTO EN BACKGROUND (OnePay ya recibió el 200 OK) ──
+        try {
+            // Re-cargar la factura fresca desde DB para evitar datos obsoletos
+            $factura = Factura::find($facturaId);
+            if (!$factura || $factura->estatus != 1) {
+                Log::info('[OnePay Webhook BG] Factura ya cerrada al iniciar procesamiento', [
+                    'factura_id' => $facturaId
+                ]);
+                return;
+            }
+
+            $resultado = $this->procesarPagoFactura($factura, $paymentId, $montoPagado, $pasarela);
+            Log::info('[OnePay Webhook BG] Procesamiento completado', [
+                'resultado' => $resultado, 'paymentId' => $paymentId, 'factura_id' => $facturaId
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[OnePay Webhook BG] Error en procesamiento background', [
+                'paymentId' => $paymentId, 'factura_id' => $facturaId,
+                'error' => $e->getMessage(), 'line' => $e->getLine()
+            ]);
         }
     }
 
@@ -3244,7 +3293,8 @@ class CronController extends Controller
                                     CURLOPT_RETURNTRANSFER => true,
                                     CURLOPT_ENCODING => '',
                                     CURLOPT_MAXREDIRS => 10,
-                                    CURLOPT_TIMEOUT => 0,
+                                    CURLOPT_TIMEOUT => 15,
+                                    CURLOPT_CONNECTTIMEOUT => 5,
                                     CURLOPT_FOLLOWLOCATION => true,
                                     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
                                     CURLOPT_CUSTOMREQUEST => 'POST',CURLOPT_POSTFIELDS => json_encode($post),
@@ -3272,6 +3322,8 @@ class CronController extends Controller
                                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                                 curl_setopt($ch, CURLOPT_POST, 1);
                                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
                                 curl_setopt($ch, CURLOPT_HTTPHEADER,
                                     array(
                                         "Accept: application/json",
@@ -3293,6 +3345,8 @@ class CronController extends Controller
                                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                                 curl_setopt($ch, CURLOPT_POST, 1);
                                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
                                 curl_setopt($ch, CURLOPT_HTTPHEADER,
                                     array(
                                         "Accept: application/json",
