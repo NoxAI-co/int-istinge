@@ -3102,9 +3102,9 @@ class CronController extends Controller
                 }
 
                 // PAGINACIÓN INTELIGENTE: detener solo cuando TODA la página ya fue procesada
-                // Esto evita saltar pagos nuevos intercalados con duplicados en la misma página.
-                if ($totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
-                    Log::info('[SyncIntegraPay] Página completa de duplicados, deteniendo', [
+                // Forzamos el recorrido de al menos 10 páginas antes de aplicar el corte por duplicados.
+                if ($page >= 10 && $totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
+                    Log::info('[SyncIntegraPay] Página completa de duplicados y alcanzado límite mínimo de páginas, deteniendo', [
                         'page' => $page, 'yaConocidos' => $yaConocidosEnPagina
                     ]);
                     break;
