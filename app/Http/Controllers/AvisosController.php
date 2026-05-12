@@ -401,8 +401,25 @@ class AvisosController extends Controller
                     try {
                         $metaService = new \App\Services\MetaWhatsAppService();
 
-                        // Factura para campos dinámicos
-                        $factura = Factura::where('contrato_id', $contrato->id)->latest()->first();
+                        // Factura para campos dinámicos.
+                        // Se busca a través de facturas_contratos filtrando por contrato_nro Y client_id
+                        // para evitar que se use una factura de un cliente anterior del mismo contrato.
+                        $factura = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                            ->where('fc.contrato_nro', $contrato->nro)
+                            ->where('fc.client_id', $contrato->client_id)
+                            ->where('factura.estatus', 1)
+                            ->orderBy('fc.id', 'desc')
+                            ->select('factura.*')
+                            ->first();
+
+                        if (!$factura) {
+                            $factura = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                                ->where('fc.contrato_nro', $contrato->nro)
+                                ->where('fc.client_id', $contrato->client_id)
+                                ->orderBy('fc.id', 'desc')
+                                ->select('factura.*')
+                                ->first();
+                        }
 
                         if ($factura && $factura->cont_message_undeliverable >= 3) {
                             $enviadosFallidos++;
@@ -902,8 +919,27 @@ class AvisosController extends Controller
             try {
                 $metaService = new \App\Services\MetaWhatsAppService();
 
-                // Factura para campos dinámicos
-                $factura = Factura::where('contrato_id', $contrato->id)->latest()->first();
+                // Factura para campos dinámicos.
+                // Se busca a través de facturas_contratos filtrando por contrato_nro Y client_id
+                // para evitar que se use una factura de un cliente anterior del mismo contrato.
+                $factura = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                    ->where('fc.contrato_nro', $contrato->nro)
+                    ->where('fc.client_id', $contrato->client_id)
+                    ->where('factura.estatus', 1)
+                    ->orderBy('fc.id', 'desc')
+                    ->select('factura.*')
+                    ->first();
+
+                // Fallback: si no hay factura abierta con client_id validado, buscar cualquier factura del contrato
+                // que pertenezca al cliente actual (sin importar el estatus)
+                if (!$factura) {
+                    $factura = Factura::join('facturas_contratos as fc', 'fc.factura_id', '=', 'factura.id')
+                        ->where('fc.contrato_nro', $contrato->nro)
+                        ->where('fc.client_id', $contrato->client_id)
+                        ->orderBy('fc.id', 'desc')
+                        ->select('factura.*')
+                        ->first();
+                }
 
                 // Body Params
                 $bodyTextParams = [];
