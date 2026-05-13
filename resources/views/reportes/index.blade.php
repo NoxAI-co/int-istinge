@@ -35,13 +35,14 @@
                 <div class="col-md-5 offset-md-1 reportes">
                     <h3><i class="fa fa-gavel" aria-hidden="true"></i> MINTIC COLOMBIA</h3>
                     <ul class="list-report">
-                        <li><a href="{{route('reportes.mintic.1.2')}}">Reporte 1.2</a></li>
+                        <!-- <li><a href="{{route('reportes.mintic.1.2')}}">Reporte 1.2</a></li>
                         <li><a href="{{route('reportes.mintic.1.2')}}">Res.6333 T.1.1</a></li>
                         <li><a href="{{route('reportes.mintic.1.2')}}">Res.6333 T.1.2</a></li>
                         <li><a href="{{route('reportes.mintic.1.2')}}">Res.6333 T.1.3</a></li>
                         <li><a href="{{route('reportes.mintic.1.2')}}">Res.6755 Formato T.4.2</a></li>
-                        <li><a href="{{route('reportes.mintic.1.2')}}">Res.6755 Formato T.4.3</a></li>
+                        <li><a href="{{route('reportes.mintic.1.2')}}">Res.6755 Formato T.4.3</a></li> -->
                         <li><a href="{{route('reportes.exogena')}}">Reporte Exógena</a></li>
+                        <li><a href="{{route('reportes.reportePlanes')}}">REPORTE MINTIC UNIFICADO ISP</a></li>
 
                     </ul>
                 </div>
@@ -65,7 +66,6 @@
                     <li><a href="{{route('reportes.ventasItem')}}">Ventas por item</a></li>
                     <li><a href="{{route('reportes.remisiones')}}">Remisiones</a></li>
                     <li><a href="{{route('reportes.compras')}}">Compras</a></li>
-                    <li><a href="{{route('reportes.reportePlanes')}}">Reporte de Planes</a></li>
                 </ul>
             </div>
 

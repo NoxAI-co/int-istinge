@@ -3762,7 +3762,7 @@ class ReportesController extends Controller
 
         view()->share([
             'seccion' => 'reportes',
-            'title'   => 'Reporte de Planes',
+            'title'   => 'REPORTE MINTIC UNIFICADO ISP',
             'icon'    => 'fas fa-wifi',
         ]);
 
