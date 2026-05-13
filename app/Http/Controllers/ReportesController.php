@@ -3774,21 +3774,25 @@ class ReportesController extends Controller
 
         // Base subquery: facturas no anuladas de esta empresa con join a items_factura e inventario
         // para relacionar con planes_velocidad a través de inventario.id = planes_velocidad.item
-        // y inventario.id = items_factura.producto
-        $planesQuery = DB::table('planes_velocidad as pv')
-            ->join('inventario as inv', 'inv.id', '=', 'pv.item')
-            ->where('pv.empresa', $empresaId)
+        // o directamente por tipo TV en inventario
+        $planesQuery = DB::table('inventario as inv')
+            ->leftJoin('planes_velocidad as pv', 'pv.item', '=', 'inv.id')
+            ->where('inv.empresa', $empresaId)
+            ->where(function($query) {
+                $query->whereNotNull('pv.id')
+                      ->orWhere('inv.type', 'TV');
+            })
             ->select(
-                'pv.id',
-                'pv.item',
+                'inv.id',
                 'inv.producto as nombre_plan',
                 'inv.precio',
+                'inv.type',
                 // Contar suscriptores únicos (clientes únicos) en facturas no anuladas
                 DB::raw("(
                     SELECT COUNT(DISTINCT f.cliente)
                     FROM factura f
                     INNER JOIN items_factura itf ON itf.factura = f.id
-                    WHERE itf.producto = pv.item
+                    WHERE itf.producto = inv.id
                       AND f.empresa = {$empresaId}
                       AND f.estatus <> 2
                       " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
@@ -3798,7 +3802,7 @@ class ReportesController extends Controller
                     SELECT COUNT(DISTINCT f.cliente)
                     FROM factura f
                     INNER JOIN items_factura itf ON itf.factura = f.id
-                    WHERE itf.producto = pv.item
+                    WHERE itf.producto = inv.id
                       AND f.empresa = {$empresaId}
                       AND f.estatus <> 2
                       AND f.tipo = 2

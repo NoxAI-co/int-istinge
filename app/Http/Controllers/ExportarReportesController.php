@@ -6288,19 +6288,23 @@ class ExportarReportesController extends Controller
         $dates = $this->setDateRequest($request);
         $filtrarFechas = ($request->input('fechas') != 8 || !$request->has('fechas'));
 
-        $planesQuery = DB::table('planes_velocidad as pv')
-            ->join('inventario as inv', 'inv.id', '=', 'pv.item')
-            ->where('pv.empresa', $empresaId)
+        $planesQuery = DB::table('inventario as inv')
+            ->leftJoin('planes_velocidad as pv', 'pv.item', '=', 'inv.id')
+            ->where('inv.empresa', $empresaId)
+            ->where(function($query) {
+                $query->whereNotNull('pv.id')
+                      ->orWhere('inv.type', 'TV');
+            })
             ->select(
-                'pv.id',
-                'pv.item',
+                'inv.id',
                 'inv.producto as nombre_plan',
                 'inv.precio',
+                'inv.type',
                 DB::raw("(
                     SELECT COUNT(DISTINCT f.cliente)
                     FROM factura f
                     INNER JOIN items_factura itf ON itf.factura = f.id
-                    WHERE itf.producto = pv.item
+                    WHERE itf.producto = inv.id
                       AND f.empresa = {$empresaId}
                       AND f.estatus <> 2
                       " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
@@ -6309,7 +6313,7 @@ class ExportarReportesController extends Controller
                     SELECT COUNT(DISTINCT f.cliente)
                     FROM factura f
                     INNER JOIN items_factura itf ON itf.factura = f.id
-                    WHERE itf.producto = pv.item
+                    WHERE itf.producto = inv.id
                       AND f.empresa = {$empresaId}
                       AND f.estatus <> 2
                       AND f.tipo = 2
@@ -6325,26 +6329,26 @@ class ExportarReportesController extends Controller
             $tituloReporte .= ' desde ' . $request->fecha . ' hasta ' . $request->hasta;
         }
 
-        $titulosColumnas = ['#', 'Plan', 'Precio', 'Suscriptores', 'Facturados Electronicamente'];
-        $letras = ['A', 'B', 'C', 'D', 'E'];
+        $titulosColumnas = ['#', 'Plan', 'Tipo', 'Precio', 'Suscriptores', 'Facturados Electronicamente'];
+        $letras = ['A', 'B', 'C', 'D', 'E', 'F'];
 
         $objPHPExcel->getProperties()
             ->setCreator('Sistema')
             ->setLastModifiedBy('Sistema')
             ->setTitle('Reporte de Planes')
             ->setSubject('Reporte de Planes')
-            ->setDescription('Reporte de Planes de Velocidad')
+            ->setDescription('Reporte de Planes de Velocidad y TV')
             ->setKeywords('Reporte Planes')
             ->setCategory('Reporte excel');
 
-        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:E1');
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:F1');
         $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
 
         $estilo = [
             'font'      => ['bold' => true, 'size' => 12, 'name' => 'Times New Roman'],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A1:E1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:F1')->applyFromArray($estilo);
 
         $estiloHeader = [
             'fill' => [
@@ -6354,7 +6358,7 @@ class ExportarReportesController extends Controller
             'font'      => ['color' => ['rgb' => 'FFFFFF'], 'bold' => true],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A3:E3')->applyFromArray($estiloHeader);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:F3')->applyFromArray($estiloHeader);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
@@ -6372,26 +6376,27 @@ class ExportarReportesController extends Controller
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0] . $row, $index + 1)
                 ->setCellValue($letras[1] . $row, utf8_decode($plan->nombre_plan))
-                ->setCellValue($letras[2] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
-                ->setCellValue($letras[3] . $row, $plan->suscriptores)
-                ->setCellValue($letras[4] . $row, $plan->facturados_electronicamente);
+                ->setCellValue($letras[2] . $row, $plan->type == 'TV' ? 'Televisión' : 'Internet')
+                ->setCellValue($letras[3] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
+                ->setCellValue($letras[4] . $row, $plan->suscriptores)
+                ->setCellValue($letras[5] . $row, $plan->facturados_electronicamente);
             $row++;
         }
 
         // Fila de totales
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue($letras[0] . $row, 'TOTALES')
-            ->setCellValue($letras[3] . $row, $totalSusc)
-            ->setCellValue($letras[4] . $row, $totalElec);
+            ->setCellValue($letras[4] . $row, $totalSusc)
+            ->setCellValue($letras[5] . $row, $totalElec);
 
         $estiloBorder = [
             'font'    => ['size' => 11, 'name' => 'Times New Roman'],
             'borders' => ['allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN]],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A3:E' . $row)->applyFromArray($estiloBorder);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:F' . $row)->applyFromArray($estiloBorder);
 
-        foreach (['A', 'B', 'C', 'D', 'E'] as $col) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($col)->setAutoSize(true);
         }
 
