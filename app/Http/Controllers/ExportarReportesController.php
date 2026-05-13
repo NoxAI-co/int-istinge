@@ -6276,4 +6276,137 @@ class ExportarReportesController extends Controller
         $objWriter->save('php://output');
         exit;
     }
+
+    /**
+     * Exporta a Excel el Reporte de Planes de Velocidad
+     * con suscriptores activos y facturados electrónicamente.
+     */
+    public function reportePlanes(Request $request)
+    {
+        $empresaId = Auth::user()->empresa;
+
+        $dates = $this->setDateRequest($request);
+        $filtrarFechas = ($request->input('fechas') != 8 || !$request->has('fechas'));
+
+        $planesQuery = DB::table('planes_velocidad as pv')
+            ->join('inventario as inv', 'inv.id', '=', 'pv.item')
+            ->where('pv.empresa', $empresaId)
+            ->select(
+                'pv.id',
+                'pv.item',
+                'inv.producto as nombre_plan',
+                'inv.precio',
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = pv.item
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as suscriptores"),
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = pv.item
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      AND f.tipo = 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as facturados_electronicamente")
+            )
+            ->orderByDesc('suscriptores')
+            ->get();
+
+        $objPHPExcel = new PHPExcel();
+        $tituloReporte = 'Reporte de Planes';
+        if ($filtrarFechas && $request->fecha) {
+            $tituloReporte .= ' desde ' . $request->fecha . ' hasta ' . $request->hasta;
+        }
+
+        $titulosColumnas = ['#', 'Plan', 'Precio', 'Suscriptores', 'Facturados Electrónicamente'];
+        $letras = ['A', 'B', 'C', 'D', 'E'];
+
+        $objPHPExcel->getProperties()
+            ->setCreator('Sistema')
+            ->setLastModifiedBy('Sistema')
+            ->setTitle('Reporte de Planes')
+            ->setSubject('Reporte de Planes')
+            ->setDescription('Reporte de Planes de Velocidad')
+            ->setKeywords('Reporte Planes')
+            ->setCategory('Reporte excel');
+
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:E1');
+        $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
+
+        $estilo = [
+            'font'      => ['bold' => true, 'size' => 12, 'name' => 'Times New Roman'],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
+        ];
+        $objPHPExcel->getActiveSheet()->getStyle('A1:E1')->applyFromArray($estilo);
+
+        $estiloHeader = [
+            'fill' => [
+                'type'  => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => ['rgb' => '1a3c6e'],
+            ],
+            'font'      => ['color' => ['rgb' => 'FFFFFF'], 'bold' => true],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
+        ];
+        $objPHPExcel->getActiveSheet()->getStyle('A3:E3')->applyFromArray($estiloHeader);
+
+        for ($i = 0; $i < count($titulosColumnas); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
+        }
+
+        $row        = 4;
+        $totalSusc  = 0;
+        $totalElec  = 0;
+        $moneda     = Auth::user()->empresa()->moneda;
+
+        foreach ($planesQuery as $index => $plan) {
+            $totalSusc += $plan->suscriptores;
+            $totalElec += $plan->facturados_electronicamente;
+
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue($letras[0] . $row, $index + 1)
+                ->setCellValue($letras[1] . $row, utf8_decode($plan->nombre_plan))
+                ->setCellValue($letras[2] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
+                ->setCellValue($letras[3] . $row, $plan->suscriptores)
+                ->setCellValue($letras[4] . $row, $plan->facturados_electronicamente);
+            $row++;
+        }
+
+        // Fila de totales
+        $objPHPExcel->setActiveSheetIndex(0)
+            ->setCellValue($letras[0] . $row, 'TOTALES')
+            ->setCellValue($letras[3] . $row, $totalSusc)
+            ->setCellValue($letras[4] . $row, $totalElec);
+
+        $estiloBorder = [
+            'font'    => ['size' => 11, 'name' => 'Times New Roman'],
+            'borders' => ['allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN]],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
+        ];
+        $objPHPExcel->getActiveSheet()->getStyle('A3:E' . $row)->applyFromArray($estiloBorder);
+
+        foreach (['A', 'B', 'C', 'D', 'E'] as $col) {
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $objPHPExcel->getActiveSheet()->setTitle('Reporte de Planes');
+        $objPHPExcel->setActiveSheetIndex(0);
+        $objPHPExcel->getActiveSheet(0)->freezePane('A4');
+
+        header("Pragma: no-cache");
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Reporte_Planes.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
 }
+

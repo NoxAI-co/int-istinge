@@ -3750,4 +3750,68 @@ class ReportesController extends Controller
         $objWriter->save('php://output');
         exit;
     }
+
+    /**
+     * Reporte de Planes: muestra todos los planes de velocidad con
+     * total de suscriptores activos y suscriptores facturados electrónicamente.
+     */
+    public function reportePlanes(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $empresaId = Auth::user()->empresa;
+
+        view()->share([
+            'seccion' => 'reportes',
+            'title'   => 'Reporte de Planes',
+            'icon'    => 'fas fa-wifi',
+        ]);
+
+        // Resolver rango de fechas
+        $dates = $this->setDateRequest($request);
+        $desde = $request->fecha;
+        $hasta = $request->hasta;
+        $filtrarFechas = ($request->input('fechas') != 8 || !$request->has('fechas'));
+
+        // Base subquery: facturas no anuladas de esta empresa con join a items_factura e inventario
+        // para relacionar con planes_velocidad a través de inventario.id = planes_velocidad.item
+        // y inventario.id = items_factura.producto
+        $planesQuery = DB::table('planes_velocidad as pv')
+            ->join('inventario as inv', 'inv.id', '=', 'pv.item')
+            ->where('pv.empresa', $empresaId)
+            ->select(
+                'pv.id',
+                'pv.item',
+                'inv.producto as nombre_plan',
+                'inv.precio',
+                // Contar suscriptores únicos (clientes únicos) en facturas no anuladas
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = pv.item
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as suscriptores"),
+                // Contar suscriptores únicos facturados electrónicamente (tipo = 2)
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = pv.item
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      AND f.tipo = 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as facturados_electronicamente")
+            )
+            ->orderByDesc('suscriptores')
+            ->get();
+
+        return view('reportes.planes.index')
+            ->with('planes', $planesQuery)
+            ->with('desde', $desde)
+            ->with('hasta', $hasta)
+            ->with('request', $request);
+    }
 }

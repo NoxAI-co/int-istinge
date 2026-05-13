@@ -1572,6 +1572,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/estadoCliente', 'ReportesController@estadoCliente')->name('reportes.estadoCliente');
 		Route::get('/estadoCliente/consulta', 'ReportesController@estadoClienteShow')->name('reportes.estadoClienteShow');
 		Route::get('/planes', 'ReportesController@planes')->name('reportes.planes');
+		Route::get('/reporte-planes', 'ReportesController@reportePlanes')->name('reportes.reportePlanes');
 
 		Route::get('/ivas', 'ReportesController@ivas')->name('reportes.ivas');
 
@@ -1627,6 +1628,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 		Route::get('/contratoperiodo', 'ExportarReportesController@contratoPeriodo')->name('exportar.contratoperiodo');
 		Route::get('/personassincontrato', 'ExportarReportesController@personaSinContrato')->name('exportar.personasincontrato');
+		Route::get('/reporte-planes', 'ExportarReportesController@reportePlanes')->name('exportar.reportePlanes');
 	});
 
 	//Documentacion escrita
