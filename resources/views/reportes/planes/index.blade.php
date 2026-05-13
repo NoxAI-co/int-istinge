@@ -56,6 +56,10 @@
                     <tr>
                         <th>Plan</th>
                         <th>Tipo</th>
+                        <th>Municipio</th>
+                        <th>Subida</th>
+                        <th>Bajada</th>
+                        <th>Estrato</th>
                         <th>Precio</th>
                         <th>Suscriptores</th>
                         <th>Facturados Electrónicamente</th>
@@ -74,6 +78,10 @@
                         <tr>
                             <td>{{$plan->nombre_plan}}</td>
                             <td>{{$plan->type == 'TV' ? 'Televisión' : 'Internet'}}</td>
+                            <td>{{$municipio}}</td>
+                            <td>{{$plan->subida ?? 0}}</td>
+                            <td>{{$plan->bajada ?? 0}}</td>
+                            <td></td>
                             <td>{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($plan->precio)}}</td>
                             <td>{{$plan->suscriptores}}</td>
                             <td>{{$plan->facturados_electronicamente}}</td>
@@ -82,7 +90,7 @@
                     </tbody>
                     <tfoot class="thead-dark">
                         <tr>
-                            <th colspan="3" class="text-right">TOTALES</th>
+                            <th colspan="7" class="text-right">TOTALES</th>
                             <th>{{$totalSusc}}</th>
                             <th>{{$totalElec}}</th>
                         </tr>

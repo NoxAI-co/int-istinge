@@ -6300,6 +6300,8 @@ class ExportarReportesController extends Controller
                 'inv.producto as nombre_plan',
                 'inv.precio',
                 'inv.type',
+                'pv.upload as subida',
+                'pv.download as bajada',
                 DB::raw("(
                     SELECT COUNT(DISTINCT f.cliente)
                     FROM factura f
@@ -6323,14 +6325,16 @@ class ExportarReportesController extends Controller
             ->orderByDesc('suscriptores')
             ->get();
 
+        $municipio = Auth::user()->empresa()->municipio()->nombre;
+
         $objPHPExcel = new PHPExcel();
         $tituloReporte = 'Reporte de Planes';
         if ($filtrarFechas && $request->fecha) {
             $tituloReporte .= ' desde ' . $request->fecha . ' hasta ' . $request->hasta;
         }
 
-        $titulosColumnas = ['#', 'Plan', 'Tipo', 'Precio', 'Suscriptores', 'Facturados Electronicamente'];
-        $letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+        $titulosColumnas = ['#', 'Plan', 'Tipo', 'Municipio', 'Subida', 'Bajada', 'Estrato', 'Precio', 'Suscriptores', 'Facturados Electronicamente'];
+        $letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
         $objPHPExcel->getProperties()
             ->setCreator('Sistema')
@@ -6341,14 +6345,14 @@ class ExportarReportesController extends Controller
             ->setKeywords('Reporte Planes')
             ->setCategory('Reporte excel');
 
-        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:F1');
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:J1');
         $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1', $tituloReporte);
 
         $estilo = [
             'font'      => ['bold' => true, 'size' => 12, 'name' => 'Times New Roman'],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A1:F1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:J1')->applyFromArray($estilo);
 
         $estiloHeader = [
             'fill' => [
@@ -6358,7 +6362,7 @@ class ExportarReportesController extends Controller
             'font'      => ['color' => ['rgb' => 'FFFFFF'], 'bold' => true],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A3:F3')->applyFromArray($estiloHeader);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:J3')->applyFromArray($estiloHeader);
 
         for ($i = 0; $i < count($titulosColumnas); $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulosColumnas[$i]));
@@ -6377,26 +6381,30 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[0] . $row, $index + 1)
                 ->setCellValue($letras[1] . $row, utf8_decode($plan->nombre_plan))
                 ->setCellValue($letras[2] . $row, $plan->type == 'TV' ? 'Televisión' : 'Internet')
-                ->setCellValue($letras[3] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
-                ->setCellValue($letras[4] . $row, $plan->suscriptores)
-                ->setCellValue($letras[5] . $row, $plan->facturados_electronicamente);
+                ->setCellValue($letras[3] . $row, utf8_decode($municipio))
+                ->setCellValue($letras[4] . $row, $plan->subida ?? 0)
+                ->setCellValue($letras[5] . $row, $plan->bajada ?? 0)
+                ->setCellValue($letras[6] . $row, '')
+                ->setCellValue($letras[7] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
+                ->setCellValue($letras[8] . $row, $plan->suscriptores)
+                ->setCellValue($letras[9] . $row, $plan->facturados_electronicamente);
             $row++;
         }
 
         // Fila de totales
         $objPHPExcel->setActiveSheetIndex(0)
             ->setCellValue($letras[0] . $row, 'TOTALES')
-            ->setCellValue($letras[4] . $row, $totalSusc)
-            ->setCellValue($letras[5] . $row, $totalElec);
+            ->setCellValue($letras[8] . $row, $totalSusc)
+            ->setCellValue($letras[9] . $row, $totalElec);
 
         $estiloBorder = [
             'font'    => ['size' => 11, 'name' => 'Times New Roman'],
             'borders' => ['allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN]],
             'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
         ];
-        $objPHPExcel->getActiveSheet()->getStyle('A3:F' . $row)->applyFromArray($estiloBorder);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:J' . $row)->applyFromArray($estiloBorder);
 
-        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
+        foreach ($letras as $col) {
             $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($col)->setAutoSize(true);
         }
 

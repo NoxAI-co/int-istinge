@@ -3787,6 +3787,8 @@ class ReportesController extends Controller
                 'inv.producto as nombre_plan',
                 'inv.precio',
                 'inv.type',
+                'pv.upload as subida',
+                'pv.download as bajada',
                 // Contar suscriptores únicos (clientes únicos) en facturas no anuladas
                 DB::raw("(
                     SELECT COUNT(DISTINCT f.cliente)
@@ -3812,10 +3814,13 @@ class ReportesController extends Controller
             ->orderByDesc('suscriptores')
             ->get();
 
+        $municipio = Auth::user()->empresa()->municipio()->nombre;
+
         return view('reportes.planes.index')
             ->with('planes', $planesQuery)
             ->with('desde', $desde)
             ->with('hasta', $hasta)
-            ->with('request', $request);
+            ->with('request', $request)
+            ->with('municipio', $municipio);
     }
 }
