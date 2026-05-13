@@ -2985,7 +2985,7 @@ class CronController extends Controller
             Log::info('[OnePay Webhook] Respondiendo 200 anticipadamente (FPM)', [
                 'paymentId' => $paymentId, 'factura_id' => $facturaId
             ]);
-            ob_end_clean();
+            while (ob_get_level() > 0) ob_end_clean();
             header("HTTP/1.1 200 OK");
             header("Content-Type: text/plain");
             header("Content-Length: 7");
@@ -2997,7 +2997,7 @@ class CronController extends Controller
             Log::info('[OnePay Webhook] Respondiendo 200 anticipadamente (Apache)', [
                 'paymentId' => $paymentId, 'factura_id' => $facturaId
             ]);
-            ob_end_clean();
+            while (ob_get_level() > 0) ob_end_clean();
             header("HTTP/1.1 200 OK");
             header("Content-Type: text/plain");
             header("Connection: close");
