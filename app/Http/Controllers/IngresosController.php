@@ -2476,7 +2476,7 @@ class IngresosController extends Controller
             $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
 
             $pdf = PDF::loadView($vista, compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
-            return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
+            return $pdf->stream('ingreso.pdf');
         }
     }
 
@@ -2601,7 +2601,7 @@ class IngresosController extends Controller
             }
 
             $pdf->setPaper($paper_size, 'portrait');
-            return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf']);
+            return $pdf->stream('ingreso.pdf');
         }
     }
 

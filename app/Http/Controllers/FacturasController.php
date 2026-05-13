@@ -3187,7 +3187,7 @@ class FacturasController extends Controller{
                 return $pdf;
             }
 
-            return response($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return $pdf->stream('factura.pdf');
         }
     }
 
@@ -3273,7 +3273,7 @@ class FacturasController extends Controller{
             $paper_size = array(0,0,270,580);
             $pdf = PDF::loadView('pdf.plantillas.factura_tirilla', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso','data'));
             $pdf->setPaper($paper_size, 'portrait');
-            return response($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return $pdf->stream('factura.pdf');
         }
     }
 
@@ -5707,7 +5707,7 @@ class FacturasController extends Controller{
                     $pdf = PDF::loadView('pdf.factura', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso'));
                 }
             }
-            return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return  $pdf->stream('factura.pdf');
         }
     }
 
@@ -5762,7 +5762,7 @@ class FacturasController extends Controller{
         }else{
             $pdf = PDF::loadView('pdf.factura_estandar_multiple', compact('items', 'facturas', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso'));
         }
-        return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+        return  $pdf->stream('factura.pdf');
     }
 
     public function exportData(){
