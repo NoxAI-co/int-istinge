@@ -97,21 +97,20 @@ class Funcion
     }
 
     public static function parseSpeed($speed) {
-        if (empty($speed)) return 0;
+        if (empty($speed)) return "0";
         
         $speed = strtoupper(trim($speed));
         
-        // Si contiene K, es Kbps, dividimos por 1024 para pasar a Mbps
+        // Si contiene K, simplemente añadimos bps
         if (strpos($speed, 'K') !== false) {
-            $val = floatval(str_replace('K', '', $speed));
-            return $val / 1024;
+            return str_replace('K', 'Kbps', $speed);
         }
         
-        // Si contiene M, es Mbps, dejamos el valor numérico
+        // Si contiene M, simplemente añadimos bps
         if (strpos($speed, 'M') !== false) {
-            return floatval(str_replace('M', '', $speed));
+            return str_replace('M', 'Mbps', $speed);
         }
         
-        return floatval($speed);
+        return $speed;
     }
 }
