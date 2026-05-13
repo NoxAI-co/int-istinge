@@ -6328,7 +6328,7 @@ class ExportarReportesController extends Controller
         $municipio = Auth::user()->empresa()->municipio()->nombre;
 
         $objPHPExcel = new PHPExcel();
-        $tituloReporte = 'Reporte de Planes';
+        $tituloReporte = 'REPORTE MINTIC UNIFICADO ISP';
         if ($filtrarFechas && $request->fecha) {
             $tituloReporte .= ' desde ' . $request->fecha . ' hasta ' . $request->hasta;
         }
@@ -6339,10 +6339,10 @@ class ExportarReportesController extends Controller
         $objPHPExcel->getProperties()
             ->setCreator('Sistema')
             ->setLastModifiedBy('Sistema')
-            ->setTitle('Reporte de Planes')
-            ->setSubject('Reporte de Planes')
-            ->setDescription('Reporte de Planes de Velocidad y TV')
-            ->setKeywords('Reporte Planes')
+            ->setTitle('REPORTE MINTIC UNIFICADO ISP')
+            ->setSubject('REPORTE MINTIC UNIFICADO ISP')
+            ->setDescription('REPORTE MINTIC UNIFICADO ISP (Velocidad y TV)')
+            ->setKeywords('Reporte MINTIC')
             ->setCategory('Reporte excel');
 
         $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:J1');
@@ -6382,8 +6382,8 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[1] . $row, utf8_decode($plan->nombre_plan))
                 ->setCellValue($letras[2] . $row, $plan->type == 'TV' ? 'Televisión' : 'Internet')
                 ->setCellValue($letras[3] . $row, utf8_decode($municipio))
-                ->setCellValue($letras[4] . $row, $plan->subida ?? 0)
-                ->setCellValue($letras[5] . $row, $plan->bajada ?? 0)
+                ->setCellValue($letras[4] . $row, \App\Funcion::parseSpeed($plan->subida))
+                ->setCellValue($letras[5] . $row, \App\Funcion::parseSpeed($plan->bajada))
                 ->setCellValue($letras[6] . $row, '')
                 ->setCellValue($letras[7] . $row, $moneda . number_format($plan->precio, 0, ',', '.'))
                 ->setCellValue($letras[8] . $row, $plan->suscriptores)

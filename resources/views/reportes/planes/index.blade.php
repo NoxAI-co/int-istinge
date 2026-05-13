@@ -79,8 +79,8 @@
                             <td>{{$plan->nombre_plan}}</td>
                             <td>{{$plan->type == 'TV' ? 'Televisión' : 'Internet'}}</td>
                             <td>{{$municipio}}</td>
-                            <td>{{$plan->subida ?? 0}}</td>
-                            <td>{{$plan->bajada ?? 0}}</td>
+                            <td>{{App\Funcion::parseSpeed($plan->subida)}}</td>
+                            <td>{{App\Funcion::parseSpeed($plan->bajada)}}</td>
                             <td></td>
                             <td>{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($plan->precio)}}</td>
                             <td>{{$plan->suscriptores}}</td>
