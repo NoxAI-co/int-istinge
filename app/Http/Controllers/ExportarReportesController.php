@@ -6325,7 +6325,7 @@ class ExportarReportesController extends Controller
             $tituloReporte .= ' desde ' . $request->fecha . ' hasta ' . $request->hasta;
         }
 
-        $titulosColumnas = ['#', 'Plan', 'Precio', 'Suscriptores', 'Facturados Electrónicamente'];
+        $titulosColumnas = ['#', 'Plan', 'Precio', 'Suscriptores', 'Facturados Electronicamente'];
         $letras = ['A', 'B', 'C', 'D', 'E'];
 
         $objPHPExcel->getProperties()
