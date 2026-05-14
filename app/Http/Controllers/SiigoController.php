@@ -978,6 +978,19 @@ class SiigoController extends Controller
             $facturas = explode(",", $facturas);
             $lstResultados = [];
     
+            // Fetch payment types and seller data once before the loop to optimize performance
+            $tiposPago = collect($this->getPaymentTypes());
+            $sellerData = $this->getSeller();
+            $sellers = collect($sellerData['results'] ?? []);
+
+            $tipoPagoCredito = $tiposPago
+                ->whereIn('name', ['Pago a crédito', 'Crédito'])
+                ->first();
+
+            $tipoPagoEfectivo = $tiposPago
+                ->whereIn('name', ['Efectivo', 'Contado'])
+                ->first();
+
             foreach ($facturas as $facturaId) {
     
                 $factura = Factura::find($facturaId);
@@ -985,19 +998,6 @@ class SiigoController extends Controller
                 if (!$factura || !empty($factura->siigo_id)) {
                     continue;
                 }
-    
-                // ==============================
-                // OBTENER TIPOS DE PAGO SIIGO
-                // ==============================
-                $tiposPago = collect($this->getPaymentTypes());
-    
-                $tipoPagoCredito = $tiposPago
-                    ->whereIn('name', ['Pago a crédito', 'Crédito'])
-                    ->first();
-    
-                $tipoPagoEfectivo = $tiposPago
-                    ->whereIn('name', ['Efectivo', 'Contado'])
-                    ->first();
     
                 // ==============================
                 // FECHAS → DEFINIR SI ES CRÉDITO
@@ -1045,10 +1045,7 @@ class SiigoController extends Controller
                 // DATOS ADICIONALES
                 // ==============================
                 $servidor   = $factura->servidor();
-                $sellerData = $this->getSeller();
-    
-                $usuario = collect($sellerData['results'] ?? [])
-                    ->first()['id'] ?? null;
+                $usuario = $sellers->where('username', $servidor->email_siigo)->first()['id'] ?? null;
     
                 // ==============================
                 // REQUEST PARA sendInvoice

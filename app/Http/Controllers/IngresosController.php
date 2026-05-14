@@ -234,12 +234,8 @@ class IngresosController extends Controller
         if ($cliente && !$factura) {
             $banco=$cliente; $cliente=false;
         }
-        $numero = (Ingreso::where('empresa', Auth::user()->empresa)->get());
-        if (count($numero)>0){
-            $numero = ($numero->last())->nro+1;
-        }else{
-            $numero = 1;
-        }
+        $numero = Ingreso::where('empresa', Auth::user()->empresa)->max('nro');
+        $numero = $numero ? $numero + 1 : 1;
         $contrato = false;
         $pagoEmitirDian = false;
         if($cliente){
@@ -258,7 +254,6 @@ class IngresosController extends Controller
         $clientes = Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
         //$clientes = Contacto::where('empresa',Auth::user()->empresa)->whereIn('tipo_contacto',[0,2])->where('status', 1)->get();
         $metodos_pago =DB::table('metodos_pago')->whereIn('id',[1,2,3,4,5,6,9])->orderby('orden','asc')->get();
-        $inventario = Inventario::where('empresa',Auth::user()->empresa)->where('status', 1)->get();
         $retenciones = Retencion::where('empresa',Auth::user()->empresa)->where('modulo',1)->get();
         $impuestos = Impuesto::where('empresa',Auth::user()->empresa)->orWhere('empresa', null)->Where('estado', 1)->get();
          //Tomar las categorias del puc que no son transaccionables.
@@ -280,7 +275,7 @@ class IngresosController extends Controller
             $saldo_favor = Contacto::Find($cliente)->saldo_favor;
         }
 
-        return view('ingresos.create')->with(compact('contrato','clientes', 'inventario', 'cliente', 'factura',
+        return view('ingresos.create')->with(compact('contrato','clientes', 'cliente', 'factura',
         'bancos', 'metodos_pago', 'impuestos', 'saldo_favor',
         'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones','pagoEmitirDian'));
     }
@@ -429,27 +424,17 @@ class IngresosController extends Controller
                                 $contrato = Contrato::where('nro',$contrato)->first();
 
                             if($empresa->pago_siigo == 1 || ($contrato && $contrato->pago_siigo_contrato == 1)){
-                                $siigo = new SiigoController();
-                                $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
-                                Log::info($response);
-                                if(isset($response['success']) && $response['success'] == false){
-                                    // Intentar refrescar la conexión a Siigo
-                                    Log::info("Error de conexión con Siigo, intentando refrescar token...");
-                                    $refreshResult = $siigo->configurarSiigo(null, true);
-
-                                    if($refreshResult == 1){
-                                        // Si el refresh fue exitoso, intentar nuevamente el envío
-                                        Log::info("Token de Siigo refrescado exitosamente, reintentando envío...");
-                                        $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
-                                        Log::info("Respuesta después del refresh: " . json_encode($response));
-
-                                        if(isset($response['success']) && $response['success'] == false){
-                                            $msj_siigo = " No se ha podido establecer conexión con siigo después de refrescar el token.";
-                                        }
-                                    } else {
-                                        $msj_siigo = " No se ha podido establecer conexión con siigo, no se pudo refrescar el token.";
+                                $facturaIdBG = $factura->id;
+                                app()->terminating(function () use ($facturaIdBG) {
+                                    try {
+                                        DB::reconnect();
+                                        $siigo = new SiigoController();
+                                        $response = $siigo->envioMasivoSiigo($facturaIdBG, true)->getData(true);
+                                        Log::info("Siigo background emission for factura #$facturaIdBG: " . json_encode($response));
+                                    } catch (\Throwable $e) {
+                                        Log::error("Error in Siigo background emission: " . $e->getMessage());
                                     }
-                                }
+                                });
                             }
                         }
 
@@ -533,12 +518,20 @@ class IngresosController extends Controller
                                         $conversion = app(FacturasController::class)->convertirelEctronica($factura->id,0,1);
                                     }
 
-                                    if(isset($empresa->proveedor) && $empresa->proveedor == 2){
-                                        $emision = app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
-                                    }else{
-                                        $emision = app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
-                                    }
-
+                                    $facturaIdBG = $factura->id;
+                                    $proveedorBG = $empresa->proveedor ?? null;
+                                    app()->terminating(function () use ($facturaIdBG, $proveedorBG) {
+                                        try {
+                                            DB::reconnect();
+                                            if($proveedorBG == 2){
+                                                app(FacturasController::class)->jsonDianFacturaVenta($facturaIdBG);
+                                            }else{
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($facturaIdBG);
+                                            }
+                                        } catch (\Throwable $e) {
+                                            Log::error("Error in DIAN background emission (tipo_electronica 2): " . $e->getMessage());
+                                        }
+                                    });
                                 }
                         }
                     }
@@ -565,12 +558,9 @@ class IngresosController extends Controller
             $nro = Numeracion::where('empresa', $user->empresa)->first();
             $caja = $nro->caja;
 
-            while (true) {
-                $numero = Ingreso::where('empresa', $user->empresa)->where('nro', $caja)->count();
-                if ($numero == 0) {
-                    break;
-                }
-                $caja++;
+            $maxActual = Ingreso::where('empresa', $user->empresa)->where('nro', '>=', $caja)->max('nro');
+            if ($maxActual) {
+                $caja = $maxActual + 1;
             }
 
             if(isset($request->uso_saldo) && $request->uso_saldo){
