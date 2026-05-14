@@ -656,6 +656,8 @@ class OnePayService
             Log::error('Integra Pay getPayments Exception: ' . $e->getMessage());
             throw $e;
         }
+    }
+
     /**
      * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
      * Implementa una limpieza automática de archivos con más de 24 horas.
