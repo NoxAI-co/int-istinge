@@ -96,7 +96,7 @@ class OnePayService
                 'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
                 'email' => $cliente->email ?: null,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
-                'document_url' => $documentUrl,
+                // 'document_url' => $documentUrl,
                 'metadata' => [
                     'factura_id' => $factura->id,
                     'empresa_id' => $empresaId
