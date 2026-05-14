@@ -2957,6 +2957,18 @@ class CronController extends Controller
                 $factura = Factura::where('onepay_invoice_id', $invoice['payment_id'])->first();
             }
 
+            // 5. Fallback: Búsqueda por conversión a factura electrónica (log_movimientos)
+            if(!$factura && isset($invoice['provider_id'])){
+                $externalId = $invoice['provider_id'];
+                $logConversion = MovimientoLOG::where('descripcion', 'LIKE', "%Código anterior: <b>$externalId</b>%")
+                    ->where('descripcion', 'LIKE', "%Factura convertida a electrónica%")
+                    ->latest()->first();
+
+                if ($logConversion && preg_match('/código nuevo: <b>(.*?)<\/b>/', $logConversion->descripcion, $matches)) {
+                    $factura = Factura::where('codigo', $matches[1])->first();
+                }
+            }
+
             $paymentId = $payment['id'] ?? ($invoice['payment_id'] ?? null);
             $montoPagado = $payment['amount'] ?? 0;
         } else {
@@ -2969,6 +2981,18 @@ class CronController extends Controller
             // 2. Fallback: onepay_invoice_id
             if(!$factura && isset($payment['id'])){
                 $factura = Factura::where('onepay_invoice_id', $payment['id'])->first();
+            }
+
+            // 3. Fallback: Búsqueda por conversión a factura electrónica (log_movimientos)
+            if(!$factura && isset($payment['provider_id'])){
+                $externalId = $payment['provider_id'];
+                $logConversion = MovimientoLOG::where('descripcion', 'LIKE', "%Código anterior: <b>$externalId</b>%")
+                    ->where('descripcion', 'LIKE', "%Factura convertida a electrónica%")
+                    ->latest()->first();
+
+                if ($logConversion && preg_match('/código nuevo: <b>(.*?)<\/b>/', $logConversion->descripcion, $matches)) {
+                    $factura = Factura::where('codigo', $matches[1])->first();
+                }
             }
 
             $paymentId = $payment['id'] ?? null;
@@ -3124,6 +3148,28 @@ class CronController extends Controller
                     // 2. Fallback: onepay_invoice_id (usando paymentId de la API)
                     if (!$factura && $paymentId) {
                         $factura = Factura::where('onepay_invoice_id', $paymentId)->first();
+                    }
+
+                    // 3. Fallback: Búsqueda por conversión a factura electrónica en log_movimientos (LIKE %Código anterior: external_id%)
+                    if (!$factura && $externalId) {
+                        $logConversion = MovimientoLOG::where('descripcion', 'LIKE', "%Código anterior: <b>$externalId</b>%")
+                            ->where('descripcion', 'LIKE', "%Factura convertida a electrónica%")
+                            ->latest()
+                            ->first();
+
+                        if ($logConversion) {
+                            if (preg_match('/código nuevo: <b>(.*?)<\/b>/', $logConversion->descripcion, $matches)) {
+                                $nuevoCodigo = $matches[1];
+                                $factura = Factura::where('codigo', $nuevoCodigo)->first();
+                                if ($factura) {
+                                    Log::info('[SyncIntegraPay] Factura encontrada por conversión electrónica', [
+                                        'codigo_anterior' => $externalId,
+                                        'codigo_nuevo'    => $nuevoCodigo,
+                                        'payment_id'      => $paymentId
+                                    ]);
+                                }
+                            }
+                        }
                     }
 
                     if (!$factura) {
