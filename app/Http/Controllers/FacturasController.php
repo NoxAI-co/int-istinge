@@ -3867,7 +3867,21 @@ class FacturasController extends Controller{
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->total()->total);
             $nestedData[] = $empresa->moneda.Funcion::Parsear($pagado);
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->porpagar());
-            $nestedData[] = '<spam class="text-'.$factura->estatus(true).'">'.$factura->estatus().'</spam>';
+            $msj = '';
+            $title = '';
+            if ($factura->tipo == 2) {
+                if ($factura->emitida == 1) {
+                    $msj = ' - E';
+                    $title = $factura->estatus() . ' - Emitida';
+                } else if ($factura->dian_response == 409 || $factura->dian_response == 504) {
+                    $msj = ' - Error';
+                    $title = $factura->estatus() . ' - Error en emisión';
+                } else {
+                    $msj = ' - NE';
+                    $title = $factura->estatus() . ' - No emitida';
+                }
+            }
+            $nestedData[] = '<span class="text-'.$factura->estatus(true).'" title="'.$title.'">'.$factura->estatus().$msj.'</span>';
             $nestedData[] = $textContratos;
             $nestedData[] = $textDireccion;
             $boton = '<a href="'.route('facturas.show',$factura->id).'" class="btn btn-outline-info btn-icons" title="Ver"><i class="far fa-eye"></i></a>

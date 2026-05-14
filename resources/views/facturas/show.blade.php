@@ -317,7 +317,19 @@
 @endif
 
     <div class="paper mx-3">
-        <div class="ribbon {{$factura->estatus()}}"><span>{{$factura->estatus()}}</span></div>
+        @php
+            $status_extra = '';
+            if ($factura->tipo == 2) {
+                if ($factura->emitida == 1) {
+                    $status_extra = ' - Emitida';
+                } else if ($factura->dian_response == 409 || $factura->dian_response == 504) {
+                    $status_extra = ' - Error';
+                } else {
+                    $status_extra = ' - No emitida';
+                }
+            }
+        @endphp
+        <div class="ribbon {{$factura->estatus()}}"><span>{{$factura->estatus()}}{{$status_extra}}</span></div>
         <!-- Membrete -->
         <div class="row">
             <div class="col-md-4 text-center">
