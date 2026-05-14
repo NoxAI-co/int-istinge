@@ -2060,7 +2060,8 @@ class ReportesController extends Controller
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
-                ->where('movimientos.empresa',$empresa);
+                ->where('movimientos.empresa',$empresa)
+                ->groupBy('movimientos.id');
 
             $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
@@ -2071,7 +2072,8 @@ class ReportesController extends Controller
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
-                ->where('movimientos.empresa',$empresa);
+                ->where('movimientos.empresa',$empresa)
+                ->groupBy('movimientos.id');
 
         }
         else{
@@ -2085,7 +2087,8 @@ class ReportesController extends Controller
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
              $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
@@ -2097,7 +2100,8 @@ class ReportesController extends Controller
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
         }
 

@@ -3875,7 +3875,8 @@ class ExportarReportesController extends Controller
             ->where('movimientos.modulo',1)
             ->where('movimientos.estatus','<>',2)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',Auth::user()->empresa);
+            ->where('movimientos.empresa',Auth::user()->empresa)
+            ->groupBy('movimientos.id');
 
         }
 
