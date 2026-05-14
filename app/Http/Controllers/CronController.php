@@ -6985,16 +6985,17 @@ class CronController extends Controller
      */
     public function generacionnotacredito()
     {
-        // 1. Obtener los IDs de los clientes con duplicados en abril de 2026 (tipo=2, emitida=1, estatus=1)
+        // 1. Obtener los contratos que tienen más de una factura en abril de 2026 (tipo=2, emitida=1, estatus=1)
         $duplicados = DB::table('factura')
-            ->select('cliente', DB::raw('COUNT(*) as total'))
-            ->where('tipo', 2)
-            ->where('emitida', 1)
-            ->where('estatus', 1)
-            ->where('empresa', 1)
-            ->whereMonth('fecha', 4)
-            ->whereYear('fecha', 2026)
-            ->groupBy('cliente')
+            ->join('facturas_contratos', 'factura.id', '=', 'facturas_contratos.factura_id')
+            ->select('factura.cliente', 'facturas_contratos.contrato_nro', DB::raw('COUNT(*) as total'))
+            ->where('factura.tipo', 2)
+            ->where('factura.emitida', 1)
+            ->where('factura.estatus', 1)
+            ->where('factura.empresa', 1)
+            ->whereMonth('factura.fecha', 4)
+            ->whereYear('factura.fecha', 2026)
+            ->groupBy('factura.cliente', 'facturas_contratos.contrato_nro')
             ->having('total', '>', 1)
             ->get();
 
@@ -7003,16 +7004,19 @@ class CronController extends Controller
         $logDetails = [];
 
         foreach ($duplicados as $dup) {
-            // 2. Para cada cliente, tomar la PRIMER factura abierta del mes
-            $factura = Factura::where('cliente', $dup->cliente)
-                ->where('tipo', 2)
-                ->where('emitida', 1)
-                ->where('estatus', 1)
-                ->where('empresa', 1)
-                ->whereMonth('fecha', 4)
-                ->whereYear('fecha', 2026)
-                ->orderBy('fecha', 'asc')
-                ->orderBy('id', 'asc')
+            // 2. Para cada contrato duplicado, tomar la PRIMER factura abierta del mes
+            $factura = Factura::join('facturas_contratos', 'factura.id', '=', 'facturas_contratos.factura_id')
+                ->where('factura.cliente', $dup->cliente)
+                ->where('facturas_contratos.contrato_nro', $dup->contrato_nro)
+                ->where('factura.tipo', 2)
+                ->where('factura.emitida', 1)
+                ->where('factura.estatus', 1)
+                ->where('factura.empresa', 1)
+                ->whereMonth('factura.fecha', 4)
+                ->whereYear('factura.fecha', 2026)
+                ->select('factura.*')
+                ->orderBy('factura.fecha', 'asc')
+                ->orderBy('factura.id', 'asc')
                 ->first();
 
             if ($factura) {
