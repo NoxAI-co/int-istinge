@@ -3855,9 +3855,7 @@ class ExportarReportesController extends Controller
                 $join->on('i.id', '=', 'movimientos.id_modulo')
                      ->where('movimientos.modulo', '=', 1);
             })
-            ->leftjoin('ingresos_factura as if','if.ingreso','movimientos.id_modulo')
-            ->leftjoin('factura as f','f.id','if.factura')
-            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'),'f.id as facturaId')
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
             ->where('movimientos.fecha', '>=', $dates['inicio'])
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.estatus','<>',2)
