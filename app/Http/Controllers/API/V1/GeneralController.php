@@ -236,6 +236,8 @@ class GeneralController extends Controller
     {
         $radicados = Radicado::where('contrato', $contrato->nro)
             ->whereIn('estatus', [0, 2])
+            ->whereNotNull('codigo')
+            ->where('codigo', '!=', '')
             ->orderBy('fecha', 'desc')
             ->orderBy('id', 'desc')
             ->get();
