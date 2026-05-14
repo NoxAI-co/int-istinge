@@ -740,9 +740,15 @@ class IngresosController extends Controller
                         Validacion cuando se recibe un valor mayor a la factura. entonces guardamos
                         sobre el total de la factura por que el resto es saldo a favor.
                         */
-                        if($factura->total()->total < $request->precio[$key]){
+                        // Memoizamos total() y porpagar(): cada uno corre múltiples queries
+                        // (ItemsFactura + Impuesto + Retencion + IngresosFactura + PucMovimiento)
+                        // y aquí se invocarían de forma consecutiva.
+                        $facturaTotalCalc    = $factura->total()->total;
+                        $facturaPorpagarCalc = $factura->porpagar();
 
-                            // $items->pago = $factura->total()->total; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
+                        if ($facturaTotalCalc < $request->precio[$key]) {
+
+                            // $items->pago = $facturaTotalCalc; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
                             $items->pago = $this->precision($request->precio[$key]);
                             $factura->estatus = 0;
                             $factura->save();
@@ -750,7 +756,7 @@ class IngresosController extends Controller
                                 $items->pago=$this->precision($request->precio[$key]);
                             }
 
-                            if ($this->precision($precio) == $this->precision($factura->porpagar())) {
+                            if ($this->precision($precio) == $this->precision($facturaPorpagarCalc)) {
                                 $factura->estatus = 0;
                                 $factura->save();
 
@@ -768,44 +774,62 @@ class IngresosController extends Controller
                                 $this->aplicarDescuentoItemsFactura($factura->id, $descuentoPct);
                             }
 
-                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente
+                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente.
+                            // Diferido a terminating() para no bloquear la respuesta con las llamadas externas (DIAN).
                             $pagoEmitirCliente = Contrato::where('client_id', $factura->cliente)->where('pago_emitir', 1)->exists();
-                            
-                            if($pagoEmitirCliente && $factura->estatus == 0){
+
+                            if ($pagoEmitirCliente && $factura->estatus == 0) {
                                 // Solo auto-emitir si el usuario NO seleccionó tipo_electronica=2 manualmente (para evitar doble ejecución)
-                                if(!isset($request->tipo_electronica) || $request->tipo_electronica != 2){
-                                    try {
-                                        if($factura->emitida != 1){
-                                            if($factura->tipo == 1){
-                                                app(FacturasController::class)->convertirelEctronica($factura->id, 0, 1);
-                                                $factura->refresh();
+                                if (!isset($request->tipo_electronica) || $request->tipo_electronica != 2) {
+                                    $facturaIdBG  = $factura->id;
+                                    $clienteIdBG  = $factura->cliente;
+                                    $proveedorBG  = $empresa->proveedor ?? null;
+                                    app()->terminating(function () use ($facturaIdBG, $clienteIdBG, $proveedorBG) {
+                                        try {
+                                            DB::reconnect();
+                                            $facturaBG = Factura::find($facturaIdBG);
+                                            if (!$facturaBG || $facturaBG->emitida == 1 || $facturaBG->estatus != 0) {
+                                                return;
                                             }
-                                            if(isset($empresa->proveedor) && $empresa->proveedor == 2){
-                                                app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
+                                            if ($facturaBG->tipo == 1) {
+                                                app(FacturasController::class)->convertirelEctronica($facturaBG->id, 0, 1);
+                                                $facturaBG->refresh();
+                                            }
+                                            if ($proveedorBG == 2) {
+                                                app(FacturasController::class)->jsonDianFacturaVenta($facturaBG->id);
                                             } else {
-                                                app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($facturaBG->id);
                                             }
+                                        } catch (\Throwable $eEmitir) {
+                                            Log::error('Error en auto-emisión DIAN (pago_emitir cliente, background): ' . $eEmitir->getMessage(), [
+                                                'factura_id' => $facturaIdBG,
+                                                'cliente_id' => $clienteIdBG,
+                                            ]);
                                         }
-                                    } catch (\Throwable $eEmitir) {
-                                        Log::error('Error en auto-emisión DIAN (pago_emitir cliente): ' . $eEmitir->getMessage(), [
-                                            'factura_id' => $factura->id,
-                                            'cliente_id' => $factura->cliente,
-                                        ]);
-                                    }
+                                    });
                                 }
                             }
 
-                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
+                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma.
+                            // Diferido a terminating() para no bloquear la respuesta con la llamada HTTP externa.
                             if ($factura->onepay_invoice_id) {
-                                try {
-                                    $onePayService = new \App\Services\OnePayService($empresa->id);
-                                    $onePayService->deleteInvoice($factura);
-                                } catch (\Exception $e) {
-                                    \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
-                                        'factura_id' => $factura->id,
-                                        'empresa_id' => $empresa->id
-                                    ]);
-                                }
+                                $facturaIdBG = $factura->id;
+                                $empresaIdBG = $empresa->id;
+                                app()->terminating(function () use ($facturaIdBG, $empresaIdBG) {
+                                    try {
+                                        DB::reconnect();
+                                        $facturaBG = Factura::find($facturaIdBG);
+                                        if ($facturaBG && $facturaBG->onepay_invoice_id) {
+                                            $onePayService = new \App\Services\OnePayService($empresaIdBG);
+                                            $onePayService->deleteInvoice($facturaBG);
+                                        }
+                                    } catch (\Throwable $e) {
+                                        Log::error('Error al eliminar factura en OnePay (background): ' . $e->getMessage(), [
+                                            'factura_id' => $facturaIdBG,
+                                            'empresa_id' => $empresaIdBG,
+                                        ]);
+                                    }
+                                });
                             }
 
                             if(isset($request->tipo_electronica) && $request->tipo_electronica != 6 || !isset($request->tipo_electronica)){
@@ -972,80 +996,81 @@ class IngresosController extends Controller
                         $cliente = Contacto::where('id', $request->cliente)->first();
 
                         /* * * ENVÍO SMS * * */
+                        // Diferido a terminating(): la API SMS usa CURLOPT_TIMEOUT=0 (sin timeout)
+                        // y puede colgar la respuesta varios minutos si el proveedor está lento.
                         $servicio = Integracion::where('empresa', Auth::user()->empresa)->where('tipo', 'SMS')->where('status', 1)->first();
-                        if($servicio){
-                            $numero = str_replace('+','',$cliente->celular);
-                            $numero = str_replace(' ','',$numero);
-                            $mensaje = "Estimado Cliente, le informamos que hemos recibido el pago de su factura por valor de ".$factura->parsear($precio)." gracias por preferirnos. ".Auth::user()->empresa()->slogan;
-                            if($servicio->nombre == 'Hablame SMS'){
-                                if($servicio->api_key && $servicio->user && $servicio->pass){
-                                    $post['toNumber'] = $numero;
-                                    $post['sms'] = $mensaje;
+                        if ($servicio && $cliente && $cliente->celular) {
+                            $numeroSMS = str_replace([' ', '+'], '', $cliente->celular);
+                            $slogan    = Auth::user()->empresa()->slogan ?? '';
+                            $mensajeSMS = "Estimado Cliente, le informamos que hemos recibido el pago de su factura por valor de " . $factura->parsear($precio) . " gracias por preferirnos. " . $slogan;
+                            $servicioSMS = (object) [
+                                'nombre'  => $servicio->nombre,
+                                'api_key' => $servicio->api_key,
+                                'user'    => $servicio->user,
+                                'pass'    => $servicio->pass,
+                            ];
 
-                                    $curl = curl_init();
-                                    curl_setopt_array($curl, array(
-                                        CURLOPT_URL => 'https://api103.hablame.co/api/sms/v3/send/marketing',
-                                        CURLOPT_RETURNTRANSFER => true,
-                                        CURLOPT_ENCODING => '',
-                                        CURLOPT_MAXREDIRS => 10,
-                                        CURLOPT_TIMEOUT => 0,
-                                        CURLOPT_FOLLOWLOCATION => true,
-                                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                        CURLOPT_CUSTOMREQUEST => 'POST',CURLOPT_POSTFIELDS => json_encode($post),
-                                        CURLOPT_HTTPHEADER => array(
-                                            'account: '.$servicio->user,
-                                            'apiKey: '.$servicio->api_key,
-                                            'token: '.$servicio->pass,
-                                            'Content-Type: application/json'
-                                        ),
-                                    ));
-                                    $result = curl_exec ($curl);
-                                    $err  = curl_error($curl);
-                                    curl_close($curl);
+                            app()->terminating(function () use ($servicioSMS, $numeroSMS, $mensajeSMS) {
+                                try {
+                                    if ($servicioSMS->nombre == 'Hablame SMS') {
+                                        if ($servicioSMS->api_key && $servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['toNumber' => $numeroSMS, 'sms' => $mensajeSMS];
+                                            $curl = curl_init();
+                                            curl_setopt_array($curl, array(
+                                                CURLOPT_URL => 'https://api103.hablame.co/api/sms/v3/send/marketing',
+                                                CURLOPT_RETURNTRANSFER => true,
+                                                CURLOPT_ENCODING => '',
+                                                CURLOPT_MAXREDIRS => 10,
+                                                CURLOPT_TIMEOUT => 0,
+                                                CURLOPT_FOLLOWLOCATION => true,
+                                                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                                                CURLOPT_CUSTOMREQUEST => 'POST',
+                                                CURLOPT_POSTFIELDS => json_encode($post),
+                                                CURLOPT_HTTPHEADER => array(
+                                                    'account: ' . $servicioSMS->user,
+                                                    'apiKey: '  . $servicioSMS->api_key,
+                                                    'token: '   . $servicioSMS->pass,
+                                                    'Content-Type: application/json',
+                                                ),
+                                            ));
+                                            curl_exec($curl);
+                                            curl_close($curl);
+                                        }
+                                    } elseif ($servicioSMS->nombre == 'SmsEasySms') {
+                                        if ($servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['to' => ['57' . $numeroSMS], 'text' => $mensajeSMS, 'from' => 'SMS'];
+                                            $ch = curl_init();
+                                            curl_setopt($ch, CURLOPT_URL, 'https://sms.istsas.com/Api/rest/message');
+                                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                                            curl_setopt($ch, CURLOPT_POST, 1);
+                                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                                'Accept: application/json',
+                                                'Authorization: Basic ' . base64_encode($servicioSMS->user . ':' . $servicioSMS->pass),
+                                            ));
+                                            curl_exec($ch);
+                                            curl_close($ch);
+                                        }
+                                    } else {
+                                        if ($servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['to' => ['57' . $numeroSMS], 'text' => $mensajeSMS, 'from' => ''];
+                                            $ch = curl_init();
+                                            curl_setopt($ch, CURLOPT_URL, 'https://masivos.colombiared.com.co/Api/rest/message');
+                                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                                            curl_setopt($ch, CURLOPT_POST, 1);
+                                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                                'Accept: application/json',
+                                                'Authorization: Basic ' . base64_encode($servicioSMS->user . ':' . $servicioSMS->pass),
+                                            ));
+                                            curl_exec($ch);
+                                            curl_close($ch);
+                                        }
+                                    }
+                                } catch (\Throwable $eSMS) {
+                                    Log::error('Error enviando SMS (background): ' . $eSMS->getMessage());
                                 }
-                            }elseif($servicio->nombre == 'SmsEasySms'){
-                                if($servicio->user && $servicio->pass){
-                                    $post['to'] = array('57'.$numero);
-                                    $post['text'] = $mensaje;
-                                    $post['from'] = "SMS";
-                                    $login = $servicio->user;
-                                    $password = $servicio->pass;
-
-                                    $ch = curl_init();
-                                    curl_setopt($ch, CURLOPT_URL, "https://sms.istsas.com/Api/rest/message");
-                                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                                    curl_setopt($ch, CURLOPT_POST, 1);
-                                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                                    curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                        array(
-                                            "Accept: application/json",
-                                            "Authorization: Basic ".base64_encode($login.":".$password)));
-                                    $result = curl_exec ($ch);
-                                    $err  = curl_error($ch);
-                                    curl_close($ch);
-                                }
-                            }else{
-                                if($servicio->user && $servicio->pass){
-                                    $post['to'] = array('57'.$numero);
-                                    $post['text'] = $mensaje;
-                                    $post['from'] = "";
-                                    $login = $servicio->user;
-                                    $password = $servicio->pass;
-
-                                    $ch = curl_init();
-                                    curl_setopt($ch, CURLOPT_URL, "https://masivos.colombiared.com.co/Api/rest/message");
-                                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                                    curl_setopt($ch, CURLOPT_POST, 1);
-                                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                                    curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                        array(
-                                            "Accept: application/json",
-                                            "Authorization: Basic ".base64_encode($login.":".$password)));
-                                    $result = curl_exec ($ch);
-                                    $err  = curl_error($ch);
-                                    curl_close($ch);
-                                }
-                            }
+                            });
                         }
                         /* * * ENVÍO SMS * * */
                     }
@@ -1104,13 +1129,11 @@ class IngresosController extends Controller
                     $this->up_transaccion(1, $ingreso->id, $ingreso->cuenta, $ingreso->cliente, 1, $ingreso->pago(), $ingreso->fecha, 'Ingreso por concepto de reconexión');
                     }
 
-                    $facturas = Factura::where('cliente', $ingreso->cliente)->where('estatus', 1)->get();
-                    if ($facturas) {
-                        foreach ($facturas as $factura) {
-                            $factura->estatus = 0;
-                            $factura->save();
-                        }
-                    }
+                    // Marcar todas las facturas abiertas del cliente como cerradas en un solo UPDATE
+                    // (antes se iteraba y se hacía save() por cada una -- N consultas).
+                    Factura::where('cliente', $ingreso->cliente)
+                        ->where('estatus', 1)
+                        ->update(['estatus' => 0]);
                 }
 
                 $tirilla = false;
