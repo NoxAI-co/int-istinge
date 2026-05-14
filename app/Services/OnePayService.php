@@ -10,6 +10,8 @@ use App\MovimientoLOG;
 use App\Funcion;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\FacturasController;
+use Illuminate\Support\Facades\File;
 
 class OnePayService
 {
@@ -66,8 +68,8 @@ class OnePayService
                 ? $factura->onepay_idempotency_key 
                 : $this->generateIdempotencyKey($factura, 'create', $empresaId);
 
-            // Construir URL del documento
-            $documentUrl = url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+            // Generar y asegurar la ruta estática para el documento (Evita corrupción de Meta)
+            $documentUrl = $this->ensureStaticDocument($factura);
 
             // Calcular total de la factura
             $total = $factura->totalAPI($empresaId);
@@ -653,6 +655,59 @@ class OnePayService
         } catch (\Exception $e) {
             Log::error('Integra Pay getPayments Exception: ' . $e->getMessage());
             throw $e;
+        }
+    /**
+     * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
+     * Implementa una limpieza automática de archivos con más de 24 horas.
+     */
+    private function ensureStaticDocument(Factura $factura): string
+    {
+        try {
+            $directory = public_path('documentos_meta');
+            
+            // 1. Crear carpeta si no existe
+            if (!File::exists($directory)) {
+                File::makeDirectory($directory, 0755, true);
+            }
+
+            // 2. Limpieza automática (Archivos > 24h)
+            $this->purgeOldDocuments($directory);
+
+            // 3. Definir nombre y ruta
+            $filename = 'factura_' . $factura->nonkey . '.pdf';
+            $fullPath = $directory . '/' . $filename;
+
+            // 4. Generar el contenido PDF (Llamada interna al controlador)
+            // Usamos output() para capturar el stream del PDF sin enviarlo al navegador
+            // Pasamos el 4to argumento ($save) como true para que retorne el objeto PDF
+            $pdfResponse = FacturasController::Imprimir($factura->id, 'original', true, true, false);
+            
+            if (is_object($pdfResponse) && method_exists($pdfResponse, 'output')) {
+                $pdfBinary = $pdfResponse->output();
+                File::put($fullPath, $pdfBinary);
+                return url('documentos_meta/' . $filename);
+            }
+
+            // Fallback en caso de error en generación interna
+            return url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+
+        } catch (\Exception $e) {
+            Log::error('Error en ensureStaticDocument: ' . $e->getMessage());
+            return url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+        }
+    }
+
+    /**
+     * Elimina archivos PDF antiguos en el directorio especificado.
+     */
+    private function purgeOldDocuments(string $directory): void
+    {
+        $files = File::files($directory);
+        $now = time();
+        foreach ($files as $file) {
+            if ($now - File::lastModified($file) > 86400) { // 24 horas
+                File::delete($file);
+            }
         }
     }
 }
