@@ -7048,7 +7048,6 @@ class CronController extends Controller
                     $nc->tipo = 1; // Anulación de factura de venta
                     $nc->observaciones = "Anulación masiva automática por duplicidad en Abril 2026. Factura relacionada: " . ($factura->codigo ?? $factura->nro);
                     $nc->bodega = $factura->bodega ?? 1;
-                    $nc->vendedor = $factura->vendedor;
                     $nc->lista_precios = $factura->lista_precios;
                     $nc->save();
 
