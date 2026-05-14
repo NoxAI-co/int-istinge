@@ -82,12 +82,7 @@ class GeneralController extends Controller
                         return $c->id === $contratoVigente->id;
                     })
                     ->map(function ($c) {
-                        return [
-                            'id'         => $c->id,
-                            'nro'        => $c->nro,
-                            'state'      => $c->state,
-                            'created_at' => $c->created_at,
-                        ];
+                        return $this->buildContratoAlternativo($c);
                     })
                     ->values();
             }
@@ -116,6 +111,37 @@ class GeneralController extends Controller
         $contrato->setAttribute('ubicacion', $this->buildUbicacion($cliente));
         $contrato->setAttribute('historial_pagos', $this->buildHistorialPagos($contrato));
         $contrato->setAttribute('casos_abiertos', $this->buildCasosAbiertos($contrato));
+    }
+
+    /**
+     * Resumen compacto para los contratos alternativos del mismo cliente:
+     * suficiente información para que el consumidor decida si requiere
+     * cambiar al contrato (sin cargar todo el detalle).
+     */
+    private function buildContratoAlternativo(Contrato $c)
+    {
+        $plan = $c->plan_detalles_api;
+        $planNombre = is_array($plan) && isset($plan['name']) ? $plan['name'] : null;
+
+        $deudaValor = $c->deudaFacturas();
+
+        return [
+            'id'              => $c->id,
+            'nro'             => $c->nro,
+            'state'           => $c->state,
+            'estado'          => $c->status(),
+            'usuario'         => $c->usuario,
+            'ip'              => $c->ip,
+            'tipo_contrato'   => $c->tipo_contrato,
+            'fecha_corte'     => $c->fecha_corte,
+            'plan_id'         => $c->plan_id,
+            'plan'            => $planNombre,
+            'plan_detalles'   => $plan,
+            'deuda'           => '$' . \App\Funcion::Parsear($deudaValor),
+            'deuda_valor'     => (float) $deudaValor,
+            'tiene_deuda'     => $deudaValor > 0,
+            'created_at'      => $c->created_at,
+        ];
     }
 
     private function buildClienteInfo($cliente)
