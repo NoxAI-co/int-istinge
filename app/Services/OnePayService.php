@@ -75,7 +75,7 @@ class OnePayService
                 : $this->generateIdempotencyKey($factura, 'create', $empresaId);
 
             // Generar y asegurar la ruta estática para el documento (Evita corrupción de Meta)
-            $documentUrl = $this->ensureStaticDocument($factura);
+            $documentUrl = $this->prepareDocument($factura);
 
             // Calcular total de la factura
             $total = $factura->totalAPI($empresaId);
@@ -668,8 +668,16 @@ class OnePayService
      * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
      * Implementa una limpieza automática de archivos con más de 40 días.
      */
-    private function ensureStaticDocument(Factura $factura): string
+    /**
+     * Prepara el documento PDF estático. Se puede llamar antes de createInvoice para asegurar su existencia.
+     */
+    public function prepareDocument(Factura $factura): string
     {
+        return $this->ensureStaticDocument($factura);
+    }
+
+    /**
+     * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
         try {
             $directory = public_path('documentos_meta');
             

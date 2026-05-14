@@ -2909,8 +2909,27 @@ class CronController extends Controller
         // Log inicial para trazar el inicio del procesamiento
         Log::info('[OnePay Webhook] Recibido evento', ['type' => $requestData['event']['type'] ?? 'unknown']);
 
-        if(!isset($requestData['event']['type']) || !in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid'])){
+        if(!isset($requestData['event']['type']) || !in_array($requestData['event']['type'], ['payment.approved', 'invoice.paid', 'invoice.created'])){
             return response('false', 200);
+        }
+
+        // Caso especial: Sincronización de factura recién creada
+        if ($requestData['event']['type'] == 'invoice.created') {
+            $invoice = $requestData['invoice'] ?? [];
+            $facturaId = $invoice['metadata']['factura_id'] ?? null;
+            
+            if ($facturaId) {
+                $factura = Factura::find($facturaId);
+                if ($factura && (!$factura->onepay_invoice_id || $factura->onepay_invoice_id != $invoice['id'])) {
+                    $factura->onepay_invoice_id = $invoice['id'];
+                    $factura->save();
+                    Log::info('[OnePay Webhook] Factura vinculada mediante invoice.created', [
+                        'factura_id' => $facturaId, 
+                        'onepay_id' => $invoice['id']
+                    ]);
+                }
+            }
+            return response('success', 200);
         }
 
         $factura = null;

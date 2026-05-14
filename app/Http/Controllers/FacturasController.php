@@ -2397,6 +2397,7 @@ class FacturasController extends Controller{
         if(OnePayService::isEnabled($user->empresa)){
             try {
                 $onePayService = new OnePayService($user->empresa);
+                $onePayService->prepareDocument($factura);
                 $onePayService->createInvoice($factura, $user->empresa);
             } catch (\Exception $e) {
                 // Log del error pero no interrumpir el flujo
@@ -2829,10 +2830,12 @@ class FacturasController extends Controller{
                         // Si no tiene onepay_invoice_id, es la primera vez que se crea en OnePay
                         if(!$factura->onepay_invoice_id){
                             // Crear factura en OnePay por primera vez
+                            $onePayService->prepareDocument($factura);
                             $onePayService->createInvoice($factura, $user->empresa);
                         } else {
                             // Si ya existe, solo actualizar si cambió el total
                             if(abs($totalAnterior - $totalNuevo) > 0.01){
+                                $onePayService->prepareDocument($factura);
                                 $onePayService->updateInvoice($factura, $user->empresa);
                             }
                         }
@@ -3588,6 +3591,8 @@ class FacturasController extends Controller{
                 // Crear factura en OnePay si está habilitado
                 if (OnePayService::isEnabled()) {
                     try {
+                        $onePayService = new OnePayService(Auth::user()->empresa);
+                        $onePayService->prepareDocument($factura);
                         $onePayService->createInvoice($factura, Auth::user()->empresa);
                     } catch (\Exception $e) {
                          Log::error('Error al recrear factura en OnePay al abrir: ' . $e->getMessage());
@@ -3624,9 +3629,10 @@ class FacturasController extends Controller{
                 $factura->save();
 
                 // Crear factura en OnePay si está habilitado
-                $onePayService = new \App\Services\OnePayService();
-                if (\App\Services\OnePayService::isEnabled()) {
+                if (\App\Services\OnePayService::isEnabled(Auth::user()->empresa)) {
                     try {
+                        $onePayService = new \App\Services\OnePayService(Auth::user()->empresa);
+                        $onePayService->prepareDocument($factura);
                         $onePayService->createInvoice($factura, Auth::user()->empresa);
                     } catch (\Exception $e) {
                          \Log::error('Error al recrear factura en OnePay al abrir: ' . $e->getMessage());
