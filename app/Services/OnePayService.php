@@ -660,7 +660,7 @@ class OnePayService
 
     /**
      * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
-     * Implementa una limpieza automática de archivos con más de 24 horas.
+     * Implementa una limpieza automática de archivos con más de 40 días.
      */
     private function ensureStaticDocument(Factura $factura): string
     {
@@ -672,7 +672,7 @@ class OnePayService
                 File::makeDirectory($directory, 0755, true);
             }
 
-            // 2. Limpieza automática (Archivos > 24h)
+            // 2. Limpieza automática (Archivos > 40 días)
             $this->purgeOldDocuments($directory);
 
             // 3. Definir nombre y ruta
@@ -707,7 +707,7 @@ class OnePayService
         $files = File::files($directory);
         $now = time();
         foreach ($files as $file) {
-            if ($now - File::lastModified($file) > 86400) { // 24 horas
+            if ($now - File::lastModified($file) > 3456000) { // 40 días (40 * 24 * 3600)
                 File::delete($file);
             }
         }
