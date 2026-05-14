@@ -1274,7 +1274,10 @@ class IngresosController extends Controller
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
         $mensaje = "";
-        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresa->id}, Ingreso ID: {$ingreso->id}");
+        $userId = $ingreso->getAttributes()['created_by'] ?? null;
+        $empresaId = $empresa->id;
+
+        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresaId}, Ingreso ID: {$ingreso->id}");
 
         try {
 
@@ -1297,8 +1300,8 @@ class IngresosController extends Controller
                     $movimiento->contrato    = $contrato->id;
                     $movimiento->modulo      = 5;
                     $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT (automático)</b> a Habilitado por pago de factura<br>';
-                    $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                    $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresaId;
                     $movimiento->save();
                     Log::debug("funcionesPagoMK: OLT habilitado y log de movimiento guardado.");
                 } catch (\Throwable $e) {
@@ -1329,9 +1332,6 @@ class IngresosController extends Controller
                 $API->delay = 1;
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
                     Log::debug("funcionesPagoMK: Conexión exitosa a Mikrotik.");
-
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
 
                     Log::debug("funcionesPagoMK: Verificando activeconn_secret: " . ($empresa->activeconn_secret ?? 0));
                     if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
@@ -1401,8 +1401,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
 
                             // OPTIMIZADO: Un solo remove en batch con todos los IDs (=numbers= acepta lista separada por coma)
@@ -1416,8 +1416,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
 
                             // Verificar si realmente se eliminaron todas las entradas
@@ -1435,8 +1435,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = $descVerif;
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
 
                             #AGREGAMOS A IP_AUTORIZADAS#
@@ -1450,8 +1450,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
                             #AGREGAMOS A IP_AUTORIZADAS#
 
@@ -1477,8 +1477,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
 
                             #ELIMINAMOS DE MOROSOS#
@@ -1497,7 +1497,7 @@ class IngresosController extends Controller
                                 $movimiento->contrato    = $contrato->id;
                                 $movimiento->modulo      = 5;
                                 $movimiento->descripcion = '[Manual] Resultado agregar a ips_autorizadas: ' . json_encode($resultAddAut);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
+                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->getAttributes()['created_by'];
                                 $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
                                 $movimiento->save();
                             }
@@ -1514,8 +1514,8 @@ class IngresosController extends Controller
                             $movimiento->contrato    = $contrato->id;
                             $movimiento->modulo      = 5;
                             $movimiento->descripcion = "[Manual] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos. Se habilitó el contrato y se agregó a ips_autorizadas.";
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
                             $movimiento->save();
 
                             // Etiqueta automática: contrato habilitado por pago de factura
