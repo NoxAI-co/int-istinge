@@ -62,6 +62,12 @@ class OnePayService
                 throw new \Exception('Empresa o cliente no encontrado');
             }
 
+            // Asegurar que la factura tenga un nonkey generado (necesario para el nombre del archivo)
+            if (empty($factura->nonkey)) {
+                $factura->nonkey = md5($factura->id . time() . 'integra');
+                $factura->save();
+            }
+
             // Generar x-idempotency determinista. 
             // Se prefiere reutilizar la almacenada si existe por robustez en reintentos.
             $idempotencyKey = !empty($factura->onepay_idempotency_key) 
@@ -687,6 +693,13 @@ class OnePayService
             if (is_object($pdfResponse) && method_exists($pdfResponse, 'output')) {
                 $pdfBinary = $pdfResponse->output();
                 File::put($fullPath, $pdfBinary);
+
+                // Validar que el archivo realmente se guardó y no está vacío
+                if (!File::exists($fullPath) || File::size($fullPath) == 0) {
+                    Log::error("Fallo crítico en generación de PDF para OnePay: {$fullPath}");
+                    throw new \Exception("No se pudo confirmar la creación física del PDF.");
+                }
+
                 return url('documentos_meta/' . $filename);
             }
 
