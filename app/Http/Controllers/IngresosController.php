@@ -2456,28 +2456,123 @@ class IngresosController extends Controller
 
     public function Imprimir(Request $request, $id){
         view()->share(['title' => 'Imprimir Ingreso']);
-        $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('nro', $id)->first();
-        if ($ingreso) {
-            if ($ingreso->tipo==1) {
-                $itemscount=IngresosFactura::where('ingreso',$ingreso->id)->count();
-                $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
-            }else if ($ingreso->tipo==2){
-                $itemscount=IngresosCategoria::where('ingreso',$ingreso->id)->count();
-                $items = IngresosCategoria::where('ingreso',$ingreso->id)->get();
-            }else{
-                $itemscount=1;
-                $items = Ingreso::where('empresa',Auth::user()->empresa)->where('nro', $id)->get();
-            }
-            $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
-            $empresa = Empresa::find($ingreso->empresa);
-
-            // Verificar si se solicita versión detallada
-            $detalle = $request->query('detalle', 0);
-            $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
-
-            $pdf = PDF::loadView($vista, compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
-            return $pdf->stream('ingreso.pdf');
+        $empresaId = Auth::user()->empresa;
+        $ingreso = Ingreso::where('empresa', $empresaId)->where('nro', $id)->first();
+        if (!$ingreso) {
+            return;
         }
+
+        if ($ingreso->tipo == 1) {
+            $items = IngresosFactura::where('ingreso', $ingreso->id)->get();
+        } elseif ($ingreso->tipo == 2) {
+            $items = IngresosCategoria::where('ingreso', $ingreso->id)->get();
+        } else {
+            $items = Ingreso::where('empresa', $empresaId)->where('nro', $id)->get();
+        }
+        $itemscount = $items->count();
+
+        $retenciones = IngresosRetenciones::where('ingreso', $ingreso->id)->get();
+        $empresa = Empresa::find($ingreso->empresa);
+
+        // Verificar si se solicita versión detallada
+        $detalle = $request->query('detalle', 0);
+        $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
+
+        $pdfData = $this->prepareIngresoPdfData($ingreso, $items, $retenciones, (bool) $detalle);
+
+        $pdf = PDF::loadView($vista, array_merge(
+            compact('ingreso', 'items', 'retenciones', 'itemscount', 'empresa'),
+            $pdfData
+        ));
+        return $pdf->stream('ingreso.pdf');
+    }
+
+    /**
+     * Precalcula los datos requeridos por las vistas PDF (pdf.ingreso y
+     * pdf.ingreso_detallado) para evitar N+1: cliente, cuenta, método de pago,
+     * total pagado, líneas renderizadas, retenciones agrupadas y, en versión
+     * detallada, la factura primaria con saldo (porpagar) calculado una sola vez.
+     */
+    private function prepareIngresoPdfData(Ingreso $ingreso, $items, $retenciones, bool $isDetallado): array
+    {
+        $cliente            = $ingreso->cliente();
+        $cuenta             = $ingreso->cuenta();
+        $metodoPago         = $ingreso->metodo_pago();
+        $pagoTotal          = $ingreso->pago();
+        $clienteTipIdenMini = $cliente ? $cliente->tip_iden('mini') : '';
+
+        // Mapas reutilizables (precarga por lotes)
+        $facturasById = collect();
+        if ($ingreso->tipo == 1 && $items->count() > 0) {
+            $facturaIds = $items->pluck('factura')->unique()->filter()->values();
+            $facturasById = Factura::whereIn('id', $facturaIds)->get()->keyBy('id');
+        }
+
+        $pucById = collect();
+        if ($ingreso->tipo == 2 && $items->count() > 0) {
+            $categoriaIds = $items->pluck('categoria')->unique()->filter()->values();
+            $pucById = Puc::whereIn('id', $categoriaIds)->get()->keyBy('id');
+        }
+
+        $itemsRendered = [];
+        foreach ($items as $it) {
+            if ($ingreso->tipo == 1) {
+                $f = $facturasById->get($it->factura);
+                $itemsRendered[] = (object) [
+                    'detalle_text' => $f ? ('Factura de Venta: ' . $f->codigo) : '',
+                    'pago_value'   => $it->pago,
+                    'categoria'    => null,
+                ];
+            } elseif ($ingreso->tipo == 2) {
+                $puc = $pucById->get($it->categoria);
+                $itemsRendered[] = (object) [
+                    'detalle_text' => ($puc ? $puc->nombre : '') . ($it->descripcion ? ': ' . $it->descripcion : ''),
+                    'pago_value'   => $it->valor * $it->cant,
+                    'categoria'    => $puc,
+                ];
+            } else {
+                $itemsRendered[] = (object) [
+                    'detalle_text' => $it->detalle('Pago a '),
+                    'pago_value'   => $it->pago(),
+                    'categoria'    => null,
+                ];
+            }
+        }
+
+        // Retenciones: una sola consulta para todas las definiciones
+        $retencionIds = $retenciones->pluck('id_retencion')->unique()->filter()->values();
+        $retencionPorId = $retencionIds->count() > 0
+            ? Retencion::whereIn('id', $retencionIds)->get()->keyBy('id')
+            : collect();
+
+        // Datos exclusivos de la vista detallada
+        $ingresoFacturaPrimary = null;
+        $facturaPrimary        = null;
+        $periodoCobradoTexto   = null;
+        $contratoAsociadoNro   = null;
+        $porpagarFactura       = null;
+        if ($isDetallado && $ingreso->tipo == 1) {
+            $ingresoFacturaPrimary = $items->first();
+            if ($ingresoFacturaPrimary) {
+                $facturaPrimary = $facturasById->get($ingresoFacturaPrimary->factura);
+                if (!$facturaPrimary && $ingresoFacturaPrimary->factura) {
+                    $facturaPrimary = Factura::find($ingresoFacturaPrimary->factura);
+                }
+                if ($facturaPrimary) {
+                    $periodoCobradoTexto = $facturaPrimary->periodoCobradoTexto();
+                    $porpagarFactura     = $facturaPrimary->porpagar();
+                    $contratoAsoc        = $facturaPrimary->contratoAsociado();
+                    $contratoAsociadoNro = $contratoAsoc ? $contratoAsoc->nro : 'N/A';
+                }
+            }
+        }
+
+        return compact(
+            'cliente', 'cuenta', 'metodoPago', 'pagoTotal', 'clienteTipIdenMini',
+            'itemsRendered', 'retencionPorId',
+            'ingresoFacturaPrimary', 'facturaPrimary', 'periodoCobradoTexto',
+            'contratoAsociadoNro', 'porpagarFactura'
+        );
     }
 
     public function imprimirTirilla($id, $tipo='original')
@@ -2625,15 +2720,22 @@ class IngresosController extends Controller
                 return redirect('empresa/ingresos/'.$ingreso->nro)->with('error', 'El Cliente ni sus contactos asociados tienen correo registrado');
             }
 
-            if ($ingreso->tipo==1) {
-                $itemscount=IngresosFactura::where('ingreso',$ingreso->id)->count();
-                $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
-            }else{
-                $itemscount=IngresosCategoria::where('ingreso',$ingreso->id)->count();
-                $items = IngresosCategoria::where('ingreso',$ingreso->id)->get();
+            if ($ingreso->tipo == 1) {
+                $items = IngresosFactura::where('ingreso', $ingreso->id)->get();
+            } else {
+                $items = IngresosCategoria::where('ingreso', $ingreso->id)->get();
             }
+            $itemscount = $items->count();
 
-            $pdf = PDF::loadView('pdf.ingreso', compact('ingreso', 'items', 'retenciones', 'itemscount'))->stream();
+            $retenciones = IngresosRetenciones::where('ingreso', $ingreso->id)->get();
+            $empresa = Empresa::find($ingreso->empresa);
+
+            $pdfData = $this->prepareIngresoPdfData($ingreso, $items, $retenciones, false);
+
+            $pdf = PDF::loadView('pdf.ingreso', array_merge(
+                compact('ingreso', 'items', 'retenciones', 'itemscount', 'empresa'),
+                $pdfData
+            ))->stream();
             $asunto = "Recibo de Caja # $ingreso->nro";
 
             $host = ServidorCorreo::where('estado', 1)->where('empresa', Auth::user()->empresa)->first();

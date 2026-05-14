@@ -1,6 +1,16 @@
 @extends('layouts.pdf')
 
 @section('content')
+@php
+    // Variables precomputadas en el controlador (con fallback por compatibilidad).
+    $cliente_pdf          = $cliente            ?? $ingreso->cliente();
+    $cuenta_pdf           = $cuenta             ?? $ingreso->cuenta();
+    $metodo_pago_pdf      = $metodoPago         ?? $ingreso->metodo_pago();
+    $pago_total_pdf       = $pagoTotal          ?? $ingreso->pago();
+    $cliente_tipiden_mini = $clienteTipIdenMini ?? ($cliente_pdf ? $cliente_pdf->tip_iden('mini') : '');
+    $items_rendered_pdf   = $itemsRendered      ?? null;
+    $retenciones_map_pdf  = $retencionPorId     ?? null;
+@endphp
 <style type="text/css">
     #watermark {
         position: fixed;
@@ -185,29 +195,29 @@
     <table border="1" class="titulo">
         <tr>
             <th width="10%" class="right smalltd">SEÑOR(ES)</th>
-            <td colspan="3" style="border-top: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->nombre}} {{ $ingreso->cliente()->apellidos() }}@endif</td>
+            <td colspan="3" style="border-top: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->nombre}} {{ $cliente_pdf->apellidos() }}@endif</td>
             <th width="22%" class="center" style="font-size: 8px"><b>FECHA(DD/MM/AA)</b></th>
         </tr>
         <tr>
             <th class="right smalltd">DIRECCIÓN</th>
-            <td colspan="3">@if($ingreso->cliente()){{$ingreso->cliente()->direccion}}@endif</td>
+            <td colspan="3">@if($cliente_pdf){{$cliente_pdf->direccion}}@endif</td>
             <td class="center" rowspan="4" style="font-size: 18px;    border-right: 2px solid #ccc;">{{date('d/m/Y', strtotime($ingreso->fecha))}}</td>
         </tr>
         <tr>
             <th class="right smalltd">CIUDAD</th>
-            <td colspan="3">@if($ingreso->cliente()){{$ingreso->cliente()->ciudad}}@endif</td>
+            <td colspan="3">@if($cliente_pdf){{$cliente_pdf->ciudad}}@endif</td>
         </tr>
         <tr>
             <th class="right smalltd">TELÉFONO</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->telefono1}}@endif</td>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->telefono1}}@endif</td>
             <th class="right smalltd" style="padding-right: 2px;">MÉTODO DE PAGO</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->metodo_pago()}}@endif</td>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$metodo_pago_pdf}}@endif</td>
         </tr>
         <tr>
-            <th class="right smalltd">@if($ingreso->cliente()){{$ingreso->cliente()->tip_iden('mini')}}@endif</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->nit}}@endif</td>
+            <th class="right smalltd">@if($cliente_pdf){{$cliente_tipiden_mini}}@endif</th>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->nit}}@endif</td>
             <th class="right smalltd" style="padding-right: 2px;">CUENTA</th>
-            <td style="border-bottom: 2px solid #ccc;">{{$ingreso->cuenta()->nombre}}</td>
+            <td style="border-bottom: 2px solid #ccc;">{{$cuenta_pdf->nombre}}</td>
         </tr>
 
     </table>
@@ -224,12 +234,17 @@
         </thead>
         <tbody>
             @php $cont=0; @endphp
-            @foreach($items as $item)
+            @foreach($items as $idx => $item)
 
-            @php $cont++; @endphp
+            @php
+                $cont++;
+                $rendered = $items_rendered_pdf[$idx] ?? null;
+                $detalle_text = $rendered ? $rendered->detalle_text : $item->detalle('Pago a ');
+                $pago_value   = $rendered ? $rendered->pago_value   : $item->pago();
+            @endphp
             <tr>
-                <td colspan="2" class="left padding-left border_left @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$item->detalle('Pago a ')}}</td>
-                <td class="right padding-right border_right  @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$empresa->moneda}}{{App\Funcion::Parsear($item->pago())}}</td>
+                <td colspan="2" class="left padding-left border_left @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$detalle_text}}</td>
+                <td class="right padding-right border_right  @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$empresa->moneda}}{{App\Funcion::Parsear($pago_value)}}</td>
             </tr>
 
             @endforeach
@@ -251,13 +266,17 @@
             <tr class="foot">
                 <td width="90%"></td>
                 <td class="right">SubTotal</td>
-                <td class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->pago())}}</td>
+                <td class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($pago_total_pdf)}}</td>
             </tr>
 
             @forelse($ingreso->retenciones as $retencion)
+            @php
+                $ret_def = $retenciones_map_pdf ? $retenciones_map_pdf->get($retencion->id_retencion) : null;
+                if (!$ret_def) { $ret_def = $retencion->retencion(); }
+            @endphp
             <tr class="foot">
                 <td width="90%"></td>
-                <td class="right">{{$retencion->retencion()->nombre}} ({{$retencion->retencion()->porcentaje}}%)</td>
+                <td class="right">{{$ret_def->nombre ?? ''}} ({{$ret_def->porcentaje ?? ''}}%)</td>
                 <td class="right padding-right">{{$empresa->moneda}} {{App\Funcion::Parsear($retencion->valor)}}</td>
             </tr>
             @empty
@@ -266,7 +285,7 @@
             <tr class="foot">
                 <td> </td>
                 <th class="right padding-right">Total</th>
-                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->pago())}} </th>
+                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($pago_total_pdf)}} </th>
             </tr>
         </tfoot>
 
