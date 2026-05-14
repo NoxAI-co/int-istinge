@@ -57,6 +57,9 @@ use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
 use Illuminate\Support\Facades\File;
 
+use App\Model\Ingresos\ItemsNotaCredito;
+use App\Model\Ingresos\NotaCreditoFactura;
+
 class CronController extends Controller
 {
     use CentralizedWhatsApp;
@@ -6974,5 +6977,122 @@ class CronController extends Controller
             'errores'  => $errores,
             'detalle'  => $detalle,
         ]);
+    }
+    /**
+     * Realiza notas de crédito de manera masiva para facturas duplicadas en Abril 2026.
+     * Prioriza la primera factura abierta del mes para cada cliente afectado.
+     * URL: /generacionnotacredito
+     */
+    public function generacionnotacredito()
+    {
+        // 1. Obtener los IDs de los clientes con duplicados en abril de 2026 (tipo=2, emitida=1, estatus=1)
+        $duplicados = DB::table('factura')
+            ->select('cliente', DB::raw('COUNT(*) as total'))
+            ->where('tipo', 2)
+            ->where('emitida', 1)
+            ->where('estatus', 1)
+            ->where('empresa', 1)
+            ->whereMonth('fecha', 4)
+            ->whereYear('fecha', 2026)
+            ->groupBy('cliente')
+            ->having('total', '>', 1)
+            ->get();
+
+        $creados = 0;
+        $errores = 0;
+        $logDetails = [];
+
+        foreach ($duplicados as $dup) {
+            // 2. Para cada cliente, tomar la PRIMER factura abierta del mes
+            $factura = Factura::where('cliente', $dup->cliente)
+                ->where('tipo', 2)
+                ->where('emitida', 1)
+                ->where('estatus', 1)
+                ->where('empresa', 1)
+                ->whereMonth('fecha', 4)
+                ->whereYear('fecha', 2026)
+                ->orderBy('fecha', 'asc')
+                ->orderBy('id', 'asc')
+                ->first();
+
+            if ($factura) {
+                try {
+                    // Validar si ya tiene una nota de crédito asociada para evitar duplicados en re-ejecuciones
+                    if (NotaCreditoFactura::where('factura', $factura->id)->exists()) {
+                        continue;
+                    }
+
+                    DB::beginTransaction();
+
+                    // 3. Crear el encabezado de la Nota de Crédito
+                    $numeracion = Numeracion::where('empresa', $factura->empresa)->first();
+                    if (!$numeracion) {
+                        throw new \Exception("No se encontró numeración para la empresa " . $factura->empresa);
+                    }
+                    $nro_nc = $numeracion->credito;
+
+                    // Validar disponibilidad del número
+                    while (NotaCredito::where('empresa', $factura->empresa)->where('nro', $nro_nc)->exists()) {
+                        $nro_nc++;
+                    }
+
+                    $nc = new NotaCredito();
+                    $nc->nro = $nro_nc;
+                    $nc->empresa = $factura->empresa;
+                    $nc->cliente = $factura->cliente;
+                    $nc->fecha = date('Y-m-d');
+                    $nc->tipo = 1; // Anulación de factura de venta
+                    $nc->observaciones = "Anulación masiva automática por duplicidad en Abril 2026. Factura relacionada: " . ($factura->codigo ?? $factura->nro);
+                    $nc->bodega = $factura->bodega ?? 1;
+                    $nc->vendedor = $factura->vendedor;
+                    $nc->lista_precios = $factura->lista_precios;
+                    $nc->save();
+
+                    // 4. Replicar items de la factura a la nota de crédito
+                    $items_factura = ItemsFactura::where('factura', $factura->id)->get();
+                    foreach ($items_factura as $item) {
+                        $item_nc = new ItemsNotaCredito();
+                        $item_nc->nota = $nc->id;
+                        $item_nc->producto = $item->producto;
+                        $item_nc->ref = $item->ref;
+                        $item_nc->precio = $item->precio;
+                        $item_nc->descripcion = $item->descripcion;
+                        $item_nc->id_impuesto = $item->id_impuesto;
+                        $item_nc->impuesto = $item->impuesto;
+                        $item_nc->cant = $item->cant;
+                        $item_nc->desc = $item->desc;
+                        $item_nc->save();
+                    }
+
+                    // 5. Vincular formalmente la nota de crédito con la factura
+                    $ncf = new NotaCreditoFactura();
+                    $ncf->nota = $nc->id;
+                    $ncf->factura = $factura->id;
+                    $ncf->pago = $factura->total()->total;
+                    $ncf->save();
+
+                    // 6. Actualizar estado de la factura (Cerrada/Anulada por NC)
+                    $factura->estatus = 0;
+                    $factura->save();
+
+                    // 7. Actualizar el consecutivo de numeración
+                    $numeracion->credito = $nro_nc + 1;
+                    $numeracion->save();
+
+                    DB::commit();
+                    $creados++;
+                    $logDetails[] = "NC #{$nro_nc} generada para Factura #{$factura->id} (Cliente ID: {$factura->cliente})";
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error("Error en generacionnotacredito para factura ID {$factura->id}: " . $e->getMessage());
+                    $errores++;
+                }
+            }
+        }
+
+        $msg = "Proceso completado. Notas de crédito generadas: " . $creados . ". Errores: " . $errores;
+        Log::info($msg, $logDetails);
+        return $msg;
     }
 }
