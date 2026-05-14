@@ -665,10 +665,6 @@ class OnePayService
     }
 
     /**
-     * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
-     * Implementa una limpieza automática de archivos con más de 40 días.
-     */
-    /**
      * Prepara el documento PDF estático. Se puede llamar antes de createInvoice para asegurar su existencia.
      */
     public function prepareDocument(Factura $factura): string
@@ -676,8 +672,8 @@ class OnePayService
         return $this->ensureStaticDocument($factura);
     }
 
-    /**
-     * Asegura la existencia de un archivo PDF estático para evitar la corrupción de encabezados de Meta.
+    private function ensureStaticDocument(Factura $factura): string
+    {
         try {
             $directory = public_path('documentos_meta');
             
