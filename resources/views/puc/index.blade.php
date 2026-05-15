@@ -87,22 +87,33 @@
             var url = '/empresa';
         }
 
+        let idCollapse = document.getElementById("collapse"+codigo);
+        let estadoCollapse = $("#collapse"+codigo).attr('estado');
+
+        if(estadoCollapse == 1){
+            if(idCollapse.classList.contains('show')){
+                $("#collapse"+codigo).collapse('hide');
+                $("#iplus"+codigo).attr('style','display:block;');
+                $("#iminus"+codigo).attr('style','display:none;');
+            }else{
+                $("#collapse"+codigo).collapse('show');
+                $("#iplus"+codigo).attr('style','display:none;');
+                $("#iminus"+codigo).attr('style','display:block;');
+            }
+            return;
+        }
+
         $.ajax({
             url: url+'/puc/'+codigo+'/show',
             beforeSend: function(){
-                // cargando(true);
+                cargando(true);
             },
             success: function(data){
-
+                    cargando(false);
                     let html = ``;
-                    let pos = 0;
                     let categories = data.categories;
-                    let idCollapse = document.getElementById("collapse"+codigo);
-                    let estadoCollapse = $("#collapse"+codigo).attr('estado');
-
 
                     //Construcción del acrodeón
-
                     if(categories.length > 0){
                         categories.forEach( cat => {
                         html+=`
@@ -152,45 +163,24 @@
                         });
 
                          //implementación del acordeon dentro del dom
-                        if(estadoCollapse == 0){
-                            $("#collapse"+codigo).append(html);
-                            $("#collapse"+codigo).collapse();
-                            $("#collapse"+codigo).collapse('show');
-                            $("#collapse"+codigo).attr('estado',1);
+                        $("#collapse"+codigo).append(html);
+                        $("#collapse"+codigo).collapse('show');
+                        $("#collapse"+codigo).attr('estado',1);
 
-                            $("#iplus"+codigo).attr('style','display:none;');
-                            $("#iminus"+codigo).attr('style','display:block;');
-
-                        }else{
-                            if(idCollapse.classList.contains('show')){
-                                $("#collapse"+codigo).collapse('show');
-
-                                $("#iplus"+codigo).attr('style','display:none;');
-                                $("#iminus"+codigo).attr('style','display:block;');
-                            }else{
-                                $("#collapse"+codigo).collapse('hide');
-
-                                $("#iplus"+codigo).attr('style','display:block;');
-                                $("#iminus"+codigo).attr('style','display:none;');
-                            }
-                        }
+                        $("#iplus"+codigo).attr('style','display:none;');
+                        $("#iminus"+codigo).attr('style','display:block;');
                     }else{
                         alert("no tiene cuentas hijas");
                     }
                 },
                 error: function(data){
-                alert('Disculpe, estamos presentando problemas al tratar de enviar el formulario, intentelo mas tarde');
-                cargando(false);
+                    alert('Disculpe, estamos presentando problemas al tratar de enviar el formulario, intentelo mas tarde');
+                    cargando(false);
                 }
-                // cargando(false);
         });
 
       }
   </script>
 
   <script src="{{asset('lowerScripts/puc/puc.js')}}"></script>
-@endsection
-
-@section('scripts')
-
 @endsection

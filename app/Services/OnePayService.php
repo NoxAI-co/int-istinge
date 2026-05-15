@@ -10,6 +10,8 @@ use App\MovimientoLOG;
 use App\Funcion;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\FacturasController;
+use Illuminate\Support\Facades\File;
 
 class OnePayService
 {
@@ -31,11 +33,14 @@ class OnePayService
     }
 
     /**
-     * Generar x-idempotency como hash único basado en la factura
+     * Generar x-idempotency como hash único determinista basado en la factura y operación.
+     * Esto evita que múltiples invocaciones produzcan claves distintas para el mismo recurso.
      */
-    protected function generateIdempotencyKey($facturaId)
+    protected function generateIdempotencyKey(Factura $factura, $operation, $empresaId)
     {
-        return hash('sha256', $facturaId . '_' . time() . '_' . uniqid());
+        // Se deriva de datos estables: ID de factura, código y empresa.
+        // Incluye un prefijo semántico por operación para diferenciar eventos (create vs update).
+        return hash('sha256', 'invoice_' . $operation . '_' . $factura->id . '_' . $factura->codigo . '_' . $empresaId);
     }
 
     /**
@@ -44,6 +49,12 @@ class OnePayService
     public function createInvoice(Factura $factura, $empresaId)
     {
         try {
+            // Guard de duplicado: Si la factura ya tiene un ID de OnePay asignado,
+            // no intentamos crearla de nuevo sino que redirigimos a actualización.
+            if ($factura->onepay_invoice_id) {
+                return $this->updateInvoice($factura, $empresaId);
+            }
+
             $empresa = Empresa::find($empresaId);
             $cliente = Contacto::find($factura->cliente);
 
@@ -51,11 +62,20 @@ class OnePayService
                 throw new \Exception('Empresa o cliente no encontrado');
             }
 
-            // Generar x-idempotency
-            $idempotencyKey = $this->generateIdempotencyKey($factura->id);
+            // Asegurar que la factura tenga un nonkey generado (necesario para el nombre del archivo)
+            if (empty($factura->nonkey)) {
+                $factura->nonkey = md5($factura->id . time() . 'integra');
+                $factura->save();
+            }
 
-            // Construir URL del documento
-            $documentUrl = url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+            // Generar x-idempotency determinista. 
+            // Se prefiere reutilizar la almacenada si existe por robustez en reintentos.
+            $idempotencyKey = !empty($factura->onepay_idempotency_key) 
+                ? $factura->onepay_idempotency_key 
+                : $this->generateIdempotencyKey($factura, 'create', $empresaId);
+
+            // Generar y asegurar la ruta estática para el documento (Evita corrupción de Meta)
+            $documentUrl = $this->prepareDocument($factura);
 
             // Calcular total de la factura
             $total = $factura->totalAPI($empresaId);
@@ -66,9 +86,16 @@ class OnePayService
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
 
-            //para efectos de prueba:
-            // $cliente->celular = '573002457118';
-            // $empresa->nombre = 'Vivecomunicaciones';
+            $periodoCobrado = "";
+            if($factura->periodo_cobrado_text != null || $factura->periodo_cobrado_text != ""){
+                $periodoCobrado = $factura->periodo_cobrado_text;
+            }else{
+                $periodoCobrado = $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días';
+            }
+
+            if($periodoCobrado == "dias"){
+                $periodoCobrado = "Facturación de servicios";
+            }
 
             // Preparar datos
             $data = [
@@ -80,7 +107,8 @@ class OnePayService
                 'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
                 'email' => $cliente->email ?: null,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
-                'document_url' => $documentUrl,
+                'description' => $periodoCobrado,
+                // 'document_url' => $documentUrl,
                 'metadata' => [
                     'factura_id' => $factura->id,
                     'empresa_id' => $empresaId
@@ -119,25 +147,26 @@ class OnePayService
             $responseData = json_decode($response, true);
 
             if ($httpCode >= 200 && $httpCode < 300) {
-                // Guardar onepay_invoice_id en la factura
+                // Guardar onepay_invoice_id y la idempotency key en la factura
                 if (isset($responseData['id'])) {
                     $nuevoId = $responseData['id'];
                     
-                    // Asegurar que el ID no haya sido tomado accidentalmente por otra factura en el sistema (evita duplicados de UUIDs provistos por Onepay).
+                    // Asegurar que el ID no haya sido tomado accidentalmente por otra factura
                     $idExistente = Factura::where('onepay_invoice_id', $nuevoId)
                         ->where('id', '!=', $factura->id)
                         ->first();
                         
                     if ($idExistente) {
-                        throw new \Exception("Alerta: El ID de OnePay devuelto ({$nuevoId}) ya existe asignado a la factura interna ID {$idExistente->id}. Probablemente se deba a un código ($factura->codigo) duplicado en ambos registros.");
+                        throw new \Exception("Alerta: El ID de OnePay devuelto ({$nuevoId}) ya existe asignado a la factura interna ID {$idExistente->id}.");
                     }
                     
                     $factura->onepay_invoice_id = $nuevoId;
+                    $factura->onepay_idempotency_key = $idempotencyKey;
                     $factura->save();
                 }
 
-                // Registrar log de éxito
-                $montoFormateado = Funcion::ParsearAPI($amount/100, $empresaId);
+                // Registrar log de éxito - Corregido: $amount ya está en pesos enteros
+                $montoFormateado = Funcion::ParsearAPI($amount, $empresaId);
                 $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura creada en Integra Pay</b> exitosamente. ID Integra Pay: <b>' . ($responseData['id'] ?? 'N/A') . '</b>. Monto: <b>' . $montoFormateado . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
@@ -180,6 +209,9 @@ class OnePayService
                 throw new \Exception('Empresa o cliente no encontrado');
             }
 
+            // Generar x-idempotency para actualización
+            $idempotencyKey = $this->generateIdempotencyKey($factura, 'update', $empresaId);
+
             // Calcular total de la factura
             $total = $factura->totalAPI($empresaId);
             $amount = (int) round($total->total);
@@ -188,10 +220,6 @@ class OnePayService
             if ($amount < 5000 || $amount > 100000000) {
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
-
-            //para efectos de prueba:
-            // $cliente->celular = '573002457118';
-            // $empresa->nombre = 'Vivecomunicaciones';
 
             // Preparar datos
             $data = [
@@ -217,7 +245,8 @@ class OnePayService
                 CURLOPT_POSTFIELDS => json_encode($data),
                 CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $this->token,
-                    'Content-Type: application/json'
+                    'Content-Type: application/json',
+                    'x-idempotency: ' . $idempotencyKey
                 ],
             ]);
 
@@ -227,7 +256,7 @@ class OnePayService
             curl_close($curl);
 
             if ($error) {
-                Log::error('In  tegra Pay Error: ' . $error);
+                Log::error('Integra Pay Error: ' . $error); // Corregido el typo "In  tegra"
                 throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
             }
 
@@ -240,8 +269,8 @@ class OnePayService
                     $factura->save();
                 }
 
-                // Registrar log de éxito
-                $montoFormateado = Funcion::ParsearAPI($amount/100, $empresaId);
+                // Registrar log de éxito - Corregido: $amount ya está en pesos enteros
+                $montoFormateado = Funcion::ParsearAPI($amount, $empresaId);
                 $descripcion = '<i class="fas fa-check text-success"></i> <b>Factura actualizada en OnePay</b> exitosamente. ID OnePay: <b>' . ($responseData['id'] ?? $factura->onepay_invoice_id) . '</b>. Nuevo monto: <b>' . $montoFormateado . '</b>';
                 $this->registrarLogFactura($factura, $descripcion, false);
 
@@ -559,6 +588,157 @@ class OnePayService
             throw $e;
         }
     }
+
+    /**
+     * Obtener listado de pagos de OnePay con filtros y paginación.
+     * Usado por el CRON de conciliación (syncIntegraPay).
+     *
+     * @param array $filters Filtros opcionales: page, sort, filter[status], etc.
+     * @return array Respuesta decodificada de la API
+     * @throws \Exception
+     */
+    public function getPayments(array $filters = [])
+    {
+        try {
+            if (!$this->token) {
+                throw new \Exception('No hay token configurado para Integra Pay');
+            }
+
+            // Construir query params
+            $params = [];
+
+            if (!empty($filters['page'])) {
+                $params['page'] = (int) $filters['page'];
+            }
+
+            if (!empty($filters['sort'])) {
+                $params['sort'] = $filters['sort'];
+            } else {
+                $params['sort'] = '-created_at';
+            }
+
+            if (!empty($filters['filter_status'])) {
+                $params['filter[status]'] = $filters['filter_status'];
+            }
+
+            if (!empty($filters['filter_id'])) {
+                $params['filter[id]'] = $filters['filter_id'];
+            }
+
+            if (!empty($filters['filter_external_id'])) {
+                $params['filter[external_id]'] = $filters['filter_external_id'];
+            }
+
+            $url = $this->baseUri . '/payments';
+            if (!empty($params)) {
+                $url .= '?' . http_build_query($params);
+            }
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $this->token,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error    = curl_error($curl);
+            curl_close($curl);
+
+            if ($error) {
+                Log::error('Integra Pay getPayments Error: ' . $error);
+                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return $responseData;
+            } else {
+                $errorMessage = isset($responseData['message']) ? $responseData['message'] : 'Error desconocido';
+                Log::error('Integra Pay getPayments API Error: ' . $errorMessage, ['response' => $responseData]);
+                throw new \Exception('Error al obtener pagos de Integra Pay: ' . $errorMessage);
+            }
+        } catch (\Exception $e) {
+            Log::error('Integra Pay getPayments Exception: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Prepara el documento PDF estático. Se puede llamar antes de createInvoice para asegurar su existencia.
+     */
+    public function prepareDocument(Factura $factura): string
+    {
+        return $this->ensureStaticDocument($factura);
+    }
+
+    private function ensureStaticDocument(Factura $factura): string
+    {
+        try {
+            $directory = public_path('documentos_meta');
+            
+            // 1. Crear carpeta si no existe
+            if (!File::exists($directory)) {
+                File::makeDirectory($directory, 0755, true);
+            }
+
+            // 2. Limpieza automática (Archivos > 40 días)
+            $this->purgeOldDocuments($directory);
+
+            // 3. Definir nombre y ruta
+            $filename = 'factura_' . $factura->nonkey . '.pdf';
+            $fullPath = $directory . '/' . $filename;
+
+            // 4. Generar el contenido PDF (Llamada interna al controlador)
+            // Usamos output() para capturar el stream del PDF sin enviarlo al navegador
+            // Pasamos el 4to argumento ($save) como true para que retorne el objeto PDF
+            $pdfResponse = FacturasController::Imprimir($factura->id, 'original', true, true, false);
+            
+            if (is_object($pdfResponse) && method_exists($pdfResponse, 'output')) {
+                $pdfBinary = $pdfResponse->output();
+                File::put($fullPath, $pdfBinary);
+
+                // Validar que el archivo realmente se guardó y no está vacío
+                if (!File::exists($fullPath) || File::size($fullPath) == 0) {
+                    Log::error("Fallo crítico en generación de PDF para OnePay: {$fullPath}");
+                    throw new \Exception("No se pudo confirmar la creación física del PDF.");
+                }
+
+                return url('documentos_meta/' . $filename);
+            }
+
+            // Fallback en caso de error en generación interna
+            return url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+
+        } catch (\Exception $e) {
+            Log::error('Error en ensureStaticDocument: ' . $e->getMessage());
+            return url('/api/factura/' . $factura->nonkey . '/pdf-onepay');
+        }
+    }
+
+    /**
+     * Elimina archivos PDF antiguos en el directorio especificado.
+     */
+    private function purgeOldDocuments(string $directory): void
+    {
+        $files = File::files($directory);
+        $now = time();
+        foreach ($files as $file) {
+            if ($now - File::lastModified($file) > 3456000) { // 40 días (40 * 24 * 3600)
+                File::delete($file);
+            }
+        }
+    }
 }
-
-

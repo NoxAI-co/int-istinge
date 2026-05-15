@@ -555,23 +555,7 @@
     <input type="hidden" id="saldofavorcliente" name="saldofavorcliente">
 
     <input type="hidden" id="allcategorias" value='@foreach($categorias as $categoria)
-  <optgroup label="{{$categoria->nombre}}">
-      @foreach($categoria->hijos(true) as $categoria1)
-        <option {{old('categoria')==$categoria1->id?'selected':''}} value="{{$categoria1->id}}" {{$categoria1->estatus==0?'disabled':''}}>{{$categoria1->nombre}}</option>
-        @foreach($categoria1->hijos(true) as $categoria2)
-            <option class="hijo" {{old('categoria')==$categoria2->id?'selected':''}} value="{{$categoria2->id}}" {{$categoria2->estatus==0?'disabled':''}}>{{$categoria2->nombre}}</option>
-          @foreach($categoria2->hijos(true) as $categoria3)
-            <option class="nieto" {{old('categoria')==$categoria3->id?'selected':''}} value="{{$categoria3->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria3->nombre}}</option>
-            @foreach($categoria3->hijos(true) as $categoria4)
-              <option class="bisnieto" {{old('categoria')==$categoria4->id?'selected':''}} value="{{$categoria4->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria4->nombre}}</option>
-
-            @endforeach
-
-          @endforeach
-
-        @endforeach
-      @endforeach
-  </optgroup>
+  <option {{old('categoria')==$categoria->id?'selected':''}} value="{{$categoria->id}}" {{$categoria->estatus==0?'disabled':''}}>{{$categoria->nombre}}</option>
 @endforeach'>
 
 <!-- Modal de Información de Factura Próxima -->
@@ -606,6 +590,50 @@
 @section('scripts')
 <script src="{{asset('lowerScripts/ingreso/ingreso.js')}}"></script>
 <script>
+    // Se define directamente aquí para evitar problemas de caché en producción
+    function aplicar_descuento_pendiente(id) {
+        var $pct = $('#descuento_pct_' + id);
+        var $err = $('#descuento_error_' + id);
+        var $aviso = $('#descuento_aviso_' + id);
+        var raw = $pct.val();
+        var pct = parseFloat(raw);
+
+        if (raw === '' || isNaN(pct) || pct < 0) {
+            pct = 0;
+            $pct.val(0);
+        }
+
+        if (pct > 99) {
+            pct = 99;
+            $pct.val(99);
+            $err.html('Máx. 99%');
+        } else {
+            $err.html('');
+        }
+
+        var tieneDescuentoExistente = $('#descuento_existente_' + id).val() == 1;
+        if (tieneDescuentoExistente && pct > 0) {
+            $aviso.show();
+        } else {
+            $aviso.hide();
+        }
+
+        var porPagar = parseFloat($('#totalfact' + id).val()) || 0;
+        var descuentoValor = (porPagar * pct) / 100;
+        var nuevoMonto = porPagar - descuentoValor;
+        if (nuevoMonto < 0) nuevoMonto = 0;
+
+        $('#descuento_valor_' + id).text(number_format(descuentoValor));
+
+        $('#editmonto' + id).val(1);
+        $('#precio' + id).val(nuevoMonto.toFixed(2));
+        $('#precio' + id).data('gross', nuevoMonto);
+
+        if (typeof totales_ingreso === 'function') {
+            totales_ingreso();
+        }
+    }
+
   $(document).ready(function(){
     //validacion
     let cliente = $("#clienteseleccionado").val();

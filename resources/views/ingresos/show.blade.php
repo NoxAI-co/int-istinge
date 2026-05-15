@@ -11,7 +11,12 @@
 	    @if($ingreso->tipo==1 || $ingreso->tipo==2)
 
 
-	            @php $nombre = $ingreso->tipo ==1  ? "Factura No. ".$ingreso->ingresofactura()->factura()->id.".pdf" : "Ingreso Nro." . $ingreso->nro . ".pdf" @endphp
+	            @php 
+	                $nombre = "Ingreso Nro." . $ingreso->nro . ".pdf";
+	                if($ingreso->tipo == 1 && $ingreso->ingresofactura() && $ingreso->ingresofactura()->factura()){
+	                    $nombre = "Factura No. " . $ingreso->ingresofactura()->factura()->id . ".pdf";
+	                }
+	            @endphp
 
 	            <a href="{{route('ingresos.tirilla', ['id' => $ingreso->nro, 'name' => $nombre])}}" class="btn btn-outline-warning @if(Auth::user()->rol==47) btn-xl @else btn-xs @endif" title="Tirilla" target="_blank" id="btn_tirilla"><i class="fas fa-print"></i>Imprimir tirilla</a>
 	        @if($ingreso->ingresofactura() && $ingreso->whatsapp == 0)
@@ -36,7 +41,7 @@
 
 		@if($ingreso->tipo!=3 && $ingreso->tipo!=4)
 		    @if(isset($_SESSION['permisos']['49']))
-		        <form action="{{ route('ingresos.anular',$ingreso->id) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
+		        <form action="{{ route('ingresos.anular',$ingreso->nro) }}" method="post" class="delete_form" style="display: none;" id="anular-ingreso{{$ingreso->id}}">
 		        	{{ csrf_field() }}
 		        </form>
 		        @if($ingreso->estatus==1)
@@ -211,6 +216,11 @@
 	</div>
 
     @if($ingreso->tipo==1)
+        @if(count($items) == 0)
+            <div class="alert alert-info" role="alert">
+                <strong>Información:</strong> Este ingreso no tiene facturas asociadas.
+            </div>
+        @endif
         <div class="alert alert-warning nopadding onlymovil" style="text-align: center;">
 			<button type="button" class="close" data-dismiss="alert">×</button>
 			<strong><small><i class="fas fa-angle-double-left"></i> Deslice <i class="fas fa-angle-double-right"></i></small></strong>

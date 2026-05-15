@@ -18,6 +18,10 @@ use Yajra\DataTables\Facades\DataTables;
 use Barryvdh\DomPDF\Facade as PDF;
 use App\Contrato;
 use App\FacturaContratos;
+use App\Model\Inventario\Inventario;
+use App\Model\Ingresos\ItemsFactura;
+use App\PlanesVelocidad;
+use App\Producto;
 
 class DianAuditController extends Controller
 {
@@ -62,7 +66,7 @@ class DianAuditController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'archivo' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+            'archivo' => 'required|file|max:20480',
             'periodo' => 'required|string|max:100'
         ]);
 
@@ -93,13 +97,31 @@ class DianAuditController extends Controller
 
     private function procesarArchivoDian(DianAuditSession $session)
     {
-        $path = storage_path('app/' . $session->filename);
-        $spreadsheet = IOFactory::load($path);
-        $worksheet = $spreadsheet->getActiveSheet();
-        $rows = $worksheet->toArray();
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
 
-        // Columnas esperadas segun requerimiento:
-        // Tipo [0] | CUFE [1] | Folio [2] | Prefijo [3] | ... | Receptor NIT [11] | Receptor Nombre [12] | ... | Total [29]
+        $path = storage_path('app/' . $session->filename);
+        
+        try {
+            $spreadsheet = IOFactory::load($path);
+        } catch (\Exception $e) {
+            // Intentar cargar como CSV con delimitador de punto y coma, común en exportaciones colombianas
+            try {
+                $reader = IOFactory::createReader('Csv');
+                $reader->setDelimiter(';');
+                $spreadsheet = $reader->load($path);
+            } catch (\Exception $e2) {
+                throw new \Exception("No se pudo interpretar el archivo. Verifique el formato. Detalle: " . $e->getMessage());
+            }
+        }
+
+        $worksheet = $spreadsheet->getSheet(0);
+        $rows = $worksheet->toArray(null, false, false, false);
+
+        // Si el archivo está vacío o solo tiene cabecera
+        if (count($rows) <= 1) {
+            throw new \Exception("El archivo parece estar vacío o no contiene datos válidos.");
+        }
         
         $total_records = 0;
         $matched = 0;
@@ -107,28 +129,67 @@ class DianAuditController extends Controller
         $not_found = 0;
         $monto_total_discrepancia = 0;
 
+        // PRE-FETCHING DATA TO AVOID N+1 QUERIES
+        $allCufes = [];
+        $allCodigos = [];
+        $allFolios = [];
+        
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (count($row) < 13 || empty($row[1])) continue;
+            
+            $cufe = trim($row[1]);
+            $folio = trim($row[2] ?? '');
+            $prefijo = trim($row[3] ?? '');
+            
+            $allCufes[] = $cufe;
+            if (!empty($folio)) {
+                $allCodigos[] = $prefijo . $folio;
+                $allFolios[] = $folio;
+            }
+        }
+
+        $facturasByCufe = collect();
+        $facturasByCodigo = collect();
+        $facturasByFolio = collect();
+
+        // Procesar en chunks de 1000 para evitar errores en IN clause de SQL
+        foreach (array_chunk($allCufes, 1000) as $chunk) {
+            $facturasByCufe = $facturasByCufe->merge(Factura::whereIn(self::COL_CUFE, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CUFE));
+        }
+        foreach (array_chunk($allCodigos, 1000) as $chunk) {
+            $facturasByCodigo = $facturasByCodigo->merge(Factura::whereIn(self::COL_CODIGO, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CODIGO));
+        }
+        foreach (array_chunk($allFolios, 1000) as $chunk) {
+            $facturasByFolio = $facturasByFolio->merge(Factura::whereIn(self::COL_CODIGO, $chunk)->with('clienteObj')->get()->keyBy(self::COL_CODIGO));
+        }
+
+        $recordsToInsert = [];
+        $now = Carbon::now();
+
         // Saltamos la primera fila (encabezados)
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
-            if (empty($row[1])) continue; // Si no hay CUFE, saltar
+            
+            // Verificación mínima de columnas para evitar "Undefined offset"
+            if (count($row) < 13 || empty($row[1])) {
+                continue;
+            }
 
             $cufe = trim($row[1]);
-            $folio = trim($row[2]);
-            $prefijo = trim($row[3]);
-            $nit_dian = $this->normalizarNit($row[11]);
-            $nombre_dian = trim($row[12]);
-            $total = $this->parseMonto($row[29]);
-            $fecha = $this->parseFecha($row[7]);
+            $folio = trim($row[2] ?? '');
+            $prefijo = trim($row[3] ?? '');
+            $nit_dian = $this->normalizarNit($row[11] ?? '');
+            $nombre_dian = trim($row[12] ?? '');
+            $total = $this->parseMonto($row[29] ?? ($row[count($row)-1] ?? 0)); // Intentar la 29 o la última si no hay tantas
+            $fecha = $this->parseFecha($row[7] ?? '');
 
-            // Buscar factura en sistema
-            $factura = Factura::where(self::COL_CUFE, $cufe)->first();
+            // Buscar factura en memoria en lugar de DB
+            $factura = $facturasByCufe->get($cufe);
             
             if (!$factura && !empty($folio)) {
-                // Intento alternativo por prefijo + folio (ej: FE10) o solo folio
                 $codigo_completo = $prefijo . $folio;
-                $factura = Factura::where(self::COL_CODIGO, $codigo_completo)
-                    ->orWhere(self::COL_CODIGO, $folio)
-                    ->first();
+                $factura = $facturasByCodigo->get($codigo_completo) ?? $facturasByFolio->get($folio);
             }
 
             $status = 'not_found';
@@ -139,43 +200,78 @@ class DianAuditController extends Controller
 
             if ($factura) {
                 $factura_id = $factura->id;
-                $cliente = $factura->cliente();
-                $nit_sistema = $this->normalizarNit($cliente->nit);
-                $nombre_sistema = $cliente->nombre;
-                $cliente_id_sistema = $cliente->id;
+                
+                // Usamos la relación pre-cargada
+                $cliente = $factura->clienteObj;
+                
+                // Si no tiene cliente ID asignado (factura vieja sin contacto ID)
+                if (!$cliente && $factura->cliente == null) {
+                    $clienteDb = DB::table('factura_contacto')->where('factura', $factura->id)->first();
+                    if ($clienteDb) {
+                        $cliente = new \stdClass;
+                        $cliente->id = null;
+                        $cliente->nombre = $clienteDb->nombre;
+                        $cliente->apellido1 = '';
+                        $cliente->apellido2 = '';
+                        $cliente->nit = 'N/A';
+                        $cliente->empresa = '';
+                    }
+                }
+                
+                if ($cliente) {
+                    $nit_sistema = $this->normalizarNit($cliente->nit ?? '');
+                    $nombre_sistema = trim(($cliente->nombre ?? '') . ' ' . ($cliente->apellido1 ?? '') . ' ' . ($cliente->apellido2 ?? ''));
+                    if (empty($nombre_sistema)) $nombre_sistema = $cliente->empresa ?? 'Cliente sin nombre';
+                    $cliente_id_sistema = $cliente->id ?? null;
 
-                if ($nit_dian === $nit_sistema) {
-                    $status = 'matched';
-                    $matched++;
+                    if ($nit_dian === $nit_sistema) {
+                        $status = 'matched';
+                        $matched++;
+                    } else {
+                        $status = 'discrepancy';
+                        $discrepancies++;
+                        $monto_total_discrepancia += $total;
+                    }
                 } else {
-                    $status = 'discrepancy';
-                    $discrepancies++;
-                    $monto_total_discrepancia += $total;
+                    $not_found++;
                 }
             } else {
                 $not_found++;
             }
 
-            DianAuditRecord::create([
+            $recordsToInsert[] = [
                 'session_id' => $session->id,
-                'tipo_documento' => $row[0],
+                'tipo_documento' => $row[0] ?? 'N/A',
                 'cufe' => $cufe,
                 'folio' => $folio,
                 'prefijo' => $prefijo,
-                'nit_receptor_dian' => $row[11],
-                'nombre_receptor_dian' => $row[12],
-                'nit_emisor' => $row[9],
-                'nombre_emisor' => $row[10],
+                'nit_receptor_dian' => $row[11] ?? '',
+                'nombre_receptor_dian' => $row[12] ?? '',
+                'nit_emisor' => $row[9] ?? '',
+                'nombre_emisor' => $row[10] ?? '',
                 'fecha_emision' => $fecha,
                 'total' => $total,
                 'status' => $status,
                 'factura_id' => $factura_id,
-                'nit_receptor_sistema' => $factura ? $nit_sistema : null,
-                'nombre_receptor_sistema' => $factura ? $nombre_sistema : null,
-                'cliente_id_sistema' => $cliente_id_sistema
-            ]);
+                'nit_receptor_sistema' => $nit_sistema,
+                'nombre_receptor_sistema' => $nombre_sistema,
+                'cliente_id_sistema' => $cliente_id_sistema,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+
+            // Batch insert cada 500 registros para no agotar la memoria
+            if (count($recordsToInsert) >= 500) {
+                DianAuditRecord::insert($recordsToInsert);
+                $recordsToInsert = [];
+            }
 
             $total_records++;
+        }
+
+        // Insertar los registros restantes
+        if (count($recordsToInsert) > 0) {
+            DianAuditRecord::insert($recordsToInsert);
         }
 
         $session->update([
@@ -237,6 +333,8 @@ class DianAuditController extends Controller
                 $btn = '';
                 if ($row->status == 'discrepancy') {
                     $btn .= '<button onclick="abrirModalCorreccion('.$row->id.')" class="btn btn-xs btn-danger"><i class="fas fa-edit"></i> Corregir</button>';
+                } elseif ($row->status == 'not_found') {
+                    $btn .= '<button onclick="abrirModalCrearFactura('.$row->id.')" class="btn btn-xs btn-success"><i class="fas fa-plus"></i> Crear Factura</button>';
                 } elseif ($row->status == 'corrected') {
                     $btn .= '<button onclick="verHistorial('.$row->id.')" class="btn btn-xs btn-info"><i class="fas fa-history"></i> Historial</button>';
                 }
@@ -345,6 +443,275 @@ class DianAuditController extends Controller
                 'percentage' => $session->porcentaje_ok
             ]
         ]);
+    }
+
+    public function crearFactura(Request $request, $recordId)
+    {
+        $request->validate([
+            'cliente_id' => 'required|exists:contactos,id',
+            'contrato_id' => 'required|exists:contracts,id'
+        ]);
+
+        $record = DianAuditRecord::findOrFail($recordId);
+        if ($record->status != 'not_found') {
+            return response()->json(['success' => false, 'message' => 'El registro ya no está en estado "No encontrado".'], 400);
+        }
+
+        $clienteNuevo = Contacto::findOrFail($request->cliente_id);
+        $contrato = Contrato::findOrFail($request->contrato_id);
+        $empresa = Auth::user()->empresaObj;
+
+        try {
+            DB::beginTransaction();
+
+            $fecha = Carbon::parse($record->fecha_emision)->format('Y-m-d');
+            $date_suspension = Carbon::parse($fecha)->addDays(30)->format('Y-m-d'); // Predeterminado 30 días
+            $date_pagooportuno = $date_suspension;
+
+            $factura = new Factura;
+            $factura->nro           = $record->folio;
+            $factura->codigo        = ($record->prefijo ?? '') . $record->folio;
+            $factura->numeracion    = 1; // Un valor fallback, si aplica en el sistema.
+            $factura->term_cond     = $empresa->terminos_cond ?? '';
+            $factura->facnotas      = $empresa->notas_fact ?? '';
+            $factura->empresa       = $empresa->id ?? 1;
+            $factura->cliente       = $clienteNuevo->id;
+            $factura->fecha         = $fecha;
+            $factura->created_at    = Carbon::now();
+            $factura->tipo          = 2; // Electrónica
+            $factura->vencimiento   = $date_suspension;
+            $factura->suspension    = $date_suspension;
+            $factura->pago_oportuno = $date_pagooportuno;
+            $factura->observaciones = 'Factura creada automáticamente desde Auditoría DIAN';
+            $factura->bodega        = 1;
+            $factura->vendedor      = $contrato->vendedor ?? 1;
+            $factura->estatus       = 1; // Abierta
+            $factura->emitida       = 1; // Emitida
+            $factura->uuid          = $record->cufe;
+
+            // Compatibilidad de DB
+            $columns = DB::connection()->getSchemaBuilder()->getColumnListing('factura');
+            if (in_array('contrato_id', $columns)) {
+                $factura->contrato_id = $contrato->id;
+            }
+            if (in_array('facturacion_automatica', $columns)) {
+                $factura->facturacion_automatica = 0;
+            }
+            if (in_array('factura_mes_manual', $columns)) {
+                $factura->factura_mes_manual = 1;
+            }
+
+            $factura->save();
+
+            // Guardar en facturas_contratos
+            DB::table('facturas_contratos')->insert([
+                'factura_id' => $factura->id,
+                'contrato_nro' => $contrato->nro,
+                'created_by' => Auth::id(),
+                'client_id' => $factura->cliente,
+                'created_at' => Carbon::now()
+            ]);
+
+            // Copiar ítems del contrato
+            $cm = $contrato;
+            $fechaActual = Carbon::now()->format('Y-m-d');
+            $descuentoHasta = isset($cm->fecha_hasta_desc) ? $cm->fecha_hasta_desc : null;
+            $descuentoPesos = 0;
+
+            if ($cm->plan_id) {
+                $plan = PlanesVelocidad::find($cm->plan_id);
+                if ($plan) {
+                    $item = Inventario::find($plan->item);
+                    if ($item) {
+                        $item_reg = new ItemsFactura;
+                        $item_reg->factura     = $factura->id;
+                        $item_reg->producto    = $item->id;
+                        $item_reg->ref         = $item->ref;
+                        $item_reg->precio      = $item->precio;
+
+                        if (isset($cm->precio_personalizado_internet) && $cm->precio_personalizado_internet > 0) {
+                            $item_reg->precio = $cm->precio_personalizado_internet;
+                        }
+
+                        $item_reg->descripcion = $plan->name;
+                        $item_reg->id_impuesto = $item->id_impuesto;
+                        $item_reg->impuesto    = $item->impuesto;
+                        if ($cm->iva_factura == 1) {
+                            $item_reg->id_impuesto = 1;
+                            $item_reg->impuesto = 19;
+                        }
+                        $item_reg->cant        = 1;
+
+                        if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                            $item_reg->desc        = $cm->descuento;
+                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                $descuentoPesos = 1;
+                            }
+                        } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                            $item_reg->desc        = $cm->descuento;
+                            if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                                $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                                $descuentoPesos = 1;
+                            }
+                        }
+                        $item_reg->save();
+                    }
+                }
+            }
+
+            if ($cm->servicio_tv) {
+                $item = Inventario::find($cm->servicio_tv);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+
+                    if (isset($cm->precio_personalizado_tv) && $cm->precio_personalizado_tv > 0) {
+                        $item_reg->precio = $cm->precio_personalizado_tv;
+                    }
+
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+                    $item_reg->desc        = $cm->descuento;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } else if ($descuentoHasta == null || $descuentoHasta == "") {
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+                    $item_reg->save();
+                }
+            }
+
+            if ($cm->servicio_otro) {
+                $item = Inventario::find($cm->servicio_otro);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = $item->precio;
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } elseif ($descuentoHasta == null || $descuentoHasta == "") {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+
+                    if ($cm->rd_item_vencimiento == 1) {
+                        if ($cm->dt_item_hasta >= now()) {
+                            $item_reg->save();
+                        }
+                    } else {
+                        $item_reg->save();
+                    }
+                }
+            }
+
+            $asignacion = Producto::where('contrato', $cm->id)->where('venta', 1)->where('status', 2)->where('cuotas_pendientes', '>', 0)->get()->last();
+            if ($asignacion) {
+                $item = Inventario::find($asignacion->producto);
+                if ($item) {
+                    $item_reg = new ItemsFactura;
+                    $item_reg->factura     = $factura->id;
+                    $item_reg->producto    = $item->id;
+                    $item_reg->ref         = $item->ref;
+                    $item_reg->precio      = ($asignacion->precio / $asignacion->cuotas);
+                    $item_reg->descripcion = $item->producto;
+                    $item_reg->id_impuesto = $item->id_impuesto;
+                    $item_reg->impuesto    = $item->impuesto;
+                    $item_reg->cant        = 1;
+
+                    if ($descuentoHasta != null && $fechaActual <= $descuentoHasta) {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    } elseif ($descuentoHasta == null || $descuentoHasta == "") {
+                        $item_reg->desc        = $cm->descuento;
+                        if ($cm->descuento_pesos != null && $descuentoPesos == 0) {
+                            $item_reg->precio      = $item_reg->precio - $cm->descuento_pesos;
+                            $descuentoPesos = 1;
+                        }
+                    }
+                    $item_reg->save();
+                }
+            }
+
+            // Log Inmutable
+            DianAuditLog::create([
+                'audit_record_id' => $record->id,
+                'session_id' => $record->session_id,
+                'factura_id' => $factura->id,
+                'folio' => $record->folio,
+                'cufe' => $record->cufe,
+                'nit_anterior' => '',
+                'nombre_anterior' => '',
+                'cliente_id_anterior' => null,
+                'nit_nuevo' => $clienteNuevo->nit,
+                'nombre_nuevo' => $clienteNuevo->nombre . ' ' . $clienteNuevo->apellido1 . ' ' . $clienteNuevo->apellido2,
+                'cliente_id_nuevo' => $clienteNuevo->id,
+                'motivo' => "Creación Automática de Factura a partir de Contrato Nro: {$contrato->nro}",
+                'usuario_id' => Auth::id(),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+
+            // Actualizar Record
+            $record->update([
+                'status' => 'corrected',
+                'factura_id' => $factura->id,
+                'nit_receptor_sistema' => $clienteNuevo->nit,
+                'nombre_receptor_sistema' => $clienteNuevo->nombre . ' ' . $clienteNuevo->apellido1 . ' ' . $clienteNuevo->apellido2,
+                'cliente_id_sistema' => $clienteNuevo->id
+            ]);
+
+            // Actualizar Contadores
+            $session = $record->session;
+            $session->increment('corrected');
+            $session->decrement('not_found');
+            $session->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Factura creada exitosamente y registro vinculado.',
+                'factura_id' => $factura->id
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la factura.',
+                'error' => $e->getMessage() . ' - Linea: ' . $e->getLine()
+            ], 500);
+        }
     }
 
     public function buscarCliente(Request $request)

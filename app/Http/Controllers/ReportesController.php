@@ -36,6 +36,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Log;
 use App\Mikrotik;
 use App\PucMovimiento;
+use App\Puc;
 use App\Servidor;
 use App\FormaPago;
 use App\Contrato;
@@ -1910,23 +1911,26 @@ class ReportesController extends Controller
     public function getReporteContactos(Request $request){
         $this->getAllPermissions(Auth::user()->id);
 
-        $dates  = $this->setDateRequest($request);
+        $sinFiltro = $request->input('fechas') == 8;
 
         $contactos=Contacto::join('tipos_empresa as te', 'te.id', '=', 'contactos.tipo_empresa')
             ->select('contactos.*', 'te.nombre as tipo_emp')
             ->where('contactos.empresa', Auth::user()->empresa)
-            ->where('contactos.created_at','>=', $dates['inicio'].' 00:00:00')
-            ->where('contactos.created_at','<=', $dates['fin'].' 00:00:00')
             ->orderBy('contactos.id','DESC');
 
+        if(!$sinFiltro){
+            $dates  = $this->setDateRequest($request);
+            $contactos->where('contactos.created_at','>=', $dates['inicio'].' 00:00:00')
+                      ->where('contactos.created_at','<=', $dates['fin'].' 00:00:00');
 
-        if($request->fecha){
-            $appends['fecha']=$request->fecha;
-            $contactos = $contactos->where('contactos.created_at', ">=", date('Y-m-d', strtotime($request->fecha)));
-        }
-        if($request->fecha){
-            $appends['hasta']=$request->hasta;
-            $contactos=$contactos->where('contactos.created_at', "<=", date('Y-m-d', strtotime($request->hasta)));
+            if($request->fecha){
+                $appends['fecha']=$request->fecha;
+                $contactos = $contactos->where('contactos.created_at', ">=", date('Y-m-d', strtotime($request->fecha)));
+            }
+            if($request->fecha){
+                $appends['hasta']=$request->hasta;
+                $contactos=$contactos->where('contactos.created_at', "<=", date('Y-m-d', strtotime($request->hasta)));
+            }
         }
 
         $contactos=$contactos->get();
@@ -2152,13 +2156,12 @@ class ReportesController extends Controller
                     $join->on('i.id', '=', 'movimientos.id_modulo')
                          ->on('movimientos.modulo', '=', DB::raw('1'));
                 })
-                ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
-                ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
-                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
+                ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
-                ->where('movimientos.empresa',$empresa);
+                ->where('movimientos.empresa',$empresa)
+                ->groupBy('movimientos.id');
 
             $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
                 ->leftjoin('ingresos as i', function($join) {
@@ -2169,7 +2172,8 @@ class ReportesController extends Controller
                 ->where('movimientos.fecha', '>=', $dates['inicio'])
                 ->where('movimientos.fecha', '<=', $dates['fin'])
                 ->where('movimientos.estatus','<>',2)
-                ->where('movimientos.empresa',$empresa);
+                ->where('movimientos.empresa',$empresa)
+                ->groupBy('movimientos.id');
 
         }
         else{
@@ -2178,12 +2182,13 @@ class ReportesController extends Controller
             ->leftjoin('ingresos_factura as if', 'if.ingreso', '=', 'i.id')
             ->leftjoin('factura as f', 'f.id', '=', 'if.factura')
             ->leftjoin('contracts as co','co.id','f.contrato_id')
-            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'), 'f.id as facturaId')
+            ->select('movimientos.*', DB::raw('if(movimientos.contacto,c.nombre,"") as nombrecliente'))
             ->where('movimientos.fecha', '>=', $dates['inicio'])
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
              $movimientosTodos = Movimiento::leftjoin('contactos as c', 'movimientos.contacto', '=', 'c.id')
             ->leftjoin('ingresos as i', 'i.id', '=', 'movimientos.id_modulo')
@@ -2195,7 +2200,8 @@ class ReportesController extends Controller
             ->where('movimientos.fecha', '<=', $dates['fin'])
             ->where('movimientos.modulo',1)
             ->where('co.server_configuration_id',$request->servidor)
-            ->where('movimientos.empresa',$empresa);
+            ->where('movimientos.empresa',$empresa)
+            ->groupBy('movimientos.id');
 
         }
 
@@ -3209,21 +3215,38 @@ class ReportesController extends Controller
             $hasta = now()->format('Y-m-d');
         }
 
-        $movimientosContables = PucMovimiento::join('puc as p','p.id','puc_movimiento.cuenta_id')
+        $empresa = Auth::user()->empresa;
+        $movimientosContables = Puc::from('puc as p')
+            ->leftJoin('puc_movimiento as pm', 'pm.cuenta_id', '=', 'p.id')
+            ->leftJoin('contactos as c', 'c.id', '=', 'pm.cliente_id')
             ->select(
+                'p.id as puc_id',
                 'p.nombre as cuentacontable',
                 'p.codigo as codigo_cuenta',
-                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion < '$desde' THEN (puc_movimiento.debito - puc_movimiento.credito) ELSE 0 END) as saldo_inicial"),
-                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.debito ELSE 0 END) as totaldebito"),
-                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN puc_movimiento.credito ELSE 0 END) as totalcredito"),
-                DB::raw("SUM(CASE WHEN puc_movimiento.fecha_elaboracion <= '$hasta' THEN (puc_movimiento.debito - puc_movimiento.credito) ELSE 0 END) as saldo_final")
+                'pm.sucursal as sucursal',
+                'pm.cliente_id as cliente_id',
+                'pm.identificacion_tercero as identificacion_tercero',
+                DB::raw("TRIM(CONCAT_WS(' ', c.nombre, c.apellido1, c.apellido2)) as tercero_nombre"),
+                DB::raw("CASE
+                    WHEN CHAR_LENGTH(p.codigo) = 1 THEN 1
+                    WHEN CHAR_LENGTH(p.codigo) = 2 THEN 2
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 3 AND 4 THEN 3
+                    WHEN CHAR_LENGTH(p.codigo) BETWEEN 5 AND 6 THEN 4
+                    ELSE 5
+                END as nivel"),
+                DB::raw("CASE WHEN CHAR_LENGTH(p.codigo) >= 6 THEN 'Sí' ELSE 'No' END as transaccional"),
+                DB::raw("COALESCE(SUM(CASE WHEN pm.fecha_elaboracion < '$desde' THEN (pm.debito - pm.credito) ELSE 0 END),0) as saldo_inicial"),
+                DB::raw("COALESCE(SUM(CASE WHEN pm.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN pm.debito ELSE 0 END),0) as totaldebito"),
+                DB::raw("COALESCE(SUM(CASE WHEN pm.fecha_elaboracion BETWEEN '$desde' AND '$hasta' THEN pm.credito ELSE 0 END),0) as totalcredito"),
+                DB::raw("COALESCE(SUM(CASE WHEN pm.fecha_elaboracion <= '$hasta' THEN (pm.debito - pm.credito) ELSE 0 END),0) as saldo_final")
             )
+            ->whereIn('p.empresa', [1, $empresa])
             ->where(function($query) {
                 $query->where('p.codigo', 'LIKE', '1%')
                     ->orWhere('p.codigo', 'LIKE', '2%')
                     ->orWhere('p.codigo', 'LIKE', '3%');
             })
-            ->groupBy('p.id','p.nombre','p.codigo')
+            ->groupBy('p.id','p.nombre','p.codigo','pm.sucursal','pm.cliente_id','pm.identificacion_tercero','c.nombre','c.apellido1','c.apellido2')
             ->orderByRaw("LEFT(p.codigo, 1) $order, p.codigo $order")
             ->get();
 
@@ -3830,5 +3853,78 @@ class ReportesController extends Controller
         $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
         $objWriter->save('php://output');
         exit;
+    }
+
+    /**
+     * Reporte de Planes: muestra todos los planes de velocidad con
+     * total de suscriptores activos y suscriptores facturados electrónicamente.
+     */
+    public function reportePlanes(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $empresaId = Auth::user()->empresa;
+
+        view()->share([
+            'seccion' => 'reportes',
+            'title'   => 'REPORTE MINTIC UNIFICADO ISP',
+            'icon'    => 'fas fa-wifi',
+        ]);
+
+        // Resolver rango de fechas
+        $dates = $this->setDateRequest($request);
+        $desde = $request->fecha;
+        $hasta = $request->hasta;
+        $filtrarFechas = ($request->input('fechas') != 8 || !$request->has('fechas'));
+
+        // Base subquery: facturas no anuladas de esta empresa con join a items_factura e inventario
+        // para relacionar con planes_velocidad a través de inventario.id = planes_velocidad.item
+        // o directamente por tipo TV en inventario
+        $planesQuery = DB::table('inventario as inv')
+            ->leftJoin('planes_velocidad as pv', 'pv.item', '=', 'inv.id')
+            ->where('inv.empresa', $empresaId)
+            ->where(function($query) {
+                $query->whereNotNull('pv.id')
+                      ->orWhere('inv.type', 'TV');
+            })
+            ->select(
+                'inv.id',
+                'inv.producto as nombre_plan',
+                'inv.precio',
+                'inv.type',
+                'pv.upload as subida',
+                'pv.download as bajada',
+                // Contar suscriptores únicos (clientes únicos) en facturas no anuladas
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = inv.id
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as suscriptores"),
+                // Contar suscriptores únicos facturados electrónicamente (tipo = 2)
+                DB::raw("(
+                    SELECT COUNT(DISTINCT f.cliente)
+                    FROM factura f
+                    INNER JOIN items_factura itf ON itf.factura = f.id
+                    WHERE itf.producto = inv.id
+                      AND f.empresa = {$empresaId}
+                      AND f.estatus <> 2
+                      AND f.tipo = 2
+                      " . ($filtrarFechas ? "AND f.created_at >= '{$dates['inicio']}' AND f.created_at <= '{$dates['fin']}'" : "") . "
+                ) as facturados_electronicamente")
+            )
+            ->orderByDesc('suscriptores')
+            ->get();
+
+        $municipio = Auth::user()->empresa()->municipio()->nombre;
+
+        return view('reportes.planes.index')
+            ->with('planes', $planesQuery)
+            ->with('desde', $desde)
+            ->with('hasta', $hasta)
+            ->with('request', $request)
+            ->with('municipio', $municipio);
     }
 }

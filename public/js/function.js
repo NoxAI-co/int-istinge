@@ -2178,6 +2178,7 @@ function retencion_calculate(id, reten, recursividad = true, pref = '', seccion 
 function totales_ingreso(input = true) {
     var total = 0;
     var reten_may = 0;
+    var descuentoTotal = 0;
     let saldoFavor = 0; //este es el saldo sobrante cuando el cliente paga una factura y paga de mas.
 
     $('#table-facturas  tbody tr').each(function () {
@@ -2194,9 +2195,27 @@ function totales_ingreso(input = true) {
 
         }
 
+        var descPctEl = $('#descuento_pct_' + id);
+        if (descPctEl.length > 0) {
+            var pct = parseFloat(descPctEl.val());
+            if (!isNaN(pct) && pct > 0) {
+                var porPagar = parseFloat($('#totalfact' + id).val()) || 0;
+                descuentoTotal += (porPagar * pct) / 100;
+            }
+        }
+
         if (!max_value_valor_recibido(id)) { return false; } else { $('#button-guardar').removeAttr("disabled"); }
 
     });
+
+    if ($('#descuento_pendiente_total').length > 0) {
+        $('#descuento_pendiente_total').html(number_format(descuentoTotal));
+        if (descuentoTotal > 0) {
+            $('#row_descuento_pendiente_total').show();
+        } else {
+            $('#row_descuento_pendiente_total').hide();
+        }
+    }
 
     //notificamos el saldo a favor
     if (saldoFavor > 0) {
@@ -2274,6 +2293,47 @@ function totales_ingreso(input = true) {
         });
     }
 
+}
+
+function aplicar_descuento_pendiente(id) {
+    var $pct = $('#descuento_pct_' + id);
+    var $err = $('#descuento_error_' + id);
+    var $aviso = $('#descuento_aviso_' + id);
+    var raw = $pct.val();
+    var pct = parseFloat(raw);
+
+    if (raw === '' || isNaN(pct) || pct < 0) {
+        pct = 0;
+        $pct.val(0);
+    }
+
+    if (pct > 99) {
+        pct = 99;
+        $pct.val(99);
+        $err.html('Máx. 99%');
+    } else {
+        $err.html('');
+    }
+
+    var tieneDescuentoExistente = $('#descuento_existente_' + id).val() == 1;
+    if (tieneDescuentoExistente && pct > 0) {
+        $aviso.show();
+    } else {
+        $aviso.hide();
+    }
+
+    var porPagar = parseFloat($('#totalfact' + id).val()) || 0;
+    var descuentoValor = (porPagar * pct) / 100;
+    var nuevoMonto = porPagar - descuentoValor;
+    if (nuevoMonto < 0) nuevoMonto = 0;
+
+    $('#descuento_valor_' + id).text(number_format(descuentoValor));
+
+    $('#editmonto' + id).val(1);
+    $('#precio' + id).val(nuevoMonto.toFixed(2));
+    $('#precio' + id).data('gross', nuevoMonto);
+
+    totales_ingreso();
 }
 
 function editmonto(id) {
@@ -5093,7 +5153,7 @@ function modificarPromesa(id) {
                     format: 'dd-mm-yyyy',
                     minDate: fecha,
                 });
-                $(".selectpicker").selectpicker('refresh');
+                $('#hora_pago-' + id).selectpicker();
             }
         }
     });

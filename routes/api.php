@@ -116,7 +116,7 @@ Route::post('pagos/combopay', 'CronController@eventosCombopay');
 Route::post('pagos/toppay', 'CronController@eventosTopPay');
 
 /** EVENTOS ONEPAY **/
-Route::post('pagos/onepay', 'CronController@eventosOnePay');
+Route::post('pagos/onepay', 'CronController@eventosOnePayWebhook');
 
 /**
  * Mostrar los datos de la factura mediante la llave unica asignada en el método
@@ -196,7 +196,7 @@ Route::get('facturaElectronica/{key}/pdf', function ($key) {
 
         $pdf = PDF::loadView('pdf.facturaAPI', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones',
             'resolucion', 'empresa'));
-        return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
+        return $pdf->stream('factura.pdf');
 
     }
 })->name('imprimirFe');

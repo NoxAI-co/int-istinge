@@ -526,8 +526,8 @@ class FacturaspController extends Controller
 
             // return $factura->gastosAnticipo(1);
 
-            //obtiene las formas de pago relacionadas con este modulo (Facturas)
-            $relaciones = FormaPago::where('relacion',1)->orWhere('relacion',3)->get();
+            //obtiene las formas de pago relacionadas con este modulo (Facturas de proveedores)
+            $relaciones = FormaPago::where('relacion',2)->orWhere('relacion',3)->get();
 
             $inventario = Inventario::select('inventario.*', DB::raw('(Select nro from productos_bodegas where bodega='.$bodega->id.' and producto=inventario.id) as nro'))
                 ->where('empresa',Auth::user()->empresa)

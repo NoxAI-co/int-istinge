@@ -17,7 +17,7 @@ class IngresosFactura extends Model
      * @var array
      */
     protected $fillable = [
-        'ingreso', 'factura', 'pagado', 'pago', 'created_at', 'updated_at'
+        'ingreso', 'factura', 'pagado', 'pago', 'descuento', 'created_at', 'updated_at'
     ];
 
     public function setPagoAttribute($value)

@@ -100,10 +100,18 @@
             Cerrar
         </button>
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
-        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b><br>
-        Rango: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
+        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b>
+        @if(isset($reporteFaltantes['numeracion_id']))
+        <small class="text-muted">(Numeración ID: {{ $reporteFaltantes['numeracion_id'] }} — preferida activa, tipo electrónica)</small>
+        @endif
+        <br>
+        Rango autorizado DIAN: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
+        @if(isset($reporteFaltantes['primer_registrado']))
+        Primer consecutivo en sistema: <b>{{ $reporteFaltantes['primer_registrado'] }}</b>
+        <small class="text-muted">(análisis inteligente desde aquí — no desde el inicio de la resolución)</small><br>
+        @endif
         Último usado: <b>{{ $reporteFaltantes['ultimo_usado'] }}</b><br>
-        Faltantes:
+        Faltantes ({{ count($reporteFaltantes['faltantes']) }}):
         <span class="text-danger">
             @if(count($reporteFaltantes['faltantes']) > 100)
                 {{ implode(', ', array_slice($reporteFaltantes['faltantes'], 0, 100)) }}
@@ -244,6 +252,12 @@
 								<option value="1">Si</option>
 								<option value="0">No</option>
 								<option value="400">Error envío</option>
+							</select>
+						</div>
+						<div class="col-md-3 pl-1 pt-1">
+							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp">
+								<option value="1">Si</option>
+								<option value="A">No</option>
 							</select>
 						</div>
 					</div>
@@ -466,6 +480,7 @@
 			data.fact_siigo = $('#fact_siigo').val();
 			data.emision = $('#emision').val();
 			data.correo = $('#correo').val();
+			data.whatsapp = $('#whatsapp').val();
 			data.plan = $('#plan').val();
 			data.plan_tv = $('#plan_tv').val();
 			data.otras_opciones = $('#otras_opciones').val();
@@ -491,7 +506,7 @@
             }
         });
 
-		$('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
+		$('#cliente, #municipio, #estado, #correo, #whatsapp, #creacion, #vencimiento, #desde, #hasta, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #emision, #prorrateo, #servidor').on('change',function() {
             getDataTable();
             return false;
         });

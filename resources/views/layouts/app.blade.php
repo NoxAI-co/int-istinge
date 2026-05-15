@@ -1274,11 +1274,11 @@
     <script src="{{ asset('vendors/light-gallery/js/lightgallery-all.js') }}"></script>
     <!-- endinject -->
     <script src="{{ asset('js/moment.js') }}"></script>
-    <script src="{{ asset('js/function.js') }}?v={{ Auth::user()->rol == 1 ? '1' : Auth::user()->empresa()->cache }}">
+    <script src="{{ asset('js/function.js') }}?v={{ file_exists(public_path('js/function.js')) ? filemtime(public_path('js/function.js')) : '1' }}">
     </script>
-    <script src="{{ asset('js/custom.js') }}?v={{ Auth::user()->rol == 1 ? '1' : Auth::user()->empresa()->cache }}">
+    <script src="{{ asset('js/custom.js') }}?v={{ file_exists(public_path('js/custom.js')) ? filemtime(public_path('js/custom.js')) : '1' }}">
     </script>
-    <script src="{{ asset('js/dian.js') }}?v={{ Auth::user()->rol == 1 ? '1' : Auth::user()->empresa()->cache }}">
+    <script src="{{ asset('js/dian.js') }}?v={{ file_exists(public_path('js/dian.js')) ? filemtime(public_path('js/dian.js')) : '1' }}">
     </script>
     <!--<script type="text/javascript" src='https://maps.google.com/maps/api/js?sensor=false&libraries=places'></script>-->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBL1KlgUU3ml--hP_mhfOeCNkp1EJ-WAcs"></script>

@@ -3,6 +3,7 @@
 namespace App\Traits;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 
 trait ConsumesExternalServices
 {
@@ -41,11 +42,16 @@ trait ConsumesExternalServices
             return $response;
 
         } catch (\Throwable $th) {
-            return $response = array(
+            $body = null;
+            if ($th instanceof RequestException && $th->hasResponse()) {
+                $body = json_decode($th->getResponse()->getBody()->getContents(), true);
+            }
+
+            return [
                 'statusCode' => $th->getCode() ?: 400,
                 'errorMessage' => "Error al realizar la petición",
-                'th' =>  json_decode($th->getResponse()->getBody()->getContents(),true),
-            );
+                'th' => $body,
+            ];
         }
     }
 

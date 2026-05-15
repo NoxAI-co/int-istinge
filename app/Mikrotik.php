@@ -24,8 +24,24 @@ class Mikrotik extends Model
 
     protected $appends = ['uso', 'session'];
 
+    public function contratos()
+    {
+        return $this->hasMany(Contrato::class, 'server_configuration_id', 'id');
+    }
+
+    public function planes()
+    {
+        return $this->hasMany(PlanesVelocidad::class, 'mikrotik', 'id');
+    }
+
     public function getUsoAttribute()
     {
+        $hasContratosCount = array_key_exists('contratos_uso_count', $this->attributes);
+        $hasPlanesCount    = array_key_exists('planes_uso_count', $this->attributes);
+        if ($hasContratosCount || $hasPlanesCount) {
+            return (int) ($this->attributes['contratos_uso_count'] ?? 0)
+                 + (int) ($this->attributes['planes_uso_count'] ?? 0);
+        }
         return $this->uso();
     }
 
@@ -39,6 +55,9 @@ class Mikrotik extends Model
     public function getAllPermissions($id)
     {
         if(Auth::user()->rol>=2){
+            if (isset($_SESSION['permisos']) && is_array($_SESSION['permisos'])) {
+                return $_SESSION['permisos'];
+            }
             if (DB::table('permisos_usuarios')->select('id_permiso')->where('id_usuario', $id)->count() > 0 ) {
                 $permisos = DB::table('permisos_usuarios')->select('id_permiso')->where('id_usuario', $id)->get();
                 foreach ($permisos as $key => $value) {
@@ -92,15 +111,21 @@ class Mikrotik extends Model
     }
 
     public function clientes($tipo){
-        $disabled=0;$enabled=0;
-        $contratos = Contrato::where('server_configuration_id', $this->id)->where('status', 1)->get();
-        foreach($contratos as $contrato){
-            if(Ping::where('contrato', $contrato->id)->first()){
-                $disabled++;
-            }else{
-                $enabled++;
-            }
+        if ($tipo == 'enabled' && array_key_exists('clientes_enabled_count', $this->attributes)) {
+            return (int) $this->attributes['clientes_enabled_count'];
         }
-        return ($tipo == 'enabled') ? $enabled : $disabled;
+        if ($tipo == 'disabled' && array_key_exists('clientes_disabled_count', $this->attributes)) {
+            return (int) $this->attributes['clientes_disabled_count'];
+        }
+
+        $base = Contrato::where('server_configuration_id', $this->id)->where('status', 1);
+        if ($tipo == 'enabled') {
+            return (clone $base)->whereNotIn('id', function ($q) {
+                $q->select('contrato')->from('pings');
+            })->count();
+        }
+        return (clone $base)->whereIn('id', function ($q) {
+            $q->select('contrato')->from('pings');
+        })->count();
     }
 }

@@ -362,280 +362,356 @@ class SiigoController extends Controller
         return $instance->executeSiigoRequest($curlOptions, true);
     }
     
-        public function sendInvoice(Request $request, $factura = null, $isRetry = false)
-    {
-        try {
-    
-            if ($factura === null) {
-                $factura = Factura::findOrFail($request->factura_id);
-            }
-    
-            $cliente_factura = $factura->cliente();
-    
-            $items_factura = ItemsFactura::join('inventario', 'inventario.id', 'items_factura.producto')
-                ->where('factura', $factura->id)
-                ->select(
-                    'items_factura.precio',
-                    'inventario.codigo_siigo',
-                    'inventario.siigo_id',
-                    'items_factura.cant',
-                    'items_factura.id_impuesto',
-                    'items_factura.producto',
-                    'inventario.ref',
-                    'inventario.producto as nombreProducto',
-                    'inventario.id',
-                    'items_factura.desc'
-                )
-                ->get();
-    
-            /* ===============================
-               VALIDAR MAPEOS DE PRODUCTOS
-            =============================== */
-            $itemsSinMapeo = [];
-            foreach ($items_factura as $item) {
-                if (empty($item->codigo_siigo)) {
-                    $itemsSinMapeo[] = $item->nombreProducto;
-                }
-            }
-    
-            if (!empty($itemsSinMapeo)) {
-                return response()->json([
-                    'status' => 400,
-                    'error'  => 'Productos sin mapeo en Siigo: ' . implode(', ', $itemsSinMapeo)
-                ]);
-            }
-    
-            /* ===============================
-               RETENCIONES FACTURA
-            =============================== */
-            $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
-    
-            $totalRetencion   = 0;
-            $retencionSiigoId = null;
-    
-            foreach ($retencionesFactura as $ret) {
-                $totalRetencion += (float) $ret->valor;
-                $retObj = Retencion::find($ret->id_retencion);
-                if ($retObj && $retObj->siigo_id) {
-                    $retencionSiigoId = $retObj->siigo_id;
-                }
-            }
-    
-            /* ===============================
-               ARMADO ITEMS
-            =============================== */
-            $array_items_factura = [];
-            $totalFactura = 0;
-            $cont = 0;
-    
-            foreach ($items_factura as $item) {
-    
-                $precio   = (float) $item->precio;
-                $cantidad = (int) $item->cant;
-                $subtotal = round($precio * $cantidad, 2);
-    
-                // Descuento (%)
-                $descuento = 0;
-                if (!empty($item->desc)) {
-                    $descuento = round(($subtotal * $item->desc) / 100, 2);
-                }
-    
-                $subtotalConDesc = round($subtotal - $descuento, 2);
-    
-                // Impuesto
-                $impuestoValor = 0;
-                $impuesto = null;
-    
-                if ($item->id_impuesto) {
-                    $impuesto = Impuesto::find($item->id_impuesto);
-                    if ($impuesto && $impuesto->siigo_id) {
-                        $impuestoValor = round($subtotalConDesc * ($impuesto->porcentaje / 100), 2);
-                    }
-                }
-    
-                $totalFactura += ($subtotalConDesc + $impuestoValor);
-    
-                $siigoItem = [
-                    "code"     => $item->codigo_siigo,
-                    "quantity" => $cantidad,
-                    "price"    => number_format($precio, 2, '.', '')
-                ];
-    
-                if ($descuento > 0) {
-                    $siigoItem["discount"] = number_format($item->desc, 2, '.', '');
-                }
-    
-                if ($impuesto && $impuesto->siigo_id) {
-                    $siigoItem["taxes"] = [
-                        ["id" => (string) $impuesto->siigo_id]
-                    ];
-                }
-    
-                // Retención SOLO primer ítem
-                if ($cont === 0 && $retencionSiigoId && $totalRetencion > 0) {
-                    $siigoItem["taxes"][] = [
-                        "id"    => (string) $retencionSiigoId,
-                        "type"  => "Retention",
-                        "value" => round($totalRetencion, 2)
-                    ];
-                }
-    
-                $array_items_factura[] = $siigoItem;
-                $cont++;
-            }
-    
-            /* ===============================
-               TOTAL NETO (RESTAR RETENCIONES)
-            =============================== */
-            $totalFactura = round($totalFactura - $totalRetencion, 2);
-    
-            /* ===============================
-               DATA FINAL SIIGO
-            =============================== */
-            $empresa = Empresa::find(1);
-            $departamento = $cliente_factura->departamento();
-            $municipio    = $cliente_factura->municipio();
-    
-            $draft = ($empresa->siigo_emitida == 1) ? false : true;
-    
-            $nombreArr = (function($c) {
-                if ($c->dv) return [$c->nombre];
-                $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
-                if (count($nArr) < 2) {
-                    $f = \App\Contacto::where('nit', $c->nit)->first();
-                    if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
-                }
-                return $nArr;
-            })($cliente_factura);
+    public function sendInvoice(Request $request, $factura = null, $isRetry = false)
+{
+    try {
 
-            $customerData = [
-                "person_type"    => $cliente_factura->dv ? "Company" : "Person",
-                "id_type"        => $cliente_factura->dv ? "31" : "13",
-                "identification" => $cliente_factura->nit,
-                "branch_office"  => "0",
-                "name"           => $nombreArr,
-                "address" => [
-                    "address" => $cliente_factura->direccion ?: "Sin dirección",
-                    "city" => [
-                        "country_code" => "CO",
-                        "country_name" => "Colombia",
-                        "state_code"   => $departamento->codigo,
-                        "state_name"   => $departamento->nombre,
-                        "city_code"    => $municipio->codigo_completo,
-                        "city_name"    => $municipio->nombre
-                    ]
-                ],
-                "contacts" => [
-                    [
-                        "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
-                        "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
-                        "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
-                    ]
-                ]
-            ];
+        if ($factura === null) {
+            $factura = Factura::findOrFail($request->factura_id);
+        }
 
-            $celular = !empty($cliente_factura->celular) ? $cliente_factura->celular : (!empty($cliente_factura->telefono1) ? $cliente_factura->telefono1 : null);
-            if ($celular) {
-                $customerData["phones"] = [
-                    ["number" => $celular]
-                ];
-            }
+        $cliente_factura = $factura->cliente();
 
-            $data = [
-                "document" => ["id" => $request->tipo_comprobante],
-                "date"     => $factura->fecha,
-                "draft"    => $draft,
-                "customer" => $customerData,
-                "seller"   => $request->usuario,
-                "items"    => $array_items_factura,
-            ];
+        $items_factura = ItemsFactura::join('inventario', 'inventario.id', 'items_factura.producto')
+            ->where('factura', $factura->id)
+            ->select(
+                'items_factura.precio',
+                'inventario.codigo_siigo',
+                'inventario.siigo_id',
+                'items_factura.cant',
+                'items_factura.id_impuesto',
+                'items_factura.producto',
+                'inventario.ref',
+                'inventario.producto as nombreProducto',
+                'inventario.id',
+                'items_factura.desc'
+            )
+            ->get();
 
-            // Si la factura está pagada (estatus 0), enviamos los pagos a Siigo.
-            // Si está abierta (estatus 1), no enviamos el nodo payments para que Siigo la deje como pendiente de pago.
-            if ($factura->estatus == 0) {
-                $data["payments"] = [
-                    [
-                        "id"       => $request->tipos_pago,
-                        "value"    => number_format($totalFactura, 2, '.', ''),
-                        "due_date" => $factura->vencimiento
-                    ]
-                ];
+        /* ===============================
+           VALIDAR MAPEOS DE PRODUCTOS
+        =============================== */
+        $itemsSinMapeo = [];
+        foreach ($items_factura as $item) {
+            if (empty($item->codigo_siigo)) {
+                $itemsSinMapeo[] = $item->nombreProducto;
             }
-    
-            if (!$draft) {
-                $data["stamp"] = ["send" => true];
-                $data["mail"]  = ["send" => true];
-            }
-    
-            /* ===============================
-               ENVÍO SIIGO
-            =============================== */
-            $curlOptions = [
-                CURLOPT_URL => 'https://api.siigo.com/v1/invoices',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => json_encode($data),
-                CURLOPT_HTTPHEADER => [
-                    'Partner-Id: Integra',
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $empresa->token_siigo
-                ]
-            ];
-    
-            $response = $this->executeSiigoRequest($curlOptions, true);
-    
-            if (isset($response['id'])) {
-                $factura->siigo_id = $response['id'];
-                $factura->siigo_name = $response['name'];
-                $factura->save();
-    
-                return response()->json([
-                    'status'  => 200,
-                    'message' => 'Factura creada correctamente en Siigo'
-                ]);
-            }
-    
-            $errorMessage = 'Error desconocido en Siigo';
-            $hasInvalidDate = false;
-            
-            if (isset($response['Errors']) && is_array($response['Errors']) && count($response['Errors']) > 0) {
-                $messages = [];
-                foreach ($response['Errors'] as $err) {
-                    if (isset($err['Message'])) {
-                        $messages[] = $err['Message'];
-                        if (strpos($err['Message'], 'Invalid date') !== false) {
-                            $hasInvalidDate = true;
-                        }
-                    }
-                }
-                if (count($messages) > 0) {
-                    $errorMessage = implode(' | ', $messages);
-                }
-            } elseif (isset($response['Message'])) {
-                $errorMessage = $response['Message'];
-                if (strpos($errorMessage, 'Invalid date') !== false) {
-                    $hasInvalidDate = true;
-                }
-            }
-            
-            if ($hasInvalidDate && !$isRetry) {
-                $factura->fecha = \Carbon\Carbon::now()->format('Y-m-d');
-                $factura->save();
-                return $this->sendInvoice($request, $factura, true);
-            }
-    
+        }
+
+        if (!empty($itemsSinMapeo)) {
             return response()->json([
                 'status' => 400,
-                'error'  => $errorMessage
-            ]);
-    
-        } catch (\Throwable $th) {
-            return response()->json([
-                'status' => 400,
-                'error'  => 'Error al crear factura en Siigo: ' . $th->getMessage()
+                'error'  => 'Productos sin mapeo en Siigo: ' . implode(', ', $itemsSinMapeo)
             ]);
         }
+
+        /* ===============================
+           RETENCIONES FACTURA
+        =============================== */
+        $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
+
+        $totalRetencion   = 0;
+        $retencionSiigoId = null;
+
+        foreach ($retencionesFactura as $ret) {
+            $totalRetencion += (float) $ret->valor;
+            $retObj = Retencion::find($ret->id_retencion);
+            if ($retObj && $retObj->siigo_id) {
+                $retencionSiigoId = $retObj->siigo_id;
+            }
+        }
+
+        /* ===============================
+           ARMADO ITEMS
+        =============================== */
+        $array_items_factura = [];
+        $totalFactura = 0;
+        $cont = 0;
+
+        foreach ($items_factura as $item) {
+
+            $precio   = (float) $item->precio;
+            $cantidad = (int) $item->cant;
+            $subtotal = round($precio * $cantidad, 2);
+
+            $descuento = 0;
+            if (!empty($item->desc)) {
+                $descuento = round(($subtotal * $item->desc) / 100, 2);
+            }
+
+            $subtotalConDesc = round($subtotal - $descuento, 2);
+
+            $impuestoValor = 0;
+            $impuesto = null;
+
+            if ($item->id_impuesto) {
+                $impuesto = Impuesto::find($item->id_impuesto);
+                if ($impuesto && $impuesto->siigo_id) {
+                    $impuestoValor = round($subtotalConDesc * ($impuesto->porcentaje / 100), 2);
+                }
+            }
+
+            $totalFactura += ($subtotalConDesc + $impuestoValor);
+
+            $siigoItem = [
+                "code"     => $item->codigo_siigo,
+                "quantity" => $cantidad,
+                "price"    => number_format($precio, 2, '.', '')
+            ];
+
+            if ($descuento > 0) {
+                $siigoItem["discount"] = number_format($item->desc, 2, '.', '');
+            }
+
+            if ($impuesto && $impuesto->siigo_id) {
+                $siigoItem["taxes"] = [
+                    ["id" => (string) $impuesto->siigo_id]
+                ];
+            }
+
+            if ($cont === 0 && $retencionSiigoId && $totalRetencion > 0) {
+                $siigoItem["taxes"][] = [
+                    "id"    => (string) $retencionSiigoId,
+                    "type"  => "Retention",
+                    "value" => round($totalRetencion, 2)
+                ];
+            }
+
+            $array_items_factura[] = $siigoItem;
+            $cont++;
+        }
+
+        /* ===============================
+           TOTAL NETO (RESTAR RETENCIONES)
+        =============================== */
+        $totalFactura = round($totalFactura - $totalRetencion, 2);
+
+        /* ===============================
+           TIPOS DE PAGO DESDE SIIGO
+        =============================== */
+        $empresa = Empresa::find(1);
+        
+        $paymentTypesRaw = $this->executeSiigoRequest([
+            CURLOPT_URL            => 'https://api.siigo.com/v1/payment-types?document_type=FV',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => 'GET',
+            CURLOPT_HTTPHEADER     => [
+                'Partner-Id: Integra',
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $empresa->token_siigo
+            ]
+        ], false);
+    
+        $paymentTypes = collect(json_decode(json_encode($paymentTypesRaw), true) ?? []);
+
+        // Para factura PAGADA: busca por nombre enviado desde el request
+        // Para factura ABIERTA: busca el tipo "Crédito" (due_date: true, type: Cartera)
+        $pagoSeleccionado    = null;
+        $pagoCredito         = null;
+
+        foreach ($paymentTypes as $pt) {
+            $nombreNormalizado = strtolower(trim($pt['name'] ?? ''));
+
+            // Tipo de pago enviado por el usuario (factura pagada)
+            if (isset($request->tipos_pago)) {
+                $pagoRequest = strtolower(trim($request->tipos_pago));
+                if (
+                    (string)($pt['id'] ?? '') === $pagoRequest ||
+                    $nombreNormalizado === $pagoRequest
+                ) {
+                    $pagoSeleccionado = $pt;
+                }
+            }
+
+            // Tipo crédito para factura abierta:
+            // Busca cualquiera que sea Cartera, acepte due_date y su nombre contenga "crédito"
+            if (
+                ($pt['type'] ?? '') === 'Cartera' &&
+                ($pt['due_date'] ?? false) === true &&
+                str_contains($nombreNormalizado, 'crédito')
+            ) {
+                $pagoCredito = $pt;
+            }
+        }
+
+        // Fallback: si no encontró crédito por nombre, toma el primero de Cartera con due_date
+        if (!$pagoCredito) {
+            $pagoCredito = $paymentTypes->first(function ($pt) {
+                return ($pt['type'] ?? '') === 'Cartera' && ($pt['due_date'] ?? false) === true;
+            });
+        }
+
+        if (!$pagoCredito) {
+            return response()->json([
+                'status' => 400,
+                'error'  => 'No se encontró un tipo de pago de crédito/cartera disponible en Siigo.'
+            ]);
+        }
+
+        /* ===============================
+           DATA FINAL SIIGO
+        =============================== */
+        $departamento = $cliente_factura->departamento();
+        $municipio    = $cliente_factura->municipio();
+
+        $draft = ($empresa->siigo_emitida == 1) ? false : true;
+
+        $nombreArr = (function($c) {
+            if ($c->dv) return [$c->nombre];
+            $nArr = $this->parseName($c->nombre . (isset($c->apellido1) ? ' ' . $c->apellido1 . ' ' . $c->apellido2 : ''));
+            if (count($nArr) < 2) {
+                $f = \App\Contacto::where('nit', $c->nit)->first();
+                if ($f) $nArr = $this->parseName($f->nombre . ' ' . $f->apellido1 . ' ' . $f->apellido2);
+            }
+            return $nArr;
+        })($cliente_factura);
+
+        $customerData = [
+            "person_type"    => $cliente_factura->dv ? "Company" : "Person",
+            "id_type"        => $cliente_factura->dv ? "31" : "13",
+            "identification" => $cliente_factura->nit,
+            "branch_office"  => "0",
+            "name"           => $nombreArr,
+            "address" => [
+                "address" => $cliente_factura->direccion ?: "Sin dirección",
+                "city" => [
+                    "country_code" => "CO",
+                    "country_name" => "Colombia",
+                    "state_code"   => $departamento->codigo,
+                    "state_name"   => $departamento->nombre,
+                    "city_code"    => $municipio->codigo_completo,
+                    "city_name"    => $municipio->nombre
+                ]
+            ],
+            "contacts" => [
+                [
+                    "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
+                    "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
+                    "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
+                ]
+            ]
+        ];
+
+        $celular = !empty($cliente_factura->celular) ? $cliente_factura->celular : (!empty($cliente_factura->telefono1) ? $cliente_factura->telefono1 : null);
+        if ($celular) {
+            $customerData["phones"] = [
+                ["number" => $celular]
+            ];
+        }
+
+        $data = [
+            "document" => ["id" => $request->tipo_comprobante],
+            "date"     => $factura->fecha,
+            "draft"    => $draft,
+            "customer" => $customerData,
+            "seller"   => $request->usuario,
+            "items"    => $array_items_factura,
+        ];
+
+        /* ===============================
+           PAGOS
+        =============================== */
+        if ($factura->estatus == 0) {
+            // Factura PAGADA → usa el tipo de pago seleccionado por el usuario
+            if (!$pagoSeleccionado) {
+                return response()->json([
+                    'status' => 400,
+                    'error'  => "No se encontró el tipo de pago '{$request->tipos_pago}' en Siigo."
+                ]);
+            }
+
+            $data["payments"] = [
+                [
+                    "id"       => $pagoSeleccionado['id'],
+                    "value"    => number_format($totalFactura, 2, '.', ''),
+                    "due_date" => $factura->fecha
+                ]
+            ];
+        } else {
+            // Factura ABIERTA → usa crédito/cartera, queda pendiente de cobro
+            $data["payments"] = [
+                [
+                    "id"       => $pagoCredito['id'],
+                    "value"    => number_format($totalFactura, 2, '.', ''),
+                    "due_date" => $factura->vencimiento
+                ]
+            ];
+        }
+
+        if (!$draft) {
+            $data["stamp"] = ["send" => true];
+            $data["mail"]  = ["send" => true];
+        }
+
+        /* ===============================
+           ENVÍO SIIGO
+        =============================== */
+        $curlOptions = [
+            CURLOPT_URL            => 'https://api.siigo.com/v1/invoices',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => 'POST',
+            CURLOPT_POSTFIELDS     => json_encode($data),
+            CURLOPT_HTTPHEADER     => [
+                'Partner-Id: Integra',
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $empresa->token_siigo
+            ]
+        ];
+
+        $response = $this->executeSiigoRequest($curlOptions, true);
+
+        if (isset($response['id'])) {
+            $factura->siigo_id   = $response['id'];
+            $factura->siigo_name = $response['name'];
+            $factura->save();
+
+            return response()->json([
+                'status'  => 200,
+                'message' => 'Factura creada correctamente en Siigo'
+            ]);
+        }
+
+        $errorMessage   = 'Error desconocido en Siigo';
+        $hasInvalidDate = false;
+
+        if (isset($response['Errors']) && is_array($response['Errors']) && count($response['Errors']) > 0) {
+            $messages = [];
+            foreach ($response['Errors'] as $err) {
+                if (isset($err['Message'])) {
+                    $messages[] = $err['Message'];
+                    if (strpos($err['Message'], 'Invalid date') !== false) {
+                        $hasInvalidDate = true;
+                    }
+                }
+            }
+            if (count($messages) > 0) {
+                $errorMessage = implode(' | ', $messages);
+            }
+        } elseif (isset($response['Message'])) {
+            $errorMessage = $response['Message'];
+            if (strpos($errorMessage, 'Invalid date') !== false) {
+                $hasInvalidDate = true;
+            }
+        }
+
+        if ($hasInvalidDate && !$isRetry) {
+            $factura->fecha = \Carbon\Carbon::now()->format('Y-m-d');
+            $factura->save();
+            return $this->sendInvoice($request, $factura, true);
+        }
+
+        return response()->json([
+            'status' => 400,
+            'error'  => $errorMessage
+        ]);
+
+    } catch (\Throwable $th) {
+        return response()->json([
+            'status' => 400,
+            'error'  => 'Error al crear factura en Siigo: ' . $th->getMessage()
+        ]);
     }
+}
     
     public function impuestosSiigo()
     {
@@ -905,6 +981,19 @@ class SiigoController extends Controller
             $facturas = explode(",", $facturas);
             $lstResultados = [];
     
+            // Fetch payment types and seller data once before the loop to optimize performance
+            $tiposPago = collect($this->getPaymentTypes());
+            $sellerData = $this->getSeller();
+            $sellers = collect($sellerData['results'] ?? []);
+
+            $tipoPagoCredito = $tiposPago
+                ->whereIn('name', ['Pago a crédito', 'Crédito'])
+                ->first();
+
+            $tipoPagoEfectivo = $tiposPago
+                ->whereIn('name', ['Efectivo', 'Contado'])
+                ->first();
+
             foreach ($facturas as $facturaId) {
     
                 $factura = Factura::find($facturaId);
@@ -912,19 +1001,6 @@ class SiigoController extends Controller
                 if (!$factura || !empty($factura->siigo_id)) {
                     continue;
                 }
-    
-                // ==============================
-                // OBTENER TIPOS DE PAGO SIIGO
-                // ==============================
-                $tiposPago = collect($this->getPaymentTypes());
-    
-                $tipoPagoCredito = $tiposPago
-                    ->whereIn('name', ['Pago a crédito', 'Crédito'])
-                    ->first();
-    
-                $tipoPagoEfectivo = $tiposPago
-                    ->whereIn('name', ['Efectivo', 'Contado'])
-                    ->first();
     
                 // ==============================
                 // FECHAS → DEFINIR SI ES CRÉDITO
@@ -971,11 +1047,17 @@ class SiigoController extends Controller
                 // ==============================
                 // DATOS ADICIONALES
                 // ==============================
-                $servidor   = $factura->servidor();
-                $sellerData = $this->getSeller();
-    
-                $usuario = collect($sellerData['results'] ?? [])
-                    ->first()['id'] ?? null;
+                $servidor = $factura->servidor();
+                $usuario  = null;
+
+                if ($servidor && isset($servidor->email_siigo)) {
+                    $usuario = $sellers->where('username', $servidor->email_siigo)->first()['id'] ?? null;
+                }
+
+                // Fallback: usuar el vendedor de la factura si no hay usuario por servidor
+                if (!$usuario && $factura->vendedorObj) {
+                    $usuario = $factura->vendedorObj->siigo_id;
+                }
     
                 // ==============================
                 // REQUEST PARA sendInvoice
@@ -985,9 +1067,21 @@ class SiigoController extends Controller
                     'tipos_pago'       => $tipoPagoSeleccionado,
                     'factura_id'       => $facturaId,
                     'usuario'          => $usuario,
-                    'tipo_comprobante' => $servidor->tipodoc_siigo_id
+                    'tipo_comprobante' => ($servidor && isset($servidor->tipodoc_siigo_id)) ? $servidor->tipodoc_siigo_id : null
                 ]);
     
+                if (!$request->tipo_comprobante) {
+                    $lstResultados[] = [
+                        'factura_id' => $facturaId,
+                        'codigo'     => $factura->codigo,
+                        'resultado'  => [
+                            'status' => 400,
+                            'error'  => 'No se ha configurado el tipo de comprobante Siigo para el servidor de esta factura.'
+                        ]
+                    ];
+                    continue;
+                }
+
                 // ==============================
                 // ENVÍO A SIIGO
                 // ==============================

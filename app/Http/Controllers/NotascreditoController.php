@@ -1095,7 +1095,7 @@ class NotascreditoController extends Controller
             if($pdfImprimir){
                 return $pdf;
             }
-            return  response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
+            return $pdf->stream('nota_credito.pdf');
         } else {
             if ($nota->tipo_operacion == 3) {
                 $detalle_recaudo = Factura::where('id', $facturas->first()->factura)->first();
@@ -1110,7 +1110,7 @@ class NotascreditoController extends Controller
             if($pdfImprimir){
                 return $pdf;
             }
-            return  response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
+            return $pdf->stream('nota_credito.pdf');
         }
     }
 

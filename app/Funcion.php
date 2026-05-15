@@ -95,4 +95,22 @@ class Funcion
     public static function generateRandomString($length = 10){
         return substr(str_shuffle("0123456789"), 0, $length);
     }
+
+    public static function parseSpeed($speed) {
+        if (empty($speed)) return "0";
+        
+        $speed = strtoupper(trim($speed));
+        
+        // Si contiene K, simplemente añadimos bps
+        if (strpos($speed, 'K') !== false) {
+            return str_replace('K', 'Kbps', $speed);
+        }
+        
+        // Si contiene M, simplemente añadimos bps
+        if (strpos($speed, 'M') !== false) {
+            return str_replace('M', 'Mbps', $speed);
+        }
+        
+        return $speed;
+    }
 }

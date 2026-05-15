@@ -538,39 +538,68 @@ class FacturasController extends Controller{
             return redirect()->route('configuracion.numeraciones_dian')->with('error', 'No hay una numeración de factura electrónica activa. Por favor configure una para continuar.');
         }
 
-        $prefijo = $numeracionActual->prefijo;   // FE
-        $inicio  = (int) $numeracionActual->inicioverdadero; // 567
-        $final   = (int) $numeracionActual->final;  // 10000
+        $prefijo          = $numeracionActual->prefijo;          // Ej: "FE"
+        $numeracionId     = $numeracionActual->id;               // ID de la numeración preferida activa
+        $inicio           = (int) $numeracionActual->inicioverdadero; // Inicio autorizado por la DIAN
+        $final            = (int) $numeracionActual->final;           // Final autorizado por la DIAN
 
-        // 2. Consultar todas las facturas con ese prefijo
-        $facturas = Factura::where('codigo', 'like', $prefijo . '%')
-        ->where('tipo',2)
-        ->pluck('codigo')
-        ->toArray();
+        // 2. Consultar EXCLUSIVAMENTE las facturas que pertenecen a esta numeración preferida.
+        //    Se filtra por factura.numeracion = $numeracionId para no mezclar facturas
+        //    de otras numeraciones que pudieran compartir el mismo prefijo.
+        $facturasCodigos = Factura::where('numeracion', $numeracionId)
+            ->where('tipo', 2)
+            ->pluck('codigo')
+            ->toArray();
 
-        // 3. Extraer solo el número
+        // 3. Extraer solo la parte numérica de cada código (quitar el prefijo)
         $usados = array_map(function($codigo) use ($prefijo) {
             return (int) str_replace($prefijo, '', $codigo);
-        }, $facturas);
+        }, $facturasCodigos);
+
+        // Filtrar solo los números dentro del rango válido de la resolución DIAN
+        $usados = array_filter($usados, function($n) use ($inicio, $final) {
+            return $n >= $inicio && $n <= $final;
+        });
 
         sort($usados);
 
-        // 4. Buscar el último consecutivo usado
-        $ultimoUsado = !empty($usados) ? max($usados) : $inicio - 1;
+        // 4. Punto de partida INTELIGENTE:
+        //    Usamos el MÍNIMO número de factura realmente registrado en el sistema
+        //    para esta numeración (no el inicio de la resolución DIAN).
+        //    Ejemplo: resolución va de 1 a 1000, cliente empezó a facturar desde el 50
+        //    → analizamos faltantes solo desde 50 en adelante, ignorando el 1-49.
+        $primerUsado = !empty($usados) ? min($usados) : null;
 
-        // 5. Generar todos los posibles consecutivos hasta el último usado
-        $todos = range($inicio, $ultimoUsado);
+        // 5. Último consecutivo usado
+        $ultimoUsado = !empty($usados) ? max($usados) : null;
 
-        // 6. Calcular los faltantes
-        $faltantes = array_diff($todos, $usados);
+        // 6. Si no hay facturas registradas bajo esta numeración, no hay nada que analizar
+        if ($primerUsado === null || $ultimoUsado === null) {
+            $reporteFaltantes = [
+                'numeracion_id' => $numeracionId,
+                'prefijo'       => $prefijo,
+                'inicio'        => $inicio,
+                'final'         => $final,
+                'ultimo_usado'  => 0,
+                'faltantes'     => [],
+            ];
+        } else {
+            // 7. Rango real: desde la primera factura registrada hasta la última
+            $todos = range($primerUsado, $ultimoUsado);
 
-        $reporteFaltantes =  [
-            'prefijo' => $prefijo,
-            'inicio' => $inicio,
-            'final' => $final,
-            'ultimo_usado' => $ultimoUsado,
-            'faltantes' => array_values($faltantes),
-        ];
+            // 8. Los faltantes son los números del rango real que no existen en el sistema
+            $faltantes = array_values(array_diff($todos, $usados));
+
+            $reporteFaltantes = [
+                'numeracion_id'     => $numeracionId,     // ID de la numeración evaluada
+                'prefijo'           => $prefijo,
+                'inicio'            => $inicio,            // Inicio oficial DIAN
+                'final'             => $final,             // Final oficial DIAN
+                'primer_registrado' => $primerUsado,       // Primera factura real en el sistema
+                'ultimo_usado'      => $ultimoUsado,
+                'faltantes'         => $faltantes,
+            ];
+        }
 
 
 
@@ -652,6 +681,7 @@ class FacturasController extends Controller{
         ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
         ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
+        ->leftJoin(DB::raw('(SELECT inf.factura, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ult_pago'), 'ult_pago.factura', '=', 'factura.id')
         ->select(
             'barrio.nombre as barrio',
             DB::raw('COALESCE(mk.nombre, mk2.nombre) as servidor'),
@@ -672,6 +702,7 @@ class FacturasController extends Controller{
             'factura.promesa_pago',
             'factura.id',
             'factura.correo',
+            'factura.whatsapp',
             'factura.mensaje',
             'factura.estatus',
             'factura.codigo',
@@ -680,6 +711,7 @@ class FacturasController extends Controller{
             'factura.siigo_id',
             'factura.siigo_name',
             'em.api_key_siigo as api_key_siigo',
+            'ult_pago.fecha_pago',
             DB::raw('v.nombre as nombrevendedor'),
               DB::raw('
             SUM((if.cant * if.precio) - (if.precio * (if(if.desc, if.desc, 0) / 100) * if.cant) + (if.precio - (if.precio * (if(if.desc, if.desc, 0) / 100))) * (if.impuesto / 100) * if.cant) as total
@@ -794,6 +826,24 @@ class FacturasController extends Controller{
                         $query->orWhereNull('factura.correo');
                     }
                 });
+            }
+            if($request->whatsapp){
+                $whatsapp = ($request->whatsapp == 'A') ? 0 : $request->whatsapp;
+                if (is_array($whatsapp)) {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->whereIn('factura.whatsapp', $whatsapp);
+                        if(in_array('0', $whatsapp)){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                } else {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->where('factura.whatsapp', $whatsapp);
+                        if($whatsapp == 0){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                }
             }
             if($request->municipio){
                 $facturas->where(function ($query) use ($request) {
@@ -970,6 +1020,9 @@ class FacturasController extends Controller{
         ->editColumn('fecha', function (Factura $factura) {
             return date('d-m-Y', strtotime($factura->fecha));
         })
+        ->addColumn('fecha_pago', function ($factura) {
+            return $factura->fecha_pago ? date('d-m-Y', strtotime($factura->fecha_pago)) : 'sin pago';
+        })
         ->editColumn('vencimiento', function (Factura $factura) {
             return (date('Y-m-d') > $factura->vencimiento && $factura->estatus == 1) ? '<span class="text-danger">' . date('d-m-Y', strtotime($factura->vencimiento)) . '</span>' : date('d-m-Y', strtotime($factura->vencimiento));
         })
@@ -1097,7 +1150,7 @@ class FacturasController extends Controller{
         ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs1.server_configuration_id')
         ->leftJoin('mikrotik as mk2', 'mk2.id', '=', 'cs2.server_configuration_id')
         // Optimización: Agregaciones más eficientes usando COALESCE directamente
-        ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_pago FROM ingresos_factura GROUP BY factura) as ing_fact'), 'ing_fact.factura', '=', 'factura.id')
+        ->leftJoin(DB::raw('(SELECT inf.factura, COALESCE(SUM(inf.pago), 0) as total_pago, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ing_fact'), 'ing_fact.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(valor), 0) as total_retencion FROM ingresos_retenciones GROUP BY factura) as ing_ret'), 'ing_ret.factura', '=', 'factura.id')
         ->leftJoin(DB::raw('(SELECT factura, COALESCE(SUM(pago), 0) as total_nota FROM notas_factura GROUP BY factura) as notas_fact'), 'notas_fact.factura', '=', 'factura.id')
         ->select(
@@ -1121,6 +1174,7 @@ class FacturasController extends Controller{
             'factura.promesa_pago',
             'factura.id',
             'factura.correo',
+            'factura.whatsapp',
             'factura.mensaje',
             'factura.estatus',
             'factura.codigo',
@@ -1129,6 +1183,7 @@ class FacturasController extends Controller{
             'factura.siigo_name',
             'factura.vencimiento',
             'em.api_key_siigo as api_key_siigo',
+            'ing_fact.fecha_pago',
             DB::raw('v.nombre as nombrevendedor'),
             // Cálculo del total optimizado
             DB::raw('
@@ -1234,6 +1289,24 @@ class FacturasController extends Controller{
             if($request->correo){
                 $correo = ($request->correo == 'A') ? 0 : $request->correo;
                 $facturas->where('factura.correo', $correo);
+            }
+            if($request->whatsapp){
+                $whatsapp = ($request->whatsapp == 'A') ? 0 : $request->whatsapp;
+                if (is_array($whatsapp)) {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->whereIn('factura.whatsapp', $whatsapp);
+                        if(in_array('0', $whatsapp)){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                } else {
+                    $facturas->where(function ($query) use ($whatsapp) {
+                        $query->where('factura.whatsapp', $whatsapp);
+                        if($whatsapp == 0){
+                            $query->orWhereNull('factura.whatsapp');
+                        }
+                    });
+                }
             }
             if($request->servidor){
                 $facturas->where(function ($query) use ($request) {
@@ -1707,6 +1780,9 @@ class FacturasController extends Controller{
         ->editColumn('fecha', function ($factura) {
             return $factura->fecha ? date('d-m-Y', strtotime($factura->fecha)) : '';
         })
+        ->addColumn('fecha_pago', function ($factura) {
+            return $factura->fecha_pago ? date('d-m-Y', strtotime($factura->fecha_pago)) : 'sin pago';
+        })
         ->editColumn('vencimiento', function ($factura) {
             if(!$factura->vencimiento) return '';
             $vencimientoFormateado = date('d-m-Y', strtotime($factura->vencimiento));
@@ -2055,6 +2131,20 @@ class FacturasController extends Controller{
 
         $request->validate([
             'vendedor' => 'required',
+            'cliente' => 'required',
+            'fecha' => 'required',
+            'vencimiento' => 'required',
+            'item' => 'required|array|min:1',
+            'item.*' => 'required',
+            'cant' => 'required|array|min:1',
+            'cant.*' => 'required|numeric|min:0.0001',
+            'precio' => 'required|array|min:1',
+            'precio.*' => 'required|numeric|min:0',
+        ], [
+            'item.*.required' => 'Debe seleccionar un producto en todas las líneas.',
+            'cant.*.required' => 'La cantidad es obligatoria en todas las líneas.',
+            'cant.*.min' => 'La cantidad debe ser mayor a 0.',
+            'precio.*.required' => 'El precio es obligatorio en todas las líneas.',
         ]);
 
         DB::beginTransaction();
@@ -2269,7 +2359,7 @@ class FacturasController extends Controller{
             $items->descripcion=$request->descripcion[$i];
             $items->id_impuesto=$request->impuesto[$i];
             $items->impuesto=$impuesto->porcentaje;
-            $items->cant=$request->cant[$i];
+            $items->cant=$request->cant[$i] ?? 1;
             //$items->desc=$request->desc[$i];
             $desc=$request->desc[$i];
             $items->save();
@@ -2307,6 +2397,7 @@ class FacturasController extends Controller{
         if(OnePayService::isEnabled($user->empresa)){
             try {
                 $onePayService = new OnePayService($user->empresa);
+                $onePayService->prepareDocument($factura);
                 $onePayService->createInvoice($factura, $user->empresa);
             } catch (\Exception $e) {
                 // Log del error pero no interrumpir el flujo
@@ -2458,6 +2549,23 @@ class FacturasController extends Controller{
   * @return redirect
   */
     public function update(Request $request, $id){
+        $request->validate([
+            'vendedor' => 'required',
+            'cliente' => 'required',
+            'fecha' => 'required',
+            'vencimiento' => 'required',
+            'item' => 'required|array|min:1',
+            'item.*' => 'required',
+            'cant' => 'required|array|min:1',
+            'cant.*' => 'required|numeric|min:0.0001',
+            'precio' => 'required|array|min:1',
+            'precio.*' => 'required|numeric|min:0',
+        ], [
+            'item.*.required' => 'Debe seleccionar un producto en todas las líneas.',
+            'cant.*.required' => 'La cantidad es obligatoria en todas las líneas.',
+            'cant.*.min' => 'La cantidad debe ser mayor a 0.',
+            'precio.*.required' => 'El precio es obligatorio en todas las líneas.',
+        ]);
 
         $factura =Factura::find($id);
 
@@ -2655,7 +2763,7 @@ class FacturasController extends Controller{
                     $items->descripcion=$request->descripcion[$i];
                     $items->id_impuesto=$request->impuesto[$i];
                     $items->impuesto=$impuesto->porcentaje;
-                    $items->cant=$request->cant[$i];
+                    $items->cant=$request->cant[$i] ?? 1;
 
                     //El descuneto no se debe aplicar sin ser aprobado.
                     if(isset($request->desc[$i])){
@@ -2722,10 +2830,12 @@ class FacturasController extends Controller{
                         // Si no tiene onepay_invoice_id, es la primera vez que se crea en OnePay
                         if(!$factura->onepay_invoice_id){
                             // Crear factura en OnePay por primera vez
+                            $onePayService->prepareDocument($factura);
                             $onePayService->createInvoice($factura, $user->empresa);
                         } else {
                             // Si ya existe, solo actualizar si cambió el total
                             if(abs($totalAnterior - $totalNuevo) > 0.01){
+                                $onePayService->prepareDocument($factura);
                                 $onePayService->updateInvoice($factura, $user->empresa);
                             }
                         }
@@ -3080,7 +3190,7 @@ class FacturasController extends Controller{
                 return $pdf;
             }
 
-            return response($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return $pdf->stream('factura.pdf');
         }
     }
 
@@ -3166,7 +3276,7 @@ class FacturasController extends Controller{
             $paper_size = array(0,0,270,580);
             $pdf = PDF::loadView('pdf.plantillas.factura_tirilla', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso','data'));
             $pdf->setPaper($paper_size, 'portrait');
-            return response($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return $pdf->stream('factura.pdf');
         }
     }
 
@@ -3481,6 +3591,8 @@ class FacturasController extends Controller{
                 // Crear factura en OnePay si está habilitado
                 if (OnePayService::isEnabled()) {
                     try {
+                        $onePayService = new OnePayService(Auth::user()->empresa);
+                        $onePayService->prepareDocument($factura);
                         $onePayService->createInvoice($factura, Auth::user()->empresa);
                     } catch (\Exception $e) {
                          Log::error('Error al recrear factura en OnePay al abrir: ' . $e->getMessage());
@@ -3504,6 +3616,32 @@ class FacturasController extends Controller{
                 return back()->with('success', 'Se ha cerrado la factura');
             }
             return redirect('empresa/facturas/facturas_electronica')->with('success', 'La factura no esta abierta');
+        }
+        return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
+    }
+
+    public function abrir($id){
+        $factura = Factura::where('empresa',Auth::user()->empresa)->where('id', $id)->first();
+        if ($factura) {
+            if ($factura->estatus==2 || $factura->estatus==0) {
+                $factura->estatus=1;
+                $factura->observaciones = $factura->observaciones.' | Factura Abierta por: '.Auth::user()->nombres.' el '.date('d-m-Y g:i:s A');
+                $factura->save();
+
+                // Crear factura en OnePay si está habilitado
+                if (\App\Services\OnePayService::isEnabled(Auth::user()->empresa)) {
+                    try {
+                        $onePayService = new \App\Services\OnePayService(Auth::user()->empresa);
+                        $onePayService->prepareDocument($factura);
+                        $onePayService->createInvoice($factura, Auth::user()->empresa);
+                    } catch (\Exception $e) {
+                         \Log::error('Error al recrear factura en OnePay al abrir: ' . $e->getMessage());
+                    }
+                }
+
+                return back()->with('success', 'Se ha reabierto la factura');
+            }
+            return redirect('empresa/facturas/facturas_electronica')->with('success', 'La factura ya esta abierta');
         }
         return redirect('empresa/facturas/facturas_electronica')->with('success', 'No existe un registro con ese id');
     }
@@ -3735,7 +3873,21 @@ class FacturasController extends Controller{
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->total()->total);
             $nestedData[] = $empresa->moneda.Funcion::Parsear($pagado);
             $nestedData[] = $empresa->moneda.Funcion::Parsear($factura->porpagar());
-            $nestedData[] = '<spam class="text-'.$factura->estatus(true).'">'.$factura->estatus().'</spam>';
+            $msj = '';
+            $title = '';
+            if ($factura->tipo == 2) {
+                if ($factura->emitida == 1) {
+                    $msj = ' - E';
+                    $title = $factura->estatus() . ' - Emitida';
+                } else if ($factura->dian_response == 409 || $factura->dian_response == 504) {
+                    $msj = ' - Error';
+                    $title = $factura->estatus() . ' - Error en emisión';
+                } else {
+                    $msj = ' - NE';
+                    $title = $factura->estatus() . ' - No emitida';
+                }
+            }
+            $nestedData[] = '<span class="text-'.$factura->estatus(true).'" title="'.$title.'">'.$factura->estatus().$msj.'</span>';
             $nestedData[] = $textContratos;
             $nestedData[] = $textDireccion;
             $boton = '<a href="'.route('facturas.show',$factura->id).'" class="btn btn-outline-info btn-icons" title="Ver"><i class="far fa-eye"></i></a>
@@ -5575,7 +5727,7 @@ class FacturasController extends Controller{
                     $pdf = PDF::loadView('pdf.factura', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso'));
                 }
             }
-            return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+            return  $pdf->stream('factura.pdf');
         }
     }
 
@@ -5630,7 +5782,7 @@ class FacturasController extends Controller{
         }else{
             $pdf = PDF::loadView('pdf.factura_estandar_multiple', compact('items', 'facturas', 'itemscount', 'tipo', 'retenciones','resolucion','ingreso'));
         }
-        return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf']);
+        return  $pdf->stream('factura.pdf');
     }
 
     public function exportData(){
@@ -7252,7 +7404,7 @@ class FacturasController extends Controller{
         $this->getAllPermissions(Auth::user()->id);
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas de Ventas";
-        $titulosColumnas = array('Codigo', 'Fecha', 'Cliente', 'Identificacion', 'Subtotal', 'Impuesto', 'Total', 'Abono', 'Saldo', 'Forma de Pago');
+        $titulosColumnas = array('Codigo', 'Fecha', 'Fecha Pago', 'Cliente', 'Identificacion', 'Subtotal', 'Impuesto', 'Total', 'Abono', 'Saldo', 'Forma de Pago');
 
         $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
 
@@ -7333,6 +7485,7 @@ class FacturasController extends Controller{
             )
             ->leftJoin('contracts as cs1', 'cs1.nro', '=', 'fc.contrato_nro')
             ->leftJoin('contracts as cs2', 'cs2.id', '=', 'factura.contrato_id')
+            ->leftJoin(DB::raw('(SELECT inf.factura, MAX(i.fecha) as fecha_pago FROM ingresos_factura inf JOIN ingresos i ON i.id = inf.ingreso WHERE i.estatus <> 2 GROUP BY inf.factura) as ult_pago'), 'ult_pago.factura', '=', 'factura.id')
             ->select(
                 'factura.tipo',
                 'factura.promesa_pago',
@@ -7348,6 +7501,7 @@ class FacturasController extends Controller{
                 'factura.vendedor',
                 'factura.emitida',
                 'factura.cuenta_id',
+                'ult_pago.fecha_pago',
                 DB::raw('c.nombre as nombrecliente'),
                 DB::raw('c.apellido1 as ape1cliente'),
                 DB::raw('c.apellido2 as ape2cliente'),
@@ -7357,9 +7511,11 @@ class FacturasController extends Controller{
                 DB::raw('v.nombre as nombrevendedor'),
                 DB::raw('SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant)+(if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) as total'),
                 DB::raw('((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) as pagado'),
-                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar')
+                DB::raw('(SUM((if.cant*if.precio)-(if.precio*(if(if.desc,if.desc,0)/100)*if.cant) + (if.precio-(if.precio*(if(if.desc,if.desc,0)/100)))*(if.impuesto/100)*if.cant) - ((Select SUM(pago) from ingresos_factura where factura=factura.id) + (Select if(SUM(valor), SUM(valor), 0) from ingresos_retenciones where factura=factura.id)) - (Select if(SUM(pago), SUM(pago), 0) from notas_factura where factura=factura.id)) as porpagar'),
+                DB::raw('COALESCE(cs1.nro, cs2.nro) as nro_contrato')
             )
-            ->groupBy('factura.id');
+            ->groupBy('factura.id')
+            ->havingRaw('nro_contrato IS NOT NULL AND nro_contrato <> "0" AND nro_contrato <> 0');
 
         // Filtro por servidores del usuario
         if ($user->servidores->count() > 0) {
@@ -8292,7 +8448,7 @@ class FacturasController extends Controller{
             // Paso 4a: Asignar códigos temporales únicos a TODAS las facturas del batch
             // para liberar los códigos actuales y evitar colisiones intra-batch
             foreach ($facturasIds as $facturaId) {
-                $codigoTemporal = '__TMP_' . $facturaId . '__';
+                $codigoTemporal = 'T' . $facturaId;
                 Factura::where('id', $facturaId)->update(['codigo' => $codigoTemporal]);
             }
 

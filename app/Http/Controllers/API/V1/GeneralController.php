@@ -19,52 +19,268 @@ class GeneralController extends Controller
 {
     /**
      * /deudacontrato
+     *
+     * Devuelve el contrato vigente del cliente con: plan, usuario, ubicación,
+     * deuda, contacto, historial de pagos y casos (radicados) abiertos.
+     *
+     * Parámetros (uno requerido):
+     *   - contrato_nro: número del contrato.
+     *   - identificacion: NIT / cédula del cliente.
      */
     public function deudacontrato(Request $request)
     {
         if (isset($request->contrato_nro)) {
             $contrato = Contrato::where('nro', $request->contrato_nro)->first();
-            if ($contrato) {
-                $deuda = "$" . \App\Funcion::Parsear($contrato->deudaFacturas());
-                $contrato->deuda = $deuda;
-                
-                $contrato->setAttribute('plan_detalles', $contrato->plan_detalles_api);
-
-                return response()->json(['data' => $contrato, 'status' => 200, 'multicontratos' => false]);
-            } else {
+            if (!$contrato) {
                 return response()->json(['status' => 400, 'message' => 'No se encontraron datos']);
             }
+
+            $this->attachContratoData($contrato);
+
+            return response()->json([
+                'data'           => $contrato,
+                'status'         => 200,
+                'multicontratos' => false,
+            ]);
         }
 
         if (isset($request->identificacion)) {
-            $cliente = Contacto::where('nit', $request->identificacion)->first();
-            if ($cliente) {
-                $contratos = Contrato::where('client_id', $cliente->id)->get();
-
-                if (count($contratos) == 0) {
-                    return response()->json(['status' => 400, 'message' => 'No se encontraron datos']);
-                }
-
-                // Attach plans to all contracts for multicontrato case
-                foreach ($contratos as $c) {
-                    $c->setAttribute('plan_detalles', $c->plan_detalles_api);
-                }
-
-                if (count($contratos) > 1) {
-                    return response()->json(['data' => $contratos, 'status' => 200, 'multicontratos' => true]);
-                } else {
-                    $contrato = $contratos->first();
-                    $deuda = "$" . \App\Funcion::Parsear($contrato->deudaFacturas());
-                    $contrato->deuda = $deuda;
-
-                    return response()->json(['data' => $contrato, 'status' => 200, 'multicontratos' => false]);
-                }
-            } else {
+            $clientes = Contacto::where('nit', $request->identificacion)->get();
+            if ($clientes->count() === 0) {
                 return response()->json(['status' => 400, 'message' => 'No se encontraron clientes con esa cédula']);
             }
+
+            $ids = $clientes->pluck('id');
+            $contratosAll = Contrato::whereIn('client_id', $ids)->get();
+
+            if ($contratosAll->count() === 0) {
+                return response()->json(['status' => 400, 'message' => 'No se encontraron datos']);
+            }
+
+            // Vigente = el habilitado más reciente; si no hay habilitados, el más reciente de todos.
+            $habilitados = $contratosAll->where('state', 'enabled');
+            $candidatos  = $habilitados->count() > 0 ? $habilitados : $contratosAll;
+
+            $contratoVigente = $candidatos
+                ->sortByDesc(function ($c) {
+                    return $c->created_at ? strtotime($c->created_at) : 0;
+                })
+                ->first();
+
+            $this->attachContratoData($contratoVigente);
+
+            $tieneOtros = $contratosAll->count() > 1;
+            $response = [
+                'data'           => $contratoVigente,
+                'status'         => 200,
+                'multicontratos' => $tieneOtros,
+            ];
+
+            if ($tieneOtros) {
+                $response['contratos_alternativos'] = $contratosAll
+                    ->reject(function ($c) use ($contratoVigente) {
+                        return $c->id === $contratoVigente->id;
+                    })
+                    ->map(function ($c) {
+                        return $this->buildContratoAlternativo($c);
+                    })
+                    ->values();
+            }
+
+            return response()->json($response);
         }
-        
+
         return response()->json(['status' => 400, 'message' => 'Parámetros insuficientes']);
+    }
+
+    /**
+     * Enriquece el contrato con la información requerida por el consumidor:
+     * plan, deuda, cliente, ubicación, historial de pagos y casos abiertos.
+     */
+    private function attachContratoData(Contrato $contrato)
+    {
+        $contrato->setAttribute('plan_detalles', $contrato->plan_detalles_api);
+
+        $deudaValor = $contrato->deudaFacturas();
+        $contrato->setAttribute('deuda', '$' . \App\Funcion::Parsear($deudaValor));
+        $contrato->setAttribute('deuda_valor', (float) $deudaValor);
+        $contrato->setAttribute('tiene_deuda', $deudaValor > 0);
+
+        $cliente = Contacto::find($contrato->client_id);
+        $contrato->setAttribute('cliente', $this->buildClienteInfo($cliente));
+        $contrato->setAttribute('ubicacion', $this->buildUbicacion($cliente));
+        $contrato->setAttribute('historial_pagos', $this->buildHistorialPagos($contrato));
+        $contrato->setAttribute('casos_abiertos', $this->buildCasosAbiertos($contrato));
+    }
+
+    /**
+     * Resumen compacto para los contratos alternativos del mismo cliente:
+     * suficiente información para que el consumidor decida si requiere
+     * cambiar al contrato (sin cargar todo el detalle).
+     */
+    private function buildContratoAlternativo(Contrato $c)
+    {
+        $plan = $c->plan_detalles_api;
+        $planNombre = is_array($plan) && isset($plan['name']) ? $plan['name'] : null;
+
+        $deudaValor = $c->deudaFacturas();
+
+        return [
+            'id'              => $c->id,
+            'nro'             => $c->nro,
+            'state'           => $c->state,
+            'estado'          => $c->status(),
+            'usuario'         => $c->usuario,
+            'ip'              => $c->ip,
+            'tipo_contrato'   => $c->tipo_contrato,
+            'fecha_corte'     => $c->fecha_corte,
+            'plan_id'         => $c->plan_id,
+            'plan'            => $planNombre,
+            'plan_detalles'   => $plan,
+            'deuda'           => '$' . \App\Funcion::Parsear($deudaValor),
+            'deuda_valor'     => (float) $deudaValor,
+            'tiene_deuda'     => $deudaValor > 0,
+            'created_at'      => $c->created_at,
+        ];
+    }
+
+    private function buildClienteInfo($cliente)
+    {
+        if (!$cliente) {
+            return null;
+        }
+
+        $nombreCompleto = trim(implode(' ', array_filter([
+            $cliente->nombre,
+            $cliente->apellido1,
+            $cliente->apellido2,
+        ])));
+
+        return [
+            'id'                  => $cliente->id,
+            'identificacion'      => $cliente->nit,
+            'tipo_identificacion' => $cliente->tip_iden,
+            'nombre'              => $cliente->nombre,
+            'apellido1'           => $cliente->apellido1,
+            'apellido2'           => $cliente->apellido2,
+            'nombre_completo'     => $nombreCompleto,
+            'email'               => $cliente->email,
+            'telefono1'           => $cliente->telefono1,
+            'telefono2'           => $cliente->telefono2,
+            'celular'             => $cliente->celular,
+        ];
+    }
+
+    private function buildUbicacion($cliente)
+    {
+        if (!$cliente) {
+            return null;
+        }
+
+        $barrio = null;
+        if ($cliente->barrio_id) {
+            $row = DB::table('barrios')->where('id', $cliente->barrio_id)->first();
+            $barrio = $row ? $row->nombre : null;
+        }
+
+        $municipio = null;
+        if (!empty($cliente->fk_idmunicipio)) {
+            $row = DB::table('municipios')->where('id', $cliente->fk_idmunicipio)->first();
+            $municipio = $row ? $row->nombre : $cliente->ciudad;
+        } else {
+            $municipio = $cliente->ciudad;
+        }
+
+        $departamento = null;
+        if (!empty($cliente->fk_iddepartamento)) {
+            $row = DB::table('departamentos')->where('id', $cliente->fk_iddepartamento)->first();
+            $departamento = $row ? $row->nombre : null;
+        }
+
+        $pais = null;
+        if (!empty($cliente->fk_idpais)) {
+            $row = DB::table('pais')->where('codigo', $cliente->fk_idpais)->first();
+            $pais = $row ? $row->nombre : null;
+        }
+
+        return [
+            'direccion'    => $cliente->direccion,
+            'barrio'       => $barrio,
+            'municipio'    => $municipio,
+            'departamento' => $departamento,
+            'pais'         => $pais,
+            'estrato'      => $cliente->estrato,
+        ];
+    }
+
+    /**
+     * Últimos 10 pagos asociados al contrato vía facturas_contratos -> factura
+     * -> ingresos_factura -> ingresos. Sólo pagos efectivos (tipo=1, estatus=1).
+     */
+    private function buildHistorialPagos(Contrato $contrato)
+    {
+        $pagos = DB::table('ingresos as i')
+            ->join('ingresos_factura as inf', 'inf.ingreso', '=', 'i.id')
+            ->join('factura as f', 'f.id', '=', 'inf.factura')
+            ->join('facturas_contratos as fc', 'fc.factura_id', '=', 'f.id')
+            ->leftJoin('metodos_pago as mp', 'mp.id', '=', 'i.metodo_pago')
+            ->where('fc.contrato_nro', $contrato->nro)
+            ->where('i.tipo', 1)
+            ->where('i.estatus', 1)
+            ->select(
+                'i.id',
+                'i.nro',
+                'i.fecha',
+                'inf.pago as monto',
+                'mp.metodo as metodo_pago',
+                'f.codigo as factura_codigo',
+                'f.id as factura_id'
+            )
+            ->orderBy('i.fecha', 'desc')
+            ->orderBy('i.id', 'desc')
+            ->limit(10)
+            ->get();
+
+        return $pagos->map(function ($p) {
+            return [
+                'id'             => $p->id,
+                'nro'            => $p->nro,
+                'fecha'          => $p->fecha,
+                'monto'          => (float) $p->monto,
+                'metodo_pago'    => $p->metodo_pago,
+                'factura_id'     => $p->factura_id,
+                'factura_codigo' => $p->factura_codigo,
+            ];
+        })->values();
+    }
+
+    /**
+     * Radicados abiertos del contrato. Según Radicado::estatus(), 0 = Pendiente
+     * y 2 = Escalado/Pendiente; 1 y 3 son solventados.
+     */
+    private function buildCasosAbiertos(Contrato $contrato)
+    {
+        $radicados = Radicado::where('contrato', $contrato->nro)
+            ->whereIn('estatus', [0, 2])
+            ->whereNotNull('codigo')
+            ->where('codigo', '!=', '')
+            ->orderBy('fecha', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return $radicados->map(function ($r) {
+            $servicio = $r->servicio();
+            return [
+                'id'             => $r->id,
+                'codigo'         => $r->codigo,
+                'fecha'          => $r->fecha,
+                'servicio_id'    => $r->servicio,
+                'servicio'       => $servicio ? $servicio->nombre : null,
+                'prioridad'      => $r->prioridad(),
+                'estatus'        => $r->estatus(),
+                'observaciones'  => $r->desconocido,
+            ];
+        })->values();
     }
 
     /**

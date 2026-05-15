@@ -1,4 +1,5 @@
 <p>Nota: Solo apareceran en el recibo de caja las ingresos con valores recibidos</p>
+<div class="table-responsive">
 <table class="table table-striped table-hover" id="table-facturas">
   <thead class="thead-dark">
     <tr>
@@ -6,6 +7,7 @@
       <th>Total</th>
       <th>Pagado</th>
       <th>Por Pagar</th>
+      <th class="text-center">Descuento %</th>
       <th>Retenciones</th>
       <th>Valor recibido</th>
     </tr>
@@ -13,22 +15,29 @@
   <tbody>
     @php $id=$pagar=0; $porpagar=0; $entro=false; $retenciones=array();
     $total=0;
+    $descuentoTotalGuardado = 0;
     @endphp
 
     @foreach($facturas as $factura)
 
-    @php $pagar=$factura->porpagar(); $value=''; $entro=false; $retenciones=array(); $porpagar=$id=0; @endphp
+    @php $pagar=$factura->porpagar(); $value=''; $entro=false; $retenciones=array(); $porpagar=$id=0; $descuentoSaved=0; @endphp
       @foreach($items as $item)
         @if ($factura->id==$item->factura)
           @php  $id=$factura->id; $pagar=(float)$factura->porpagar()+(float)$item->pago;
           $value=$item->pago;  $entro=true;
           $porpagar=(float)$item->pago+$item->retencion();
           $retenciones=$item->retenciones();
+          $descuentoSaved = (float)($item->descuento ?? 0);
           break;
           @endphp
         @endif
 
       @endforeach
+      @php
+          $totalfactRow = $entro ? $factura->porpagar()+$porpagar : $factura->porpagar();
+          $descuentoValorRow = ($totalfactRow * $descuentoSaved) / 100;
+          $descuentoTotalGuardado += $descuentoValorRow;
+      @endphp
 
       <tr id="{{$factura->id}}"  @if($factura->id==$id) class="active_table" @endif>
 
@@ -52,6 +61,20 @@
         <input type="hidden" id="subfact{{$factura->id}}" value="{{$factura->total()->subtotal}}">
         <input type="hidden" id="descuento{{$factura->id}}" value="{{$factura->total()->descuento}}">
         <input type="hidden" id="totalfact{{$factura->id}}" value="{{$entro?$factura->porpagar()+$porpagar:$factura->porpagar()}}">
+        </td>
+        <td class="text-center" style="vertical-align: text-bottom;">
+          <input type="hidden" id="descuento_existente_{{$factura->id}}" value="{{ $factura->total()->descuento > 0 ? 1 : 0 }}">
+          <input type="number" class="form-control form-control-sm text-right" id="descuento_pct_{{$factura->id}}" name="descuento_pendiente[]" placeholder="0" min="0" max="99" step="0.01" value="{{ $descuentoSaved }}" onchange="aplicar_descuento_pendiente({{$factura->id}});" onkeyup="aplicar_descuento_pendiente({{$factura->id}});">
+          <small class="text-muted">-{{Auth::user()->empresa()->moneda}}<span id="descuento_valor_{{$factura->id}}">{{ App\Funcion::Parsear($descuentoValorRow) }}</span></small>
+          @if($factura->total()->descuento > 0)
+            <small class="text-info d-block" style="font-size:11px;" title="Si ingresas un descuento aquí, reemplazará el descuento actual de la factura">
+              <i class="fas fa-info-circle"></i> Factura con descuento de {{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total()->descuento)}}
+            </small>
+          @endif
+          <p id="descuento_aviso_{{$factura->id}}" class="text-warning" style="font-size:11px; margin:0; display:none;">
+            <i class="fas fa-exclamation-triangle"></i> Se reemplazará el descuento actual de la factura al guardar.
+          </p>
+          <p id="descuento_error_{{$factura->id}}" class="text-danger" style="font-size:11px; margin:0;"></p>
         </td>
         <td>
           @php $total=$cont=0; @endphp
@@ -91,6 +114,7 @@
     @endforeach
   </tbody>
 </table>
+</div>
 
 
 <br>
@@ -166,6 +190,10 @@
 
               <input type="hidden" id="subtotal_facturas_js" value="{{$ingreso->total()->total}}">
             <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal">{{App\Funcion::Parsear($ingreso->total()->subtotal)}}</span></td>
+          </tr>
+          <tr id="row_descuento_pendiente_total" style="{{ $descuentoTotalGuardado > 0 ? '' : 'display:none;' }}">
+            <td width="40%">Descuento</td>
+            <td>- {{Auth::user()->empresa()->moneda}} <span id="descuento_pendiente_total">{{ App\Funcion::Parsear($descuentoTotalGuardado) }}</span></td>
           </tr>
         </table>
         <table class="text-right ingresos" style="text-align: right; width: 100%;" id="fact_totalesreten">

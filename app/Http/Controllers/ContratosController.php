@@ -2713,6 +2713,8 @@ class ContratosController extends Controller
         $contrato = Contrato::find($id);
         $empresa  = Auth::user()->empresaObj;
         if ($contrato) {
+            Log::info("Eliminación del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
             if ($contrato->server_configuration_id) {
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
                 $API = new RouterosAPI();
@@ -3034,6 +3036,8 @@ class ContratosController extends Controller
                     $cliente->fecha_contrato = Carbon::now();
                     $cliente->save();
                 }
+                Log::info("Eliminación por lote del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
                 $contrato->delete();
                 $eliminados++;
             }
@@ -3050,6 +3054,8 @@ class ContratosController extends Controller
     {
         $contrato = Contrato::find($id);
         if ($contrato) {
+            Log::info("Eliminación del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
             Ping::where('contrato', $contrato->id)->delete();
             $contrato->delete();
             $mensaje = 'SE HA ELIMINADO EL CONTRATO DE SERVICIOS SATISFACTORIAMENTE';
@@ -3069,7 +3075,6 @@ class ContratosController extends Controller
 
         $empresa = Auth::user()->empresa();
         $old_state = $contrato->state;
-        Log::info("[STATE] Contrato #{$contrato->nro} (ID: {$contrato->id}) | Estado actual: {$old_state} | IP: " . ($contrato->ip ?? 'NULL') . " | Conexión: {$contrato->conexion} | activeconn_secret: " . ($empresa->activeconn_secret ?? 'NULL') . " | consultas_mk: " . ($empresa->consultas_mk ?? 'NULL') . " | server_configuration_id: " . ($contrato->server_configuration_id ?? 'NULL') . " | plan_id: " . ($contrato->plan_id ?? 'NULL'));
         
         // 1. Determinar el nuevo estado objetivo
         // 1. Determinar el nuevo estado objetivo
@@ -3095,16 +3100,13 @@ class ContratosController extends Controller
 
         // 3. Lógica de Mikrotik
         if ($contrato->plan_id && $empresa->consultas_mk == 1 && $contrato->server_configuration_id) {
-            Log::info("[STATE] Condición MikroTik cumplida. Buscando MikroTik ID: {$contrato->server_configuration_id}");
             $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
             if ($mikrotik) {
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
 
-                Log::info("[STATE] Intentando conectar a MikroTik ID: {$mikrotik->id} | IP: {$mikrotik->ip} | Puerto: {$mikrotik->puerto_api} | Usuario: {$mikrotik->usuario}");
                 if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
-                    Log::info("[STATE] ✅ Conexión exitosa a MikroTik. Procesando acción: {$new_state}");
                     $API->write('/ip/firewall/address-list/print', true);
                     $ARRAYS = $API->read();
 
@@ -3153,37 +3155,32 @@ class ContratosController extends Controller
                                     }
                                 }
                             }
-                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Deshabilitado<br>';
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Deshabilitado<br>';
                             break;
 
                         case 'enabled':
-                            Log::info("[STATE] Habilitando contrato. activeconn_secret: " . ($empresa->activeconn_secret ?? 0) . " | Conexión: {$contrato->conexion} | Usuario PPPoE: " . ($contrato->usuario ?? 'NULL'));
-
                             // PASO 1: Siempre sacar de morosos (FIX: antes solo ocurría en 'else' de activeconn_secret)
-                            Log::info("[STATE] Buscando IP {$contrato->ip} en lista morosos...");
                             $API->write('/ip/firewall/address-list/print', false);
                             $API->write('?address=' . $contrato->ip, false);
                             $API->write("?list=morosos", false);
                             $API->write('=.proplist=.id');
                             $ARRAYS = $API->read();
-                            Log::info("[STATE] Entradas en morosos encontradas: " . count($ARRAYS) . " → " . json_encode($ARRAYS));
 
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[STATE] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
+                            $movimiento->descripcion = '[Manual] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
                             $movimiento->created_by  = Auth::user()->id;
                             $movimiento->empresa     = Auth::user()->empresa;
                             $movimiento->save();
 
                             if (count($ARRAYS) > 0) {
                                 $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
-                                Log::info("[STATE] Removiendo de morosos IDs: " . implode(', ', $idsToRemove));
 
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[STATE] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
+                                $movimiento->descripcion = '[Manual] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
                                 $movimiento->created_by  = Auth::user()->id;
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
@@ -3191,7 +3188,6 @@ class ContratosController extends Controller
                                 $API->write('/ip/firewall/address-list/remove', false);
                                 $API->write('=.id=' . $ARRAYS[0]['.id']);
                                 $READ = $API->read();
-                                Log::info("[STATE] Resultado remoción morosos: " . json_encode($READ));
 
                                 // Verificación post-remoción
                                 $API->write('/ip/firewall/address-list/print', false);
@@ -3201,9 +3197,8 @@ class ContratosController extends Controller
                                 $verificacion = $API->read();
 
                                 $descVerif = empty($verificacion)
-                                    ? '[STATE] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
-                                    : '[STATE] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
-                                Log::info("[STATE] {$descVerif}");
+                                    ? '[Manual] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                    : '[Manual] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
 
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
@@ -3213,12 +3208,10 @@ class ContratosController extends Controller
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
                             } else {
-                                Log::info("[STATE] IP {$contrato->ip} no estaba en la lista de morosos.");
-
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[STATE] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
+                                $movimiento->descripcion = '[Manual] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
                                 $movimiento->created_by  = Auth::user()->id;
                                 $movimiento->empresa     = Auth::user()->empresa;
                                 $movimiento->save();
@@ -3226,60 +3219,48 @@ class ContratosController extends Controller
 
                             // PASO 2: Si activeconn_secret == 1 y es PPPoE, habilitar secret
                             if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
-                                Log::info("[STATE] activeconn_secret activo. Verificando PPPoE (conexion={$contrato->conexion}, usuario=" . ($contrato->usuario ?? 'NULL') . ")");
                                 if ($contrato->conexion == 1 && $contrato->usuario != null) {
                                     $API->write('/ppp/secret/print', false);
                                     $API->write('?name=' . $contrato->usuario, true);
                                     $ARRAYS = $API->read();
-                                    Log::info("[STATE] Secret '{$contrato->usuario}' → " . count($ARRAYS) . " resultado(s) en MikroTik.");
                                     if (count($ARRAYS) > 0) {
                                         $API->write('/ppp/secret/enable', false);
                                         $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
                                         $resp = $API->read();
-                                        Log::info("[STATE] Secret habilitado. Respuesta: " . json_encode($resp));
 
                                         $movimiento = new MovimientoLOG;
                                         $movimiento->contrato    = $id;
                                         $movimiento->modulo      = 5;
-                                        $movimiento->descripcion = '[STATE] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                        $movimiento->descripcion = '[Manual] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
                                         $movimiento->created_by  = Auth::user()->id;
                                         $movimiento->empresa     = Auth::user()->empresa;
                                         $movimiento->save();
-                                    } else {
-                                        Log::warning("[STATE] No se encontró el secret '{$contrato->usuario}' en MikroTik.");
                                     }
-                                } else {
-                                    Log::info("[STATE] activeconn_secret==1 pero conexión no es PPPoE o sin usuario. Sin acción de secret.");
                                 }
                             }
 
                             // PASO 3: Agregar a ips_autorizadas
-                            Log::info("[STATE] Agregando IP {$contrato->ip} a ips_autorizadas...");
                             $resultAdd = $API->comm("/ip/firewall/address-list/add", [
                                 "address" => $contrato->ip,
                                 "list" => 'ips_autorizadas'
                             ]);
-                            Log::info("[STATE] Resultado agregar a ips_autorizadas: " . json_encode($resultAdd));
 
                             $movimiento = new MovimientoLOG;
                             $movimiento->contrato    = $id;
                             $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[STATE] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->descripcion = '[Manual] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
                             $movimiento->created_by  = Auth::user()->id;
                             $movimiento->empresa     = Auth::user()->empresa;
                             $movimiento->save();
 
-                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en Mikrotik</b> a Habilitado<br>';
+                            $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Habilitado<br>';
                             break;
                     }
                     $API->disconnect();
                 } else {
-                    Log::error("[STATE] ❌ No se pudo conectar a MikroTik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                     $mikrotik_failed = true;
                 }
             }
-        } else {
-            Log::info("[STATE] Bloque MikroTik NO ejecutado. plan_id: " . ($contrato->plan_id ?? 'NULL') . " | consultas_mk: " . ($empresa->consultas_mk ?? 'NULL') . " | server_configuration_id: " . ($contrato->server_configuration_id ?? 'NULL'));
         }
 
         // 4. Procesamiento final, decidir si actualizar estado en DB
@@ -4844,8 +4825,12 @@ class ContratosController extends Controller
             $mikrotik_ok = false;
             $olt_ok = false;
 
+            $old_state = $contrato->state;
+
+            $descripcion = "";
+
             // 1. Bloque Mikrotik
-            if ($contrato->server_configuration_id && $empresa->consultas_mk == 1) {
+            if ($contrato->plan_id && $empresa->consultas_mk == 1 && $contrato->server_configuration_id) {
                 $mikrotik = Mikrotik::find($contrato->server_configuration_id);
 
                 if ($mikrotik) {
@@ -4874,6 +4859,34 @@ class ContratosController extends Controller
                                     $API->write('=.id=' . $ARRAYS[0]['.id']);
                                     $API->read();
                                 }
+
+                                if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                    if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                        $API->write('/ppp/secret/print', false);
+                                        $API->write('?name=' . $contrato->usuario, true);
+                                        $ARRAYS = $API->read();
+                                        if (count($ARRAYS) > 0) {
+                                            $API->write('/ppp/secret/disable', false);
+                                            $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                            $API->read();
+                                        }
+
+                                        $API->write('/ppp/active/print', false);
+                                        $API->write('?name=' . $contrato->usuario);
+                                        $response = $API->read();
+                                        if (isset($response['0']['.id'])) {
+                                            $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
+                                        } else {
+                                            $API->write('/ppp/active/print', false);
+                                            $API->write('?name=' . $contrato->nro);
+                                            $response = $API->read();
+                                            if (isset($response['0']['.id'])) {
+                                                $API->comm("/ppp/active/remove", [".id" => $response['0']['.id']]);
+                                            }
+                                        }
+                                    }
+                                }
+                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Deshabilitado<br>';
                                 break;
 
                             case 'enabled':
@@ -4882,16 +4895,93 @@ class ContratosController extends Controller
                                 $API->write("?list=morosos", false);
                                 $API->write('=.proplist=.id');
                                 $ARRAYS = $API->read();
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[STATE_LOTE] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
+                                $movimiento->created_by  = Auth::user()->id;
+                                $movimiento->empresa     = Auth::user()->empresa;
+                                $movimiento->save();
+
                                 if (count($ARRAYS) > 0) {
+                                    $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                                    $movimiento = new MovimientoLOG;
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = '[STATE_LOTE] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
+                                    $movimiento->created_by  = Auth::user()->id;
+                                    $movimiento->empresa     = Auth::user()->empresa;
+                                    $movimiento->save();
+
                                     $API->write('/ip/firewall/address-list/remove', false);
                                     $API->write('=.id=' . $ARRAYS[0]['.id']);
-                                    $API->read();
+                                    $READ = $API->read();
+
+                                    // Verificación post-remoción
+                                    $API->write('/ip/firewall/address-list/print', false);
+                                    $API->write('?address=' . $contrato->ip, false);
+                                    $API->write('?list=morosos', false);
+                                    $API->write('=.proplist=.id');
+                                    $verificacion = $API->read();
+
+                                    $descVerif = empty($verificacion)
+                                        ? '[STATE_LOTE] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                        : '[STATE_LOTE] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+
+                                    $movimiento = new MovimientoLOG;
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = $descVerif;
+                                    $movimiento->created_by  = Auth::user()->id;
+                                    $movimiento->empresa     = Auth::user()->empresa;
+                                    $movimiento->save();
+                                } else {
+                                    $movimiento = new MovimientoLOG;
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = '[STATE_LOTE] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
+                                    $movimiento->created_by  = Auth::user()->id;
+                                    $movimiento->empresa     = Auth::user()->empresa;
+                                    $movimiento->save();
                                 }
 
-                                $API->comm("/ip/firewall/address-list/add", [
+                                if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                    if ($contrato->conexion == 1 && $contrato->usuario != null) {
+                                        $API->write('/ppp/secret/print', false);
+                                        $API->write('?name=' . $contrato->usuario, true);
+                                        $ARRAYS = $API->read();
+                                        if (count($ARRAYS) > 0) {
+                                            $API->write('/ppp/secret/enable', false);
+                                            $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                            $resp = $API->read();
+
+                                            $movimiento = new MovimientoLOG;
+                                            $movimiento->contrato    = $contrato->id;
+                                            $movimiento->modulo      = 5;
+                                            $movimiento->descripcion = '[STATE_LOTE] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                            $movimiento->created_by  = Auth::user()->id;
+                                            $movimiento->empresa     = Auth::user()->empresa;
+                                            $movimiento->save();
+                                        }
+                                    }
+                                }
+
+                                $resultAdd = $API->comm("/ip/firewall/address-list/add", [
                                     "address" => $contrato->ip,
                                     "list" => 'ips_autorizadas'
                                 ]);
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[STATE_LOTE] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                                $movimiento->created_by  = Auth::user()->id;
+                                $movimiento->empresa     = Auth::user()->empresa;
+                                $movimiento->save();
+
+                                $descripcion .= '<i class="fas fa-check text-success"></i> <b>[Manual] Cambiado en Mikrotik</b> a Habilitado<br>';
                                 break;
                         }
 
@@ -4909,6 +4999,7 @@ class ContratosController extends Controller
                 } else {
                     $oltController->disableOnu($contrato->serial_onu);
                 }
+                $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
                 $olt_ok = true;
             }
 
@@ -4925,6 +5016,30 @@ class ContratosController extends Controller
                     \App\EtiquetaAutomaticaContrato::DESHABILITAR_MANUAL
                 );
             }
+
+            if ($descripcion == "") {
+                $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> a ' . ($state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . ' (Masivo)<br>';
+            }
+
+            // Registro en LOG de Movimientos
+            $movimiento = new MovimientoLOG;
+            $movimiento->contrato    = $contrato->id;
+            $movimiento->modulo      = 5;
+            $movimiento->descripcion = $descripcion;
+            $movimiento->created_by  = Auth::user()->id;
+            $movimiento->empresa     = Auth::user()->empresa;
+            $movimiento->save();
+
+            // Registro en CRM
+            $crm = new CRM();
+            $crm->cliente = $contrato->client_id;
+            $crm->servidor = $contrato->server_configuration_id ?? '';
+            $crm->grupo_corte = $contrato->grupo_corte ?? '';
+            $crm->estado = 0;
+            if ($lastFact = $contrato->lastFactura()) {
+                $crm->factura = $lastFact->id;
+            }
+            $crm->save();
 
             if ($mikrotik_ok || $olt_ok || (!$contrato->server_configuration_id && !$olt_ok)) {
                 $succ++;

@@ -46,6 +46,7 @@ class MikrotikController extends Controller
     }
 
     public function mikrotik(Request $request){
+        $this->getAllPermissions(Auth::user()->id);
         $modoLectura = auth()->user()->modo_lectura();
         $mikrotiks = Mikrotik::query()
             ->where('empresa', Auth::user()->empresa);
@@ -94,6 +95,31 @@ class MikrotikController extends Controller
             }
         }
 
+        $mikrotiks->withCount([
+            'contratos as contratos_uso_count' => function ($q) {
+                $q->where('contracts.state', 'enabled')->where('contracts.status', 1);
+            },
+            'planes as planes_uso_count' => function ($q) {
+                $q->where('planes_velocidad.status', 1);
+            },
+            'contratos as clientes_enabled_count' => function ($q) {
+                $q->where('contracts.status', 1)
+                  ->whereNotExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('pings')
+                          ->whereColumn('pings.contrato', 'contracts.id');
+                  });
+            },
+            'contratos as clientes_disabled_count' => function ($q) {
+                $q->where('contracts.status', 1)
+                  ->whereExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('pings')
+                          ->whereColumn('pings.contrato', 'contracts.id');
+                  });
+            },
+        ]);
+
         return datatables()->eloquent($mikrotiks)
         ->editColumn('nombre', function (Mikrotik $mikrotik) {
             return "<a href=" . route('mikrotik.show', $mikrotik->id) . ">{$mikrotik->nombre}</a>";
@@ -120,10 +146,10 @@ class MikrotikController extends Controller
             return "<span class='text-{$mikrotik->status("true")}'><strong>{$mikrotik->status()}</strong></span>";
         })
         ->editColumn('clientes_enabled', function (Mikrotik $mikrotik) {
-            return '<span class="font-weight-bold text-success">'.$mikrotik->clientes('enabled').' clientes</span>';
+            return '<span class="font-weight-bold text-success">'.$mikrotik->clientes_enabled_count.' clientes</span>';
         })
         ->editColumn('clientes_disabled', function (Mikrotik $mikrotik) {
-            return '<span class="font-weight-bold text-danger">'.$mikrotik->clientes('disabled').' clientes</span>';
+            return '<span class="font-weight-bold text-danger">'.$mikrotik->clientes_disabled_count.' clientes</span>';
         })
         ->addColumn('acciones', $modoLectura ?  "" : "mikrotik.acciones")
         ->rawColumns(['acciones', 'nombre', 'clientes_enabled', 'clientes_disabled', 'status'])
@@ -220,16 +246,20 @@ class MikrotikController extends Controller
             $mikrotik->tipodoc_siigo_id = $request->tipodoc_siigo_id;
             $mikrotik->save();
 
-            $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();
-            foreach($segmentos as $segmento){
-                $segmento->delete();
-            }
+            Segmento::where('mikrotik', $mikrotik->id)->delete();
 
+            $now = Carbon::now();
+            $segmentosInsert = [];
             for ($i = 0; $i < count($request->segmento_ip); $i++) {
-                $segmento = new Segmento;
-                $segmento->mikrotik = $mikrotik->id;
-                $segmento->segmento = $request->segmento_ip[$i];
-                $segmento->save();
+                $segmentosInsert[] = [
+                    'mikrotik'   => $mikrotik->id,
+                    'segmento'   => $request->segmento_ip[$i],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            if (!empty($segmentosInsert)) {
+                Segmento::insert($segmentosInsert);
             }
 
             $mensaje='Se ha modificado satisfactoriamente el Mikrotik';
@@ -241,10 +271,7 @@ class MikrotikController extends Controller
     public function destroy($id){
         $mikrotik = Mikrotik::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
         if ($mikrotik) {
-            $segmentos = Segmento::where('mikrotik', $mikrotik->id)->get();
-            foreach($segmentos as $segmento){
-                $segmento->delete();
-            }
+            Segmento::where('mikrotik', $mikrotik->id)->delete();
             $mikrotik->delete();
 
             return redirect('empresa/mikrotik')->with('success', strtoupper('Se ha eliminado correctamente el Mikrotik'));
@@ -546,11 +573,17 @@ class MikrotikController extends Controller
 
         $contratos = explode(",", $contratos);
 
+        $contratosArr = Contrato::whereIn('id', $contratos)->get()->keyBy('id');
+        $mkIds = $contratosArr->pluck('server_configuration_id')->filter()->unique()->all();
+        $mksArr = !empty($mkIds)
+            ? Mikrotik::whereIn('id', $mkIds)->get()->keyBy('id')
+            : collect();
+
         for ($i=0; $i < count($contratos) ; $i++) {
-            $contrato=Contrato::find($contratos[$i]);
+            $contrato = $contratosArr->get($contratos[$i]);
 
             if ($contrato) {
-                $mikrotik = Mikrotik::find($contrato->server_configuration_id);
+                $mikrotik = $mksArr->get($contrato->server_configuration_id);
 
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
@@ -612,8 +645,10 @@ class MikrotikController extends Controller
 
         $mikrotiks = explode(",", $mikrotiks);
 
+        $mikrotiksArr = Mikrotik::whereIn('id', $mikrotiks)->get()->keyBy('id');
+
         for ($i=0; $i < count($mikrotiks) ; $i++) {
-            $mikrotik = Mikrotik::find($mikrotiks[$i]);
+            $mikrotik = $mikrotiksArr->get($mikrotiks[$i]);
 
             if($mikrotik){
                 if($state == 'off'){
@@ -653,9 +688,21 @@ class MikrotikController extends Controller
 
         $mikrotiks = explode(",", $mikrotiks);
 
+        $mikrotiksArr = Mikrotik::whereIn('id', $mikrotiks)
+            ->withCount([
+                'contratos as contratos_uso_count' => function ($q) {
+                    $q->where('state', 'enabled')->where('status', 1);
+                },
+                'planes as planes_uso_count' => function ($q) {
+                    $q->where('status', 1);
+                },
+            ])
+            ->get()
+            ->keyBy('id');
+
         for ($i=0; $i < count($mikrotiks) ; $i++) {
-            $mikrotik = Mikrotik::find($mikrotiks[$i]);
-            if ($mikrotik->uso()==0) {
+            $mikrotik = $mikrotiksArr->get($mikrotiks[$i]);
+            if ($mikrotik && $mikrotik->uso == 0) {
                 $mikrotik->delete();
                 $succ++;
             } else {

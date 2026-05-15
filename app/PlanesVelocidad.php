@@ -25,7 +25,18 @@ class PlanesVelocidad extends Model
 
     public function getUsoAttribute()
     {
+        if (array_key_exists('contratos_count', $this->attributes)) {
+            return (int) $this->attributes['contratos_count'];
+        }
         return $this->uso();
+    }
+
+    public function mikrotikRel(){
+        return $this->belongsTo(Mikrotik::class, 'mikrotik', 'id');
+    }
+
+    public function contratos(){
+        return $this->hasMany(Contrato::class, 'plan_id', 'id');
     }
 
     public function parsear($valor){

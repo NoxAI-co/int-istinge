@@ -212,6 +212,12 @@
 								<option value="A">No</option>
 							</select>
 						</div>
+						<div class="col-md-2 pl-1 pt-1">
+							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp">
+								<option value="1">Si</option>
+								<option value="A">No</option>
+							</select>
+						</div>
 					</div>
 					<div class="row">
 						<div class="col-md-12 pl-1 pt-1 text-center">
@@ -797,6 +803,7 @@
 			data.otras_opciones = $('#otras_opciones').val();
 			data.tipo_facturacion = $('#tipo_facturacion').val();
 			data.correo = $('#correo').val();
+			data.whatsapp = $('#whatsapp').val();
 			data.filtro = true;
 
 			// Solo enviar filtros_aplicados cuando se ha hecho clic en el botón filtrar
@@ -828,7 +835,7 @@
             }
         });
 
-        $('#cliente, #municipio, #estado, #correo, #creacion, #vencimiento, #desde, #hasta, #servidor, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #tipo_facturacion, #state_contrato, #prorrateo').on('change',function() {
+        $('#cliente, #municipio, #estado, #correo, #whatsapp, #creacion, #vencimiento, #desde, #hasta, #servidor, #barrio, #grupos_corte, #plan, #plan_tv, #fact_siigo, #tipo_facturacion, #state_contrato, #prorrateo').on('change',function() {
             filtroClickeado = true; // Marcar que se aplicó un filtro por cambio de dropdown
             getDataTable();
             return false;
