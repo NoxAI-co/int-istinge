@@ -467,6 +467,16 @@ class BillingCycleAnalyzer
             ];
         }
 
+        // 0.1 Validación: Cliente no encontrado (Contrato huérfano)
+        if (empty($contrato->cli_nombre) && empty($contrato->cli_nit)) {
+            return [
+                'code' => 'missing_client',
+                'title' => 'Contrato sin cliente asignado',
+                'description' => 'El contrato está vinculado a un client_id que no existe en la tabla de contactos.',
+                'color' => 'danger'
+            ];
+        }
+
         // 1. Validación: Primera factura del contrato
         $creacion_contrato = Carbon::parse($contrato->created_at);
         $dia_creacion_contrato = $creacion_contrato->day;
