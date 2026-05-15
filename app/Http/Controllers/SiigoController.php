@@ -1047,8 +1047,17 @@ class SiigoController extends Controller
                 // ==============================
                 // DATOS ADICIONALES
                 // ==============================
-                $servidor   = $factura->servidor();
-                $usuario = $sellers->where('username', $servidor->email_siigo)->first()['id'] ?? null;
+                $servidor = $factura->servidor();
+                $usuario  = null;
+
+                if ($servidor && isset($servidor->email_siigo)) {
+                    $usuario = $sellers->where('username', $servidor->email_siigo)->first()['id'] ?? null;
+                }
+
+                // Fallback: usuar el vendedor de la factura si no hay usuario por servidor
+                if (!$usuario && $factura->vendedorObj) {
+                    $usuario = $factura->vendedorObj->siigo_id;
+                }
     
                 // ==============================
                 // REQUEST PARA sendInvoice
@@ -1058,9 +1067,21 @@ class SiigoController extends Controller
                     'tipos_pago'       => $tipoPagoSeleccionado,
                     'factura_id'       => $facturaId,
                     'usuario'          => $usuario,
-                    'tipo_comprobante' => $servidor->tipodoc_siigo_id
+                    'tipo_comprobante' => ($servidor && isset($servidor->tipodoc_siigo_id)) ? $servidor->tipodoc_siigo_id : null
                 ]);
     
+                if (!$request->tipo_comprobante) {
+                    $lstResultados[] = [
+                        'factura_id' => $facturaId,
+                        'codigo'     => $factura->codigo,
+                        'resultado'  => [
+                            'status' => 400,
+                            'error'  => 'No se ha configurado el tipo de comprobante Siigo para el servidor de esta factura.'
+                        ]
+                    ];
+                    continue;
+                }
+
                 // ==============================
                 // ENVÍO A SIIGO
                 // ==============================
