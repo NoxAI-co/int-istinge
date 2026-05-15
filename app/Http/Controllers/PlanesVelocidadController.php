@@ -103,7 +103,9 @@ class PlanesVelocidadController extends Controller
 
         $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 10)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
         $mikrotiks = Mikrotik::where('empresa', Auth::user()->empresa)->get();
-        $planes_velocidad = PlanesVelocidad::all();
+        $planes_velocidad = PlanesVelocidad::where('empresa', Auth::user()->empresa)
+            ->select('id', 'name')
+            ->get();
         return view('planesvelocidad.index')->with(compact('mikrotiks', 'tabla', 'planes_velocidad'));
     }
 
@@ -177,6 +179,17 @@ class PlanesVelocidadController extends Controller
 
         $planes->where('planes_velocidad.empresa', auth()->user()->empresa);
 
+        $planes->with('mikrotikRel')
+            ->withCount([
+                'contratos',
+                'contratos as enabled_count' => function ($q) {
+                    $q->where('state', 'enabled');
+                },
+                'contratos as disabled_count' => function ($q) {
+                    $q->where('state', 'disabled');
+                },
+            ]);
+
         return datatables()->eloquent($planes)
             ->editColumn('name', function (PlanesVelocidad $plan) {
                 return "<div class='elipsis-short-300'><a href=" . route('planes-velocidad.show', $plan->id) . ">{$plan->name}</a></div>";
@@ -195,8 +208,9 @@ class PlanesVelocidadController extends Controller
             })
             ->editColumn('mikrotik', function (PlanesVelocidad $plan) {
                 $html = '';
-                if ($plan->mikrotik() !== null) {
-                    $html .= "<a href=" . route('mikrotik.show', $plan->mikrotik()->id) . " target='_blank'>{$plan->mikrotik()->nombre}</div></a>";
+                $mk = $plan->mikrotikRel;
+                if ($mk !== null) {
+                    $html .= "<a href=" . route('mikrotik.show', $mk->id) . " target='_blank'>{$mk->nombre}</div></a>";
                 }
 
                 // Similarmente, verifica si mikrotik1 no es nulo antes de intentar acceder a sus propiedades
@@ -226,8 +240,8 @@ class PlanesVelocidadController extends Controller
                 return $plan->tipo();
             })
             ->editColumn('nro_clientes', function (PlanesVelocidad $plan) {
-                return '<span class="badge badge-success">' . $plan->uso_state('enabled') . '</span> Habilitados<br>
-                            <span class="badge badge-danger mt-1">' . $plan->uso_state('disabled') . '</span> Deshabilitados';
+                return '<span class="badge badge-success">' . $plan->enabled_count . '</span> Habilitados<br>
+                            <span class="badge badge-danger mt-1">' . $plan->disabled_count . '</span> Deshabilitados';
             })
             ->addColumn('acciones', $modoLectura ?  "" : "planesvelocidad.acciones")
             ->rawColumns(['acciones', 'name', 'status', 'type', 'mikrotik', 'nro_clientes'])
@@ -457,9 +471,9 @@ class PlanesVelocidadController extends Controller
 
         if ($plan) {
             $arrayPost['success'] = true;
-            $arrayPost['id']      = PlanesVelocidad::all()->last()->id;
-            $arrayPost['name']    = PlanesVelocidad::all()->last()->name;
-            $arrayPost['type']    = (PlanesVelocidad::all()->last()->type == 0) ? 'Plan Queue Simple' : 'Plan PCQ';
+            $arrayPost['id']      = $plan->id;
+            $arrayPost['name']    = $plan->name;
+            $arrayPost['type']    = ($plan->type == 0) ? 'Plan Queue Simple' : 'Plan PCQ';
             echo json_encode($arrayPost);
             exit;
         }
@@ -477,8 +491,8 @@ class PlanesVelocidadController extends Controller
         $autoRetenciones = Retencion::where('empresa', Auth::user()->empresa)->where('estado', 1)->where('modulo', 2)->get();
 
         if ($plan) {
-            $plan->ref = Inventario::Find($plan->item)->ref;
             $inventario = Inventario::find($plan->item);
+            $plan->ref = $inventario->ref;
             $cuentasInventario = $inventario->cuentas();
             view()->share(['title' => 'Modificar Plan', 'icon' => 'fas fa-server']);
             $mikrotiks = Mikrotik::where('empresa', Auth::user()->empresa)->get();
@@ -833,12 +847,22 @@ class PlanesVelocidadController extends Controller
 
         $contratos = explode(",", $contratos);
 
+        $contratosArr = Contrato::whereIn('id', $contratos)->get()->keyBy('id');
+        $planIds = $contratosArr->pluck('plan_id')->filter()->unique()->all();
+        $planesArr = !empty($planIds)
+            ? PlanesVelocidad::whereIn('id', $planIds)->get()->keyBy('id')
+            : collect();
+        $mkIds = $planesArr->pluck('mikrotik')->filter()->unique()->all();
+        $mksArr = !empty($mkIds)
+            ? Mikrotik::whereIn('id', $mkIds)->get()->keyBy('id')
+            : collect();
+
         for ($i = 0; $i < count($contratos); $i++) {
-            $contrato = Contrato::find($contratos[$i]);
-            $plan     = PlanesVelocidad::find($contrato->plan_id);
+            $contrato = $contratosArr->get($contratos[$i]);
+            $plan     = $contrato ? $planesArr->get($contrato->plan_id) : null;
 
             if ($plan) {
-                $mikrotik = Mikrotik::find($plan->mikrotik);
+                $mikrotik = $mksArr->get($plan->mikrotik);
                 $API = new RouterosAPI();
                 $API->port = $mikrotik->puerto_api;
 
@@ -917,8 +941,10 @@ class PlanesVelocidadController extends Controller
 
         $planes = explode(",", $planes);
 
+        $planesArr = PlanesVelocidad::whereIn('id', $planes)->get()->keyBy('id');
+
         for ($i = 0; $i < count($planes); $i++) {
-            $plan = PlanesVelocidad::find($planes[$i]);
+            $plan = $planesArr->get($planes[$i]);
             if ($plan) {
                 $plan->status = ($state == 'disabled') ? 0 : 1;
                 $plan->save();
@@ -945,23 +971,36 @@ class PlanesVelocidadController extends Controller
 
         $planes = explode(",", $planes);
 
+        $planesArr = PlanesVelocidad::whereIn('id', $planes)
+            ->withCount('contratos')
+            ->get()
+            ->keyBy('id');
+
+        $itemIdsAll = $planesArr->pluck('item')->filter()->unique()->all();
+        $bloqueados = [];
+        if (!empty($itemIdsAll)) {
+            $enFactura = DB::table('items_factura')
+                ->whereIn('producto', $itemIdsAll)
+                ->pluck('producto')->all();
+            $enFacturaProv = DB::table('items_factura_proveedor')
+                ->whereIn('producto', $itemIdsAll)
+                ->pluck('producto')->all();
+            $bloqueados = array_unique(array_merge($enFactura, $enFacturaProv));
+        }
+
         for ($i = 0; $i < count($planes); $i++) {
-            $plan = PlanesVelocidad::find($planes[$i]);
+            $plan = $planesArr->get($planes[$i]);
             if (!$plan) {
                 $fail++;
                 continue;
             }
-            if ($plan->uso() == 0) {
+            if ($plan->contratos_count == 0) {
                 $itemId = $plan->item;
                 $plan->delete();
 
                 // Eliminar inventario asociado si no está en facturas
-                if ($itemId) {
-                    $enFactura = DB::table('items_factura')->where('producto', $itemId)->exists();
-                    $enFacturaProv = DB::table('items_factura_proveedor')->where('producto', $itemId)->exists();
-                    if (!$enFactura && !$enFacturaProv) {
-                        Inventario::where('id', $itemId)->delete();
-                    }
+                if ($itemId && !in_array($itemId, $bloqueados)) {
+                    Inventario::where('id', $itemId)->delete();
                 }
 
                 $succ++;
@@ -999,11 +1038,29 @@ class PlanesVelocidadController extends Controller
             ], 400);
         }
 
+        // Precargar planes existentes en la mikrotik destino (nombres y refs de inventario)
+        $planesDestino = PlanesVelocidad::where('mikrotik', $mikrotik_id)
+            ->where('empresa', Auth::user()->empresa)
+            ->get(['id', 'name', 'item']);
+        $nombresExistentes = $planesDestino->pluck('name')->all();
+        $itemIdsDestino = $planesDestino->pluck('item')->filter()->unique()->all();
+        $refsExistentes = !empty($itemIdsDestino)
+            ? Inventario::whereIn('id', $itemIdsDestino)->pluck('ref')->filter()->all()
+            : [];
+
+        // Precargar planes originales seleccionados y sus inventarios
+        $planesOriginales = PlanesVelocidad::whereIn('id', $planes)
+            ->where('empresa', Auth::user()->empresa)
+            ->get()
+            ->keyBy('id');
+        $itemIdsOriginales = $planesOriginales->pluck('item')->filter()->unique()->all();
+        $inventariosOriginales = !empty($itemIdsOriginales)
+            ? Inventario::whereIn('id', $itemIdsOriginales)->get()->keyBy('id')
+            : collect();
+
         foreach ($planes as $plan_id) {
             try {
-                $planOriginal = PlanesVelocidad::where('id', $plan_id)
-                    ->where('empresa', Auth::user()->empresa)
-                    ->first();
+                $planOriginal = $planesOriginales->get($plan_id);
 
                 if (!$planOriginal) {
                     $fail++;
@@ -1011,39 +1068,21 @@ class PlanesVelocidadController extends Controller
                 }
 
                 // Verificar si ya existe un plan con el mismo nombre en esa mikrotik
-                $planExistente = PlanesVelocidad::where('name', $planOriginal->name)
-                    ->where('mikrotik', $mikrotik_id)
-                    ->where('empresa', Auth::user()->empresa)
-                    ->first();
-
-                if ($planExistente) {
+                if (in_array($planOriginal->name, $nombresExistentes, true)) {
                     $fail++;
                     continue;
                 }
 
                 // Obtener el inventario original del plan
-                $inventarioOriginal = Inventario::find($planOriginal->item);
-                
+                $inventarioOriginal = $inventariosOriginales->get($planOriginal->item);
+
                 if (!$inventarioOriginal) {
                     $fail++;
                     continue;
                 }
 
                 // Validar si ya existe un plan en la mikrotik destino con un inventario que tenga la misma referencia
-                $planesEnMikrotik = PlanesVelocidad::where('mikrotik', $mikrotik_id)
-                    ->where('empresa', Auth::user()->empresa)
-                    ->get();
-
-                $planConMismaRef = false;
-                foreach ($planesEnMikrotik as $planMikrotik) {
-                    $inventarioPlan = Inventario::find($planMikrotik->item);
-                    if ($inventarioPlan && $inventarioPlan->ref === $inventarioOriginal->ref) {
-                        $planConMismaRef = true;
-                        break;
-                    }
-                }
-
-                if ($planConMismaRef) {
+                if (in_array($inventarioOriginal->ref, $refsExistentes, true)) {
                     $fail++;
                     continue;
                 }
@@ -1067,12 +1106,16 @@ class PlanesVelocidadController extends Controller
 
                 // Copiar las cuentas contables del inventario original (producto_cuentas)
                 $cuentasOriginales = ProductoCuenta::where('inventario_id', $inventarioOriginal->id)->get();
+                $cuentasInsert = [];
                 foreach ($cuentasOriginales as $cuentaOriginal) {
-                    $productoCuenta = new ProductoCuenta;
-                    $productoCuenta->cuenta_id = $cuentaOriginal->cuenta_id;
-                    $productoCuenta->inventario_id = $inventario->id;
-                    $productoCuenta->tipo = $cuentaOriginal->tipo;
-                    $productoCuenta->save();
+                    $cuentasInsert[] = [
+                        'cuenta_id'     => $cuentaOriginal->cuenta_id,
+                        'inventario_id' => $inventario->id,
+                        'tipo'          => $cuentaOriginal->tipo,
+                    ];
+                }
+                if (!empty($cuentasInsert)) {
+                    DB::table('producto_cuentas')->insert($cuentasInsert);
                 }
 
                 // CREAR EL PLAN (después de crear el inventario)
@@ -1103,6 +1146,9 @@ class PlanesVelocidadController extends Controller
                 $plan->dhcp_server = $planOriginal->dhcp_server;
                 $plan->status = $planOriginal->status;
                 $plan->save();
+
+                $nombresExistentes[] = $planOriginal->name;
+                $refsExistentes[]    = $inventarioOriginal->ref;
 
                 $succ++;
             } catch (\Exception $e) {
@@ -1266,6 +1312,19 @@ class PlanesVelocidadController extends Controller
         $sheet = $objPHPExcel->getSheet(0);
         $highestRow = $sheet->getHighestRow();
 
+        // Precargar mikrotiks de la empresa (búsqueda case-insensitive por substring igual que el LIKE original)
+        $mikrotiksEmpresa = Mikrotik::where('empresa', Auth::user()->empresa)->get();
+
+        // Precargar refs ya existentes por mikrotik para validar duplicados sin consultar por fila
+        $refsExistentesMap = DB::table('planes_velocidad')
+            ->join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
+            ->where('planes_velocidad.empresa', Auth::user()->empresa)
+            ->select('planes_velocidad.mikrotik', 'inventario.ref')
+            ->get()
+            ->mapWithKeys(function ($r) {
+                return [$r->mikrotik . '|' . strtoupper($r->ref) => true];
+            })->all();
+
         for ($row = 4; $row <= $highestRow; $row++) {
             $nombre = trim($sheet->getCell("A" . $row)->getValue());
             if (empty($nombre)) {
@@ -1295,22 +1354,19 @@ class PlanesVelocidadController extends Controller
                 $iva = 'no';
             }
 
-            // Buscar mikrotik por nombre (antes de validar ref, necesitamos el ID)
-            $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
-                ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
-                ->first();
+            // Buscar mikrotik por nombre (mismo criterio que LOWER(nombre) LIKE %x%)
+            $needle = strtolower($mikrotik_nombre);
+            $mikrotik = $mikrotiksEmpresa->first(function ($m) use ($needle) {
+                return strpos(strtolower($m->nombre), $needle) !== false;
+            });
             if (!$mikrotik) {
                 $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
                 continue;
             }
 
             // Validar referencia única por mikrotik (la ref puede repetirse si es otra mikrotik)
-            $existeRef = PlanesVelocidad::join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
-                ->where('planes_velocidad.empresa', Auth::user()->empresa)
-                ->where('planes_velocidad.mikrotik', $mikrotik->id)
-                ->where('inventario.ref', strtoupper($referencia))
-                ->first();
-            if ($existeRef) {
+            $refKey = $mikrotik->id . '|' . strtoupper($referencia);
+            if (isset($refsExistentesMap[$refKey])) {
                 $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe para la mikrotik '<b>$mikrotik_nombre</b>'.";
                 continue;
             }
@@ -1354,6 +1410,8 @@ class PlanesVelocidadController extends Controller
             $plan->item        = $inventario->id;
             $plan->empresa     = Auth::user()->empresa;
             $plan->save();
+
+            $refsExistentesMap[$mikrotik->id . '|' . strtoupper($referencia)] = true;
 
             $create++;
         }
@@ -1460,10 +1518,19 @@ class PlanesVelocidadController extends Controller
 
         // Llenar con datos existentes
         $planes = PlanesVelocidad::where('empresa', Auth::user()->empresa)->get();
+        $mkIds = $planes->pluck('mikrotik')->filter()->unique()->all();
+        $itemIds = $planes->pluck('item')->filter()->unique()->all();
+        $mksMap = !empty($mkIds)
+            ? Mikrotik::whereIn('id', $mkIds)->get()->keyBy('id')
+            : collect();
+        $invsMap = !empty($itemIds)
+            ? Inventario::whereIn('id', $itemIds)->get()->keyBy('id')
+            : collect();
+
         $j = 4;
         foreach ($planes as $plan) {
-            $mikrotikObj = $plan->mikrotik();
-            $inventario = Inventario::find($plan->item);
+            $mikrotikObj = $mksMap->get($plan->mikrotik);
+            $inventario = $invsMap->get($plan->item);
 
             // Parsear download/upload para extraer número y unidad
             $downloadVal = preg_replace('/[^0-9]/', '', $plan->download);
@@ -1554,6 +1621,19 @@ class PlanesVelocidadController extends Controller
         $sheet = $objPHPExcel->getSheet(0);
         $highestRow = $sheet->getHighestRow();
 
+        // Precargar mikrotiks de la empresa (búsqueda case-insensitive por substring igual que el LIKE original)
+        $mikrotiksEmpresa = Mikrotik::where('empresa', Auth::user()->empresa)->get();
+
+        // Precargar refs existentes por mikrotik (incluye el plan_id para excluirse luego)
+        $refsExistentesMap = DB::table('planes_velocidad')
+            ->join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
+            ->where('planes_velocidad.empresa', Auth::user()->empresa)
+            ->select('planes_velocidad.id as plan_id', 'planes_velocidad.mikrotik', 'inventario.ref')
+            ->get()
+            ->groupBy(function ($r) {
+                return $r->mikrotik . '|' . strtoupper($r->ref);
+            });
+
         for ($row = 4; $row <= $highestRow; $row++) {
             $id = trim($sheet->getCell("A" . $row)->getValue());
             if (empty($id)) {
@@ -1593,22 +1673,22 @@ class PlanesVelocidadController extends Controller
                 continue;
             }
 
-            // Buscar mikrotik por nombre (antes de validar ref, necesitamos el ID)
-            $mikrotik = Mikrotik::where('empresa', Auth::user()->empresa)
-                ->whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($mikrotik_nombre) . '%'])
-                ->first();
+            // Buscar mikrotik por nombre (mismo criterio que LOWER(nombre) LIKE %x%)
+            $needle = strtolower($mikrotik_nombre);
+            $mikrotik = $mikrotiksEmpresa->first(function ($m) use ($needle) {
+                return strpos(strtolower($m->nombre), $needle) !== false;
+            });
             if (!$mikrotik) {
                 $errores[] = "Fila $row: La mikrotik '<b>$mikrotik_nombre</b>' no fue encontrada.";
                 continue;
             }
 
             // Validar referencia única por mikrotik (la ref puede repetirse si es otra mikrotik)
-            $existeRef = PlanesVelocidad::join('inventario', 'inventario.id', '=', 'planes_velocidad.item')
-                ->where('planes_velocidad.empresa', Auth::user()->empresa)
-                ->where('planes_velocidad.mikrotik', $mikrotik->id)
-                ->where('inventario.ref', strtoupper($referencia))
-                ->where('planes_velocidad.id', '!=', $id)
-                ->first();
+            $refKey = $mikrotik->id . '|' . strtoupper($referencia);
+            $existeRef = isset($refsExistentesMap[$refKey])
+                && $refsExistentesMap[$refKey]->contains(function ($r) use ($id) {
+                    return (string) $r->plan_id !== (string) $id;
+                });
             if ($existeRef) {
                 $errores[] = "Fila $row: La referencia '<b>$referencia</b>' ya existe para la mikrotik '<b>$mikrotik_nombre</b>'.";
                 continue;
