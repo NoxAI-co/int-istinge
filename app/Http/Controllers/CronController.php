@@ -32,6 +32,9 @@ use Auth;
 use App\Vendedor;
 use App\Services\EmisionesService;
 use App\Services\OnePayService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 include_once(app_path() .'/../public/routeros_api.class.php');
 use RouterosAPI;
@@ -250,6 +253,16 @@ class CronController extends Controller
     }
 
     public static function CrearFactura($fechaRef = null, $idGrupo = null){
+        // Bloqueo atómico para evitar ejecuciones concurrentes del mismo grupo/periodo
+        $lockKey = "cron_crear_factura_" . ($idGrupo ?? 'all') . "_" . ($fechaRef ?? date('Y-m-d'));
+        $lock = Cache::lock($lockKey, 1800); // Bloqueo por 30 minutos máximo
+
+        if (!$lock->get()) {
+            Log::info("CrearFactura: Intento de ejecución concurrente detectado. El proceso para {$lockKey} ya está en curso. Saltando.");
+            return;
+        }
+
+        try {
 
         $fecha = $fechaRef ? $fechaRef : Carbon::now()->format('Y-m-d');
         $horaActual = $fechaRef ? "23:59" : date('H:i');
@@ -834,8 +847,10 @@ class CronController extends Controller
                 self::sendInvoices($fechaInvoice);
             }
         }
+        } finally {
+            $lock->release();
+        }
     }
-}
 
     //Pago automatico que se genera cuando el cliente tiene saldo a favor.
     public static function pagoFacturaAutomatico($factura){
