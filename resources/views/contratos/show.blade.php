@@ -319,22 +319,23 @@
 							<td><a href="{{asset('../software/adjuntos/documentos/'.$contrato->adjunto_d)}}" target="_blank"><strong>Ver {{ $contrato->referencia_d }}</strong></a></td>
 						</tr>
 						@endif
-						@if($contrato->oficina())
+						@php $oficina = $contrato->oficina(); @endphp
+						@if($oficina)
 						<tr>
 							<th>Oficina Asociada</th>
-							<td>{{ $contrato->oficina()->nombre }}</td>
+							<td>{{ $oficina->nombre }}</td>
 						</tr>
 						@endif
 						@if($contrato->vendedor)
 						<tr>
 							<th>Vendedor</th>
-							<td>{{ $contrato->vendedor()->nombre }}</td>
+							<td>{{ $contrato->vendedor() ? $contrato->vendedor()->nombre : 'N/A' }}</td>
 						</tr>
 						@endif
 						@if($contrato->canal)
 						<tr>
 							<th>Canal de Venta</th>
-							<td>{{ $contrato->canal()->nombre }}</td>
+							<td>{{ $contrato->canal() ? $contrato->canal()->nombre : 'N/A' }}</td>
 						</tr>
 						@endif
 						@if($contrato->observaciones)
