@@ -2431,6 +2431,238 @@ class ExportarReportesController extends Controller
 
     }
 
+    public function libroCompras(Request $request)
+    {
+        $dates = $this->setDateRequest($request);
+        if ($request->input('fechas') == 8) {
+            $dates = $this->setDateRequest($request, true);
+        }
+
+        $facturas = FacturaProveedores::leftjoin('contactos as c', 'factura_proveedores.proveedor', '=', 'c.id')
+            ->select(
+                'factura_proveedores.id',
+                'factura_proveedores.tipo',
+                'factura_proveedores.codigo',
+                'factura_proveedores.nro',
+                'factura_proveedores.proveedor',
+                'factura_proveedores.fecha_factura',
+                'factura_proveedores.estatus',
+                DB::raw('c.nombre as nombrecliente'),
+                DB::raw('c.nit as nitcliente')
+            )
+            ->where('factura_proveedores.empresa', Auth::user()->empresa)
+            ->where('factura_proveedores.fecha_factura', '>=', $dates['inicio'])
+            ->where('factura_proveedores.fecha_factura', '<=', $dates['fin'])
+            ->where('factura_proveedores.tipo', 1)
+            ->where('factura_proveedores.estatus', '!=', '3')
+            ->orderBy('factura_proveedores.fecha_factura', 'DESC')
+            ->orderBy('factura_proveedores.nro', 'DESC')
+            ->get();
+
+        $meses = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
+        $fIni = strtotime($dates['inicio']);
+        $fFin = strtotime($dates['fin']);
+        $rangoTxt = 'De ' . $meses[(int)date('n', $fIni)] . ' ' . date('d', $fIni) . ' ' . date('Y', $fIni)
+                  . ' a ' . $meses[(int)date('n', $fFin)] . ' ' . date('d', $fFin) . ' ' . date('Y', $fFin);
+        $procesadoTxt = 'Procesado en: ' . $meses[(int)date('n')] . ' ' . date('d Y H:i');
+
+        $empresa = Auth::user()->empresa();
+        $empresaNombre = $empresa ? $empresa->nombre : '';
+        $empresaNit = $empresa ? $empresa->nit : '';
+
+        $objPHPExcel = new PHPExcel();
+        $objPHPExcel->getProperties()->setCreator('Sistema')
+            ->setLastModifiedBy('Sistema')
+            ->setTitle('Libro oficial de compras')
+            ->setSubject('Libro oficial de compras')
+            ->setDescription('Libro oficial de compras')
+            ->setKeywords('libro oficial compras')
+            ->setCategory('Reporte excel');
+
+        $sheet = $objPHPExcel->setActiveSheetIndex(0);
+        $sheet->setTitle('Libro oficial de compras');
+
+        $letras = ['A','B','C','D','E','F','G','H','I','J'];
+        $lastCol = 'J';
+
+        $estiloEncabezado = [
+            'fill' => [
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => ['rgb' => '000C34'],
+            ],
+            'font' => [
+                'bold'  => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'name'  => 'Calibri',
+            ],
+            'alignment' => [
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                'vertical'   => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+            ],
+        ];
+
+        $sheet->mergeCells('A1:' . $lastCol . '1');
+        $sheet->mergeCells('A2:' . $lastCol . '2');
+        $sheet->mergeCells('A3:' . $lastCol . '3');
+        $sheet->mergeCells('A4:' . $lastCol . '4');
+        $sheet->mergeCells('A5:' . $lastCol . '5');
+
+        $sheet->setCellValue('A1', 'Libro oficial de compras');
+        $sheet->setCellValue('A2', $empresaNombre);
+        $sheet->setCellValue('A3', $empresaNit);
+        $sheet->setCellValue('A4', $rangoTxt);
+
+        $sheet->getRowDimension(1)->setRowHeight(36);
+        $sheet->getStyle('A1:' . $lastCol . '5')->applyFromArray($estiloEncabezado);
+        $sheet->getStyle('A1')->getFont()->setSize(22);
+        $sheet->getStyle('A2:' . $lastCol . '4')->getFont()->setSize(12);
+
+        $titulos = ['Comprobante','Fecha elaboración','Identificación','Sucursal','Nombre tercero','Factura proveedor','Base gravada','Base exenta','IVA','Total'];
+        $headerRow = 7;
+        for ($i = 0; $i < count($titulos); $i++) {
+            $sheet->setCellValue($letras[$i] . $headerRow, $titulos[$i]);
+        }
+
+        $estiloTituloCol = [
+            'font' => ['bold' => true, 'name' => 'Calibri', 'size' => 11],
+            'alignment' => [
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                'vertical'   => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+                'wrap'       => true,
+            ],
+            'borders' => [
+                'allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN],
+            ],
+            'fill' => [
+                'type' => PHPExcel_Style_Fill::FILL_SOLID,
+                'color' => ['rgb' => 'F2F2F2'],
+            ],
+        ];
+        $sheet->getStyle('A' . $headerRow . ':' . $lastCol . $headerRow)->applyFromArray($estiloTituloCol);
+        $sheet->getRowDimension($headerRow)->setRowHeight(34);
+
+        $row = $headerRow + 1;
+        $totBaseGravada = 0;
+        $totBaseExenta = 0;
+        $totIva = 0;
+        $totGeneral = 0;
+
+        foreach ($facturas as $factura) {
+            $items = ItemsFacturaProv::where('factura', $factura->id)->get();
+            $baseGravada = 0;
+            $baseExenta = 0;
+            $iva = 0;
+            foreach ($items as $item) {
+                $bruto = (float)$item->precio * (float)$item->cant;
+                $desc = $item->desc > 0 ? ($bruto * (float)$item->desc) / 100 : 0;
+                $base = $bruto - $desc;
+                $porc = (float)$item->impuesto;
+                if ($porc > 0) {
+                    $baseGravada += $base;
+                    $iva += $base * ($porc / 100);
+                } else {
+                    $baseExenta += $base;
+                }
+            }
+            $totalRow = $baseGravada + $baseExenta + $iva;
+
+            $codigo = strtoupper(trim((string)$factura->codigo));
+            $serie = (strpos($codigo, 'DS') === 0) ? 1 : 2;
+            $comprobante = 'ND-' . $serie . '-' . $factura->nro;
+            $fechaElab = $factura->fecha_factura ? date('d/m/Y', strtotime($factura->fecha_factura)) : '';
+
+            $sheet->setCellValueExplicit('A' . $row, $comprobante, \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('B' . $row, $fechaElab, \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('C' . $row, (string)$factura->nitcliente, \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('D' . $row, '', \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('E' . $row, (string)$factura->nombrecliente, \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('F' . $row, (string)$factura->codigo, \PHPExcel_Cell_DataType::TYPE_STRING);
+            $sheet->setCellValue('G' . $row, round($baseGravada, 2));
+            $sheet->setCellValue('H' . $row, round($baseExenta, 2));
+            $sheet->setCellValue('I' . $row, round($iva, 2));
+            $sheet->setCellValue('J' . $row, round($totalRow, 2));
+
+            if ($factura->estatus == 2) {
+                $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->getFont()->getColor()->setRGB('D9534F');
+            }
+
+            $totBaseGravada += $baseGravada;
+            $totBaseExenta  += $baseExenta;
+            $totIva         += $iva;
+            $totGeneral     += $totalRow;
+            $row++;
+        }
+
+        $estiloDatos = [
+            'font' => ['name' => 'Calibri', 'size' => 11],
+            'borders' => [
+                'allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN],
+            ],
+        ];
+        if ($row > $headerRow + 1) {
+            $sheet->getStyle('A' . ($headerRow + 1) . ':' . $lastCol . ($row - 1))->applyFromArray($estiloDatos);
+            $sheet->getStyle('G' . ($headerRow + 1) . ':' . $lastCol . ($row - 1))
+                  ->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('G' . ($headerRow + 1) . ':' . $lastCol . ($row - 1))
+                  ->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+        }
+
+        $totalRowNumber = $row + 1;
+        $sheet->setCellValue('A' . $totalRowNumber, 'Total general');
+        $sheet->mergeCells('A' . $totalRowNumber . ':F' . $totalRowNumber);
+        $sheet->setCellValue('G' . $totalRowNumber, round($totBaseGravada, 2));
+        $sheet->setCellValue('H' . $totalRowNumber, round($totBaseExenta, 2));
+        $sheet->setCellValue('I' . $totalRowNumber, round($totIva, 2));
+        $sheet->setCellValue('J' . $totalRowNumber, round($totGeneral, 2));
+
+        $estiloTotal = [
+            'font' => ['bold' => true, 'name' => 'Calibri', 'size' => 11],
+            'borders' => [
+                'allborders' => ['style' => PHPExcel_Style_Border::BORDER_THIN],
+            ],
+            'alignment' => [
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_RIGHT,
+            ],
+        ];
+        $sheet->getStyle('A' . $totalRowNumber . ':' . $lastCol . $totalRowNumber)->applyFromArray($estiloTotal);
+        $sheet->getStyle('A' . $totalRowNumber)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle('G' . $totalRowNumber . ':' . $lastCol . $totalRowNumber)
+              ->getNumberFormat()->setFormatCode('#,##0');
+
+        $procesadoRow = $totalRowNumber + 2;
+        $sheet->mergeCells('A' . $procesadoRow . ':' . $lastCol . $procesadoRow);
+        $sheet->setCellValue('A' . $procesadoRow, $procesadoTxt);
+        $sheet->getStyle('A' . $procesadoRow)->applyFromArray([
+            'font' => ['italic' => true, 'name' => 'Calibri', 'size' => 10],
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $sheet->getColumnDimension('A')->setWidth(14);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(14);
+        $sheet->getColumnDimension('E')->setWidth(32);
+        $sheet->getColumnDimension('F')->setWidth(18);
+        $sheet->getColumnDimension('G')->setWidth(16);
+        $sheet->getColumnDimension('H')->setWidth(16);
+        $sheet->getColumnDimension('I')->setWidth(14);
+        $sheet->getColumnDimension('J')->setWidth(16);
+
+        $sheet->setAutoFilter('A' . $headerRow . ':' . $lastCol . $headerRow);
+        $sheet->freezePane('A' . ($headerRow + 1));
+
+        $objPHPExcel->setActiveSheetIndex(0);
+        while (ob_get_level() > 0) { ob_end_clean(); }
+        header('Pragma: no-cache');
+        header('Content-type: application/vnd.ms-excel');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Libro_Oficial_de_Compras.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+        exit;
+    }
+
     public function estadoCliente(Request $request)
     {
 

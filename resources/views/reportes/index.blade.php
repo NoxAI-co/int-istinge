@@ -64,6 +64,7 @@
                     <li><a href="{{route('reportes.ventasItem')}}">Ventas por item</a></li>
                     <li><a href="{{route('reportes.remisiones')}}">Remisiones</a></li>
                     <li><a href="{{route('reportes.compras')}}">Compras</a></li>
+                    <li><a href="{{route('reportes.libroCompras')}}">Libro Oficial de Compras</a></li>
                 </ul>
             </div>
         </div>

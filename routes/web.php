@@ -1539,6 +1539,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/cuentasCobrar', 'ReportesController@cuentasCobrar')->name('reportes.cuentasCobrar');
 		Route::get('/cuentasPagar', 'ReportesController@cuentasPagar')->name('reportes.cuentasPagar');
 		Route::get('/compras', 'ReportesController@compras')->name('reportes.compras');
+		Route::get('/libro-oficial-compras', 'ReportesController@libroCompras')->name('reportes.libroCompras');
 		Route::get('/ventasVendedor', 'ReportesController@ventasVendedor')->name('reportes.ventasVendedor');
 		Route::get('/rentabilidaditem', 'ReportesController@rentabilidadItem')->name('reportes.rentabilidadItem');
 		Route::get('/transacciones', 'ReportesController@transacciones')->name('reportes.transacciones');
@@ -1592,6 +1593,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/cuentasCobrar', 'ExportarReportesController@cuentasCobrar')->name('exportar.cuentasCobrar');
 		Route::get('/cuentasPagar', 'ExportarReportesController@cuentasPagar')->name('exportar.cuentasPagar');
 		Route::get('/compras', 'ExportarReportesController@compras')->name('exportar.compras');
+		Route::get('/libro-oficial-compras', 'ExportarReportesController@libroCompras')->name('exportar.libroCompras');
 		Route::get('/estadoCliente', 'ExportarReportesController@estadoCliente')->name('exportar.compras');
 		Route::post('/reporteDiario', 'ExportarReportesController@reporteDiario')->name('exportar.reporteDiario');
 		Route::get('/ventasVendedor', 'ExportarReportesController@ventasVendedor')->name('exportar.ventasVendedor');

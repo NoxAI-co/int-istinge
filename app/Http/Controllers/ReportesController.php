@@ -1011,6 +1011,108 @@ class ReportesController extends Controller
 
     }
 
+    public function libroCompras(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['seccion' => 'reportes', 'title' => 'Libro Oficial de Compras', 'icon' => 'fas fa-book']);
+
+        $dates = $this->setDateRequest($request);
+        if ($request->fecha == 8) {
+            $dates = $this->setDateRequest($request, true);
+        }
+
+        $facturas = FacturaProveedores::leftjoin('contactos as c', 'factura_proveedores.proveedor', '=', 'c.id')
+            ->select(
+                'factura_proveedores.id',
+                'factura_proveedores.tipo',
+                'factura_proveedores.codigo',
+                'factura_proveedores.nro',
+                'factura_proveedores.proveedor',
+                'factura_proveedores.fecha_factura',
+                'factura_proveedores.estatus',
+                DB::raw('c.nombre as nombrecliente'),
+                DB::raw('c.nit as nitcliente')
+            )
+            ->where('factura_proveedores.empresa', Auth::user()->empresa)
+            ->where('factura_proveedores.fecha_factura', '>=', $dates['inicio'])
+            ->where('factura_proveedores.fecha_factura', '<=', $dates['fin'])
+            ->where('factura_proveedores.tipo', 1)
+            ->where('factura_proveedores.estatus', '!=', '3')
+            ->orderBy('factura_proveedores.fecha_factura', 'DESC')
+            ->orderBy('factura_proveedores.nro', 'DESC')
+            ->get();
+
+        $rows = [];
+        $totBaseGravada = 0;
+        $totBaseExenta = 0;
+        $totIva = 0;
+        $totGeneral = 0;
+
+        foreach ($facturas as $factura) {
+            $detalle = $this->calcularBasesIvaLibroCompras($factura->id);
+            $codigo = strtoupper(trim((string)$factura->codigo));
+            $serie = (strpos($codigo, 'DS') === 0) ? 1 : 2;
+            $row = (object)[
+                'id'                => $factura->id,
+                'comprobante'       => 'ND-' . $serie . '-' . $factura->nro,
+                'fecha_elaboracion' => $factura->fecha_factura ? date('d/m/Y', strtotime($factura->fecha_factura)) : '',
+                'identificacion'    => $factura->nitcliente,
+                'sucursal'          => '',
+                'nombre_tercero'    => $factura->nombrecliente,
+                'factura_proveedor' => $factura->codigo,
+                'base_gravada'      => $detalle['base_gravada'],
+                'base_exenta'       => $detalle['base_exenta'],
+                'iva'               => $detalle['iva'],
+                'total'             => $detalle['base_gravada'] + $detalle['base_exenta'] + $detalle['iva'],
+                'estatus'           => $factura->estatus,
+            ];
+            $rows[] = $row;
+            $totBaseGravada += $row->base_gravada;
+            $totBaseExenta  += $row->base_exenta;
+            $totIva         += $row->iva;
+            $totGeneral     += $row->total;
+        }
+
+        $empresa = Auth::user()->empresa();
+        $totales = [
+            'base_gravada' => $totBaseGravada,
+            'base_exenta'  => $totBaseExenta,
+            'iva'          => $totIva,
+            'total'        => $totGeneral,
+        ];
+
+        return view('reportes.libroCompras.index', compact('rows', 'request', 'totales', 'empresa', 'dates'));
+    }
+
+    /**
+     * Calcula la base gravada (con IVA), base exenta (sin IVA) e IVA total
+     * para una factura de proveedor a partir de sus items.
+     */
+    private function calcularBasesIvaLibroCompras($facturaId)
+    {
+        $items = ItemsFacturaProv::where('factura', $facturaId)->get();
+        $baseGravada = 0;
+        $baseExenta = 0;
+        $iva = 0;
+        foreach ($items as $item) {
+            $bruto = (float)$item->precio * (float)$item->cant;
+            $desc = $item->desc > 0 ? ($bruto * (float)$item->desc) / 100 : 0;
+            $base = $bruto - $desc;
+            $porc = (float)$item->impuesto;
+            if ($porc > 0) {
+                $baseGravada += $base;
+                $iva += $base * ($porc / 100);
+            } else {
+                $baseExenta += $base;
+            }
+        }
+        return [
+            'base_gravada' => $baseGravada,
+            'base_exenta'  => $baseExenta,
+            'iva'          => $iva,
+        ];
+    }
+
     public function comprasExport($actual, $minus){
 
         $dates = $this->setDate($actual, $minus);

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep *)",
+      "Bash(php -l \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\app\\\\Http\\\\Controllers\\\\ReportesController.php\")",
+      "Bash(php -l \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\app\\\\Http\\\\Controllers\\\\ExportarReportesController.php\")",
+      "Bash(php -l \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\routes\\\\web.php\")",
+      "Bash(php artisan *)",
+      "Bash(\"C:\\\\php\\\\php.exe\" -l \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\app\\\\Http\\\\Controllers\\\\ExportarReportesController.php\")",
+      "PowerShell(php -l \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\app\\\\Http\\\\Controllers\\\\ExportarReportesController.php\" 2>&1 | Select-Object -Last 3)",
+      "Bash(where php *)",
+      "Bash(where.exe php.exe)"
+    ]
+  }
+}
