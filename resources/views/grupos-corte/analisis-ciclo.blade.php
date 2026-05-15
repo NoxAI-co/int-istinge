@@ -414,8 +414,13 @@
                 <h3 class="mb-0 text-info">{{ $cycleStats['total_contratos_ciclo'] ?? 0 }}</h3>
                 @if(isset($cycleStats['total_activos']))
                 <div class="mt-2 text-left small border-top pt-1 text-muted">
-                    <div title="Contratos listos para facturar">Habilitados: <b class="text-success">{{ $cycleStats['total_activos'] ?? 0 }}</b></div>
-                    <div title="Contratos deshabilitados (state=disabled)">Deshabilitados: <b class="text-danger">{{ $cycleStats['total_deshabilitados'] ?? 0 }}</b></div>
+                    <div title="Contratos con status = 1 (Activos)">Habilitados: <b class="text-success">{{ $cycleStats['total_activos'] ?? 0 }}</b></div>
+                    <div title="Contratos con status = 1 y state = disabled">Deshabilitados: <b class="text-danger">{{ $cycleStats['total_deshabilitados'] ?? 0 }}</b></div>
+                    <div title="Contratos sin cliente asignado (Huérfanos)">Sin Cliente: <b class="text-warning">{{ $cycleStats['total_huerfanos'] ?? 0 }}</b></div>
+                    <div class="border-top mt-1 pt-1">
+                        Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['con_prorrateo'] ?? 0 }}</b><br>
+                        Sin Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['sin_prorrateo'] ?? 0 }}</b>
+                    </div>
                 </div>
                 @endif
             </div>

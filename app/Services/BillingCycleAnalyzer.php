@@ -70,7 +70,15 @@ class BillingCycleAnalyzer
                 ->where('contracts.status', 1)
                 ->get();
             
+            // Contratos que tienen cliente asignado
+            $contractsWithClient = Contrato::withoutGlobalScopes()->join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                ->where('contracts.grupo_corte', $grupoCorteId)
+                ->where('contracts.status', 1)
+                ->pluck('contracts.id')
+                ->toArray();
+
             $totalContratosGrupo = $potentialContracts->count();
+            $totalHuerfanos = $potentialContracts->whereNotIn('id', $contractsWithClient)->count();
             
             // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
@@ -130,6 +138,7 @@ class BillingCycleAnalyzer
                 'total_contratos_ciclo' => $totalContratosGrupo,
                 'total_activos' => $potentialContracts->where('state', 'enabled')->count(),
                 'total_deshabilitados' => $potentialContracts->where('state', 'disabled')->count(),
+                'total_huerfanos' => $totalHuerfanos,
                 'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
@@ -214,20 +223,19 @@ class BillingCycleAnalyzer
 
         // Calcular fin de mes del periodo analizado
         $yearMonth = explode('-', $periodo);
-        $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
-
+        
         $empresa = Empresa::find($grupoCorte->empresa);
         $state = ['enabled'];
         if ($empresa->factura_contrato_off == 1) {
             $state[] = 'disabled';
         }
 
-        // Obtener contratos del grupo (sin scopes para ver el total real del grupo)
-        $contratos = Contrato::withoutGlobalScopes()->leftJoin('contactos as c', 'c.id', '=', 'contracts.client_id')
+        // Obtener contratos del grupo que TIENEN cliente (INNER JOIN)
+        $contratos = Contrato::withoutGlobalScopes()->join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
             ->where('contracts.status', 1) 
-            ->whereIn('contracts.state', $state) // AHORA SÍ: Filtramos por los que realmente esperamos facturar
+            ->whereIn('contracts.state', $state)
             ->get();
 
         return $contratos;
