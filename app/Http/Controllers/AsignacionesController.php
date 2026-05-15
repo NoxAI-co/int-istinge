@@ -777,7 +777,25 @@ class AsignacionesController extends Controller
 
     public function imprimir($id)
     {
-        $digital = ContratoDigital::find($id);
+        if (request('type') == 'contract') {
+            $digital = ContratoDigital::where('contrato_id', $id)->orderBy('id', 'DESC')->first();
+
+            if (!$digital) {
+                $contrato = Contrato::find($id);
+                if ($contrato && $contrato->cliente() && $contrato->cliente()->firma_isp) {
+                    $digital = new ContratoDigital();
+                    $digital->cliente_id = $contrato->client_id;
+                    $digital->contrato_id = $contrato->id;
+                    $digital->firma = $contrato->cliente()->firma_isp;
+                    $digital->estado_firma = 1;
+                    $digital->fecha_firma = date('Y-m-d H:i:s');
+                    $digital->save();
+                }
+            }
+        } else {
+            $digital = ContratoDigital::find($id);
+        }
+
         if (!$digital) {
             $digital = ContratoDigital::where('cliente_id', $id)->orderBy('id', 'DESC')->first();
         }
