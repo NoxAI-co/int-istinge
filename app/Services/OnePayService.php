@@ -93,6 +93,10 @@ class OnePayService
                 $periodoCobrado = $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días';
             }
 
+            if($periodoCobrado == "dias"){
+                $periodoCobrado = "Facturación de servicios";
+            }
+
             // Preparar datos
             $data = [
                 'reference' => $cliente->nit,
