@@ -97,21 +97,25 @@ class MikrotikController extends Controller
 
         $mikrotiks->withCount([
             'contratos as contratos_uso_count' => function ($q) {
-                $q->where('state', 'enabled')->where('status', 1);
+                $q->where('contracts.state', 'enabled')->where('contracts.status', 1);
             },
             'planes as planes_uso_count' => function ($q) {
-                $q->where('status', 1);
+                $q->where('planes_velocidad.status', 1);
             },
             'contratos as clientes_enabled_count' => function ($q) {
-                $q->where('status', 1)
-                  ->whereNotIn('contracts.id', function ($sub) {
-                      $sub->select('contrato')->from('pings');
+                $q->where('contracts.status', 1)
+                  ->whereNotExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('pings')
+                          ->whereColumn('pings.contrato', 'contracts.id');
                   });
             },
             'contratos as clientes_disabled_count' => function ($q) {
-                $q->where('status', 1)
-                  ->whereIn('contracts.id', function ($sub) {
-                      $sub->select('contrato')->from('pings');
+                $q->where('contracts.status', 1)
+                  ->whereExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('pings')
+                          ->whereColumn('pings.contrato', 'contracts.id');
                   });
             },
         ]);

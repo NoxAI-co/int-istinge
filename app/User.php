@@ -44,12 +44,16 @@ class User extends Authenticatable
     }
 
     public function empresa(){
-        return Empresa::where('id',$this->empresa)->first();
-
+        static $cache = [];
+        $key = $this->empresa;
+        if (!array_key_exists($key, $cache)) {
+            $cache[$key] = Empresa::where('id', $key)->first();
+        }
+        return $cache[$key];
     }
 
     public function tipo_fac(){
-        return Empresa::where('id',$this->empresa)->first()->tipo_fac;
+        return $this->empresa()->tipo_fac;
     }
 
     public function estatus($clase=false){
@@ -69,16 +73,23 @@ class User extends Authenticatable
     }
 
     public function modo_lectura(){
+        static $cache = [];
+        $key = (string) Auth::user()->empresa . '|' . (string) Auth::user()->rol;
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+
         $suscripcion = Suscripcion::where('id_empresa',Auth::user()->empresa)->get()->first();
         if($suscripcion->ilimitado){
-            return false;
+            return $cache[$key] = false;
         }
 
         if (Auth::user()->rol >= 2){
-            return ($suscripcion->fec_corte < date('Y-m-d') || ($this->contratos()));
+            return $cache[$key] = ($suscripcion->fec_corte < date('Y-m-d') || ($this->contratos()));
             return ($suscripcion->fec_corte < date('Y-m-d')) || ($this->facturasHechas()) || ($this->ingresosMaximos() || ($this->rechazado())) ;
         }
 
+        return $cache[$key] = null;
     }
 
     public function contador_responsabilidades(){
