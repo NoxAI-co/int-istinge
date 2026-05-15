@@ -777,7 +777,18 @@ class AsignacionesController extends Controller
 
     public function imprimir($id)
     {
-        $digital = ContratoDigital::findOrFail($id);
+        $digital = ContratoDigital::find($id);
+        if (!$digital) {
+            $digital = ContratoDigital::where('cliente_id', $id)->orderBy('id', 'DESC')->first();
+        }
+
+        if (!$digital) {
+            $digital = ContratoDigital::where('contrato_id', $id)->orderBy('id', 'DESC')->first();
+        }
+
+        if (!$digital) {
+            abort(404, 'No se encontró el contrato digital.');
+        }
 
         $contact = $digital->cliente;
         $company = Empresa::first(); // Or Auth::user()->empresa() if preferred, but first() is safe for PDF generation
