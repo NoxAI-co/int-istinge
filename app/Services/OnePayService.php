@@ -96,6 +96,9 @@ class OnePayService
                 'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
                 'email' => $cliente->email ?: null,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
+                'description' => (!empty($factura->periodo_cobrado_text)) 
+                    ? $factura->periodo_cobrado_text 
+                    : $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días',
                 // 'document_url' => $documentUrl,
                 'metadata' => [
                     'factura_id' => $factura->id,
@@ -730,5 +733,3 @@ class OnePayService
         }
     }
 }
-
-
