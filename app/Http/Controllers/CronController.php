@@ -252,11 +252,13 @@ class CronController extends Controller
 
     public static function CrearFactura($fechaRef = null, $idGrupo = null){
         // Bloqueo atómico para evitar ejecuciones concurrentes del mismo grupo/periodo
-        $lockKey = "cron_crear_factura_" . ($idGrupo ?? 'all') . "_" . ($fechaRef ?? date('Y-m-d'));
-        $lock = Cache::lock($lockKey, 1800); // Bloqueo por 30 minutos máximo
-
-        if (!$lock->get()) {
-            Log::info("CrearFactura: Intento de ejecución concurrente detectado. El proceso para {$lockKey} ya está en curso. Saltando.");
+        $fecha = $fechaRef ? $fechaRef : Carbon::now()->format('Y-m-d');
+        $lockKey = "crear_factura_lock_{$idGrupo}_{$fecha}";
+        
+        // El driver 'file' en Laravel 7 no soporta lock(), usamos add() como alternativa atómica
+        // Cache::add solo devuelve true si la llave NO existe (implementa el bloqueo)
+        if (!Cache::add($lockKey, true, 1800)) { // Bloqueo por 30 minutos
+            Log::info("CrearFactura: Intento de ejecución concurrente detectado. El proceso para {$lockKey} ya está en curso o falló la liberación anterior. Saltando.");
             return;
         }
 
@@ -847,7 +849,7 @@ class CronController extends Controller
         }
     }
     } finally {
-        $lock->release();
+        Cache::forget($lockKey);
     }
 }
 
