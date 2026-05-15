@@ -86,6 +86,13 @@ class OnePayService
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
 
+            $periodoCobrado = "";
+            if($factura->periodo_cobrado_text != null || $factura->periodo_cobrado_text != ""){
+                $periodoCobrado = $factura->periodo_cobrado_text;
+            }else{
+                $periodoCobrado = $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días';
+            }
+
             // Preparar datos
             $data = [
                 'reference' => $cliente->nit,
@@ -96,11 +103,7 @@ class OnePayService
                 'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
                 'email' => $cliente->email ?: null,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
-                'description' => (!empty($factura->periodo_cobrado_text)) 
-                    ? $factura->periodo_cobrado_text 
-                    : ((!empty($factura->periodoCobradoTexto())) 
-                        ? $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días' 
-                        : $factura->periodo),
+                'description' => $periodoCobrado,
                 // 'document_url' => $documentUrl,
                 'metadata' => [
                     'factura_id' => $factura->id,
