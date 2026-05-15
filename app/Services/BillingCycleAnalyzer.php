@@ -222,7 +222,8 @@ class BillingCycleAnalyzer
             ->where('contracts.empresa', $grupoCorte->empresa)
             // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
             ->where('contracts.created_at', '<=', $fechaFinMes)
-            ->where('contracts.status', 1) // REQ: Solo contratos activos (status=1)
+            ->where('contracts.status', 1) 
+            ->whereIn('contracts.state', $state) // Sincronizado con CronController
             ->get();
 
         return $contratos;
