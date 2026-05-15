@@ -16,9 +16,20 @@ class BillingCycleAnalyzer
     /**
      * Limpiar caché de un ciclo específico
      */
+    public function setGeneratingFlag($grupoCorteId, $state = true)
+    {
+        $key = "generating_cycle_stats_{$grupoCorteId}";
+        if ($state) {
+            Cache::put($key, true, 600); // 10 mins max
+        } else {
+            Cache::forget($key);
+        }
+    }
+
     public function clearCycleCache($grupoCorteId, $periodo)
     {
         $cacheKey = "cycle_stats_v28_{$grupoCorteId}_{$periodo}";
+        \Log::info("Clearing Cycle Cache: {$cacheKey}");
         Cache::forget($cacheKey);
     }
 
@@ -29,11 +40,20 @@ class BillingCycleAnalyzer
      * @param string $periodo Formato: Y-m (ej: 2026-02)
      * @return array
      */
-    public function getCycleStats($grupoCorteId, $periodo)
+    public function getCycleStats($grupoCorteId, $periodo, $forceRefresh = false)
     {
         // v28: Optimización profunda - rangos fecha, batch preload, agregar histórico
         $cacheKey = "cycle_stats_v28_{$grupoCorteId}_{$periodo}";
         
+        $isGenerating = Cache::has("generating_cycle_stats_{$grupoCorteId}");
+        
+        if ($forceRefresh || $isGenerating) {
+            Cache::forget($cacheKey);
+            if ($isGenerating) {
+                \Log::info("CycleStats [{$grupoCorteId}-{$periodo}]: Bypassing cache because generation is in progress.");
+            }
+        }
+
         return Cache::remember($cacheKey, 300, function () use ($grupoCorteId, $periodo) {
             $grupoCorte = GrupoCorte::find($grupoCorteId);
             if (!$grupoCorte) {
@@ -56,6 +76,8 @@ class BillingCycleAnalyzer
             
             // Obtener facturas generadas en el ciclo
             $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
+            
+            \Log::info("CycleStats [{$grupoCorteId}-{$periodo}]: Esperados=" . $contratosEsperados->count() . ", Generadas=" . $facturasGeneradas->count());
             
             // Análisis de facturas faltantes (pasamos colecciones ya obtenidas para evitar re-queries)
             $missingAnalysis = $this->getMissingInvoicesAnalysis($grupoCorteId, $periodo, $contratosEsperados, $facturasGeneradas);
@@ -238,14 +260,22 @@ class BillingCycleAnalyzer
         if ($facturasGeneradas === null) {
             $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
         }
-        
-        // Obtener IDs de contratos que ya facturaron
-        $idsGenerados = $facturasGeneradas->pluck('contrato_id')->unique()->toArray();
+        // Obtener IDs de contratos que ya facturaron (aseguramos casting a string para in_array)
+        $idsGenerados = $facturasGeneradas->map(function($f) {
+            return (string)($f->contrato_id ?? $f->getAttribute('contrato_id'));
+        })->unique()->filter()->toArray();
         
         // Contratos que no facturaron
         $contratosSinFactura = $contratosEsperados->filter(function($contrato) use ($idsGenerados) {
-            return !in_array($contrato->id, $idsGenerados);
+            return !in_array((string)$contrato->id, $idsGenerados);
         });
+
+        $esperadosCount = $contratosEsperados->count();
+        $generadosCount = count($idsGenerados);
+        $missingCount = $contratosSinFactura->count();
+        $matched = $esperadosCount - $missingCount;
+
+        \Log::info("MissingAnalysis [{$grupoCorteId}-{$periodo}]: Esperados={$esperadosCount}, UniqueContractIdsInGeneradas={$generadosCount}, MatchedWithEsperados={$matched}, Missing={$missingCount}");
 
         // ============================================================
         // BATCH PRE-LOAD: Cargar todos los datos necesarios para el
