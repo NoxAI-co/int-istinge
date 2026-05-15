@@ -65,10 +65,12 @@ class BillingCycleAnalyzer
             $empresaId = $grupoCorte->empresa;
 
             // Total real de contratos del grupo (sin scopes para coincidir con SQL manual)
-            $totalContratosGrupo = Contrato::withoutGlobalScopes()
+            $potentialContracts = Contrato::withoutGlobalScopes()
                 ->where('contracts.grupo_corte', $grupoCorteId)
                 ->where('contracts.status', 1)
-                ->count();
+                ->get();
+            
+            $totalContratosGrupo = $potentialContracts->count();
             
             // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
@@ -125,10 +127,9 @@ class BillingCycleAnalyzer
                 'grupo_corte' => $grupoCorte,
                 'periodo' => $periodo,
                 'fecha_ciclo' => $fechaCiclo,
-                'total_contratos' => $totalContratosGrupo,
-                'total_contratos_ciclo' => $contratosEsperados->count(),
-                'total_activos' => $contratosEsperados->where('state', 'enabled')->count(),
-                'total_deshabilitados' => $contratosEsperados->where('state', 'disabled')->count(),
+                'total_contratos_ciclo' => $totalContratosGrupo,
+                'total_activos' => $potentialContracts->where('state', 'enabled')->count(),
+                'total_deshabilitados' => $potentialContracts->where('state', 'disabled')->count(),
                 'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
@@ -215,11 +216,18 @@ class BillingCycleAnalyzer
         $yearMonth = explode('-', $periodo);
         $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
 
+        $empresa = Empresa::find($grupoCorte->empresa);
+        $state = ['enabled'];
+        if ($empresa->factura_contrato_off == 1) {
+            $state[] = 'disabled';
+        }
+
         // Obtener contratos del grupo (sin scopes para ver el total real del grupo)
         $contratos = Contrato::withoutGlobalScopes()->leftJoin('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
             ->where('contracts.status', 1) 
+            ->whereIn('contracts.state', $state) // AHORA SÍ: Filtramos por los que realmente esperamos facturar
             ->get();
 
         return $contratos;

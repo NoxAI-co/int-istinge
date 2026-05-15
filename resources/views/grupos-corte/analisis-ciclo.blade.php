@@ -410,16 +410,12 @@
     <div class="col-md-2 col-sm-4 mb-3">
         <div class="card stat-card info h-100">
             <div class="card-body text-center p-3">
-                <h6 class="text-muted mb-1 small font-weight-bold">Contratos Totales</h6>
-                <h3 class="mb-0 text-info">{{ $cycleStats['total_contratos'] ?? 0 }}</h3>
-                @if(isset($cycleStats['prorrateo_stats']))
+                <h6 class="text-muted mb-1 small font-weight-bold" title="Total de contratos activos (status=1) en este grupo">Contratos en Grupo</h6>
+                <h3 class="mb-0 text-info">{{ $cycleStats['total_contratos_ciclo'] ?? 0 }}</h3>
+                @if(isset($cycleStats['total_activos']))
                 <div class="mt-2 text-left small border-top pt-1 text-muted">
-                    <div title="Contratos con status = 1 (Activos)">Habilitados: <b class="text-success">{{ $cycleStats['total_activos'] ?? 0 }}</b></div>
-                    <div title="Contratos con status = 1 y state = disabled">Deshabilitados: <b class="text-danger">{{ $cycleStats['total_deshabilitados'] ?? 0 }}</b></div>
-                    <div class="border-top mt-1 pt-1">
-                        Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['con_prorrateo'] ?? 0 }}</b><br>
-                        Sin Prorrateo: <b>{{ $cycleStats['prorrateo_stats']['sin_prorrateo'] ?? 0 }}</b>
-                    </div>
+                    <div title="Contratos listos para facturar">Habilitados: <b class="text-success">{{ $cycleStats['total_activos'] ?? 0 }}</b></div>
+                    <div title="Contratos deshabilitados (state=disabled)">Deshabilitados: <b class="text-danger">{{ $cycleStats['total_deshabilitados'] ?? 0 }}</b></div>
                 </div>
                 @endif
             </div>
@@ -441,7 +437,7 @@
     <div class="col-md-2 col-sm-4 mb-3">
         <div class="card stat-card primary h-100">
             <div class="card-body text-center p-3">
-                <h6 class="text-muted mb-2 small font-weight-bold">Esperadas</h6>
+                <h6 class="text-muted mb-2 small font-weight-bold" title="Contratos que cumplen las reglas para ser facturados hoy">Esperadas</h6>
                 <h3 class="mb-0 text-primary">{{ $cycleStats['facturas_esperadas'] ?? 0 }}</h3>
             </div>
         </div>
