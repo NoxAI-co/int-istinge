@@ -52,9 +52,7 @@ use App\Model\Nomina\Nomina;
 use App\Movimiento;
 use App\MovimientoLOG;
 use GuzzleHttp\Exception\ClientException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use App\WhatsappMetaLog;
 use App\Helpers\CamposDinamicosHelper;
 use App\Traits\CentralizedWhatsApp;
@@ -847,10 +845,11 @@ class CronController extends Controller
                 self::sendInvoices($fechaInvoice);
             }
         }
-        } finally {
-            $lock->release();
-        }
     }
+    } finally {
+        $lock->release();
+    }
+}
 
     //Pago automatico que se genera cuando el cliente tiene saldo a favor.
     public static function pagoFacturaAutomatico($factura){
