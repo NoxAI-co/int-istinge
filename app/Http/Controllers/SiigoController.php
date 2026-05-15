@@ -513,11 +513,14 @@ class SiigoController extends Controller
             $nombreNormalizado = strtolower(trim($pt['name'] ?? ''));
 
             // Tipo de pago enviado por el usuario (factura pagada)
-            if (
-                isset($request->tipos_pago) &&
-                $nombreNormalizado === strtolower(trim($request->tipos_pago))
-            ) {
-                $pagoSeleccionado = $pt;
+            if (isset($request->tipos_pago)) {
+                $pagoRequest = strtolower(trim($request->tipos_pago));
+                if (
+                    (string)($pt['id'] ?? '') === $pagoRequest ||
+                    $nombreNormalizado === $pagoRequest
+                ) {
+                    $pagoSeleccionado = $pt;
+                }
             }
 
             // Tipo crédito para factura abierta:
