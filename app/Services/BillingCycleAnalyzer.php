@@ -64,11 +64,10 @@ class BillingCycleAnalyzer
             $fechaCiclo = $this->calcularFechaCiclo($grupoCorte, $periodo);
             $empresaId = $grupoCorte->empresa;
 
-            // Total real de contratos del grupo (con join para consistencia y filtro de empresa)
-            $totalContratosGrupo = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+            // Total real de contratos del grupo (sin scopes para coincidir con SQL manual)
+            $totalContratosGrupo = Contrato::withoutGlobalScopes()
                 ->where('contracts.grupo_corte', $grupoCorteId)
                 ->where('contracts.status', 1)
-                ->where('contracts.empresa', $empresaId)
                 ->count();
             
             // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
@@ -128,6 +127,8 @@ class BillingCycleAnalyzer
                 'fecha_ciclo' => $fechaCiclo,
                 'total_contratos' => $totalContratosGrupo,
                 'total_contratos_ciclo' => $contratosEsperados->count(),
+                'total_activos' => $contratosEsperados->where('state', 'enabled')->count(),
+                'total_deshabilitados' => $contratosEsperados->where('state', 'disabled')->count(),
                 'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
@@ -214,16 +215,11 @@ class BillingCycleAnalyzer
         $yearMonth = explode('-', $periodo);
         $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
 
-        // Obtener contratos del grupo (incluyendo deshabilitados para poder diagnosticar)
-        // Usamos un INNER JOIN explícito con contactos para garantizar que el cliente exista
-        $contratos = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+        // Obtener contratos del grupo (sin scopes para ver el total real del grupo)
+        $contratos = Contrato::withoutGlobalScopes()->leftJoin('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
-            ->where('contracts.empresa', $grupoCorte->empresa)
-            // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
-            ->where('contracts.created_at', '<=', $fechaFinMes)
             ->where('contracts.status', 1) 
-            ->whereIn('contracts.state', $state) // Sincronizado con CronController
             ->get();
 
         return $contratos;
@@ -1062,7 +1058,7 @@ class BillingCycleAnalyzer
         };
         
         // Query 1: Facturas vinculadas directamente
-        $query1 = Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+        $query1 = Factura::withoutGlobalScopes()->join('contracts as c', 'c.id', '=', 'factura.contrato_id')
             ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
             ->select(
                 'factura.id', 
@@ -1089,7 +1085,7 @@ class BillingCycleAnalyzer
             ->where($searchFilter);
 
         // Query 2: Facturas vinculadas por pivot
-        $query2 = Factura::join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
+        $query2 = Factura::withoutGlobalScopes()->join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
             ->join('contracts as c', 'fc.contrato_nro', '=', 'c.nro')
             ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
             ->select(
