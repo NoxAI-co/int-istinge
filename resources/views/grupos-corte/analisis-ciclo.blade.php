@@ -613,6 +613,12 @@
                                         </span>
                                     @endif
 
+                                    @if(isset($f['facturacion_automatica']))
+                                        <span class="badge badge-{{ $f['facturacion_automatica'] == 1 ? 'primary' : 'dark' }} badge-pill ml-1" style="font-size: 0.7em;">
+                                            <i class="fas {{ $f['facturacion_automatica'] == 1 ? 'fa-robot' : 'fa-user-edit' }}"></i> {{ $f['facturacion_automatica'] == 1 ? 'Automática' : 'Manual' }}
+                                        </span>
+                                    @endif
+
                                     @if($index > 0)
                                     <a href="javascript:void(0)" onclick="eliminarFacturaDuplicada({{ $f['id'] }}, {{ $dup['contrato_id'] }})" class="text-danger ml-2" title="Eliminar esta factura">
                                         <i class="fas fa-trash-alt"></i>

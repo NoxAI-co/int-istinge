@@ -1013,7 +1013,8 @@ class BillingCycleAnalyzer
                             'estatus_clase' => $estatusClase,
                             'total' => $total,
                             'tipo_operacion' => $f->tipo_operacion == 1 ? 'Estandar' : 'Electronica',
-                            'factura_mes_manual' => $f->factura_mes_manual
+                            'factura_mes_manual' => $f->factura_mes_manual,
+                            'facturacion_automatica' => $f->facturacion_automatica
                         ];
                     })->toArray()
                 ];
