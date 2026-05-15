@@ -98,7 +98,9 @@ class OnePayService
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
                 'description' => (!empty($factura->periodo_cobrado_text)) 
                     ? $factura->periodo_cobrado_text 
-                    : $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días',
+                    : ((!empty($factura->periodoCobradoTexto())) 
+                        ? $factura->periodoCobradoTexto() . ' ' . $factura->diasCobradosProrrateo(null, null, true) . ' días' 
+                        : $factura->periodo),
                 // 'document_url' => $documentUrl,
                 'metadata' => [
                     'factura_id' => $factura->id,
