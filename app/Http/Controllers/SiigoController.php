@@ -465,13 +465,13 @@ class SiigoController extends Controller
 
             if ($impuesto && $impuesto->siigo_id) {
                 $siigoItem["taxes"] = [
-                    ["id" => (string) $impuesto->siigo_id]
+                    ["id" => (int) $impuesto->siigo_id]
                 ];
             }
 
             if ($cont === 0 && $retencionSiigoId && $totalRetencion > 0) {
                 $siigoItem["taxes"][] = [
-                    "id"    => (string) $retencionSiigoId,
+                    "id"    => (int) $retencionSiigoId,
                     "type"  => "Retention",
                     "value" => round($totalRetencion, 2)
                 ];
@@ -600,11 +600,11 @@ class SiigoController extends Controller
         }
 
         $data = [
-            "document" => ["id" => $request->tipo_comprobante],
+            "document" => ["id" => (int) $request->tipo_comprobante],
             "date"     => $factura->fecha,
             "draft"    => $draft,
             "customer" => $customerData,
-            "seller"   => $request->usuario,
+            "seller"   => (int) $request->usuario,
             "items"    => $array_items_factura,
         ];
 
@@ -622,7 +622,7 @@ class SiigoController extends Controller
 
             $data["payments"] = [
                 [
-                    "id"       => $pagoSeleccionado['id'],
+                    "id"       => (int) $pagoSeleccionado['id'],
                     "value"    => number_format($totalFactura, 2, '.', ''),
                     "due_date" => $factura->fecha
                 ]
@@ -631,7 +631,7 @@ class SiigoController extends Controller
             // Factura ABIERTA → usa crédito/cartera, queda pendiente de cobro
             $data["payments"] = [
                 [
-                    "id"       => $pagoCredito['id'],
+                    "id"       => (int) $pagoCredito['id'],
                     "value"    => number_format($totalFactura, 2, '.', ''),
                     "due_date" => $factura->vencimiento
                 ]
