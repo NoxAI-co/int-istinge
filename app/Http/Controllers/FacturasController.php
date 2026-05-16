@@ -488,21 +488,24 @@ class FacturasController extends Controller{
     }
 
     public function indexNew(Request $request, $tipo){
-        $this->getAllPermissions(Auth::user()->id);
-        $empresaActual = auth()->user()->empresa;
+        $user = auth()->user();
+        $this->getAllPermissions($user->id);
+        $empresaActual = $user->empresa;
 
         $clientes = Contacto::join('factura as f', 'contactos.id', '=', 'f.cliente')->where('contactos.status', 1)->groupBy('f.cliente')->select('contactos.*')->orderBy('contactos.nombre','asc')->get();
 
         view()->share(['title' => 'Facturas de Venta', 'subseccion' => 'venta', 'precice' => true]);
         $tipo = false;
         $servidores = Mikrotik::where('empresa', $empresaActual)->get();
-        $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 4)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
+        $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 4)->where('campos_usuarios.id_usuario', $user->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
         $municipios = DB::table('municipios')->orderBy('nombre', 'asc')->get();
         $barrios = DB::table('barrios')->orderBy('nombre', 'asc')->get();
         $grupos_corte = GrupoCorte::where('empresa', $empresaActual)->where('status',1)->get();
-        $empresa = Empresa::Find(auth()->user()->id);
+        $empresa = Empresa::Find($empresaActual);
+        $planes = PlanesVelocidad::where('status', 1)->where('empresa', $empresaActual)->get();
+        $planestv = Inventario::where('empresa', $empresaActual)->where('type', 'like', '%TV%')->where('status', 1)->get();
 
-        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios', 'servidores','barrios','grupos_corte','empresa'));
+        return view('facturas.indexnew', compact('clientes','tipo','tabla','municipios', 'servidores','barrios','grupos_corte','empresa', 'planes', 'planestv'));
     }
 
     /*
