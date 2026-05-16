@@ -465,15 +465,19 @@ class SiigoController extends Controller
 
             if ($impuesto && $impuesto->siigo_id) {
                 $siigoItem["taxes"] = [
-                    ["id" => (int) $impuesto->siigo_id]
+                    [
+                        "id"       => (int) $impuesto->siigo_id,
+                        "tax_base" => round($subtotalConDesc, 2)
+                    ]
                 ];
             }
 
             if ($cont === 0 && $retencionSiigoId && $totalRetencion > 0) {
                 $siigoItem["taxes"][] = [
-                    "id"    => (int) $retencionSiigoId,
-                    "type"  => "Retention",
-                    "value" => round($totalRetencion, 2)
+                    "id"       => (int) $retencionSiigoId,
+                    "type"     => "Retention",
+                    "value"    => round($totalRetencion, 2),
+                    "tax_base" => round($subtotalConDesc, 2)
                 ];
             }
 
