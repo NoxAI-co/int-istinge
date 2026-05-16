@@ -1333,204 +1333,162 @@ class IngresosController extends Controller
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
                     Log::debug("funcionesPagoMK: Conexión exitosa a Mikrotik.");
 
+                    // PASO 1: Siempre intentar sacar de la lista de morosos (FIX: antes era excluyente con activeconn_secret)
+                    DB::reconnect();
+                    Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
+
+                    $API->write('/ip/firewall/address-list/print', false);
+                    $API->write('?address=' . $contrato->ip, false);
+                    $API->write('?list=morosos', false);
+                    $API->write('=.proplist=.id');
+                    $ARRAYS = $API->read();
+                    Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
+
+                    if (!empty($ARRAYS)) {
+                        #ELIMINAMOS DE MOROSOS#
+                        $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $READ = $API->comm('/ip/firewall/address-list/remove', [
+                            'numbers' => implode(',', $idsToRemove)
+                        ]);
+                        Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $API->write('/ip/firewall/address-list/print', false);
+                        $API->write('?address=' . $contrato->ip, false);
+                        $API->write('?list=morosos', true);
+                        $verificacion = $API->read();
+
+                        $descVerif = empty($verificacion)
+                            ? '[PAGO] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                            : '[PAGO] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                        Log::debug("funcionesPagoMK: {$descVerif}");
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = $descVerif;
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $mensaje = "- Se ha sacado la ip de morosos.";
+                    } else {
+                        Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = "[PAGO] La IP {$contrato->ip} no se encontró en la lista de morosos al procesar el pago.";
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+                    }
+
+                    // PASO 2: Si activeconn_secret == 1, habilitar secret y remover conexión activa
                     Log::debug("funcionesPagoMK: Verificando activeconn_secret: " . ($empresa->activeconn_secret ?? 0));
                     if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
                         #HABILITACION DEL SECRET#
                         Log::debug("funcionesPagoMK: Iniciando habilitación de Secret (Tipo Conexión: {$contrato->conexion})");
                         if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                            // Buscar el ID interno del secret
                             $API->write('/ppp/secret/print', false);
                             $API->write('?name=' . $contrato->usuario, true);
-                            $ARRAYS = $API->read();
+                            $ARRAYS_SECRET = $API->read();
 
-                            if (count($ARRAYS) > 0) {
-                                $id = $ARRAYS[0]['.id'];
-                                // Habilitar el secret
+                            if (count($ARRAYS_SECRET) > 0) {
+                                $id_sec = $ARRAYS_SECRET[0]['.id'];
                                 $API->write('/ppp/secret/enable', false);
-                                $API->write('=numbers=' . $id, true);
-                                $response = $API->read();
-                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response));
-                            } else {
-                                Log::warning("funcionesPagoMK: No se encontró el Secret '{$contrato->usuario}' en el MikroTik.");
-                            }
-                        }
-                        #HABILITACION DEL SECRET#
-
-                        #AGREGAMOS A IP_AUTORIZADAS#
-                        Log::debug("funcionesPagoMK: Agregando IP {$contrato->ip} a ips_autorizadas");
-                        $API->comm("/ip/firewall/address-list/add", array(
-                            "address" => $contrato->ip,
-                            "list" => 'ips_autorizadas'
-                            )
-                        );
-                        #AGREGAMOS A IP_AUTORIZADAS#
-
-                        $mensaje = "- Se ha habilitado el secret.";
-                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                        DB::reconnect();
-
-                        $ingreso->revalidacion_enable_internet = 1;
-                        $ingreso->save();
-
-                        $contrato->state = 'enabled';
-                        $contrato->save();
-
-
-                    }else{
-
-                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                        DB::reconnect();
-
-                        Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
-                        // OPTIMIZADO: Una sola consulta para obtener IDs directamente (elimina el print doble)
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write('?list=morosos', false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-                        Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
-
-                        if (!empty($ARRAYS)) {
-                            #ELIMINAMOS DE MOROSOS#
-                            // Recopilar TODOS los IDs (puede haber duplicados de la misma IP)
-                            $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
-
-                            // Registro MovimientoLOG intentando remove
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-
-                            // OPTIMIZADO: Un solo remove en batch con todos los IDs (=numbers= acepta lista separada por coma)
-                            $READ = $API->comm('/ip/firewall/address-list/remove', [
-                                'numbers' => implode(',', $idsToRemove)
-                            ]);
-                            Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
-
-                            // Registro MovimientoLOG respuesta remove
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-
-                            // Verificar si realmente se eliminaron todas las entradas
-                            $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address=' . $contrato->ip, false);
-                            $API->write('?list=morosos', true);
-                            $verificacion = $API->read();
-
-                            $descVerif = empty($verificacion)
-                                ? '[PAGO] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
-                                : '[PAGO] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
-                            Log::debug("funcionesPagoMK: {$descVerif}");
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = $descVerif;
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-
-                            #AGREGAMOS A IP_AUTORIZADAS#
-                            $resultAdd = $API->comm('/ip/firewall/address-list/add', [
-                                'address' => $contrato->ip,
-                                'list'    => 'ips_autorizadas'
-                            ]);
-                            Log::debug("funcionesPagoMK: Resultado agregar a ips_autorizadas: " . json_encode($resultAdd));
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-                            #AGREGAMOS A IP_AUTORIZADAS#
-
-                            $mensaje = "- Se ha sacado la ip de morosos.";
-
-                            DB::reconnect();
-
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
-
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                            // Etiqueta automática: contrato habilitado por pago de factura
-                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
-                                $contrato->id,
-                                $empresa->id,
-                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
-                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
-                            );
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-
-                            #ELIMINAMOS DE MOROSOS#
-                        }else{
-                            // [FIX] Aunque la IP no estaba en morosos, se debe agregar a ips_autorizadas
-                            // para evitar que un CRON posterior encuentre state='enabled' con factura abierta
-                            // y vuelva a cortar el servicio por race condition.
-                            if ($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)) {
-                                $resultAddAut = $API->comm('/ip/firewall/address-list/add', [
-                                    'address' => $contrato->ip,
-                                    'list'    => 'ips_autorizadas'
-                                ]);
-                                Log::debug("funcionesPagoMK: [FIX] Agregando a ips_autorizadas (no estaba en morosos): " . json_encode($resultAddAut));
+                                $API->write('=numbers=' . $id_sec, true);
+                                $response_sec = $API->read();
+                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response_sec));
 
                                 $movimiento = new MovimientoLOG;
                                 $movimiento->contrato    = $contrato->id;
                                 $movimiento->modulo      = 5;
-                                $movimiento->descripcion = '[Manual] Resultado agregar a ips_autorizadas: ' . json_encode($resultAddAut);
-                                $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->getAttributes()['created_by'];
-                                $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                                $movimiento->descripcion = '[PAGO] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                $movimiento->created_by  = $userId;
+                                $movimiento->empresa     = $empresaId;
                                 $movimiento->save();
+
+                                #REMOVER CONEXIÓN ACTIVA PARA FORZAR RECONEXIÓN#
+                                $API->write('/ppp/active/print', false);
+                                $API->write('?name=' . $contrato->usuario);
+                                $response_act = $API->read();
+
+                                if(isset($response_act['0']['.id'])){
+                                    $API->comm("/ppp/active/remove", [
+                                        ".id" => $response_act['0']['.id']
+                                    ]);
+                                    Log::debug("funcionesPagoMK: Conexión activa '{$contrato->usuario}' removida.");
+                                    
+                                    $movimiento = new MovimientoLOG;
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = '[PAGO] Conexión activa PPPoE "' . $contrato->usuario . '" removida para forzar reconexión.';
+                                    $movimiento->created_by  = $userId;
+                                    $movimiento->empresa     = $empresaId;
+                                    $movimiento->save();
+                                }
                             }
-
-                            DB::reconnect();
-
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
-
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = "[Manual] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos. Se habilitó el contrato y se agregó a ips_autorizadas.";
-                            $movimiento->created_by  = $userId;
-                            $movimiento->empresa     = $empresaId;
-                            $movimiento->save();
-
-                            // Etiqueta automática: contrato habilitado por pago de factura
-                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
-                                $contrato->id,
-                                $empresa->id,
-                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
-                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
-                            );
-
-                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos. Habilitado y agregado a ips_autorizadas.');
-                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos. Habilitación completa aplicada.");
                         }
+                        $mensaje .= " - Se ha habilitado el secret.";
                     }
-                    $API->disconnect();
+
+                    // PASO 3: Siempre agregar a ips_autorizadas y actualizar estado
+                    if ($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)) {
+                        $resultAddAut = $API->comm('/ip/firewall/address-list/add', [
+                            'address' => $contrato->ip,
+                            'list'    => 'ips_autorizadas'
+                        ]);
+                        Log::debug("funcionesPagoMK: Agregando a ips_autorizadas: " . json_encode($resultAddAut));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAddAut);
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+                    }
+
+                    DB::reconnect();
+                    $ingreso->revalidacion_enable_internet = 1;
+                    $ingreso->save();
+
+                    $contrato->state = 'enabled';
+                    $contrato->save();
+
+                    // Etiqueta automática: contrato habilitado por pago de factura
+                    \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                        $contrato->id,
+                        $empresa->id,
+                        \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                        \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                    );
+
+                    $movimiento = new MovimientoLOG;
+                    $movimiento->contrato    = $contrato->id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = 'Proceso de habilitación completado satisfactoriamente. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresaId;
+                    $movimiento->save();
+
+                    Log::info("Contrato #{$contrato->nro} habilitado correctamente tras pago.");
                 } else {
                     Log::error("funcionesPagoMK: No se pudo conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 }
