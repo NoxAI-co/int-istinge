@@ -1114,6 +1114,107 @@ class ReportesController extends Controller
         ];
     }
 
+    public function libroVentas(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        view()->share(['seccion' => 'reportes', 'title' => 'Libro Oficial de Ventas', 'icon' => 'fas fa-book']);
+
+        $dates = $this->setDateRequest($request);
+        if ($request->fecha == 8) {
+            $dates = $this->setDateRequest($request, true);
+        }
+
+        $facturas = Factura::leftjoin('contactos as c', 'factura.cliente', '=', 'c.id')
+            ->select(
+                'factura.id',
+                'factura.tipo',
+                'factura.codigo',
+                'factura.nro',
+                'factura.cliente',
+                'factura.fecha',
+                'factura.estatus',
+                DB::raw('c.nombre as nombrecliente'),
+                DB::raw('c.nit as nitcliente')
+            )
+            ->where('factura.empresa', Auth::user()->empresa)
+            ->where('factura.fecha', '>=', $dates['inicio'])
+            ->where('factura.fecha', '<=', $dates['fin'])
+            ->whereIn('factura.tipo', [1, 2])
+            ->where('factura.estatus', '<>', 2)
+            ->orderBy('factura.fecha', 'DESC')
+            ->orderBy('factura.nro', 'DESC')
+            ->get();
+
+        $rows = [];
+        $totBaseGravada = 0;
+        $totBaseExenta = 0;
+        $totIva = 0;
+        $totGeneral = 0;
+
+        foreach ($facturas as $factura) {
+            $detalle = $this->calcularBasesIvaLibroVentas($factura->id);
+            $serie = ((int)$factura->tipo === 2) ? 2 : 1;
+            $row = (object)[
+                'id'                => $factura->id,
+                'comprobante'       => 'FV-' . $serie . '-' . $factura->nro,
+                'fecha_elaboracion' => $factura->fecha ? date('d/m/Y', strtotime($factura->fecha)) : '',
+                'identificacion'    => $factura->nitcliente,
+                'sucursal'          => '',
+                'nombre_tercero'    => $factura->nombrecliente,
+                'factura_proveedor' => $factura->codigo,
+                'base_gravada'      => $detalle['base_gravada'],
+                'base_exenta'       => $detalle['base_exenta'],
+                'iva'               => $detalle['iva'],
+                'total'             => $detalle['base_gravada'] + $detalle['base_exenta'] + $detalle['iva'],
+                'estatus'           => $factura->estatus,
+            ];
+            $rows[] = $row;
+            $totBaseGravada += $row->base_gravada;
+            $totBaseExenta  += $row->base_exenta;
+            $totIva         += $row->iva;
+            $totGeneral     += $row->total;
+        }
+
+        $empresa = Auth::user()->empresa();
+        $totales = [
+            'base_gravada' => $totBaseGravada,
+            'base_exenta'  => $totBaseExenta,
+            'iva'          => $totIva,
+            'total'        => $totGeneral,
+        ];
+
+        return view('reportes.libroVentas.index', compact('rows', 'request', 'totales', 'empresa', 'dates'));
+    }
+
+    /**
+     * Calcula la base gravada (con IVA), base exenta (sin IVA) e IVA total
+     * para una factura de venta a partir de sus items.
+     */
+    private function calcularBasesIvaLibroVentas($facturaId)
+    {
+        $items = ItemsFactura::where('factura', $facturaId)->get();
+        $baseGravada = 0;
+        $baseExenta = 0;
+        $iva = 0;
+        foreach ($items as $item) {
+            $bruto = (float)$item->precio * (float)$item->cant;
+            $desc = $item->desc > 0 ? ($bruto * (float)$item->desc) / 100 : 0;
+            $base = $bruto - $desc;
+            $porc = (float)$item->impuesto;
+            if ($porc > 0) {
+                $baseGravada += $base;
+                $iva += $base * ($porc / 100);
+            } else {
+                $baseExenta += $base;
+            }
+        }
+        return [
+            'base_gravada' => $baseGravada,
+            'base_exenta'  => $baseExenta,
+            'iva'          => $iva,
+        ];
+    }
+
     public function comprasExport($actual, $minus){
 
         $dates = $this->setDate($actual, $minus);
