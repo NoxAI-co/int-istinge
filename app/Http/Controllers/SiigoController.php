@@ -411,13 +411,16 @@ class SiigoController extends Controller
         $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
 
         $totalRetencion   = 0;
-        $retencionSiigoId = null;
+        $retencionesArray = [];
 
         foreach ($retencionesFactura as $ret) {
             $totalRetencion += (float) $ret->valor;
             $retObj = Retencion::find($ret->id_retencion);
             if ($retObj && $retObj->siigo_id) {
-                $retencionSiigoId = $retObj->siigo_id;
+                $retencionesArray[] = [
+                    "id"    => (int) $retObj->siigo_id,
+                    "value" => round((float) $ret->valor, 2)
+                ];
             }
         }
 
@@ -472,14 +475,7 @@ class SiigoController extends Controller
                 ];
             }
 
-            if ($cont === 0 && $retencionSiigoId && $totalRetencion > 0) {
-                $siigoItem["taxes"][] = [
-                    "id"       => (int) $retencionSiigoId,
-                    "type"     => "Retention",
-                    "value"    => round($totalRetencion, 2),
-                    "tax_base" => round($subtotalConDesc, 2)
-                ];
-            }
+            // Las retenciones se manejarán a nivel global del documento para cumplir con la estructura de Siigo V1
 
             $array_items_factura[] = $siigoItem;
             $cont++;
@@ -611,6 +607,13 @@ class SiigoController extends Controller
             "seller"   => (int) $request->usuario,
             "items"    => $array_items_factura,
         ];
+
+        // ===============================
+        // RETENCIONES (GLOBALES)
+        // ===============================
+        if (!empty($retencionesArray)) {
+            $data["retentions"] = $retencionesArray;
+        }
 
         /* ===============================
            PAGOS
