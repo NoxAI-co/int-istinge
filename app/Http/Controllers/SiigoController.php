@@ -409,18 +409,37 @@ class SiigoController extends Controller
            RETENCIONES FACTURA
         =============================== */
         $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
-        $totalRetencion = 0;
-        $retencionesParaItems = [];
+        $totalRetencionSiigo = 0;
+        $retencionesArray = [];
+
+        // Necesitamos calcular el IVA global y subtotal para las retenciones
+        $ivaTotalFactura = 0;
+        $subtotalTotalFactura = 0;
+
+        foreach ($items_factura as $item) {
+            $cantidad = $item->cant;
+            $precio   = $item->precio;
+            $descuento = ($item->desc > 0) ? (($precio * $cantidad) * $item->desc) / 100 : 0;
+            $subtotalConDesc = ($precio * $cantidad) - $descuento;
+            $subtotalTotalFactura += $subtotalConDesc;
+
+            if ($item->id_impuesto) {
+                $impuesto = Impuesto::find($item->id_impuesto);
+                if ($impuesto && $impuesto->siigo_id) {
+                    $ivaTotalFactura += round($subtotalConDesc * ($impuesto->porcentaje / 100), 2);
+                }
+            }
+        }
 
         foreach ($retencionesFactura as $ret) {
-            $totalRetencion += (float) $ret->valor;
             $retObj = Retencion::find($ret->id_retencion);
             if ($retObj && $retObj->siigo_id) {
-                $retencionesParaItems[] = [
-                    'id'         => (int) $retObj->siigo_id,
-                    'valor'      => (float) $ret->valor,
-                    'porcentaje' => (float) $retObj->porcentaje,
-                    'tipo'       => $retObj->tipo // 1: IVA, 2: Fuente, 3: ICA
+                $baseRet = ($retObj->tipo == 1) ? $ivaTotalFactura : $subtotalTotalFactura;
+                $totalRetencionSiigo += round($baseRet * ($retObj->porcentaje / 100), 2);
+
+                $retencionesArray[] = [
+                    "id"    => (int) $retObj->siigo_id,
+                    "value" => round((float) $ret->valor, 2)
                 ];
             }
         }
@@ -429,9 +448,8 @@ class SiigoController extends Controller
            ARMADO ITEMS
         =============================== */
         $array_items_factura = [];
-        $totalFactura = 0;
+        $totalFacturaOriginal = 0;
         $cont = 0;
-        $impuestoValorGlobal = 0; // Para guardar el IVA del primer ítem si es necesario
 
         foreach ($items_factura as $item) {
             $cantidad = $item->cant;
@@ -449,8 +467,7 @@ class SiigoController extends Controller
                 }
             }
 
-            $totalFactura += ($subtotalConDesc + $impuestoValor);
-            if ($cont === 0) $impuestoValorGlobal = $impuestoValor;
+            $totalFacturaOriginal += ($subtotalConDesc + $impuestoValor);
 
             $siigoItem = [
                 "code"     => $item->codigo_siigo,
@@ -470,29 +487,15 @@ class SiigoController extends Controller
                 ];
             }
 
-            // Agregar retenciones al primer ítem
-            if ($cont === 0 && !empty($retencionesParaItems)) {
-                foreach ($retencionesParaItems as $retData) {
-                    $baseRet = ($retData['tipo'] == 1) ? $impuestoValorGlobal : $subtotalConDesc;
-                    
-                    $siigoItem["taxes"][] = [
-                        "id"         => (int) $retData['id'],
-                        "type"       => "Retention",
-                        "value"      => round($retData['valor'], 2),
-                        "tax_base"   => round($baseRet, 2),
-                        "percentage" => (float) $retData['porcentaje']
-                    ];
-                }
-            }
-
             $array_items_factura[] = $siigoItem;
             $cont++;
         }
 
         /* ===============================
-           TOTAL NETO (RESTAR RETENCIONES)
+           TOTAL NETO PARA SIIGO
         =============================== */
-        $totalFactura = round($totalFactura - $totalRetencion, 2);
+        // Usamos el total de retenciones que Siigo calculará internamente para evitar el error de pago
+        $totalFacturaParaSiigo = round($totalFacturaOriginal - $totalRetencionSiigo, 2);
 
         /* ===============================
            TIPOS DE PAGO DESDE SIIGO
@@ -616,6 +619,10 @@ class SiigoController extends Controller
             "items"    => $array_items_factura,
         ];
 
+        if (!empty($retencionesArray)) {
+            $data["retentions"] = $retencionesArray;
+        }
+
         /* ===============================
            PAGOS
         =============================== */
@@ -631,7 +638,7 @@ class SiigoController extends Controller
             $data["payments"] = [
                 [
                     "id"       => (int) $pagoSeleccionado['id'],
-                    "value"    => number_format($totalFactura, 2, '.', ''),
+                    "value"    => number_format($totalFacturaParaSiigo, 2, '.', ''),
                     "due_date" => $factura->fecha
                 ]
             ];
@@ -640,7 +647,7 @@ class SiigoController extends Controller
             $data["payments"] = [
                 [
                     "id"       => (int) $pagoCredito['id'],
-                    "value"    => number_format($totalFactura, 2, '.', ''),
+                    "value"    => number_format($totalFacturaParaSiigo, 2, '.', ''),
                     "due_date" => $factura->vencimiento
                 ]
             ];
