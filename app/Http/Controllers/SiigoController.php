@@ -409,17 +409,18 @@ class SiigoController extends Controller
            RETENCIONES FACTURA
         =============================== */
         $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
-
-        $totalRetencion   = 0;
-        $retencionesArray = [];
+        $totalRetencion = 0;
+        $retencionesParaItems = [];
 
         foreach ($retencionesFactura as $ret) {
             $totalRetencion += (float) $ret->valor;
             $retObj = Retencion::find($ret->id_retencion);
             if ($retObj && $retObj->siigo_id) {
-                $retencionesArray[] = [
-                    "id"    => (int) $retObj->siigo_id,
-                    "value" => round((float) $ret->valor, 2)
+                $retencionesParaItems[] = [
+                    'id'         => (int) $retObj->siigo_id,
+                    'valor'      => (float) $ret->valor,
+                    'porcentaje' => (float) $retObj->porcentaje,
+                    'tipo'       => $retObj->tipo // 1: IVA, 2: Fuente, 3: ICA
                 ];
             }
         }
@@ -430,22 +431,16 @@ class SiigoController extends Controller
         $array_items_factura = [];
         $totalFactura = 0;
         $cont = 0;
+        $impuestoValorGlobal = 0; // Para guardar el IVA del primer ítem si es necesario
 
         foreach ($items_factura as $item) {
+            $cantidad = $item->cant;
+            $precio   = $item->precio;
+            $descuento = ($item->desc > 0) ? (($precio * $cantidad) * $item->desc) / 100 : 0;
+            $subtotalConDesc = ($precio * $cantidad) - $descuento;
 
-            $precio   = (float) $item->precio;
-            $cantidad = (int) $item->cant;
-            $subtotal = round($precio * $cantidad, 2);
-
-            $descuento = 0;
-            if (!empty($item->desc)) {
-                $descuento = round(($subtotal * $item->desc) / 100, 2);
-            }
-
-            $subtotalConDesc = round($subtotal - $descuento, 2);
-
-            $impuestoValor = 0;
             $impuesto = null;
+            $impuestoValor = 0;
 
             if ($item->id_impuesto) {
                 $impuesto = Impuesto::find($item->id_impuesto);
@@ -455,27 +450,40 @@ class SiigoController extends Controller
             }
 
             $totalFactura += ($subtotalConDesc + $impuestoValor);
+            if ($cont === 0) $impuestoValorGlobal = $impuestoValor;
 
             $siigoItem = [
                 "code"     => $item->codigo_siigo,
-                "quantity" => $cantidad,
-                "price"    => number_format($precio, 2, '.', '')
+                "quantity" => (int) $cantidad,
+                "price"    => number_format((float)$precio, 2, '.', ''),
+                "taxes"    => []
             ];
 
             if ($descuento > 0) {
-                $siigoItem["discount"] = number_format($item->desc, 2, '.', '');
+                $siigoItem["discount"] = number_format((float)$item->desc, 2, '.', '');
             }
 
             if ($impuesto && $impuesto->siigo_id) {
-                $siigoItem["taxes"] = [
-                    [
-                        "id"       => (int) $impuesto->siigo_id,
-                        "tax_base" => round($subtotalConDesc, 2)
-                    ]
+                $siigoItem["taxes"][] = [
+                    "id"       => (int) $impuesto->siigo_id,
+                    "tax_base" => round($subtotalConDesc, 2)
                 ];
             }
 
-            // Las retenciones se manejarán a nivel global del documento para cumplir con la estructura de Siigo V1
+            // Agregar retenciones al primer ítem
+            if ($cont === 0 && !empty($retencionesParaItems)) {
+                foreach ($retencionesParaItems as $retData) {
+                    $baseRet = ($retData['tipo'] == 1) ? $impuestoValorGlobal : $subtotalConDesc;
+                    
+                    $siigoItem["taxes"][] = [
+                        "id"         => (int) $retData['id'],
+                        "type"       => "Retention",
+                        "value"      => round($retData['valor'], 2),
+                        "tax_base"   => round($baseRet, 2),
+                        "percentage" => (float) $retData['porcentaje']
+                    ];
+                }
+            }
 
             $array_items_factura[] = $siigoItem;
             $cont++;
@@ -607,13 +615,6 @@ class SiigoController extends Controller
             "seller"   => (int) $request->usuario,
             "items"    => $array_items_factura,
         ];
-
-        // ===============================
-        // RETENCIONES (GLOBALES)
-        // ===============================
-        if (!empty($retencionesArray)) {
-            $data["retentions"] = $retencionesArray;
-        }
 
         /* ===============================
            PAGOS
