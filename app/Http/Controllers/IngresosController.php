@@ -541,7 +541,7 @@ class IngresosController extends Controller
                 }
             }
 
-            $ultimoingreso = Ingreso::where('empresa', $user->empresa)->latest('id')->value('created_at');
+            $ultimoingreso = Ingreso::where('empresa', $user->empresa)->where('cliente', $request->cliente)->latest('id')->value('created_at');
             if ($ultimoingreso) {
                 $diasDiferencia = Carbon::now()->diffInSeconds(Carbon::parse($ultimoingreso));
 
