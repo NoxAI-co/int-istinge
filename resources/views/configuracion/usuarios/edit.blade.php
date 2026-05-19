@@ -37,7 +37,7 @@
       <label class="control-label">Cuenta Asociada</label>
       <select class="form-control selectpicker"  id="cuenta" name="cuenta[]"  title="Seleccione" multiple>
           @foreach($cuentas as $cuenta)
-            <option value="{{$cuenta->id}}" {{$cuenta->id==$usuario->cuenta?'selected':''}} {{$cuenta->id==$usuario->cuenta_1?'selected':''}} {{$cuenta->id==$usuario->cuenta_2?'selected':''}} {{$cuenta->id==$usuario->cuenta_3?'selected':''}} {{$cuenta->id==$usuario->cuenta_4?'selected':''}} >{{$cuenta->nombre}}</option>
+            <option value="{{$cuenta->id}}" {{$cuenta->id==$usuario->cuenta?'selected':''}} {{$cuenta->id==$usuario->cuenta_1?'selected':''}} {{$cuenta->id==$usuario->cuenta_2?'selected':''}} {{$cuenta->id==$usuario->cuenta_3?'selected':''}} {{$cuenta->id==$usuario->cuenta_4?'selected':''}} {{$cuenta->id==$usuario->cuenta_5?'selected':''}} >{{$cuenta->nombre}}</option>
           @endforeach
       </select>
       <span class="help-block error">

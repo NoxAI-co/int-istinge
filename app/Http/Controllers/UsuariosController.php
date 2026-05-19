@@ -82,31 +82,13 @@ class UsuariosController extends Controller
         $usuario->username = $request->username = strtolower($request->username);
         $usuario->password  = bcrypt($request->password);
         $usuario->rol = $request->rol;
-        if (isset($request->cuenta[0])) {
-            $usuario->cuenta = $request->cuenta[0];
-        } else {
-            $usuario->cuenta = null;
-        }
-        if (isset($request->cuenta[1])) {
-            $usuario->cuenta_1 = $request->cuenta[1];
-        } else {
-            $usuario->cuenta_1 = null;
-        }
-        if (isset($request->cuenta[2])) {
-            $usuario->cuenta_2 = $request->cuenta[2];
-        } else {
-            $usuario->cuenta_2 = null;
-        }
-        if (isset($request->cuenta[3])) {
-            $usuario->cuenta_3 = $request->cuenta[3];
-        } else {
-            $usuario->cuenta_3 = null;
-        }
-        if (isset($request->cuenta[4])) {
-            $usuario->cuenta_4 = $request->cuenta[4];
-        } else {
-            $usuario->cuenta_4 = null;
-        }
+        $cuentas = is_array($request->cuenta) ? $request->cuenta : [];
+        $usuario->cuenta = isset($cuentas[0]) ? $cuentas[0] : null;
+        $usuario->cuenta_1 = isset($cuentas[1]) ? $cuentas[1] : null;
+        $usuario->cuenta_2 = isset($cuentas[2]) ? $cuentas[2] : null;
+        $usuario->cuenta_3 = isset($cuentas[3]) ? $cuentas[3] : null;
+        $usuario->cuenta_4 = isset($cuentas[4]) ? $cuentas[4] : null;
+        $usuario->cuenta_5 = isset($cuentas[5]) ? $cuentas[5] : null;
         $usuario->oficina = ($request->oficina == 0) ? NULL : $request->oficina;
         $usuario->save();
 
@@ -228,31 +210,13 @@ class UsuariosController extends Controller
             $usuario->observaciones = $request->observaciones;
             $usuario->username = $request->username = strtolower($request->username);
             $usuario->rol      = $request->rol;
-            if (isset($request->cuenta[0])) {
-                $usuario->cuenta = $request->cuenta[0];
-            } else {
-                $usuario->cuenta = null;
-            }
-            if (isset($request->cuenta[1])) {
-                $usuario->cuenta_1 = $request->cuenta[1];
-            } else {
-                $usuario->cuenta_1 = null;
-            }
-            if (isset($request->cuenta[2])) {
-                $usuario->cuenta_2 = $request->cuenta[2];
-            } else {
-                $usuario->cuenta_2 = null;
-            }
-            if (isset($request->cuenta[3])) {
-                $usuario->cuenta_3 = $request->cuenta[3];
-            } else {
-                $usuario->cuenta_3 = null;
-            }
-            if (isset($request->cuenta[4])) {
-                $usuario->cuenta_4 = $request->cuenta[4];
-            } else {
-                $usuario->cuenta_4 = null;
-            }
+            $cuentas = is_array($request->cuenta) ? $request->cuenta : [];
+            $usuario->cuenta = isset($cuentas[0]) ? $cuentas[0] : null;
+            $usuario->cuenta_1 = isset($cuentas[1]) ? $cuentas[1] : null;
+            $usuario->cuenta_2 = isset($cuentas[2]) ? $cuentas[2] : null;
+            $usuario->cuenta_3 = isset($cuentas[3]) ? $cuentas[3] : null;
+            $usuario->cuenta_4 = isset($cuentas[4]) ? $cuentas[4] : null;
+            $usuario->cuenta_5 = isset($cuentas[5]) ? $cuentas[5] : null;
             $usuario->oficina = ($request->oficina == 0) ? NULL : $request->oficina;
             $usuario->save();
 
