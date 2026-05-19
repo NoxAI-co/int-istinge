@@ -88,7 +88,6 @@ class UsuariosController extends Controller
         $usuario->cuenta_2 = isset($cuentas[2]) ? $cuentas[2] : null;
         $usuario->cuenta_3 = isset($cuentas[3]) ? $cuentas[3] : null;
         $usuario->cuenta_4 = isset($cuentas[4]) ? $cuentas[4] : null;
-        $usuario->cuenta_5 = isset($cuentas[5]) ? $cuentas[5] : null;
         $usuario->oficina = ($request->oficina == 0) ? NULL : $request->oficina;
         $usuario->save();
 
@@ -216,7 +215,6 @@ class UsuariosController extends Controller
             $usuario->cuenta_2 = isset($cuentas[2]) ? $cuentas[2] : null;
             $usuario->cuenta_3 = isset($cuentas[3]) ? $cuentas[3] : null;
             $usuario->cuenta_4 = isset($cuentas[4]) ? $cuentas[4] : null;
-            $usuario->cuenta_5 = isset($cuentas[5]) ? $cuentas[5] : null;
             $usuario->oficina = ($request->oficina == 0) ? NULL : $request->oficina;
             $usuario->save();
 
