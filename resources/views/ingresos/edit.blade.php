@@ -57,7 +57,7 @@
               <strong>{{ $errors->first('cuenta') }}</strong>
         </span>
       </div>
-      <div class="form-group row  occultrd {{strtolower($banco->nombre) == "saldos a favor" ? 'd-none' : ''}}">
+      <div class="form-group row  occultrd {{strtolower(optional($banco)->nombre) == "saldos a favor" ? 'd-none' : ''}}">
           <label class="col-sm-4 col-form-label">Método de pago </label>
           <div class="col-sm-8">
             <select class="form-control selectpicker" name="metodo_pago" id="metodo_pago" title="Seleccione" data-live-search="true" data-size="5">
@@ -154,7 +154,7 @@
         </div>
       </div>
 
-      <div class="form-group row {{strtolower($banco->nombre) == "saldos a favor" ? '' : 'd-none'}}" id="divusarsaldo">
+      <div class="form-group row {{strtolower(optional($banco)->nombre) == "saldos a favor" ? '' : 'd-none'}}" id="divusarsaldo">
         <label class="col-sm-4 col-form-label">¿utilizar saldo a favor del ciente? <a><i
                         data-tippy-content="Si está opcion te aparece es por que el cliente escogido tiene un saldo a favor y puedes pagar las facturas con ese saldo."
                         class="icono far fa-question-circle"></i></a></label>
@@ -164,7 +164,7 @@
                         <div class="form-radio">
                             <label class="form-check-label">
                                 <input type="radio" class="form-check-input" name="uso_saldo" id="publico1"
-                                {{strtolower($banco->nombre) == "saldos a favor" ? 'checked' : ''}}
+                                {{strtolower(optional($banco)->nombre) == "saldos a favor" ? 'checked' : ''}}
                                         value="1" onchange="hidedivtwo('occultrd');"> Si
                                 <i class="input-helper"></i><i class="input-helper"></i></label>
                         </div>
@@ -174,7 +174,7 @@
                         <div class="form-radio">
                             <label class="form-check-label">
                                 <input type="radio" class="form-check-input" name="uso_saldo" id="publico"
-                                {{strtolower($banco->nombre) != "saldos a favor" ? 'checked' : ''}}
+                                {{strtolower(optional($banco)->nombre) != "saldos a favor" ? 'checked' : ''}}
                                         value="0" onchange="showdivtwo('occultrd');"> No
                                 <i class="input-helper"></i><i class="input-helper"></i></label>
                         </div>
@@ -182,10 +182,10 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-12 {{strtolower($banco->nombre) == "saldos a favor" ? '' : 'd-none'}}" style="background: #80808061;border: 1px solid #80808061; margin-bottom:30px" id="saldo123">
+        <div class="col-md-12 {{strtolower(optional($banco)->nombre) == "saldos a favor" ? '' : 'd-none'}}" style="background: #80808061;border: 1px solid #80808061; margin-bottom:30px" id="saldo123">
             <div class="row">
               <div class="col-md-4 text-right" style="    padding: 4%; font-weight: bold; color:#808080 ">Saldo Favor</div>
-                <input class="col-md-8 text-left text-danger" style="padding: 4%; font-weight: bold" name="total_saldo" id="total_saldo" type="text" value="{{ $ingreso->cliente()->saldo_favor }}" disabled>
+                <input class="col-md-8 text-left text-danger" style="padding: 4%; font-weight: bold" name="total_saldo" id="total_saldo" type="text" value="{{ optional($ingreso->cliente())->saldo_favor }}" disabled>
             </div>
           </div>
 
@@ -417,25 +417,8 @@
     <input type="hidden" id="formaspago" value="{{json_encode($relaciones)}}">
 
     <input type="hidden" id="allcategorias" value='@foreach($categorias as $categoria)
-    <optgroup label="{{$categoria->nombre}}">
-        @foreach($categoria->hijos(true) as $categoria1)
-          <option {{old('categoria')==$categoria1->id?'selected':''}} value="{{$categoria1->id}}" {{$categoria1->estatus==0?'disabled':''}}>{{$categoria1->nombre}}</option>
-          @foreach($categoria1->hijos(true) as $categoria2)
-              <option class="hijo" {{old('categoria')==$categoria2->id?'selected':''}} value="{{$categoria2->id}}" {{$categoria2->estatus==0?'disabled':''}}>{{$categoria2->nombre}}</option>
-            @foreach($categoria2->hijos(true) as $categoria3)
-              <option class="nieto" {{old('categoria')==$categoria3->id?'selected':''}} value="{{$categoria3->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria3->nombre}}</option>
-              @foreach($categoria3->hijos(true) as $categoria4)
-                <option class="bisnieto" {{old('categoria')==$categoria4->id?'selected':''}} value="{{$categoria4->id}}" {{$categoria3->estatus==0?'disabled':''}}>{{$categoria4->nombre}}</option>
-
-              @endforeach
-
-            @endforeach
-
-          @endforeach
-        @endforeach
-    </optgroup>
-  @endforeach'>
-@endsection
+    <option {{old('categoria')==$categoria->id?'selected':''}} value="{{$categoria->id}}" {{$categoria->estatus==0?'disabled':''}}>{{$categoria->nombre}}</option>
+    @endforeach'>@endsection
 
 @section('scripts')
 <script src="{{asset('lowerScripts/ingreso/ingreso.js')}}"></script>

@@ -176,7 +176,7 @@
           <tbody>
             @foreach($facturas as $factura)
               <tr>
-          <td><a href="{{route('facturas.show',$factura->factura()->nro)}}" target="_blanck" >{{$factura->factura()->codigo}}</a></td>
+          <td><a href="{{route('facturas.show',$factura->factura()->id)}}" target="_blanck" >{{$factura->factura()->codigo}}</a></td>
           <td class="text-center">{{date('d-m-Y', strtotime($factura->factura()->fecha))}}</td>
           <td class="text-center">{{date('d-m-Y', strtotime($factura->factura()->vencimiento))}}</td>
           <td>{{$factura->factura()->observaciones}}</td>

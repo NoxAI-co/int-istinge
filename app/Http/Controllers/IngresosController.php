@@ -82,7 +82,7 @@ class IngresosController extends Controller
         } else {
             $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
         }
-        $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+        $clientes = (Auth::user()->oficina && Auth::user()->empresa()->oficina) ? Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
         //$clientes = Contacto::where('empresa', auth()->user()->empresa)->orderBy('nombre','asc')->get();
         $metodos = DB::table('metodos_pago')->where('id', '!=', 8)->where('id', '!=', 7)->get();
         $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 5)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
@@ -234,12 +234,8 @@ class IngresosController extends Controller
         if ($cliente && !$factura) {
             $banco=$cliente; $cliente=false;
         }
-        $numero = (Ingreso::where('empresa', Auth::user()->empresa)->get());
-        if (count($numero)>0){
-            $numero = ($numero->last())->nro+1;
-        }else{
-            $numero = 1;
-        }
+        $numero = Ingreso::where('empresa', Auth::user()->empresa)->max('nro');
+        $numero = $numero ? $numero + 1 : 1;
         $contrato = false;
         $pagoEmitirDian = false;
         if($cliente){
@@ -255,10 +251,9 @@ class IngresosController extends Controller
             $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
         }
         // $clientes = (Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
-        $clientes = Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+        $clientes = Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
         //$clientes = Contacto::where('empresa',Auth::user()->empresa)->whereIn('tipo_contacto',[0,2])->where('status', 1)->get();
         $metodos_pago =DB::table('metodos_pago')->whereIn('id',[1,2,3,4,5,6,9])->orderby('orden','asc')->get();
-        $inventario = Inventario::where('empresa',Auth::user()->empresa)->where('status', 1)->get();
         $retenciones = Retencion::where('empresa',Auth::user()->empresa)->where('modulo',1)->get();
         $impuestos = Impuesto::where('empresa',Auth::user()->empresa)->orWhere('empresa', null)->Where('estado', 1)->get();
          //Tomar las categorias del puc que no son transaccionables.
@@ -280,7 +275,7 @@ class IngresosController extends Controller
             $saldo_favor = Contacto::Find($cliente)->saldo_favor;
         }
 
-        return view('ingresos.create')->with(compact('contrato','clientes', 'inventario', 'cliente', 'factura',
+        return view('ingresos.create')->with(compact('contrato','clientes', 'cliente', 'factura',
         'bancos', 'metodos_pago', 'impuestos', 'saldo_favor',
         'retenciones',  'banco', 'numero','pers','bank','categorias','anticipos','formas','relaciones','pagoEmitirDian'));
     }
@@ -429,27 +424,17 @@ class IngresosController extends Controller
                                 $contrato = Contrato::where('nro',$contrato)->first();
 
                             if($empresa->pago_siigo == 1 || ($contrato && $contrato->pago_siigo_contrato == 1)){
-                                $siigo = new SiigoController();
-                                $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
-                                Log::info($response);
-                                if(isset($response['success']) && $response['success'] == false){
-                                    // Intentar refrescar la conexión a Siigo
-                                    Log::info("Error de conexión con Siigo, intentando refrescar token...");
-                                    $refreshResult = $siigo->configurarSiigo(null, true);
-
-                                    if($refreshResult == 1){
-                                        // Si el refresh fue exitoso, intentar nuevamente el envío
-                                        Log::info("Token de Siigo refrescado exitosamente, reintentando envío...");
-                                        $response = $siigo->envioMasivoSiigo($factura->id,true)->getData(true);
-                                        Log::info("Respuesta después del refresh: " . json_encode($response));
-
-                                        if(isset($response['success']) && $response['success'] == false){
-                                            $msj_siigo = " No se ha podido establecer conexión con siigo después de refrescar el token.";
-                                        }
-                                    } else {
-                                        $msj_siigo = " No se ha podido establecer conexión con siigo, no se pudo refrescar el token.";
+                                $facturaIdBG = $factura->id;
+                                app()->terminating(function () use ($facturaIdBG) {
+                                    try {
+                                        DB::reconnect();
+                                        $siigo = new SiigoController();
+                                        $response = $siigo->envioMasivoSiigo($facturaIdBG, true)->getData(true);
+                                        Log::info("Siigo background emission for factura #$facturaIdBG: " . json_encode($response));
+                                    } catch (\Throwable $e) {
+                                        Log::error("Error in Siigo background emission: " . $e->getMessage());
                                     }
-                                }
+                                });
                             }
                         }
 
@@ -533,12 +518,20 @@ class IngresosController extends Controller
                                         $conversion = app(FacturasController::class)->convertirelEctronica($factura->id,0,1);
                                     }
 
-                                    if(isset($empresa->proveedor) && $empresa->proveedor == 2){
-                                        $emision = app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
-                                    }else{
-                                        $emision = app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
-                                    }
-
+                                    $facturaIdBG = $factura->id;
+                                    $proveedorBG = $empresa->proveedor ?? null;
+                                    app()->terminating(function () use ($facturaIdBG, $proveedorBG) {
+                                        try {
+                                            DB::reconnect();
+                                            if($proveedorBG == 2){
+                                                app(FacturasController::class)->jsonDianFacturaVenta($facturaIdBG);
+                                            }else{
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($facturaIdBG);
+                                            }
+                                        } catch (\Throwable $e) {
+                                            Log::error("Error in DIAN background emission (tipo_electronica 2): " . $e->getMessage());
+                                        }
+                                    });
                                 }
                         }
                     }
@@ -548,24 +541,13 @@ class IngresosController extends Controller
                 }
             }
 
-            if (Ingreso::where('empresa', $user->empresa)->count() > 0) {
-                Session::put('posttimer', Ingreso::where('empresa', $user->empresa)->get()->last()->created_at);
-                $sw = 1;
+            $ultimoingreso = Ingreso::where('empresa', $user->empresa)->where('cliente', $request->cliente)->latest('id')->value('created_at');
+            if ($ultimoingreso) {
+                $diasDiferencia = Carbon::now()->diffInSeconds(Carbon::parse($ultimoingreso));
 
-                foreach (Session::get('posttimer') as $key) {
-                    if ($sw == 1) {
-                        $ultimoingreso = $key;
-                        $sw = 0;
-                    }
-                }
-
-                if(isset($ultimoingreso)){
-                    $diasDiferencia = Carbon::now()->diffInseconds($ultimoingreso);
-
-                    if ($diasDiferencia <= 10) {
-                        $mensaje='EL PAGO NO HA SIDO PROCESADO, INTÉNTELO NUEVAMENTE';
-                        return back()->with('danger', $mensaje)->withInput();
-                    }
+                if ($diasDiferencia <= 10) {
+                    $mensaje='EL PAGO NO HA SIDO PROCESADO, INTÉNTELO NUEVAMENTE';
+                    return back()->with('danger', $mensaje)->withInput();
                 }
             }
 
@@ -576,12 +558,9 @@ class IngresosController extends Controller
             $nro = Numeracion::where('empresa', $user->empresa)->first();
             $caja = $nro->caja;
 
-            while (true) {
-                $numero = Ingreso::where('empresa', $user->empresa)->where('nro', $caja)->count();
-                if ($numero == 0) {
-                    break;
-                }
-                $caja++;
+            $maxActual = Ingreso::where('empresa', $user->empresa)->where('nro', '>=', $caja)->max('nro');
+            if ($maxActual) {
+                $caja = $maxActual + 1;
             }
 
             if(isset($request->uso_saldo) && $request->uso_saldo){
@@ -655,7 +634,7 @@ class IngresosController extends Controller
 
                         Log::debug("IngresosController@store: Contrato asociado a factura #{$factura->codigo}: " . ($contrato ? "Contrato #{$contrato->nro}" : "Ninguno"));
 
-                        if($contrato){
+                        if($contrato && (!isset($request->tipo_electronica) || $request->tipo_electronica != 6)){
                             try {
                                 Log::debug("IngresosController@store: Validando ejecución MK para contrato #{$contrato->nro} (ID: {$contrato->id}). Consultas_mk: {$empresa->consultas_mk}");
                                 if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
@@ -731,10 +710,18 @@ class IngresosController extends Controller
                             }
                         }
 
+                        $descuentoPct = 0;
+                        if (is_array($request->descuento_pendiente) && isset($request->descuento_pendiente[$key])) {
+                            $descuentoPct = floatval($request->descuento_pendiente[$key]);
+                            if ($descuentoPct < 0) { $descuentoPct = 0; }
+                            if ($descuentoPct > 99) { $descuentoPct = 99; }
+                        }
+
                         $items = new IngresosFactura;
                         $items->ingreso = $ingreso->id;
                         $items->factura = $factura->id;
                         $items->pagado = $precio; //asi exista mas dinero del  pagado ese se debe usar.
+                        $items->descuento = $descuentoPct;
                         $items->puc_factura = $factura->cuenta_id;
                         $items->puc_banco = $request->saldofavor > 0 ? $request->forma_pago : $request->forma_pago;
                         $items->anticipo = $request->saldofavor > 0 ? $request->anticipo_factura : null;
@@ -743,9 +730,15 @@ class IngresosController extends Controller
                         Validacion cuando se recibe un valor mayor a la factura. entonces guardamos
                         sobre el total de la factura por que el resto es saldo a favor.
                         */
-                        if($factura->total()->total < $request->precio[$key]){
+                        // Memoizamos total() y porpagar(): cada uno corre múltiples queries
+                        // (ItemsFactura + Impuesto + Retencion + IngresosFactura + PucMovimiento)
+                        // y aquí se invocarían de forma consecutiva.
+                        $facturaTotalCalc    = $factura->total()->total;
+                        $facturaPorpagarCalc = $factura->porpagar();
 
-                            // $items->pago = $factura->total()->total; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
+                        if ($facturaTotalCalc < $request->precio[$key]) {
+
+                            // $items->pago = $facturaTotalCalc; ya no se desea asi, ahora quieren que aparezca el total asi sobrepase
                             $items->pago = $this->precision($request->precio[$key]);
                             $factura->estatus = 0;
                             $factura->save();
@@ -753,7 +746,7 @@ class IngresosController extends Controller
                                 $items->pago=$this->precision($request->precio[$key]);
                             }
 
-                            if ($this->precision($precio) == $this->precision($factura->porpagar())) {
+                            if ($this->precision($precio) == $this->precision($facturaPorpagarCalc)) {
                                 $factura->estatus = 0;
                                 $factura->save();
 
@@ -767,44 +760,66 @@ class IngresosController extends Controller
 
                             $items->save();
 
-                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente
+                            if ($descuentoPct > 0) {
+                                $this->aplicarDescuentoItemsFactura($factura->id, $descuentoPct);
+                            }
+
+                            // Auto-emisión a la DIAN cuando pago_emitir está activo en ALGÚN contrato del cliente.
+                            // Diferido a terminating() para no bloquear la respuesta con las llamadas externas (DIAN).
                             $pagoEmitirCliente = Contrato::where('client_id', $factura->cliente)->where('pago_emitir', 1)->exists();
-                            
-                            if($pagoEmitirCliente && $factura->estatus == 0){
+
+                            if ($pagoEmitirCliente && $factura->estatus == 0) {
                                 // Solo auto-emitir si el usuario NO seleccionó tipo_electronica=2 manualmente (para evitar doble ejecución)
-                                if(!isset($request->tipo_electronica) || $request->tipo_electronica != 2){
-                                    try {
-                                        if($factura->emitida != 1){
-                                            if($factura->tipo == 1){
-                                                app(FacturasController::class)->convertirelEctronica($factura->id, 0, 1);
-                                                $factura->refresh();
+                                if (!isset($request->tipo_electronica) || $request->tipo_electronica != 2) {
+                                    $facturaIdBG  = $factura->id;
+                                    $clienteIdBG  = $factura->cliente;
+                                    $proveedorBG  = $empresa->proveedor ?? null;
+                                    app()->terminating(function () use ($facturaIdBG, $clienteIdBG, $proveedorBG) {
+                                        try {
+                                            DB::reconnect();
+                                            $facturaBG = Factura::find($facturaIdBG);
+                                            if (!$facturaBG || $facturaBG->emitida == 1 || $facturaBG->estatus != 0) {
+                                                return;
                                             }
-                                            if(isset($empresa->proveedor) && $empresa->proveedor == 2){
-                                                app(FacturasController::class)->jsonDianFacturaVenta($factura->id);
+                                            if ($facturaBG->tipo == 1) {
+                                                app(FacturasController::class)->convertirelEctronica($facturaBG->id, 0, 1);
+                                                $facturaBG->refresh();
+                                            }
+                                            if ($proveedorBG == 2) {
+                                                app(FacturasController::class)->jsonDianFacturaVenta($facturaBG->id);
                                             } else {
-                                                app(FacturasController::class)->xmlFacturaVentaMasivo($factura->id);
+                                                app(FacturasController::class)->xmlFacturaVentaMasivo($facturaBG->id);
                                             }
+                                        } catch (\Throwable $eEmitir) {
+                                            Log::error('Error en auto-emisión DIAN (pago_emitir cliente, background): ' . $eEmitir->getMessage(), [
+                                                'factura_id' => $facturaIdBG,
+                                                'cliente_id' => $clienteIdBG,
+                                            ]);
                                         }
-                                    } catch (\Throwable $eEmitir) {
-                                        Log::error('Error en auto-emisión DIAN (pago_emitir cliente): ' . $eEmitir->getMessage(), [
-                                            'factura_id' => $factura->id,
-                                            'cliente_id' => $factura->cliente,
-                                        ]);
-                                    }
+                                    });
                                 }
                             }
 
-                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma
+                            // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma.
+                            // Diferido a terminating() para no bloquear la respuesta con la llamada HTTP externa.
                             if ($factura->onepay_invoice_id) {
-                                try {
-                                    $onePayService = new \App\Services\OnePayService($empresa->id);
-                                    $onePayService->deleteInvoice($factura);
-                                } catch (\Exception $e) {
-                                    \Illuminate\Support\Facades\Log::error('Error al eliminar factura en OnePay: ' . $e->getMessage(), [
-                                        'factura_id' => $factura->id,
-                                        'empresa_id' => $empresa->id
-                                    ]);
-                                }
+                                $facturaIdBG = $factura->id;
+                                $empresaIdBG = $empresa->id;
+                                app()->terminating(function () use ($facturaIdBG, $empresaIdBG) {
+                                    try {
+                                        DB::reconnect();
+                                        $facturaBG = Factura::find($facturaIdBG);
+                                        if ($facturaBG && $facturaBG->onepay_invoice_id) {
+                                            $onePayService = new \App\Services\OnePayService($empresaIdBG);
+                                            $onePayService->deleteInvoice($facturaBG);
+                                        }
+                                    } catch (\Throwable $e) {
+                                        Log::error('Error al eliminar factura en OnePay (background): ' . $e->getMessage(), [
+                                            'factura_id' => $facturaIdBG,
+                                            'empresa_id' => $empresaIdBG,
+                                        ]);
+                                    }
+                                });
                             }
 
                             if(isset($request->tipo_electronica) && $request->tipo_electronica != 6 || !isset($request->tipo_electronica)){
@@ -971,80 +986,81 @@ class IngresosController extends Controller
                         $cliente = Contacto::where('id', $request->cliente)->first();
 
                         /* * * ENVÍO SMS * * */
+                        // Diferido a terminating(): la API SMS usa CURLOPT_TIMEOUT=0 (sin timeout)
+                        // y puede colgar la respuesta varios minutos si el proveedor está lento.
                         $servicio = Integracion::where('empresa', Auth::user()->empresa)->where('tipo', 'SMS')->where('status', 1)->first();
-                        if($servicio){
-                            $numero = str_replace('+','',$cliente->celular);
-                            $numero = str_replace(' ','',$numero);
-                            $mensaje = "Estimado Cliente, le informamos que hemos recibido el pago de su factura por valor de ".$factura->parsear($precio)." gracias por preferirnos. ".Auth::user()->empresa()->slogan;
-                            if($servicio->nombre == 'Hablame SMS'){
-                                if($servicio->api_key && $servicio->user && $servicio->pass){
-                                    $post['toNumber'] = $numero;
-                                    $post['sms'] = $mensaje;
+                        if ($servicio && $cliente && $cliente->celular) {
+                            $numeroSMS = str_replace([' ', '+'], '', $cliente->celular);
+                            $slogan    = Auth::user()->empresa()->slogan ?? '';
+                            $mensajeSMS = "Estimado Cliente, le informamos que hemos recibido el pago de su factura por valor de " . $factura->parsear($precio) . " gracias por preferirnos. " . $slogan;
+                            $servicioSMS = (object) [
+                                'nombre'  => $servicio->nombre,
+                                'api_key' => $servicio->api_key,
+                                'user'    => $servicio->user,
+                                'pass'    => $servicio->pass,
+                            ];
 
-                                    $curl = curl_init();
-                                    curl_setopt_array($curl, array(
-                                        CURLOPT_URL => 'https://api103.hablame.co/api/sms/v3/send/marketing',
-                                        CURLOPT_RETURNTRANSFER => true,
-                                        CURLOPT_ENCODING => '',
-                                        CURLOPT_MAXREDIRS => 10,
-                                        CURLOPT_TIMEOUT => 0,
-                                        CURLOPT_FOLLOWLOCATION => true,
-                                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                        CURLOPT_CUSTOMREQUEST => 'POST',CURLOPT_POSTFIELDS => json_encode($post),
-                                        CURLOPT_HTTPHEADER => array(
-                                            'account: '.$servicio->user,
-                                            'apiKey: '.$servicio->api_key,
-                                            'token: '.$servicio->pass,
-                                            'Content-Type: application/json'
-                                        ),
-                                    ));
-                                    $result = curl_exec ($curl);
-                                    $err  = curl_error($curl);
-                                    curl_close($curl);
+                            app()->terminating(function () use ($servicioSMS, $numeroSMS, $mensajeSMS) {
+                                try {
+                                    if ($servicioSMS->nombre == 'Hablame SMS') {
+                                        if ($servicioSMS->api_key && $servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['toNumber' => $numeroSMS, 'sms' => $mensajeSMS];
+                                            $curl = curl_init();
+                                            curl_setopt_array($curl, array(
+                                                CURLOPT_URL => 'https://api103.hablame.co/api/sms/v3/send/marketing',
+                                                CURLOPT_RETURNTRANSFER => true,
+                                                CURLOPT_ENCODING => '',
+                                                CURLOPT_MAXREDIRS => 10,
+                                                CURLOPT_TIMEOUT => 0,
+                                                CURLOPT_FOLLOWLOCATION => true,
+                                                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                                                CURLOPT_CUSTOMREQUEST => 'POST',
+                                                CURLOPT_POSTFIELDS => json_encode($post),
+                                                CURLOPT_HTTPHEADER => array(
+                                                    'account: ' . $servicioSMS->user,
+                                                    'apiKey: '  . $servicioSMS->api_key,
+                                                    'token: '   . $servicioSMS->pass,
+                                                    'Content-Type: application/json',
+                                                ),
+                                            ));
+                                            curl_exec($curl);
+                                            curl_close($curl);
+                                        }
+                                    } elseif ($servicioSMS->nombre == 'SmsEasySms') {
+                                        if ($servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['to' => ['57' . $numeroSMS], 'text' => $mensajeSMS, 'from' => 'SMS'];
+                                            $ch = curl_init();
+                                            curl_setopt($ch, CURLOPT_URL, 'https://sms.istsas.com/Api/rest/message');
+                                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                                            curl_setopt($ch, CURLOPT_POST, 1);
+                                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                                'Accept: application/json',
+                                                'Authorization: Basic ' . base64_encode($servicioSMS->user . ':' . $servicioSMS->pass),
+                                            ));
+                                            curl_exec($ch);
+                                            curl_close($ch);
+                                        }
+                                    } else {
+                                        if ($servicioSMS->user && $servicioSMS->pass) {
+                                            $post = ['to' => ['57' . $numeroSMS], 'text' => $mensajeSMS, 'from' => ''];
+                                            $ch = curl_init();
+                                            curl_setopt($ch, CURLOPT_URL, 'https://masivos.colombiared.com.co/Api/rest/message');
+                                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                                            curl_setopt($ch, CURLOPT_POST, 1);
+                                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+                                            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                                'Accept: application/json',
+                                                'Authorization: Basic ' . base64_encode($servicioSMS->user . ':' . $servicioSMS->pass),
+                                            ));
+                                            curl_exec($ch);
+                                            curl_close($ch);
+                                        }
+                                    }
+                                } catch (\Throwable $eSMS) {
+                                    Log::error('Error enviando SMS (background): ' . $eSMS->getMessage());
                                 }
-                            }elseif($servicio->nombre == 'SmsEasySms'){
-                                if($servicio->user && $servicio->pass){
-                                    $post['to'] = array('57'.$numero);
-                                    $post['text'] = $mensaje;
-                                    $post['from'] = "SMS";
-                                    $login = $servicio->user;
-                                    $password = $servicio->pass;
-
-                                    $ch = curl_init();
-                                    curl_setopt($ch, CURLOPT_URL, "https://sms.istsas.com/Api/rest/message");
-                                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                                    curl_setopt($ch, CURLOPT_POST, 1);
-                                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                                    curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                        array(
-                                            "Accept: application/json",
-                                            "Authorization: Basic ".base64_encode($login.":".$password)));
-                                    $result = curl_exec ($ch);
-                                    $err  = curl_error($ch);
-                                    curl_close($ch);
-                                }
-                            }else{
-                                if($servicio->user && $servicio->pass){
-                                    $post['to'] = array('57'.$numero);
-                                    $post['text'] = $mensaje;
-                                    $post['from'] = "";
-                                    $login = $servicio->user;
-                                    $password = $servicio->pass;
-
-                                    $ch = curl_init();
-                                    curl_setopt($ch, CURLOPT_URL, "https://masivos.colombiared.com.co/Api/rest/message");
-                                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                                    curl_setopt($ch, CURLOPT_POST, 1);
-                                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
-                                    curl_setopt($ch, CURLOPT_HTTPHEADER,
-                                        array(
-                                            "Accept: application/json",
-                                            "Authorization: Basic ".base64_encode($login.":".$password)));
-                                    $result = curl_exec ($ch);
-                                    $err  = curl_error($ch);
-                                    curl_close($ch);
-                                }
-                            }
+                            });
                         }
                         /* * * ENVÍO SMS * * */
                     }
@@ -1103,13 +1119,11 @@ class IngresosController extends Controller
                     $this->up_transaccion(1, $ingreso->id, $ingreso->cuenta, $ingreso->cliente, 1, $ingreso->pago(), $ingreso->fecha, 'Ingreso por concepto de reconexión');
                     }
 
-                    $facturas = Factura::where('cliente', $ingreso->cliente)->where('estatus', 1)->get();
-                    if ($facturas) {
-                        foreach ($facturas as $factura) {
-                            $factura->estatus = 0;
-                            $factura->save();
-                        }
-                    }
+                    // Marcar todas las facturas abiertas del cliente como cerradas en un solo UPDATE
+                    // (antes se iteraba y se hacía save() por cada una -- N consultas).
+                    Factura::where('cliente', $ingreso->cliente)
+                        ->where('estatus', 1)
+                        ->update(['estatus' => 0]);
                 }
 
                 $tirilla = false;
@@ -1260,7 +1274,10 @@ class IngresosController extends Controller
 
     public function funcionesPagoMK($contrato,$empresa,$ingreso){
         $mensaje = "";
-        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresa->id}, Ingreso ID: {$ingreso->id}");
+        $userId = $ingreso->getAttributes()['created_by'] ?? null;
+        $empresaId = $empresa->id;
+
+        Log::debug("funcionesPagoMK: Iniciando procesamiento para Contrato #{$contrato->nro} (ID: {$contrato->id}), Empresa ID: {$empresaId}, Ingreso ID: {$ingreso->id}");
 
         try {
 
@@ -1283,8 +1300,8 @@ class IngresosController extends Controller
                     $movimiento->contrato    = $contrato->id;
                     $movimiento->modulo      = 5;
                     $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT (automático)</b> a Habilitado por pago de factura<br>';
-                    $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                    $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresaId;
                     $movimiento->save();
                     Log::debug("funcionesPagoMK: OLT habilitado y log de movimiento guardado.");
                 } catch (\Throwable $e) {
@@ -1316,175 +1333,162 @@ class IngresosController extends Controller
                 if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
                     Log::debug("funcionesPagoMK: Conexión exitosa a Mikrotik.");
 
-                    $API->write('/ip/firewall/address-list/print', TRUE);
-                    $ARRAYS = $API->read();
+                    // PASO 1: Siempre intentar sacar de la lista de morosos (FIX: antes era excluyente con activeconn_secret)
+                    DB::reconnect();
+                    Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
 
+                    $API->write('/ip/firewall/address-list/print', false);
+                    $API->write('?address=' . $contrato->ip, false);
+                    $API->write('?list=morosos', false);
+                    $API->write('=.proplist=.id');
+                    $ARRAYS = $API->read();
+                    Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
+
+                    if (!empty($ARRAYS)) {
+                        #ELIMINAMOS DE MOROSOS#
+                        $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $READ = $API->comm('/ip/firewall/address-list/remove', [
+                            'numbers' => implode(',', $idsToRemove)
+                        ]);
+                        Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $API->write('/ip/firewall/address-list/print', false);
+                        $API->write('?address=' . $contrato->ip, false);
+                        $API->write('?list=morosos', true);
+                        $verificacion = $API->read();
+
+                        $descVerif = empty($verificacion)
+                            ? '[PAGO] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                            : '[PAGO] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+                        Log::debug("funcionesPagoMK: {$descVerif}");
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = $descVerif;
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+
+                        $mensaje = "- Se ha sacado la ip de morosos.";
+                    } else {
+                        Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = "[PAGO] La IP {$contrato->ip} no se encontró en la lista de morosos al procesar el pago.";
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+                    }
+
+                    // PASO 2: Si activeconn_secret == 1, habilitar secret y remover conexión activa
                     Log::debug("funcionesPagoMK: Verificando activeconn_secret: " . ($empresa->activeconn_secret ?? 0));
                     if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
-
                         #HABILITACION DEL SECRET#
                         Log::debug("funcionesPagoMK: Iniciando habilitación de Secret (Tipo Conexión: {$contrato->conexion})");
                         if ($contrato->conexion == 1 && $contrato->usuario != null) {
-                            // Buscar el ID interno del secret
                             $API->write('/ppp/secret/print', false);
                             $API->write('?name=' . $contrato->usuario, true);
-                            $ARRAYS = $API->read();
+                            $ARRAYS_SECRET = $API->read();
 
-                            if (count($ARRAYS) > 0) {
-                                $id = $ARRAYS[0]['.id'];
-                                // Habilitar el secret
+                            if (count($ARRAYS_SECRET) > 0) {
+                                $id_sec = $ARRAYS_SECRET[0]['.id'];
                                 $API->write('/ppp/secret/enable', false);
-                                $API->write('=numbers=' . $id, true);
-                                $response = $API->read();
-                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response));
-                            } else {
-                                Log::warning("funcionesPagoMK: No se encontró el Secret '{$contrato->usuario}' en el MikroTik.");
+                                $API->write('=numbers=' . $id_sec, true);
+                                $response_sec = $API->read();
+                                Log::debug("funcionesPagoMK: Secret '{$contrato->usuario}' habilitado. Respuesta: " . json_encode($response_sec));
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[PAGO] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                $movimiento->created_by  = $userId;
+                                $movimiento->empresa     = $empresaId;
+                                $movimiento->save();
+
+                                #REMOVER CONEXIÓN ACTIVA PARA FORZAR RECONEXIÓN#
+                                $API->write('/ppp/active/print', false);
+                                $API->write('?name=' . $contrato->usuario);
+                                $response_act = $API->read();
+
+                                if(isset($response_act['0']['.id'])){
+                                    $API->comm("/ppp/active/remove", [
+                                        ".id" => $response_act['0']['.id']
+                                    ]);
+                                    Log::debug("funcionesPagoMK: Conexión activa '{$contrato->usuario}' removida.");
+                                    
+                                    $movimiento = new MovimientoLOG;
+                                    $movimiento->contrato    = $contrato->id;
+                                    $movimiento->modulo      = 5;
+                                    $movimiento->descripcion = '[PAGO] Conexión activa PPPoE "' . $contrato->usuario . '" removida para forzar reconexión.';
+                                    $movimiento->created_by  = $userId;
+                                    $movimiento->empresa     = $empresaId;
+                                    $movimiento->save();
+                                }
                             }
                         }
-                        #HABILITACION DEL SECRET#
-
-                        #AGREGAMOS A IP_AUTORIZADAS#
-                        Log::debug("funcionesPagoMK: Agregando IP {$contrato->ip} a ips_autorizadas");
-                        $API->comm("/ip/firewall/address-list/add", array(
-                            "address" => $contrato->ip,
-                            "list" => 'ips_autorizadas'
-                            )
-                        );
-                        #AGREGAMOS A IP_AUTORIZADAS#
-
-                        $mensaje = "- Se ha habilitado el secret.";
-                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                        DB::reconnect();
-
-                        $ingreso->revalidacion_enable_internet = 1;
-                        $ingreso->save();
-
-                        $contrato->state = 'enabled';
-                        $contrato->save();
-
-
-                    }else{
-
-                        // Recargar el modelo para evitar "Server has gone away" después de operaciones largas
-                        DB::reconnect();
-
-                        Log::debug("funcionesPagoMK: Iniciando remoción de Morosos para IP: {$contrato->ip}");
-                        // OPTIMIZADO: Una sola consulta para obtener IDs directamente (elimina el print doble)
-                        $API->write('/ip/firewall/address-list/print', false);
-                        $API->write('?address=' . $contrato->ip, false);
-                        $API->write('?list=morosos', false);
-                        $API->write('=.proplist=.id');
-                        $ARRAYS = $API->read();
-                        Log::debug("funcionesPagoMK: Entradas encontradas en Morosos: " . count($ARRAYS));
-
-                        if (!empty($ARRAYS)) {
-                            #ELIMINAMOS DE MOROSOS#
-                            // Recopilar TODOS los IDs (puede haber duplicados de la misma IP)
-                            $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
-
-                            // Registro MovimientoLOG intentando remove
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Intentando remover de la lista de morosos la IP: ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ') | Ingreso: ' . $ingreso->nro;
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-
-                            // OPTIMIZADO: Un solo remove en batch con todos los IDs (=numbers= acepta lista separada por coma)
-                            $READ = $API->comm('/ip/firewall/address-list/remove', [
-                                'numbers' => implode(',', $idsToRemove)
-                            ]);
-                            Log::debug("funcionesPagoMK: Resultado remoción Morosos: " . json_encode($READ));
-
-                            // Registro MovimientoLOG respuesta remove
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Respuesta remove batch (' . count($idsToRemove) . ' entrada(s)): ' . json_encode($READ);
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-
-                            // Verificar si realmente se eliminaron todas las entradas
-                            $API->write('/ip/firewall/address-list/print', false);
-                            $API->write('?address=' . $contrato->ip, false);
-                            $API->write('?list=morosos', true);
-                            $verificacion = $API->read();
-
-                            $descVerif = empty($verificacion)
-                                ? '[PAGO] Verificación exitosa: La IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
-                                : '[PAGO] ADVERTENCIA: La IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
-                            Log::debug("funcionesPagoMK: {$descVerif}");
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = $descVerif;
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-
-                            #AGREGAMOS A IP_AUTORIZADAS#
-                            $resultAdd = $API->comm('/ip/firewall/address-list/add', [
-                                'address' => $contrato->ip,
-                                'list'    => 'ips_autorizadas'
-                            ]);
-                            Log::debug("funcionesPagoMK: Resultado agregar a ips_autorizadas: " . json_encode($resultAdd));
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-                            #AGREGAMOS A IP_AUTORIZADAS#
-
-                            $mensaje = "- Se ha sacado la ip de morosos.";
-
-                            DB::reconnect();
-
-                            $ingreso->revalidacion_enable_internet = 1;
-                            $ingreso->save();
-
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                            // Etiqueta automática: contrato habilitado por pago de factura
-                            \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
-                                $contrato->id,
-                                $empresa->id,
-                                \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
-                                \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
-                            );
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = 'Proceso de habilitación completado. Contrato marcado como habilitado y revalidación de internet exitosa.';
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-
-                            #ELIMINAMOS DE MOROSOS#
-                        }else{
-                            $contrato->state = 'enabled';
-                            $contrato->save();
-
-                            $movimiento = new MovimientoLOG;
-                            $movimiento->contrato    = $contrato->id;
-                            $movimiento->modulo      = 5;
-                            $movimiento->descripcion = "[PAGO] Al realizar el pago del ingreso nro {$ingreso->nro}, la IP {$contrato->ip} del contrato nro {$contrato->nro} no se encontró en la lista de morosos.";
-                            $movimiento->created_by  = Auth::user() ? Auth::user()->id : $ingreso->created_by;
-                            $movimiento->empresa     = Auth::user() ? Auth::user()->empresa : $empresa->id;
-                            $movimiento->save();
-
-                            Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos');
-                            Log::debug("funcionesPagoMK: La IP {$contrato->ip} no se encontró en la lista de morosos.");
-                        }
+                        $mensaje .= " - Se ha habilitado el secret.";
                     }
-                    $API->disconnect();
+
+                    // PASO 3: Siempre agregar a ips_autorizadas y actualizar estado
+                    if ($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)) {
+                        $resultAddAut = $API->comm('/ip/firewall/address-list/add', [
+                            'address' => $contrato->ip,
+                            'list'    => 'ips_autorizadas'
+                        ]);
+                        Log::debug("funcionesPagoMK: Agregando a ips_autorizadas: " . json_encode($resultAddAut));
+
+                        $movimiento = new MovimientoLOG;
+                        $movimiento->contrato    = $contrato->id;
+                        $movimiento->modulo      = 5;
+                        $movimiento->descripcion = '[PAGO] Resultado agregar a ips_autorizadas: ' . json_encode($resultAddAut);
+                        $movimiento->created_by  = $userId;
+                        $movimiento->empresa     = $empresaId;
+                        $movimiento->save();
+                    }
+
+                    DB::reconnect();
+                    $ingreso->revalidacion_enable_internet = 1;
+                    $ingreso->save();
+
+                    $contrato->state = 'enabled';
+                    $contrato->save();
+
+                    // Etiqueta automática: contrato habilitado por pago de factura
+                    \App\Traits\AplicaEtiquetaAutomatica::aplicarEtiquetaAutomatica(
+                        $contrato->id,
+                        $empresa->id,
+                        \App\EtiquetaAutomaticaContrato::MODULO_CONTRATOS,
+                        \App\EtiquetaAutomaticaContrato::PAGO_FACTURA
+                    );
+
+                    $movimiento = new MovimientoLOG;
+                    $movimiento->contrato    = $contrato->id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = 'Proceso de habilitación completado satisfactoriamente. Contrato marcado como habilitado y revalidación de internet exitosa.';
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresaId;
+                    $movimiento->save();
+
+                    Log::info("Contrato #{$contrato->nro} habilitado correctamente tras pago.");
                 } else {
                     Log::error("funcionesPagoMK: No se pudo conectar a Mikrotik ID: {$mikrotik->id} IP: {$mikrotik->ip}");
                 }
@@ -2129,7 +2133,7 @@ class IngresosController extends Controller
             } else {
                 $bancos = Banco::where('empresa', Auth::user()->empresa)->where('estatus', 1)->get();
             }
-            $clientes = (Auth::user()->empresa()->oficina) ? Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
+            $clientes = (Auth::user()->empresa()->oficina) ? Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->where('oficina', Auth::user()->oficina)->orderBy('nombre','asc')->get() : Contacto::select('id', 'nombre', 'apellido1', 'apellido2', 'nit')->where('status', 1)->whereIn('tipo_contacto',[0,2])->where('empresa', Auth::user()->empresa)->orderBy('nombre','asc')->get();
             $metodos_pago =DB::table('metodos_pago')->get();
             $retenciones = Retencion::where('empresa',Auth::user()->empresa)->where('modulo',1)->get();
             $categorias = Puc::where('empresa',auth()->user()->empresa)
@@ -2271,6 +2275,13 @@ class IngresosController extends Controller
                     $factura = Factura::find($request->factura_pendiente[$key]);
                     $items = IngresosFactura::where('ingreso',$ingreso->id)->where('factura', $factura->id)->first();
                     $porpagar=$factura->porpagar();
+                    $descuentoAnterior = $items ? (float)$items->descuento : 0;
+                    $descuentoPct = 0;
+                    if (is_array($request->descuento_pendiente) && isset($request->descuento_pendiente[$key])) {
+                        $descuentoPct = floatval($request->descuento_pendiente[$key]);
+                        if ($descuentoPct < 0) { $descuentoPct = 0; }
+                        if ($descuentoPct > 99) { $descuentoPct = 99; }
+                    }
                     if ($request->precio[$key]) {
                         if (!$items) {
                             $items = new IngresosFactura;
@@ -2281,6 +2292,7 @@ class IngresosController extends Controller
                             $porpagar+=$this->precision($items->pago);
                         }
                         $items->pago=$this->precision($request->precio[$key]);
+                        $items->descuento=$descuentoPct;
                         $items->save();
                         $precio=$this->precision($request->precio[$key]);
                         $retencion='fact'.$factura->id.'_retencion';
@@ -2320,6 +2332,10 @@ class IngresosController extends Controller
                             $factura->estatus=1;
                         }
                         $factura->save();
+
+                        if ($descuentoPct > 0 && $descuentoPct != $descuentoAnterior) {
+                            $this->aplicarDescuentoItemsFactura($factura->id, $descuentoPct);
+                        }
                     }else{
                         if($items){
                             $items->delete();
@@ -2411,28 +2427,123 @@ class IngresosController extends Controller
 
     public function Imprimir(Request $request, $id){
         view()->share(['title' => 'Imprimir Ingreso']);
-        $ingreso = Ingreso::where('empresa',Auth::user()->empresa)->where('nro', $id)->first();
-        if ($ingreso) {
-            if ($ingreso->tipo==1) {
-                $itemscount=IngresosFactura::where('ingreso',$ingreso->id)->count();
-                $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
-            }else if ($ingreso->tipo==2){
-                $itemscount=IngresosCategoria::where('ingreso',$ingreso->id)->count();
-                $items = IngresosCategoria::where('ingreso',$ingreso->id)->get();
-            }else{
-                $itemscount=1;
-                $items = Ingreso::where('empresa',Auth::user()->empresa)->where('nro', $id)->get();
-            }
-            $retenciones = IngresosRetenciones::where('ingreso',$ingreso->id)->get();
-            $empresa = Empresa::find($ingreso->empresa);
-
-            // Verificar si se solicita versión detallada
-            $detalle = $request->query('detalle', 0);
-            $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
-
-            $pdf = PDF::loadView($vista, compact('ingreso', 'items', 'retenciones', 'itemscount','empresa'));
-            return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
+        $empresaId = Auth::user()->empresa;
+        $ingreso = Ingreso::where('empresa', $empresaId)->where('nro', $id)->first();
+        if (!$ingreso) {
+            return;
         }
+
+        if ($ingreso->tipo == 1) {
+            $items = IngresosFactura::where('ingreso', $ingreso->id)->get();
+        } elseif ($ingreso->tipo == 2) {
+            $items = IngresosCategoria::where('ingreso', $ingreso->id)->get();
+        } else {
+            $items = Ingreso::where('empresa', $empresaId)->where('nro', $id)->get();
+        }
+        $itemscount = $items->count();
+
+        $retenciones = IngresosRetenciones::where('ingreso', $ingreso->id)->get();
+        $empresa = Empresa::find($ingreso->empresa);
+
+        // Verificar si se solicita versión detallada
+        $detalle = $request->query('detalle', 0);
+        $vista = $detalle ? 'pdf.ingreso_detallado' : 'pdf.ingreso';
+
+        $pdfData = $this->prepareIngresoPdfData($ingreso, $items, $retenciones, (bool) $detalle);
+
+        $pdf = PDF::loadView($vista, array_merge(
+            compact('ingreso', 'items', 'retenciones', 'itemscount', 'empresa'),
+            $pdfData
+        ));
+        return $pdf->stream('ingreso.pdf');
+    }
+
+    /**
+     * Precalcula los datos requeridos por las vistas PDF (pdf.ingreso y
+     * pdf.ingreso_detallado) para evitar N+1: cliente, cuenta, método de pago,
+     * total pagado, líneas renderizadas, retenciones agrupadas y, en versión
+     * detallada, la factura primaria con saldo (porpagar) calculado una sola vez.
+     */
+    private function prepareIngresoPdfData(Ingreso $ingreso, $items, $retenciones, bool $isDetallado): array
+    {
+        $cliente            = $ingreso->cliente();
+        $cuenta             = $ingreso->cuenta();
+        $metodoPago         = $ingreso->metodo_pago();
+        $pagoTotal          = $ingreso->pago();
+        $clienteTipIdenMini = $cliente ? $cliente->tip_iden('mini') : '';
+
+        // Mapas reutilizables (precarga por lotes)
+        $facturasById = collect();
+        if ($ingreso->tipo == 1 && $items->count() > 0) {
+            $facturaIds = $items->pluck('factura')->unique()->filter()->values();
+            $facturasById = Factura::whereIn('id', $facturaIds)->get()->keyBy('id');
+        }
+
+        $pucById = collect();
+        if ($ingreso->tipo == 2 && $items->count() > 0) {
+            $categoriaIds = $items->pluck('categoria')->unique()->filter()->values();
+            $pucById = Puc::whereIn('id', $categoriaIds)->get()->keyBy('id');
+        }
+
+        $itemsRendered = [];
+        foreach ($items as $it) {
+            if ($ingreso->tipo == 1) {
+                $f = $facturasById->get($it->factura);
+                $itemsRendered[] = (object) [
+                    'detalle_text' => $f ? ('Factura de Venta: ' . $f->codigo) : '',
+                    'pago_value'   => $it->pago,
+                    'categoria'    => null,
+                ];
+            } elseif ($ingreso->tipo == 2) {
+                $puc = $pucById->get($it->categoria);
+                $itemsRendered[] = (object) [
+                    'detalle_text' => ($puc ? $puc->nombre : '') . ($it->descripcion ? ': ' . $it->descripcion : ''),
+                    'pago_value'   => $it->valor * $it->cant,
+                    'categoria'    => $puc,
+                ];
+            } else {
+                $itemsRendered[] = (object) [
+                    'detalle_text' => $it->detalle('Pago a '),
+                    'pago_value'   => $it->pago(),
+                    'categoria'    => null,
+                ];
+            }
+        }
+
+        // Retenciones: una sola consulta para todas las definiciones
+        $retencionIds = $retenciones->pluck('id_retencion')->unique()->filter()->values();
+        $retencionPorId = $retencionIds->count() > 0
+            ? Retencion::whereIn('id', $retencionIds)->get()->keyBy('id')
+            : collect();
+
+        // Datos exclusivos de la vista detallada
+        $ingresoFacturaPrimary = null;
+        $facturaPrimary        = null;
+        $periodoCobradoTexto   = null;
+        $contratoAsociadoNro   = null;
+        $porpagarFactura       = null;
+        if ($isDetallado && $ingreso->tipo == 1) {
+            $ingresoFacturaPrimary = $items->first();
+            if ($ingresoFacturaPrimary) {
+                $facturaPrimary = $facturasById->get($ingresoFacturaPrimary->factura);
+                if (!$facturaPrimary && $ingresoFacturaPrimary->factura) {
+                    $facturaPrimary = Factura::find($ingresoFacturaPrimary->factura);
+                }
+                if ($facturaPrimary) {
+                    $periodoCobradoTexto = $facturaPrimary->periodoCobradoTexto();
+                    $porpagarFactura     = $facturaPrimary->porpagar();
+                    $contratoAsoc        = $facturaPrimary->contratoAsociado();
+                    $contratoAsociadoNro = $contratoAsoc ? $contratoAsoc->nro : 'N/A';
+                }
+            }
+        }
+
+        return compact(
+            'cliente', 'cuenta', 'metodoPago', 'pagoTotal', 'clienteTipIdenMini',
+            'itemsRendered', 'retencionPorId',
+            'ingresoFacturaPrimary', 'facturaPrimary', 'periodoCobradoTexto',
+            'contratoAsociadoNro', 'porpagarFactura'
+        );
     }
 
     public function imprimirTirilla($id, $tipo='original')
@@ -2556,7 +2667,7 @@ class IngresosController extends Controller
             }
 
             $pdf->setPaper($paper_size, 'portrait');
-            return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf']);
+            return $pdf->stream('ingreso.pdf');
         }
     }
 
@@ -2580,15 +2691,22 @@ class IngresosController extends Controller
                 return redirect('empresa/ingresos/'.$ingreso->nro)->with('error', 'El Cliente ni sus contactos asociados tienen correo registrado');
             }
 
-            if ($ingreso->tipo==1) {
-                $itemscount=IngresosFactura::where('ingreso',$ingreso->id)->count();
-                $items = IngresosFactura::where('ingreso',$ingreso->id)->get();
-            }else{
-                $itemscount=IngresosCategoria::where('ingreso',$ingreso->id)->count();
-                $items = IngresosCategoria::where('ingreso',$ingreso->id)->get();
+            if ($ingreso->tipo == 1) {
+                $items = IngresosFactura::where('ingreso', $ingreso->id)->get();
+            } else {
+                $items = IngresosCategoria::where('ingreso', $ingreso->id)->get();
             }
+            $itemscount = $items->count();
 
-            $pdf = PDF::loadView('pdf.ingreso', compact('ingreso', 'items', 'retenciones', 'itemscount'))->stream();
+            $retenciones = IngresosRetenciones::where('ingreso', $ingreso->id)->get();
+            $empresa = Empresa::find($ingreso->empresa);
+
+            $pdfData = $this->prepareIngresoPdfData($ingreso, $items, $retenciones, false);
+
+            $pdf = PDF::loadView('pdf.ingreso', array_merge(
+                compact('ingreso', 'items', 'retenciones', 'itemscount', 'empresa'),
+                $pdfData
+            ))->stream();
             $asunto = "Recibo de Caja # $ingreso->nro";
 
             $host = ServidorCorreo::where('estado', 1)->where('empresa', Auth::user()->empresa)->first();
@@ -4365,9 +4483,87 @@ class IngresosController extends Controller
     }
 
     /**
+     * Aplica el porcentaje de descuento a los ítems de la factura.
+     *
+     * - 1 ítem: se asigna el porcentaje directamente.
+     * - >1 ítems: se asigna el mismo porcentaje a todos; el último ítem absorbe
+     *   cualquier diferencia por redondeo para que la suma de descuentos
+     *   coincida exactamente con (subtotal * pct / 100).
+     */
+    private function aplicarDescuentoItemsFactura($facturaId, $descuentoPct)
+    {
+        $itemsFactura = ItemsFactura::where('factura', $facturaId)->get();
+        $totalItems = $itemsFactura->count();
+
+        if ($totalItems == 0) {
+            return;
+        }
+
+        if ($totalItems == 1) {
+            $item = $itemsFactura->first();
+            $item->desc = round($descuentoPct, 2);
+            $item->save();
+            $this->logDescuentoFactura($facturaId);
+            return;
+        }
+
+        $subtotalFactura = 0;
+        foreach ($itemsFactura as $item) {
+            $subtotalFactura += $item->precio * $item->cant;
+        }
+
+        $descuentoTotalEsperado = round($subtotalFactura * $descuentoPct / 100, 4);
+        $descuentoAcumulado = 0;
+        $idx = 0;
+
+        foreach ($itemsFactura as $item) {
+            $itemBase = $item->precio * $item->cant;
+
+            if ($idx < $totalItems - 1) {
+                $item->desc = round($descuentoPct, 2);
+                $descuentoAcumulado += $itemBase * $descuentoPct / 100;
+            } else {
+                $descuentoRestante = $descuentoTotalEsperado - $descuentoAcumulado;
+                if ($itemBase > 0) {
+                    $pctAjustado = ($descuentoRestante * 100) / $itemBase;
+                    if ($pctAjustado < 0) { $pctAjustado = 0; }
+                    if ($pctAjustado > 99) { $pctAjustado = 99; }
+                    $item->desc = round($pctAjustado, 2);
+                } else {
+                    $item->desc = round($descuentoPct, 2);
+                }
+            }
+
+            $item->save();
+            $idx++;
+        }
+
+        $this->logDescuentoFactura($facturaId);
+    }
+
+    private function logDescuentoFactura($facturaId)
+    {
+        $factura = Factura::find($facturaId);
+        if (!$factura) {
+            return;
+        }
+
+        $usuario = Auth::user();
+        $nombreUsuario = $usuario ? trim($usuario->nombres . ' ' . $usuario->apellidos) : 'Usuario APP';
+
+        $movimiento = new MovimientoLOG();
+        $movimiento->contrato    = $factura->id;
+        $movimiento->modulo      = 8;
+        $movimiento->descripcion = 'El usuario ' . $nombreUsuario . ' aplicó un descuento a la transacción y la factura.';
+        $movimiento->created_by  = $usuario ? $usuario->id : null;
+        $movimiento->empresa     = $factura->empresa;
+        $movimiento->save();
+    }
+
+    /**
      * Verifica si algún contrato del cliente tiene habilitada la opción pago_emitir
      * para auto-seleccionar la opción de emisión en el formulario de ingresos.
-     * 
+     *
      * @param int $cliente_id
      * @return \Illuminate\Http\JsonResponse
      */

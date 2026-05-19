@@ -770,9 +770,10 @@ CREATE TABLE IF NOT EXISTS `ingresos_factura` (
   `factura` bigint(20) NOT NULL,
   `pagado` float(24,4) NOT  NULL,
   `pago` float(24, 4) NOT  NULL,
+  `descuento` decimal(5,2) NOT NULL DEFAULT 0 COMMENT 'Porcentaje de descuento aplicado al pago (0-99)',
   `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL, 
-  CONSTRAINT `FK_iingresos_factura_factura` FOREIGN KEY (`factura`) REFERENCES `factura` (`id`), 
+  `updated_at` timestamp NULL DEFAULT NULL,
+  CONSTRAINT `FK_iingresos_factura_factura` FOREIGN KEY (`factura`) REFERENCES `factura` (`id`),
   CONSTRAINT `FK_iingresos_factura_ingreso` FOREIGN KEY (`ingreso`) REFERENCES `ingresos` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 

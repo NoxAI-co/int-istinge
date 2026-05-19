@@ -476,7 +476,7 @@ class PagosController extends Controller
             }
 
             $bancos = Banco::where('empresa',Auth::user()->empresa)->get();
-            $clientes = Contacto::where('empresa',Auth::user()->empresa)->whereIn('tipo_contacto',[1,2])->get();
+            $clientes = Contacto::where('empresa',Auth::user()->empresa)->get();
             $metodos_pago =DB::table('metodos_pago')->get();
             $retenciones = Retencion::where('empresa',Auth::user()->empresa)->where('modulo',1)->get();
             $categorias = Puc::where('empresa',auth()->user()->empresa)
@@ -487,7 +487,7 @@ class PagosController extends Controller
             $items = GastosFactura::where('gasto',$gasto->id)->get();
             $retencionesGasto = GastosRetenciones::where('gasto',$gasto->id)->get();
 
-            if ($gasto->tipo==2) {
+            if ($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5) {
                 $items = GastosCategoria::where('gasto',$gasto->id)->get();
             }
             return view('pagos.edit')->with(compact('clientes', 'categorias','bancos', 'metodos_pago', 'impuestos', 'retenciones', 'gasto', 'items', 'retencionesGasto'));

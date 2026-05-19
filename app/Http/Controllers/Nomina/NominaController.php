@@ -3377,14 +3377,23 @@ class NominaController extends Controller
 
     public function refrescarNomina($idNominaPeriodo)
     {
-
         $nominaPeriodo = NominaPeriodos::find($idNominaPeriodo);
 
         if ($nominaPeriodo->nomina->fk_idempresa == Auth::user()->empresa) {
             $nominaPeriodo->editValorTotal();
+            $totalidad = $nominaPeriodo->resumenTotal();
         }
 
-        return response()->json(['valorTotal' => $nominaPeriodo->valor_total, 'idPeriodoNomina' => $nominaPeriodo->id]);
+        return response()->json([
+            'success' => true,
+            'valorTotal' => $nominaPeriodo->valor_total,
+            'idPeriodoNomina' => $nominaPeriodo->id,
+            'extras' => $nominaPeriodo->extras(),
+            'vacaciones' => $nominaPeriodo->vacaciones(),
+            'ingresos' => Funcion::Parsear($nominaPeriodo->ingresos()),
+            'deducciones' => Funcion::Parsear($nominaPeriodo->deducciones()),
+            'salarioBase' => Funcion::Parsear($nominaPeriodo->pago_empleado ? $nominaPeriodo->pago_empleado : $nominaPeriodo->valor_total)
+        ]);
     }
 
     public function eliminarNomina($id)

@@ -91,7 +91,7 @@
 
     @endif
 
-    @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']) && 1==2)
+    @if(isset($reporteFaltantes) && !empty($reporteFaltantes['faltantes']))
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <button type="button" class="close d-none d-md-block" data-dismiss="alert" aria-label="Cerrar">
             <span aria-hidden="true">&times;</span>
@@ -100,10 +100,18 @@
             Cerrar
         </button>
         <strong>⚠️ Consecutivos faltantes detectados</strong><br>
-        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b><br>
-        Rango: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
+        Prefijo: <b>{{ $reporteFaltantes['prefijo'] }}</b>
+        @if(isset($reporteFaltantes['numeracion_id']))
+        <small class="text-muted">(Numeración ID: {{ $reporteFaltantes['numeracion_id'] }} — preferida activa, tipo electrónica)</small>
+        @endif
+        <br>
+        Rango autorizado DIAN: <b>{{ $reporteFaltantes['inicio'] }} - {{ $reporteFaltantes['final'] }}</b><br>
+        @if(isset($reporteFaltantes['primer_registrado']))
+        Primer consecutivo en sistema: <b>{{ $reporteFaltantes['primer_registrado'] }}</b>
+        <small class="text-muted">(análisis inteligente desde aquí — no desde el inicio de la resolución)</small><br>
+        @endif
         Último usado: <b>{{ $reporteFaltantes['ultimo_usado'] }}</b><br>
-        Faltantes:
+        Faltantes ({{ count($reporteFaltantes['faltantes']) }}):
         <span class="text-danger">
             @if(count($reporteFaltantes['faltantes']) > 100)
                 {{ implode(', ', array_slice($reporteFaltantes['faltantes'], 0, 100)) }}
@@ -247,9 +255,9 @@
 							</select>
 						</div>
 						<div class="col-md-3 pl-1 pt-1">
-							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp" multiple data-live-search="false">
+							<select title="¿Enviado a WhatsApp?" class="form-control rounded selectpicker" id="whatsapp">
 								<option value="1">Si</option>
-								<option value="0">No</option>
+								<option value="A">No</option>
 							</select>
 						</div>
 					</div>

@@ -22,6 +22,9 @@
                     <optgroup label="Manual">
                         <option value="7">Manual</option>
                     </optgroup>
+                    <optgroup label="Sin filtro">
+                        <option value="8">Todos</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="form-group col-md-4">
@@ -76,4 +79,17 @@
     </form>
     <input type="hidden" id="urlgenerar" value="{{route('reportes.contactos')}}">
     <input type="hidden" id="urlexportar" value="{{route('exportar.contactos')}}">
+    <script>
+        $(function () {
+            $('#fechas').on('change', function () {
+                if ($(this).val() == '8') {
+                    $('#desde').val('01-01-2000');
+                    $('#hasta').val(moment().format('DD-MM-YYYY'));
+                }
+            });
+            if ($('#fechas').val() == '8') {
+                $('#fechas').trigger('change');
+            }
+        });
+    </script>
 @endsection

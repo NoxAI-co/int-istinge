@@ -197,7 +197,7 @@ Route::get('facturaElectronica/{key}/pdf', function ($key) {
 
         $pdf = PDF::loadView('pdf.facturaAPI', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones',
             'resolucion', 'empresa'));
-        return  response ($pdf->stream())->withHeaders(['Content-Type' =>'application/pdf',]);
+        return $pdf->stream('factura.pdf');
 
     }
 })->name('imprimirFe');

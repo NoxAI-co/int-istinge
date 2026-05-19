@@ -242,15 +242,16 @@ class Ingreso extends Model
     }
 
     public function created_by(){
-
-        if(User::find($this->created_by)){
-            return User::find($this->created_by);
+        $created_by = isset($this->attributes['created_by']) ? $this->attributes['created_by'] : null;
+        if($created_by && $user = User::find($created_by)){
+            return $user;
         }
         return false;
     }
 
     public function updated_by(){
-        return User::find($this->updated_by);
+        $updated_by = isset($this->attributes['updated_by']) ? $this->attributes['updated_by'] : null;
+        return User::find($updated_by);
     }
 
     public function ingresosCategorias(){

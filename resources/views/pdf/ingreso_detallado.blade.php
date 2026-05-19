@@ -1,6 +1,28 @@
 @extends('layouts.pdf')
 
 @section('content')
+@php
+    // Variables precomputadas en el controlador (con fallback por compatibilidad).
+    $cliente_pdf            = $cliente              ?? $ingreso->cliente();
+    $cuenta_pdf             = $cuenta               ?? $ingreso->cuenta();
+    $metodo_pago_pdf        = $metodoPago           ?? $ingreso->metodo_pago();
+    $pago_total_pdf         = $pagoTotal            ?? $ingreso->pago();
+    $cliente_tipiden_mini   = $clienteTipIdenMini   ?? ($cliente_pdf ? $cliente_pdf->tip_iden('mini') : '');
+    $items_rendered_pdf     = $itemsRendered        ?? null;
+    $retenciones_map_pdf    = $retencionPorId       ?? null;
+    $factura_primary_pdf    = $facturaPrimary       ?? ($ingreso->ingresofactura() ? $ingreso->ingresofactura()->factura() : null);
+    $periodo_cobrado_pdf    = $periodoCobradoTexto  ?? ($factura_primary_pdf ? $factura_primary_pdf->periodoCobradoTexto() : null);
+    $contrato_asociado_nro_pdf = $contratoAsociadoNro ?? null;
+    if ($contrato_asociado_nro_pdf === null) {
+        if ($factura_primary_pdf) {
+            $contratoAsoc = $factura_primary_pdf->contratoAsociado();
+            $contrato_asociado_nro_pdf = $contratoAsoc ? $contratoAsoc->nro : 'N/A';
+        } else {
+            $contrato_asociado_nro_pdf = 'N/A';
+        }
+    }
+    $porpagar_factura_pdf = $porpagarFactura ?? ($factura_primary_pdf ? $factura_primary_pdf->porpagar() : null);
+@endphp
 <style type="text/css">
     #watermark {
         position: fixed;
@@ -179,29 +201,29 @@
     <table border="1" class="titulo">
         <tr>
             <th width="10%" class="right smalltd">SEÑOR(ES)</th>
-            <td colspan="3" style="border-top: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->nombre}}@endif</td>
+            <td colspan="3" style="border-top: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->nombre}}@endif</td>
             <th width="22%" class="center" style="font-size: 8px"><b>FECHA(DD/MM/AA)</b></th>
         </tr>
         <tr>
             <th class="right smalltd">DIRECCIÓN</th>
-            <td colspan="3">@if($ingreso->cliente()){{$ingreso->cliente()->direccion}}@endif</td>
+            <td colspan="3">@if($cliente_pdf){{$cliente_pdf->direccion}}@endif</td>
             <td class="center" rowspan="4" style="font-size: 18px; border-right: 2px solid #ccc;">{{date('d/m/Y', strtotime($ingreso->fecha))}}</td>
         </tr>
         <tr>
             <th class="right smalltd">CIUDAD</th>
-            <td colspan="3">@if($ingreso->cliente()){{$ingreso->cliente()->ciudad}}@endif</td>
+            <td colspan="3">@if($cliente_pdf){{$cliente_pdf->ciudad}}@endif</td>
         </tr>
         <tr>
             <th class="right smalltd">TELÉFONO</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->telefono1}}@endif</td>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->telefono1}}@endif</td>
             <th class="right smalltd" style="padding-right: 2px;">MÉTODO DE PAGO</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->metodo_pago()}}@endif</td>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$metodo_pago_pdf}}@endif</td>
         </tr>
         <tr>
-            <th class="right smalltd">@if($ingreso->cliente()){{$ingreso->cliente()->tip_iden('mini')}}@endif</th>
-            <td style="border-bottom: 2px solid #ccc;">@if($ingreso->cliente()){{$ingreso->cliente()->nit}}@endif</td>
+            <th class="right smalltd">@if($cliente_pdf){{$cliente_tipiden_mini}}@endif</th>
+            <td style="border-bottom: 2px solid #ccc;">@if($cliente_pdf){{$cliente_pdf->nit}}@endif</td>
             <th class="right smalltd" style="padding-right: 2px;">CUENTA</th>
-            <td style="border-bottom: 2px solid #ccc;">{{$ingreso->cuenta()->nombre}}</td>
+            <td style="border-bottom: 2px solid #ccc;">{{$cuenta_pdf->nombre}}</td>
         </tr>
     </table>
 </div>
@@ -215,26 +237,24 @@
             </tr>
         </thead>
         <tbody>
-            @if($ingreso->ingresofactura())
+            @if($factura_primary_pdf)
                 <tr>
                     <th width="15%" class="right smalltd">Periodo Cobrado:</th>
-                    <td>{{$ingreso->ingresofactura()->factura()->periodoCobradoTexto()}}</td>
+                    <td>{{$periodo_cobrado_pdf}}</td>
                 </tr>
-            @endif
-            @if($ingreso->ingresofactura())
-            <tr>
-                <th class="right smalltd">No. Contrato:</th>
-                <td>{{ isset($ingreso->ingresofactura()->factura()->contratoAsociado()->nro) ? $ingreso->ingresofactura()->factura()->contratoAsociado()->nro : 'N/A' }}</td>
-            </tr>
+                <tr>
+                    <th class="right smalltd">No. Contrato:</th>
+                    <td>{{ $contrato_asociado_nro_pdf }}</td>
+                </tr>
             @endif
             <tr>
                 <th class="right smalltd">Monto pagado:</th>
-                <td>{{ $empresa->moneda }} {{ App\Funcion::Parsear($ingreso->pago()) }}</td>
+                <td>{{ $empresa->moneda }} {{ App\Funcion::Parsear($pago_total_pdf) }}</td>
             </tr>
-            @if($ingreso->ingresofactura() && $ingreso->ingresofactura()->factura()->porpagar() > 0)
+            @if($factura_primary_pdf && $porpagar_factura_pdf > 0)
             <tr>
                 <th class="right smalltd">Saldo pendiente:</th>
-                <td style="font-weight: bold;">{{ $empresa->moneda }} {{ App\Funcion::Parsear($ingreso->ingresofactura()->factura()->porpagar()) }}</td>
+                <td style="font-weight: bold;">{{ $empresa->moneda }} {{ App\Funcion::Parsear($porpagar_factura_pdf) }}</td>
             </tr>
             @endif
         </tbody>
@@ -250,18 +270,24 @@
         </thead>
         <tbody>
             @php $cont=0; @endphp
-            @foreach($items as $item)
-            @php $cont++; @endphp
+            @foreach($items as $idx => $item)
+            @php
+                $cont++;
+                $rendered = $items_rendered_pdf[$idx] ?? null;
+                $cat_obj = $rendered ? $rendered->categoria : (isset($item->categoria) && $item->categoria != null ? $item->categoria() : null);
+                $detalle_text = $rendered ? $rendered->detalle_text : $item->detalle('Pago a');
+                $pago_value   = $rendered ? $rendered->pago_value   : $item->pago();
+            @endphp
             <tr>
-                @if(isset($item->categoria) && $item->categoria != null)
+                @if($cat_obj)
                 <td colspan="2" class="left padding-left border_left @if($cont==$itemscount && $cont>6) border_bottom @endif">
-                    {{$item->categoria()->nombre}} - {{$item->categoria()->codigo}}
+                    {{$cat_obj->nombre}} - {{$cat_obj->codigo}}
                     </td>
                 @else
-                <td colspan="2" class="left padding-left border_left @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$item->detalle('Pago a')}}</td>
+                <td colspan="2" class="left padding-left border_left @if($cont==$itemscount && $cont>6) border_bottom @endif">{{$detalle_text}}</td>
                 @endif
                 <td class="right padding-right border_right @if($cont==$itemscount && $cont>6) border_bottom @endif">
-                    {{$empresa->moneda}}{{App\Funcion::Parsear($item->pago())}}
+                    {{$empresa->moneda}}{{App\Funcion::Parsear($pago_value)}}
                 </td>
             </tr>
             @endforeach
@@ -283,13 +309,17 @@
             <tr class="foot">
                 <td width="90%"></td>
                 <td class="right">SubTotal</td>
-                <td class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->pago())}}</td>
+                <td class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($pago_total_pdf)}}</td>
             </tr>
 
             @forelse($ingreso->retenciones as $retencion)
+            @php
+                $ret_def = $retenciones_map_pdf ? $retenciones_map_pdf->get($retencion->id_retencion) : null;
+                if (!$ret_def) { $ret_def = $retencion->retencion(); }
+            @endphp
             <tr class="foot">
                 <td width="90%"></td>
-                <td class="right">{{$retencion->retencion()->nombre}} ({{$retencion->retencion()->porcentaje}}%)</td>
+                <td class="right">{{$ret_def->nombre ?? ''}} ({{$ret_def->porcentaje ?? ''}}%)</td>
                 <td class="right padding-right">{{$empresa->moneda}} {{App\Funcion::Parsear($retencion->valor)}}</td>
             </tr>
             @empty
@@ -298,14 +328,14 @@
             <tr class="foot">
                 <td> </td>
                 <th class="right padding-right">Total</th>
-                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->pago())}} </th>
+                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($pago_total_pdf)}} </th>
             </tr>
 
-            @if($ingreso->ingresofactura() && $ingreso->ingresofactura()->factura()->porpagar() > 0)
+            @if($factura_primary_pdf && $porpagar_factura_pdf > 0)
             <tr class="foot">
                 <td> </td>
                 <th class="right padding-right">Saldo Pendiente</th>
-                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($ingreso->ingresofactura()->factura()->porpagar())}} </th>
+                <th class="right padding-right">{{$empresa->moneda}}{{App\Funcion::Parsear($porpagar_factura_pdf)}} </th>
             </tr>
             @endif
         </tfoot>

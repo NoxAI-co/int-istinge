@@ -121,7 +121,7 @@
         <div class="col-sm-1">
           <div class="form-radio">
             <label class="form-check-label">
-            <input type="radio" class="form-check-input" name="tipo" id="tipo" value="2" onchange="showdiv('no');  hidediv('si');" {{$gasto->tipo==2?'checked':'' }}> No
+            <input type="radio" class="form-check-input" name="tipo" id="tipo" value="{{ ($gasto->tipo==4 || $gasto->tipo==5) ? $gasto->tipo : 2 }}" onchange="showdiv('no');  hidediv('si');" {{($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)?'checked':'' }}> No
             <i class="input-helper"></i></label>
           </div>
         </div>
@@ -139,7 +139,7 @@
           <div id="factura_pendiente"></div>
           </div>
         </div>
-        <div class="col-md-12 fact-table" id="no" @if($gasto->tipo<>2) style="display: none;" @endif>
+        <div class="col-md-12 fact-table" id="no" @if($gasto->tipo!=2 && $gasto->tipo!=4 && $gasto->tipo!=5) style="display: none;" @endif>
           <h5>¿A QUÉ CATEGORÍA(S) PERTENECE ESTE GASTO?</h5>
           <div id="div-categoria">
               <div class="fact-table">
@@ -156,7 +156,7 @@
                 </tr>
               </thead> 
               <tbody>
-                @if($gasto->tipo==2)
+                @if($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)
                 @php $cont=0; @endphp
                 @foreach($items as $item)
                 @php $cont+=1; @endphp
@@ -214,7 +214,7 @@
                 <th width="5%"></th>
               </thead>
               <tbody>
-                @if($gasto->tipo==2)
+                @if($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)
                 @php $total=$cont=0; @endphp 
                 @foreach($retencionesGasto as $retenido)
                 <tr  id="reten{{$cont}}"> 
@@ -249,11 +249,11 @@
           <table style="text-align: right;  width: 100%;" id="totales">
             <tr> 
               <td width="40%">Subtotal</td>
-              <input type="hidden" id="subtotal_categoria_js" value="{{$gasto->tipo==2?App\Funcion::Parsear($gasto->total()->subtotal):0}}">
-              <input type="hidden" id="impuestos_categoria_js" value="{{$gasto->tipo==2?App\Funcion::Parsear($gasto->total()->ivas):0}}">
+              <input type="hidden" id="subtotal_categoria_js" value="{{($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)?App\Funcion::Parsear($gasto->total()->subtotal):0}}">
+              <input type="hidden" id="impuestos_categoria_js" value="{{($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)?App\Funcion::Parsear($gasto->total()->ivas):0}}">
 
 
-              <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal_categoria">{{$gasto->tipo==2?App\Funcion::Parsear($gasto->total()->subtotal):0}}</span></td>
+              <td>{{Auth::user()->empresa()->moneda}} <span id="subtotal_categoria">{{($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)?App\Funcion::Parsear($gasto->total()->subtotal):0}}</span></td>
             </tr>
           </table>
           <table style="text-align: right; width: 100%;" id="totalesreten">
@@ -288,7 +288,7 @@
           <table style="text-align: right; font-size: 24px !important; width: 100%;">
             <tr>
               <td width="40%">TOTAL</td>
-              <td>{{Auth::user()->empresa()->moneda}} <span id="total_categoria">{{$gasto->tipo==2?App\Funcion::Parsear($gasto->total()->total):0}}</span></td>
+              <td>{{Auth::user()->empresa()->moneda}} <span id="total_categoria">{{($gasto->tipo==2 || $gasto->tipo==4 || $gasto->tipo==5)?App\Funcion::Parsear($gasto->total()->total):0}}</span></td>
             </tr>
           </table>
         </div>

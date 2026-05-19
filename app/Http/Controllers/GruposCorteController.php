@@ -787,15 +787,16 @@ class GruposCorteController extends Controller
         
         try {
             Log::info("Llamando a CronController::CrearFactura", ['fechaRef' => $fechaRef, 'idGrupo' => $idGrupo]);
-            CronController::CrearFactura($fechaRef, $idGrupo);
-            Log::info("CronController::CrearFactura finalizado correctamente");
-            
-            // Invalidar caché
-            // Invalidar caché usando el analyzer (Re- aplicado)
-            Log::info("Iniciando invalidación de caché con BillingCycleAnalyzer");
+            // Marcar que estamos generando para bypass de caché
             $analyzer = new \App\Services\BillingCycleAnalyzer();
+            $analyzer->setGeneratingFlag($idGrupo, true);
             $analyzer->clearCycleCache($idGrupo, $periodo);
-            Log::info("Invalidación de caché finalizada");
+
+            CronController::CrearFactura($fechaRef, $idGrupo);
+
+            // Limpiar caché y flag al finalizar
+            $analyzer->setGeneratingFlag($idGrupo, false);
+            $analyzer->clearCycleCache($idGrupo, $periodo);
             
             Log::info("Proceso exitoso en generarFacturasFaltantes");
             return response()->json([

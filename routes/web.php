@@ -199,6 +199,7 @@ Route::get('/estatus-emision-dian', 'CronController@validateEmisionApi');
 Route::get('/validar-factura-doble', 'CronController@validarFacturasDobles');
 Route::get('/validate-codigo-emision', 'CronController@validateCodeEmision');
 Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
+Route::get('/generacionnotacredito', 'CronController@generacionnotacredito');
 Route::get('/syncintegrapay', 'CronController@syncIntegraPay');
 Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
 /*PAYU*/
@@ -603,6 +604,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('importacion-saldos', 'ContactosController@importarSaldos')->name('saldos_favor.importar');
 		Route::post('importacion-saldos/cargando', 'ContactosController@cargandoSaldos')->name('saldos_favor.cargando');
 		Route::get('importacion-saldos/ejemplo', 'ContactosController@ejemploSaldos')->name('saldos_favor.ejemplo');
+		Route::post('destroyMultiple', 'ContactosController@destroyMultiple')->name('contactos.destroyMultiple');
 	});
 	Route::resource('contactos', 'ContactosController');
 
@@ -1542,6 +1544,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/cuentasCobrar', 'ReportesController@cuentasCobrar')->name('reportes.cuentasCobrar');
 		Route::get('/cuentasPagar', 'ReportesController@cuentasPagar')->name('reportes.cuentasPagar');
 		Route::get('/compras', 'ReportesController@compras')->name('reportes.compras');
+		Route::get('/libro-oficial-compras', 'ReportesController@libroCompras')->name('reportes.libroCompras');
+		Route::get('/libro-oficial-ventas', 'ReportesController@libroVentas')->name('reportes.libroVentas');
 		Route::get('/ventasVendedor', 'ReportesController@ventasVendedor')->name('reportes.ventasVendedor');
 		Route::get('/rentabilidaditem', 'ReportesController@rentabilidadItem')->name('reportes.rentabilidadItem');
 		Route::get('/transacciones', 'ReportesController@transacciones')->name('reportes.transacciones');
@@ -1571,6 +1575,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/estadoCliente', 'ReportesController@estadoCliente')->name('reportes.estadoCliente');
 		Route::get('/estadoCliente/consulta', 'ReportesController@estadoClienteShow')->name('reportes.estadoClienteShow');
 		Route::get('/planes', 'ReportesController@planes')->name('reportes.planes');
+		Route::get('/reporte-planes', 'ReportesController@reportePlanes')->name('reportes.reportePlanes');
 
 		Route::get('/ivas', 'ReportesController@ivas')->name('reportes.ivas');
 
@@ -1595,6 +1600,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/cuentasCobrar', 'ExportarReportesController@cuentasCobrar')->name('exportar.cuentasCobrar');
 		Route::get('/cuentasPagar', 'ExportarReportesController@cuentasPagar')->name('exportar.cuentasPagar');
 		Route::get('/compras', 'ExportarReportesController@compras')->name('exportar.compras');
+		Route::get('/libro-oficial-compras', 'ExportarReportesController@libroCompras')->name('exportar.libroCompras');
+		Route::get('/libro-oficial-ventas', 'ExportarReportesController@libroVentas')->name('exportar.libroVentas');
 		Route::get('/estadoCliente', 'ExportarReportesController@estadoCliente')->name('exportar.compras');
 		Route::post('/reporteDiario', 'ExportarReportesController@reporteDiario')->name('exportar.reporteDiario');
 		Route::get('/ventasVendedor', 'ExportarReportesController@ventasVendedor')->name('exportar.ventasVendedor');
@@ -1626,6 +1633,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 		Route::get('/contratoperiodo', 'ExportarReportesController@contratoPeriodo')->name('exportar.contratoperiodo');
 		Route::get('/personassincontrato', 'ExportarReportesController@personaSinContrato')->name('exportar.personasincontrato');
+		Route::get('/reporte-planes', 'ExportarReportesController@reportePlanes')->name('exportar.reportePlanes');
 	});
 
 	//Documentacion escrita

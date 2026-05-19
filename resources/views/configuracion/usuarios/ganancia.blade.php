@@ -51,11 +51,7 @@
                 
                 $('#div_ganancia').text('GANANCIA: '+dato['ganancia']);
                 
-                if(dato['saldo'] == 0){
-                    $('#div_saldo').attr('style', 'background: #fc2919;padding: 10px 20px;border-radius: 15px;');
-                }else{
-                    $('#div_saldo').attr('style', 'background: #55de4c;padding: 10px 20px;border-radius: 15px;');
-                }
+                $('#div_saldo').attr('style', 'background: #000000; color: #ffffff; padding: 10px 20px; border-radius: 15px;');
                 $('#div_saldo').text('SALDO: '+dato['saldo']);
                 $('.loader').removeAttr('style').attr('style','display:none');
                 swal(dato['title'], dato['mensaje'], dato['type']);

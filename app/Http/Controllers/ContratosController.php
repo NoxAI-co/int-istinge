@@ -2713,6 +2713,8 @@ class ContratosController extends Controller
         $contrato = Contrato::find($id);
         $empresa  = Auth::user()->empresaObj;
         if ($contrato) {
+            Log::info("Eliminación del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
             if ($contrato->server_configuration_id) {
                 $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
                 $API = new RouterosAPI();
@@ -3034,6 +3036,8 @@ class ContratosController extends Controller
                     $cliente->fecha_contrato = Carbon::now();
                     $cliente->save();
                 }
+                Log::info("Eliminación por lote del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
                 $contrato->delete();
                 $eliminados++;
             }
@@ -3050,6 +3054,8 @@ class ContratosController extends Controller
     {
         $contrato = Contrato::find($id);
         if ($contrato) {
+            Log::info("Eliminación del contrato nro. " . $contrato->nro . " por el usuario " . Auth::user()->nombres);
+
             Ping::where('contrato', $contrato->id)->delete();
             $contrato->delete();
             $mensaje = 'SE HA ELIMINADO EL CONTRATO DE SERVICIOS SATISFACTORIAMENTE';

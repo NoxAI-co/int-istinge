@@ -79,6 +79,51 @@ class NominaPeriodos extends Model
         return ($dias);
     }
 
+    public function vacacionesOverlap()
+    {
+        $diasOverlap = 0;
+        $valorOverlap = 0;
+        $nominaPrincipal = $this->nomina;
+
+        if ($nominaPrincipal) {
+            foreach($nominaPrincipal->nominaperiodos as $periodo){
+                if($periodo->id != $this->id){
+                    $vacaciones = NominaDetalleUno::where('fk_nominaperiodo', $periodo->id)
+                                          ->where('fk_nomina_cuenta', 2)
+                                          ->where('fk_nomina_cuenta_tipo', 4)
+                                          ->get();
+
+                    foreach($vacaciones as $vac){
+                        if ($vac->fecha_inicio && $vac->fecha_fin) {
+                            $inicioVac = Carbon::parse($vac->fecha_inicio);
+                            $finVac = Carbon::parse($vac->fecha_fin);
+                            $inicioActual = Carbon::parse($this->fecha_desde);
+                            $finActual = Carbon::parse($this->fecha_hasta);
+
+                            $inicioSolapado = $inicioVac->greaterThan($inicioActual) ? $inicioVac : $inicioActual;
+                            $finSolapado = $finVac->lessThan($finActual) ? $finVac : $finActual;
+
+                            if ($inicioSolapado <= $finSolapado) {
+                                $diasSolapados = self::diffDaysAbsolute($inicioSolapado, $finSolapado, true);
+                                $diasSolapados -= $this->validar31($inicioSolapado->toDateString(), $finSolapado->toDateString());
+                                
+                                $diasTotalesVac = self::diffDaysAbsolute($inicioVac, $finVac, true);
+                                $diasTotalesVac -= $this->validar31($vac->fecha_inicio, $vac->fecha_fin);
+                                
+                                if ($diasTotalesVac > 0) {
+                                    $valorProporcional = ($vac->valor_categoria / $diasTotalesVac) * $diasSolapados;
+                                    $diasOverlap += $diasSolapados;
+                                    $valorOverlap += $valorProporcional;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return ['dias' => $diasOverlap, 'valor' => $valorOverlap];
+    }
+
     public static function validar31($start_date,$end_date)
     {
         $start_date = Carbon::parse($start_date);
@@ -286,8 +331,17 @@ class NominaPeriodos extends Model
         }
 
         /* >>> Obtenemos valores_totales (en dinero) de vacaciones, salario, ingresos e incapacidades <<< */
+        $diasVacaciones = $this->vacaciones();
+        $overlap = $this->vacacionesOverlap();
+        $diasVacaciones += $overlap['dias'];
+
         $ibcSeguridadSocial['vacaciones'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 4)->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
-        $ibcSeguridadSocial['salario']= (($this->pago_empleado / 30) * $this->diasTrabajados());
+        
+        // Calculamos los días trabajados reales descontando vacaciones para el IBC de salario
+        $diasRealesParaSalario = $this->diasTrabajados() - $diasVacaciones;
+        if($diasRealesParaSalario < 0) $diasRealesParaSalario = 0;
+        
+        $ibcSeguridadSocial['salario'] = (($this->pago_empleado / 30) * $diasRealesParaSalario);
         $ibcSeguridadSocial['ingresosyExtras'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->whereIn('fk_nomina_cuenta', [1,3])->whereNotIn('fk_nomina_cuenta_tipo', [8, 9])->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
         $ibcSeguridadSocial['incapacidades'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 5)->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
 
@@ -319,32 +373,31 @@ class NominaPeriodos extends Model
         }
 
         if($ibcSeguridadSocial['incapacidades'] > 0){
-            $diasValidosTrabajados = $this->diasTrabajados() - $diasIncapacitado;
-            /*>>> el salario se recalcula ya que la persona no trabajo un dia
-             formula para obtener el dia trabajado de una persona con incapacidad (50mil pesos) <<<*/
-
-             //logica que en teoria es la misma, decidir cual dejar
-             if($this->id != 4483 && $this->id != 4745 && $this->id != 4746){
-                $ibcSeguridadSocial['salario'] -= $this->pago_empleado * ((30 / $this->mini_periodo) - $diasValidosTrabajados) / 30;
-            }else{
-                $ibcSeguridadSocial['salario'] -= $ibcSeguridadSocial['salario'] * ($this->diasTrabajados() - $diasValidosTrabajados) / $this->diasTrabajados();
-            }
+            $diasValidosTrabajados = $diasRealesParaSalario - $diasIncapacitado;
+            if($diasValidosTrabajados < 0) $diasValidosTrabajados = 0;
+            
+            /*>>> el salario se recalcula ya que la persona no trabajo un dia <<<*/
+            $ibcSeguridadSocial['salario'] = (($this->pago_empleado / 30) * $diasValidosTrabajados);
+            
             /*>>> a las vacaciones se les suma el porcentaje del o los dias que se incapacito <<<*/
             $ibcSeguridadSocial['vacaciones'] += $ibcSeguridadSocial['incapacidades'];
         }
         $licenciaPaga = 0;
         $licencias = NominaDetalleUno::where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 6)->where('fk_nominaperiodo', $this->id)->whereNotNull('fecha_inicio')->get();
         foreach($licencias as $licencia){
-            if(!($licencia->is_remunerado())){
-                $ibcSeguridadSocial['salario'] -= $licencia->valor_categoria;
-            }else{
-                $ibcSeguridadSocial['salario'] -= $licencia->valor_categoria;
+            $diasLicencia = self::diffDaysAbsolute(new Carbon($licencia->fecha_inicio), new Carbon($licencia->fecha_fin)) + 1;
+            
+            // Descontamos los días de licencia del salario base
+            $ibcSeguridadSocial['salario'] -= (($this->pago_empleado / 30) * $diasLicencia);
+            if($ibcSeguridadSocial['salario'] < 0) $ibcSeguridadSocial['salario'] = 0;
+
+            if($licencia->is_remunerado()){
                 $licenciaPaga += $licencia->valor_categoria;
             }
         }
 
         /* >>> Cálculo final del ibc seguridad social <<< */
-        $ibcSeguridadSocial['total'] = $subtotal = $licenciaPaga + $ibcSeguridadSocial['vacaciones'] + ($ibcSeguridadSocial['salario'] - $ibcSeguridadSocial['vacaciones']) +
+        $ibcSeguridadSocial['total'] = $subtotal = $licenciaPaga + $ibcSeguridadSocial['vacaciones'] + $ibcSeguridadSocial['salario'] +
         $ibcSeguridadSocial['ingresosyExtras'] + $incapacidad_general;
 
         /* >>> Obtenemos los valores de salud y pension configurados desde el modulo de calculos fijos. <<< */
@@ -539,60 +592,13 @@ class NominaPeriodos extends Model
 
         $calculosFijosCollect = $this->nominaCalculoFijos;
         $nominaDetalleUno = $this->nominaDetallesUno;
-        $diasVacacionesOtraNomina = 0;
+        $overlap = $this->vacacionesOverlap();
+        $diasVacacionesOtraNomina = $overlap['dias'];
         $diasTrabajados = $this->diasTrabajados();
         $nominaPrincipal = $this->nomina;
 
         $totalidad['ibcSeguridadSocial']['vacaciones'] = 0;
         $valorProporcional = 0;
-
-        foreach($nominaPrincipal->nominaperiodos as $periodo){
-            if($this->periodo > $periodo->periodo){
-
-                $vacaciones = $periodo->nominaDetallesUno->where('fk_nomina_cuenta', 2)
-                                      ->where('fk_nomina_cuenta_tipo', 4);
-
-                foreach($vacaciones as $vac){
-
-                    // Asegúrate de tener campos de fecha en cada $vac (ajusta nombres si es necesario)
-                    $inicioVac = Carbon::parse($vac->fecha_inicio);
-                    $finVac = Carbon::parse($vac->fecha_fin);
-
-                    // Asume que tienes el rango del periodo actual
-                    $inicioActual = Carbon::parse($this->fecha_desde);
-                    $finActual = Carbon::parse($this->fecha_hasta);
-
-                    // Calcular la intersección de fechas
-                    $inicioSolapado = $inicioVac->greaterThan($inicioActual) ? $inicioVac : $inicioActual;
-                    $finSolapado = $finVac->lessThan($finActual) ? $finVac : $finActual;
-
-
-                    if ($inicioSolapado <= $finSolapado) {
-                        $diasSolapados = $inicioSolapado->diffInDaysFiltered(function($date) {
-                            return $date; // si solo se cuentan días hábiles
-                        }, $finSolapado) + 1;
-
-                        // Valor proporcional según días (asume que valor_categoria es el valor total de las vacaciones)
-                        $diasTotalesVac = $inicioVac->diffInDays($finVac) + 1;
-
-                         $diasTotalesVac2 = $inicioSolapado->diffInDaysFiltered(function($date) {
-                            return $date; // si solo se cuentan días hábiles
-                        }, $finSolapado) + 1;
-
-                        $valorProporcional = ($vac->valor_categoria / $diasTotalesVac) * $diasSolapados;
-
-                        if (!isset($totalidad['ibcSeguridadSocial']['vacaciones'])) {
-                            $totalidad['ibcSeguridadSocial']['vacaciones'] = 0;
-                        }
-
-                        $totalidad['ibcSeguridadSocial']['vacaciones'] += floatval($valorProporcional);
-                        $diasVacacionesOtraNomina += $diasTotalesVac2;
-
-                    }
-
-                }
-            }
-        }
 
         //Actualizacion del subsidio segun calculo.
         $calculofijo = NominaConfiguracionCalculos::where('fk_idempresa', $nominaPrincipal->fk_idempresa)->get();
@@ -628,11 +634,7 @@ class NominaPeriodos extends Model
         // dd($this->diasTrabajados());
         /*>>> Valor vacaciones <<<*/
         $totalidad['ibcSeguridadSocial']['vacaciones']+= floatval($nominaDetalleUno->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 4)->sum('valor_categoria') ?? 0);
-        //$totalidad['ibcSeguridadSocial']['vacaciones'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 4)->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
-        $totalidad['ibcSeguridadSocial']['salario']= $pagoEmpleado - $totalidad['ibcSeguridadSocial']['vacaciones'];
-        //$totalidad['ibcSeguridadSocial']['ingresosyExtras'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->whereIn('fk_nomina_cuenta', [1,3])->whereNotIn('fk_nomina_cuenta_tipo', [8, 9])->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
         $totalidad['ibcSeguridadSocial']['ingresosyExtras'] = floatval($nominaDetalleUno->whereIn('fk_nomina_cuenta', [1, 3])->whereNotIn('fk_nomina_cuenta_tipo', [8, 9])->sum('valor_categoria') ?? 0);
-        //$totalidad['ibcSeguridadSocial']['incapacidades'] = floatval(NominaDetalleUno::select(DB::raw("SUM(valor_categoria) as valor_total"))->where('fk_nominaperiodo', $this->id)->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 5)->groupBy('fk_nominaperiodo')->first()->valor_total ?? 0);
         $totalidad['ibcSeguridadSocial']['incapacidades'] = floatval($nominaDetalleUno->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 5)->sum('valor_categoria') ?? 0);
 
 
@@ -652,9 +654,6 @@ class NominaPeriodos extends Model
 
         if($totalidad['ibcSeguridadSocial']['incapacidades'] > 0){
             $diasValidosTrabajados = $totalidad['diasTrabajados']['diasPeriodo'] - $diasIncapacitado;
-            // dd($totalidad['ibcSeguridadSocial']['salario'],$this->pago_empleado * ($totalidad['diasTrabajados']['diasPeriodo'] - $diasValidosTrabajados) / 30);
-            $totalidad['ibcSeguridadSocial']['salario'] -= $this->pago_empleado * ($totalidad['diasTrabajados']['diasPeriodo'] - $diasValidosTrabajados) / 30;
-            // $totalidad['ibcSeguridadSocial']['vacaciones'] += $totalidad['ibcSeguridadSocial']['incapacidades'];
         }
 
         // dd($this->diasAusenteDetalle());
@@ -677,6 +676,9 @@ class NominaPeriodos extends Model
             $totalidad['diasTrabajados']['total'] = 0;
         }
 
+        // IBC de Salario basado únicamente en los días realmente trabajados
+        $totalidad['ibcSeguridadSocial']['salario'] = ($this->pago_empleado / 30) * $totalidad['diasTrabajados']['total'];
+
         $totalidad['ibcSeguridadSocial']['licencias'] = 0;
         $totalidad['pago']['licencias'] = 0;
         $licencias = $nominaDetalleUno->where('fk_nomina_cuenta', 2)->where('fk_nomina_cuenta_tipo', 6)->whereNotNull('fecha_inicio');
@@ -684,24 +686,14 @@ class NominaPeriodos extends Model
         foreach($licencias as $licencia){
             if(!($licencia->is_remunerado())){
                 $totalidad['ibcSeguridadSocial']['licencias'] += $licencia->valor_categoria;
-                $totalidad['ibcSeguridadSocial']['salario'] -= $licencia->valor_categoria;
-                $totalidad['ibcSeguridadSocial']['salarioParcial'] -= $licencia->valor_categoria;
+                // No restamos del IBC de salario aquí porque ya se restó en díasTrabajados['total']
                 $licenciaNoRemunerada += $licencia->valor_categoria;
-                $totalidad['pagoContratado']['total'] -= $licencia->valor_categoria;
-                $totalidad['pagoContratado']['deducido'] -= $licencia->valor_categoria;
             }else{
                 $totalidad['pago']['licencias'] += $licencia->valor_categoria;
-                $totalidad['ibcSeguridadSocial']['salario'] -= $licencia->valor_categoria;
-                $totalidad['ibcSeguridadSocial']['salarioParcial'] -= $licencia->valor_categoria;
-                $totalidad['pagoContratado']['deducido'] -= $licencia->valor_categoria;
             }
         }
-        $totalDeducidoMenosVacaciones = $totalidad['pagoContratado']['deducido'] - $totalidad['ibcSeguridadSocial']['vacaciones'];
-        if($totalDeducidoMenosVacaciones < 0){
-            $totalDeducidoMenosVacaciones = 0;
-        }
 
-        $totalidad['ibcSeguridadSocial']['total'] = $subtotal = $totalidad['pago']['licencias'] + $totalidad['ibcSeguridadSocial']['vacaciones'] + $totalDeducidoMenosVacaciones + $totalidad['ibcSeguridadSocial']['ingresosyExtras'];
+        $totalidad['ibcSeguridadSocial']['total'] = $subtotal = $totalidad['pago']['licencias'] + $totalidad['ibcSeguridadSocial']['vacaciones'] + $totalidad['ibcSeguridadSocial']['salario'] + $totalidad['ibcSeguridadSocial']['ingresosyExtras'] + $totalidad['ibcSeguridadSocial']['incapacidades'];
 
         $totalidad['retenciones']['salud'] = floatval($calculosFijosCollect->where('tipo', 'reten_salud')->first()->valor ?? 0);
 

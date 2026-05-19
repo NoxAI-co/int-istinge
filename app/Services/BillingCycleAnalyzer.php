@@ -16,9 +16,20 @@ class BillingCycleAnalyzer
     /**
      * Limpiar caché de un ciclo específico
      */
+    public function setGeneratingFlag($grupoCorteId, $state = true)
+    {
+        $key = "generating_cycle_stats_{$grupoCorteId}";
+        if ($state) {
+            Cache::put($key, true, 600); // 10 mins max
+        } else {
+            Cache::forget($key);
+        }
+    }
+
     public function clearCycleCache($grupoCorteId, $periodo)
     {
         $cacheKey = "cycle_stats_v28_{$grupoCorteId}_{$periodo}";
+        \Log::info("Clearing Cycle Cache: {$cacheKey}");
         Cache::forget($cacheKey);
     }
 
@@ -29,11 +40,20 @@ class BillingCycleAnalyzer
      * @param string $periodo Formato: Y-m (ej: 2026-02)
      * @return array
      */
-    public function getCycleStats($grupoCorteId, $periodo)
+    public function getCycleStats($grupoCorteId, $periodo, $forceRefresh = false)
     {
         // v28: Optimización profunda - rangos fecha, batch preload, agregar histórico
         $cacheKey = "cycle_stats_v28_{$grupoCorteId}_{$periodo}";
         
+        $isGenerating = Cache::has("generating_cycle_stats_{$grupoCorteId}");
+        
+        if ($forceRefresh || $isGenerating) {
+            Cache::forget($cacheKey);
+            if ($isGenerating) {
+                \Log::info("CycleStats [{$grupoCorteId}-{$periodo}]: Bypassing cache because generation is in progress.");
+            }
+        }
+
         return Cache::remember($cacheKey, 300, function () use ($grupoCorteId, $periodo) {
             $grupoCorte = GrupoCorte::find($grupoCorteId);
             if (!$grupoCorte) {
@@ -44,18 +64,29 @@ class BillingCycleAnalyzer
             $fechaCiclo = $this->calcularFechaCiclo($grupoCorte, $periodo);
             $empresaId = $grupoCorte->empresa;
 
-            // Total real de contratos del grupo (con join para consistencia y filtro de empresa)
-            $totalContratosGrupo = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+            // Total real de contratos del grupo (sin scopes para coincidir con SQL manual)
+            $potentialContracts = Contrato::withoutGlobalScopes()
                 ->where('contracts.grupo_corte', $grupoCorteId)
                 ->where('contracts.status', 1)
-                ->where('contracts.empresa', $empresaId)
-                ->count();
+                ->get();
+            
+            // Contratos que tienen cliente asignado
+            $contractsWithClient = Contrato::withoutGlobalScopes()->join('contactos as c', 'c.id', '=', 'contracts.client_id')
+                ->where('contracts.grupo_corte', $grupoCorteId)
+                ->where('contracts.status', 1)
+                ->pluck('contracts.id')
+                ->toArray();
+
+            $totalContratosGrupo = $potentialContracts->count();
+            $totalHuerfanos = $potentialContracts->whereNotIn('id', $contractsWithClient)->count();
             
             // Obtener contratos que deberían facturar (filtrados por fecha del ciclo)
             $contratosEsperados = $this->getContractsExpectedToInvoice($grupoCorteId, $periodo);
             
             // Obtener facturas generadas en el ciclo
             $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
+            
+            \Log::info("CycleStats [{$grupoCorteId}-{$periodo}]: Esperados=" . $contratosEsperados->count() . ", Generadas=" . $facturasGeneradas->count());
             
             // Análisis de facturas faltantes (pasamos colecciones ya obtenidas para evitar re-queries)
             $missingAnalysis = $this->getMissingInvoicesAnalysis($grupoCorteId, $periodo, $contratosEsperados, $facturasGeneradas);
@@ -104,8 +135,10 @@ class BillingCycleAnalyzer
                 'grupo_corte' => $grupoCorte,
                 'periodo' => $periodo,
                 'fecha_ciclo' => $fechaCiclo,
-                'total_contratos' => $totalContratosGrupo,
-                'total_contratos_ciclo' => $contratosEsperados->count(),
+                'total_contratos_ciclo' => $totalContratosGrupo,
+                'total_activos' => $potentialContracts->where('state', 'enabled')->count(),
+                'total_deshabilitados' => $potentialContracts->where('state', 'disabled')->count(),
+                'total_huerfanos' => $totalHuerfanos,
                 'facturas_generadas' => ($onDateManualCount + $outDateManualCount),
                 'facturas_esperadas' => $contratosEsperados->count(),
                 'facturas_faltantes' => $missingAnalysis['total'],
@@ -190,17 +223,19 @@ class BillingCycleAnalyzer
 
         // Calcular fin de mes del periodo analizado
         $yearMonth = explode('-', $periodo);
-        $fechaFinMes = Carbon::create($yearMonth[0], $yearMonth[1], 1)->endOfMonth()->format('Y-m-d');
+        
+        $empresa = Empresa::find($grupoCorte->empresa);
+        $state = ['enabled'];
+        if ($empresa->factura_contrato_off == 1) {
+            $state[] = 'disabled';
+        }
 
-        // Obtener contratos del grupo (incluyendo deshabilitados para poder diagnosticar)
-        // Usamos un INNER JOIN explícito con contactos para garantizar que el cliente exista
-        $contratos = Contrato::join('contactos as c', 'c.id', '=', 'contracts.client_id')
+        // Obtener contratos del grupo que TIENEN cliente (INNER JOIN)
+        $contratos = Contrato::withoutGlobalScopes()->join('contactos as c', 'c.id', '=', 'contracts.client_id')
             ->select('contracts.*', 'c.nombre as cli_nombre', 'c.apellido1 as cli_ap1', 'c.apellido2 as cli_ap2', 'c.nit as cli_nit')
             ->where('contracts.grupo_corte', $grupoCorteId)
-            ->where('contracts.empresa', $grupoCorte->empresa)
-            // Usamos fin de mes para incluir contratos creados DESPUÉS del día de corte pero en el mismo mes
-            ->where('contracts.created_at', '<=', $fechaFinMes)
-            ->where('contracts.status', 1) // REQ: Solo contratos activos (status=1)
+            ->where('contracts.status', 1) 
+            ->whereIn('contracts.state', $state)
             ->get();
 
         return $contratos;
@@ -238,14 +273,22 @@ class BillingCycleAnalyzer
         if ($facturasGeneradas === null) {
             $facturasGeneradas = $this->getGeneratedInvoices($grupoCorteId, $periodo);
         }
-        
-        // Obtener IDs de contratos que ya facturaron
-        $idsGenerados = $facturasGeneradas->pluck('contrato_id')->unique()->toArray();
+        // Obtener IDs de contratos que ya facturaron (aseguramos casting a string para in_array)
+        $idsGenerados = $facturasGeneradas->map(function($f) {
+            return (string)($f->contrato_id ?? $f->getAttribute('contrato_id'));
+        })->unique()->filter()->toArray();
         
         // Contratos que no facturaron
         $contratosSinFactura = $contratosEsperados->filter(function($contrato) use ($idsGenerados) {
-            return !in_array($contrato->id, $idsGenerados);
+            return !in_array((string)$contrato->id, $idsGenerados);
         });
+
+        $esperadosCount = $contratosEsperados->count();
+        $generadosCount = count($idsGenerados);
+        $missingCount = $contratosSinFactura->count();
+        $matched = $esperadosCount - $missingCount;
+
+        \Log::info("MissingAnalysis [{$grupoCorteId}-{$periodo}]: Esperados={$esperadosCount}, UniqueContractIdsInGeneradas={$generadosCount}, MatchedWithEsperados={$matched}, Missing={$missingCount}");
 
         // ============================================================
         // BATCH PRE-LOAD: Cargar todos los datos necesarios para el
@@ -428,6 +471,16 @@ class BillingCycleAnalyzer
                 'code' => 'billing_group_disabled',
                 'title' => 'Grupo de corte deshabilitado',
                 'description' => 'El grupo de corte no está activo',
+                'color' => 'danger'
+            ];
+        }
+
+        // 0.1 Validación: Cliente no encontrado (Contrato huérfano)
+        if (empty($contrato->cli_nombre) && empty($contrato->cli_nit)) {
+            return [
+                'code' => 'missing_client',
+                'title' => 'Contrato sin cliente asignado',
+                'description' => 'El contrato está vinculado a un client_id que no existe en la tabla de contactos.',
                 'color' => 'danger'
             ];
         }
@@ -983,7 +1036,8 @@ class BillingCycleAnalyzer
                             'estatus_clase' => $estatusClase,
                             'total' => $total,
                             'tipo_operacion' => $f->tipo_operacion == 1 ? 'Estandar' : 'Electronica',
-                            'factura_mes_manual' => $f->factura_mes_manual
+                            'factura_mes_manual' => $f->factura_mes_manual,
+                            'facturacion_automatica' => $f->facturacion_automatica
                         ];
                     })->toArray()
                 ];
@@ -1030,7 +1084,7 @@ class BillingCycleAnalyzer
         };
         
         // Query 1: Facturas vinculadas directamente
-        $query1 = Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
+        $query1 = Factura::withoutGlobalScopes()->join('contracts as c', 'c.id', '=', 'factura.contrato_id')
             ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
             ->select(
                 'factura.id', 
@@ -1057,7 +1111,7 @@ class BillingCycleAnalyzer
             ->where($searchFilter);
 
         // Query 2: Facturas vinculadas por pivot
-        $query2 = Factura::join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
+        $query2 = Factura::withoutGlobalScopes()->join('facturas_contratos as fc', 'factura.id', '=', 'fc.factura_id')
             ->join('contracts as c', 'fc.contrato_nro', '=', 'c.nro')
             ->join('contactos as cli', 'cli.id', '=', 'factura.cliente')
             ->select(

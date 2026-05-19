@@ -618,6 +618,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
 @endif
 @endif
 
+@if(isset($_SESSION['permisos']['832']))
 <li class="nav-item" id="auditoria">
     <a class="nav-link" data-toggle="collapse" href="#ui-auditoria" aria-expanded="false" aria-controls="ui-auditoria">
         <i class="menu-icon fas fa-user-secret"></i>
@@ -646,6 +647,7 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
         </ul>
     </div>
 </li>
+@endif
 
 @if(isset($_SESSION['permisos']['861']))
 <li class="nav-item" id="cronjobs">

@@ -73,7 +73,6 @@ class ContactosController extends Controller
 
     public function contactos(Request $request, $tipo_usuario)
     {
-        $municipio = DB::table('municipios')->select('id')->where('nombre', '=', $request->municipio)->first();
         $modoLectura = auth()->user()->modo_lectura();
         $contactos = Contacto::query();
         $etiquetas = Etiqueta::where('empresa_id', auth()->user()->empresa)->get();
@@ -91,9 +90,12 @@ class ContactosController extends Controller
                 });
             }
             if ($request->municipio) {
-                $contactos->where(function ($query) use ($municipio) {
-                    $query->orWhere('fk_idmunicipio', 'like', "%{$municipio->id}%");
-                });
+                $municipio = DB::table('municipios')->select('id')->where('nombre', '=', $request->municipio)->first();
+                if ($municipio) {
+                    $contactos->where(function ($query) use ($municipio) {
+                        $query->orWhere('fk_idmunicipio', 'like', "%{$municipio->id}%");
+                    });
+                }
             }
             if ($request->apellido) {
                 $contactos->where(function ($query) use ($request) {
@@ -156,14 +158,16 @@ class ContactosController extends Controller
                 $contactos->whereNotExists(function ($query) {
                     $query->select(DB::raw(1))
                         ->from('contracts')
-                        ->whereRaw('contactos.id = contracts.client_id');
+                        ->whereRaw('contactos.id = contracts.client_id')
+                        ->where('status', 1);
                 });
             } elseif ($request->t_contrato == 2) {
                 // CON contrato
                 $contactos->whereExists(function ($query) {
                     $query->select(DB::raw(1))
                         ->from('contracts')
-                        ->whereRaw('contactos.id = contracts.client_id');
+                        ->whereRaw('contactos.id = contracts.client_id')
+                        ->where('status', 1);
                 });
             }
         }
@@ -252,8 +256,17 @@ class ContactosController extends Controller
                 }
                 return 'N/A';
             })
+            ->addColumn('select', function (Contacto $contacto) {
+                if ($contacto->usado == 0) {
+                    return '<div class="custom-control custom-checkbox text-center">
+                                <input type="checkbox" class="custom-control-input selected_ids" id="selected_id' . $contacto->id . '" name="selected_id[]" value="' . $contacto->id . '">
+                                <label class="custom-control-label" for="selected_id' . $contacto->id . '"></label>
+                            </div>';
+                }
+                return '';
+            })
             ->addColumn('acciones', $modoLectura ? '' : 'contactos.acciones-contactos')
-            ->rawColumns(['acciones', 'nombre', 'contrato', 'ip', 'state_olt_catv'])
+            ->rawColumns(['select', 'acciones', 'nombre', 'contrato', 'ip', 'state_olt_catv'])
             ->toJson();
     }
     public function clientes(Request $request)
@@ -799,6 +812,38 @@ class ContactosController extends Controller
         }
     }
 
+    public function destroyMultiple(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        if (!isset($_SESSION['permisos']['7'])) {
+            return response()->json(['success' => false, 'message' => 'No tiene permisos para eliminar']);
+        }
+
+        if (!$request->ids || count($request->ids) == 0) {
+            return response()->json(['success' => false, 'message' => 'No se seleccionaron clientes']);
+        }
+
+        $eliminados = 0;
+        $errores = 0;
+
+        foreach ($request->ids as $id) {
+            $contacto = Contacto::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+            if ($contacto && $contacto->usado == 0) {
+                $contacto->status = 0;
+                $contacto->save();
+                $eliminados++;
+            } else {
+                $errores++;
+            }
+        }
+
+        if ($eliminados > 0) {
+            return response()->json(['success' => true, 'message' => "Se eliminaron $eliminados clientes correctamente." . ($errores > 0 ? " $errores no pudieron ser eliminados por tener transacciones asociadas." : "")]);
+        } else {
+            return response()->json(['success' => false, 'message' => "No se pudo eliminar ningún cliente. " . ($errores > 0 ? "$errores clientes tienen transacciones asociadas." : "")]);
+        }
+    }
+
     /*
     * Generar un json con los datos del contacto
     */
@@ -834,7 +879,7 @@ class ContactosController extends Controller
     /*
     * Generar un archivo xml de los contactos
     */
-    public function exportar($tipo = 2)
+    public function exportar(Request $request, $tipo = 2)
     {
         $objPHPExcel = new PHPExcel();
         $tituloReporte = 'Reporte de Contactos de '.Auth::user()->empresa()->nombre;
@@ -947,15 +992,110 @@ class ContactosController extends Controller
         // /// ============================================================
 
         // 🔹 Cargar contactos con JOIN a etiquetas
-        $contactos = Contacto::leftJoin('etiquetas', 'etiquetas.id', '=', 'contactos.etiqueta_id')
+        $query = Contacto::leftJoin('etiquetas', 'etiquetas.id', '=', 'contactos.etiqueta_id')
             ->where('contactos.empresa', Auth::user()->empresa)
             ->where('contactos.status', 1)
-            ->select('contactos.*', 'etiquetas.nombre as etiqueta_nombre')
-            ->get();
+            ->select('contactos.*', 'etiquetas.nombre as etiqueta_nombre');
+
+        if ($request->filtro == true) {
+            if ($request->identificacion) {
+                $query->where(function ($q) use ($request) {
+                    $q->orWhere('contactos.nit', 'like', "%{$request->identificacion}%");
+                });
+            }
+            if ($request->nombre) {
+                $query->where(function ($q) use ($request) {
+                    $q->orWhere('contactos.nombre', 'like', "%{$request->nombre}%");
+                });
+            }
+            if ($request->municipio) {
+                $municipio = DB::table('municipios')->select('id')->where('nombre', 'like', "%{$request->municipio}%")->first();
+                if($municipio){
+                    $query->where('contactos.fk_idmunicipio', $municipio->id);
+                }
+            }
+            if ($request->apellido) {
+                $query->where(function ($q) use ($request) {
+                    $q->orWhere('contactos.apellido1', 'like', "%{$request->apellido}%");
+                    $q->orWhere('contactos.apellido2', 'like', "%{$request->apellido}%");
+                    $q->orWhere('contactos.nombre', 'like', "%{$request->apellido}%");
+                });
+            }
+            if ($request->celular) {
+                $query->where(function ($q) use ($request) {
+                    $q->orWhere('contactos.celular', 'like', "%{$request->celular}%");
+                });
+            }
+            if ($request->direccion) {
+                $direccion = $request->direccion;
+                $direccion = explode(' ', $direccion);
+                $direccion = array_reverse($direccion);
+
+                foreach ($direccion as $dir) {
+                    $dir = strtolower($dir);
+                    $dir = str_replace('#', '', $dir);
+                    $query->where(function ($q) use ($dir) {
+                        $q->orWhere('contactos.direccion', 'like', "%{$dir}%");
+                    });
+                }
+            }
+            if ($request->barrio) {
+                $query->where('contactos.barrio_id', $request->barrio);
+            }
+            if ($request->vereda) {
+                $query->where('contactos.vereda', 'like', "%{$request->vereda}%");
+            }
+            if ($request->etiqueta_id) {
+                $query->where('contactos.etiqueta_id', $request->etiqueta_id);
+            }
+            if ($request->email) {
+                $query->where('contactos.email', 'like', "%{$request->email}%");
+            }
+            if ($request->serial_onu) {
+                $query->where('contactos.serial_onu', 'like', "%{$request->serial_onu}%");
+            }
+            if ($request->otra_opcion && $request->otra_opcion == "opcion_1") {
+                $query->where('contactos.saldo_favor', '>', 0);
+            }
+
+            if ($request->t_contrato == 1) {
+                // SIN contrato
+                $query->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('contracts')
+                        ->whereRaw('contactos.id = contracts.client_id')
+                        ->where('status', 1);
+                });
+            } elseif ($request->t_contrato == 2) {
+                // CON contrato
+                $query->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('contracts')
+                        ->whereRaw('contactos.id = contracts.client_id')
+                        ->where('status', 1);
+                });
+            }
+        }
+
+        // Excluir contactos cuyos únicos contratos están eliminados (status=0)
+        $query->where(function ($q) {
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('contracts')
+                    ->whereRaw('contactos.id = contracts.client_id');
+            })->orWhereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('contracts')
+                    ->whereRaw('contactos.id = contracts.client_id')
+                    ->where('status', 1);
+            });
+        });
 
         if ($tipo != 2) {
-            $contactos = $contactos->whereIn('tipo_contacto', [$tipo, 2]);
+            $query->whereIn('contactos.tipo_contacto', [$tipo, 2]);
         }
+
+        $contactos = $query->get();
 
         foreach ($contactos as $contacto) {
             // /// Obtener saldo pendiente del cliente (0 si no tiene facturas pendientes)
