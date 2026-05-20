@@ -2192,11 +2192,12 @@ class ContratosController extends Controller
 
                     /*$descripcion .= ($contrato->fecha_corte == $request->fecha_corte) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Fecha de Corte</b> de '.$contrato->fecha_corte.' a '.$request->fecha_corte.'<br>';
                     $contrato->fecha_corte = $request->fecha_corte;*/
-                    if($request->fecha_suspension == ""){
-                        $request->fecha_suspension = 'Ninguna';
+                    if ($request->fecha_suspension == "" || $request->fecha_suspension === 'Ninguna') {
+                        $request->fecha_suspension = null;
                     }
 
-                    $descripcion .= ($contrato->fecha_suspension == $request->fecha_suspension) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Fecha de Suspensión Personalizada</b> a ' . $request->fecha_suspension . '<br>';
+                    $descFechaSuspension = $request->fecha_suspension ?? 'Ninguna';
+                    $descripcion .= ($contrato->fecha_suspension == $request->fecha_suspension) ? '' : '<i class="fas fa-check text-success"></i> <b>Cambio Fecha de Suspensión Personalizada</b> a ' . $descFechaSuspension . '<br>';
                     $contrato->fecha_suspension = $request->fecha_suspension;
 
                     $plan_old = $planActual ? $planActual->name : 'Ninguno';
@@ -2516,7 +2517,11 @@ class ContratosController extends Controller
                 $contrato->longitude            = $request->longitude;
                 $contrato->contrato_permanencia = $request->contrato_permanencia;
                 $contrato->servicio_tv          = $request->servicio_tv;
-                $contrato->fecha_suspension     = $request->fecha_suspension;
+                if ($request->fecha_suspension == "" || $request->fecha_suspension === 'Ninguna') {
+                    $contrato->fecha_suspension = null;
+                } else {
+                    $contrato->fecha_suspension = $request->fecha_suspension;
+                }
                 $contrato->descuento            = $request->descuento;
                 $contrato->vendedor             = $request->vendedor;
                 $contrato->linea                   = $request->linea;
