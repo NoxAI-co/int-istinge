@@ -294,15 +294,10 @@ class ContratosController extends Controller
                             ->orWhere('contracts.fecha_suspension', 0);
                     })
                     ->whereDate('f.vencimiento', '<=', now())
-                    ->whereIn('f.id', function ($subquery) {
+                    ->where('f.id', function ($subquery) {
                         $subquery->selectRaw('MAX(fc.factura_id)')
                             ->from('facturas_contratos as fc')
-                            ->join('factura as f2', 'f2.id', '=', 'fc.factura_id')
-                            ->whereColumn('f2.cliente', 'contactos.id')
-                            ->where('f2.estatus', 1)
-                            ->whereIn('f2.tipo', [1, 2])
-                            ->whereDate('f2.vencimiento', '<=', now())
-                            ->groupBy('fc.contrato_nro');
+                            ->whereColumn('fc.contrato_nro', 'contracts.nro');
                     })
                     ->groupBy('contracts.id');
             }
@@ -3765,15 +3760,10 @@ class ContratosController extends Controller
                         ->orWhere('contracts.fecha_suspension', 0);
                 })
                 ->whereDate('f6.vencimiento', '<=', now())
-                ->whereIn('f6.id', function ($subquery) {
+                ->where('f6.id', function ($subquery) {
                     $subquery->selectRaw('MAX(fc6.factura_id)')
                         ->from('facturas_contratos as fc6')
-                        ->join('factura as f62', 'f62.id', '=', 'fc6.factura_id')
-                        ->whereColumn('f62.cliente', 'contactos.id')
-                        ->where('f62.estatus', 1)
-                        ->whereIn('f62.tipo', [1, 2])
-                        ->whereDate('f62.vencimiento', '<=', now())
-                        ->groupBy('fc6.contrato_nro');
+                        ->whereColumn('fc6.contrato_nro', 'contracts.nro');
                 })
                 ->groupBy('contracts.id');
         }
