@@ -3119,7 +3119,10 @@ class CronController extends Controller
         $errores = 0;
         $sinFactura = 0;
         $page = 1;
-        $maxPages = 50;
+
+        // Configuración de límites, permitiendo sobreescribir vía parámetro de consulta
+        $minPages = (int) request('min_pages', 15);
+        $maxPages = (int) request('max_pages', 50);
 
         try {
             $onePayService = new OnePayService($empresa->id);
@@ -3140,6 +3143,22 @@ class CronController extends Controller
                 $yaConocidosEnPagina = 0;
                 $totalAprobadosEnPagina = 0;
 
+                // OPTIMIZACIÓN CRÍTICA: Pre-cargar de forma agrupada los pagos que ya existen en la base de datos
+                $paymentIdsInPage = [];
+                foreach ($payments as $payment) {
+                    if (isset($payment['id']) && ($payment['status'] ?? '') === 'approved') {
+                        $paymentIdsInPage[] = (string)$payment['id'];
+                    }
+                }
+
+                $existentesEnDB = [];
+                if (!empty($paymentIdsInPage)) {
+                    $existentesEnDB = Ingreso::whereIn('onepay_payment_id', $paymentIdsInPage)
+                        ->pluck('onepay_payment_id')
+                        ->map(function($val) { return (string)$val; })
+                        ->toArray();
+                }
+
                 foreach ($payments as $payment) {
                     $paymentId  = $payment['id'] ?? null;
                     $externalId = $payment['external_id'] ?? null;
@@ -3149,8 +3168,8 @@ class CronController extends Controller
                     if ($status !== 'approved') { continue; }
                     $totalAprobadosEnPagina++;
 
-                    // Pago ya registrado: contar pero NO romper el loop todavía
-                    if ($paymentId && Ingreso::where('onepay_payment_id', $paymentId)->exists()) {
+                    // Pago ya registrado: evaluar usando el buffer pre-cargado de forma ultra-eficiente
+                    if ($paymentId && in_array((string)$paymentId, $existentesEnDB)) {
                         $duplicados++;
                         $yaConocidosEnPagina++;
                         continue; // ← solo saltar este ítem, seguir con los demás
@@ -3211,9 +3230,9 @@ class CronController extends Controller
                 }
 
                 // PAGINACIÓN INTELIGENTE: detener solo cuando TODA la página ya fue procesada
-                // Forzamos el recorrido de al menos 10 páginas antes de aplicar el corte por duplicados.
-                if ($page >= 10 && $totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
-                    Log::info('[SyncIntegraPay] Página completa de duplicados y alcanzado límite mínimo de páginas, deteniendo', [
+                // Forzamos el recorrido de al menos $minPages páginas antes de aplicar el corte por duplicados.
+                if ($page >= $minPages && $totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
+                    Log::info("[SyncIntegraPay] Página completa de duplicados y alcanzado límite mínimo de páginas ($minPages), deteniendo", [
                         'page' => $page, 'yaConocidos' => $yaConocidosEnPagina
                     ]);
                     break;
