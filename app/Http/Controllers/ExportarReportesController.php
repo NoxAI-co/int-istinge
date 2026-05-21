@@ -4394,13 +4394,168 @@ class ExportarReportesController extends Controller
         $empresa = Auth::user()->empresa();
         $moneda = $empresa->moneda;
 
+        // OPTIMIZACIÓN CRÍTICA (Evitar consultas N+1 en bucle):
+        // 1. Obtener IDs únicos involucrados de contactos, bancos e ingresos/gastos
+        $contactoIds = $movimientos->pluck('contacto')->filter()->unique()->toArray();
+        $bancoIds = $movimientos->pluck('banco')->filter()->unique()->toArray();
+        
+        $ingresoIds = [];
+        $gastoIds = [];
+        foreach ($movimientos as $m) {
+            if ($m->modulo == 1 && $m->id_modulo) {
+                $ingresoIds[] = $m->id_modulo;
+            } elseif ($m->modulo == 3 && $m->id_modulo) {
+                $gastoIds[] = $m->id_modulo;
+            }
+        }
+        $ingresoIds = array_unique($ingresoIds);
+        $gastoIds = array_unique($gastoIds);
+
+        // 2. Pre-cargar Contactos y sus Barrios
+        $contactosMap = [];
+        $barriosMap = [];
+        if (!empty($contactoIds)) {
+            $contactos = Contacto::whereIn('id', $contactoIds)->get();
+            $barrioIds = [];
+            foreach ($contactos as $c) {
+                $contactosMap[$c->id] = $c;
+                if ($c->barrio_id) {
+                    $barrioIds[] = $c->barrio_id;
+                }
+            }
+            $barrioIds = array_unique($barrioIds);
+            if (!empty($barrioIds)) {
+                $barrios = DB::table('barrios')->whereIn('id', $barrioIds)->get();
+                foreach ($barrios as $b) {
+                    $barriosMap[$b->id] = $b;
+                }
+            }
+        }
+
+        // 3. Pre-cargar Bancos
+        $bancosMap = [];
+        if (!empty($bancoIds)) {
+            $bancos = Banco::whereIn('id', $bancoIds)->get();
+            foreach ($bancos as $b) {
+                $bancosMap[$b->id] = $b;
+            }
+        }
+
+        // 4. Pre-cargar Ingresos, Gastos, Creadores y Notas de Débito asociadas
+        $ingresosMap = [];
+        $gastosMap = [];
+        $userIds = [];
+        $notaDebitoIds = [];
+
+        if (!empty($ingresoIds)) {
+            $ingresos = Ingreso::whereIn('id', $ingresoIds)->get();
+            foreach ($ingresos as $ing) {
+                $ingresosMap[$ing->id] = $ing;
+                if ($ing->created_by) {
+                    $userIds[] = $ing->created_by;
+                }
+                if ($ing->nota_debito) {
+                    $notaDebitoIds[] = $ing->nota_debito;
+                }
+            }
+        }
+
+        if (!empty($gastoIds)) {
+            $gastos = Gastos::whereIn('id', $gastoIds)->get();
+            foreach ($gastos as $g) {
+                $gastosMap[$g->id] = $g;
+                if ($g->created_by) {
+                    $userIds[] = $g->created_by;
+                }
+            }
+        }
+
+        $userIds = array_unique($userIds);
+        $usersMap = [];
+        if (!empty($userIds)) {
+            $users = User::whereIn('id', $userIds)->get();
+            foreach ($users as $u) {
+                $usersMap[$u->id] = $u;
+            }
+        }
+
+        $notaDebitoIds = array_unique($notaDebitoIds);
+        $notasDebitoMap = [];
+        if (!empty($notaDebitoIds)) {
+            $notasDebito = DB::table('notas_debito')->whereIn('id', $notaDebitoIds)->get();
+            foreach ($notasDebito as $nd) {
+                $notasDebitoMap[$nd->id] = $nd;
+            }
+        }
+
+        // 5. Pre-cargar relaciones Ingreso-Factura y mapeo de Contratos (para Nro Contrato)
+        $ingresosFacturasMap = [];
+        $facturaIds = [];
+
+        foreach ($movimientos as $m) {
+            if (isset($m->facturaId) && $m->facturaId != null) {
+                $facturaIds[] = $m->facturaId;
+            }
+        }
+
+        if (!empty($ingresoIds)) {
+            $ingresosFacturas = DB::table('ingresos_factura')
+                ->whereIn('ingreso', $ingresoIds)
+                ->get();
+            foreach ($ingresosFacturas as $if) {
+                $ingresosFacturasMap[$if->ingreso][] = $if;
+                $facturaIds[] = $if->factura;
+            }
+        }
+        $facturaIds = array_unique($facturaIds);
+
+        $facturasMap = [];
+        $facturasContratosMap = [];
+        if (!empty($facturaIds)) {
+            $facturas = Factura::whereIn('id', $facturaIds)->get();
+            foreach ($facturas as $f) {
+                $facturasMap[$f->id] = $f;
+            }
+
+            $facturasContratos = DB::table('facturas_contratos')
+                ->whereIn('factura_id', $facturaIds)
+                ->get();
+            foreach ($facturasContratos as $fc) {
+                $facturasContratosMap[$fc->factura_id] = $fc->contrato_nro;
+            }
+        }
+
+        // 6. Pre-cargar Categorías de Ingresos
+        $ingresosCategoriaMap = [];
+        $categoriaIds = [];
+        if (!empty($ingresoIds)) {
+            $ingresosCategoria = DB::table('ingresos_categoria')
+                ->whereIn('ingreso', $ingresoIds)
+                ->get();
+            foreach ($ingresosCategoria as $ic) {
+                $ingresosCategoriaMap[$ic->ingreso][] = $ic;
+                if ($ic->categoria) {
+                    $categoriaIds[] = $ic->categoria;
+                }
+            }
+        }
+        $categoriaIds = array_unique($categoriaIds);
+        $categoriasNameMap = [];
+        if (!empty($categoriaIds)) {
+            $cats = DB::table('categorias')->whereIn('id', $categoriaIds)->get();
+            foreach ($cats as $c) {
+                $categoriasNameMap[$c->id] = $c->nombre;
+            }
+        }
+
+        // Ejecutar bucle sobre movimientos de manera ultra eficiente en memoria
         foreach ($movimientos as $movimiento) {
             try {
                 $identificacion = '';
                 $cliente = null;
 
                 if(isset($movimiento->contacto)){
-                    $cliente = $movimiento->cliente();
+                    $cliente = $contactosMap[$movimiento->contacto] ?? null;
                     if($cliente){
                         $identificacion .= $cliente->tip_iden('corta').' '.$cliente->nit;
                     }
@@ -4412,48 +4567,112 @@ class ExportarReportesController extends Controller
                 }
 
                 $movNombre = "";
-                $padre = $movimiento->padre();
+                $padre = null;
+                if ($movimiento->modulo == 1) {
+                    $padre = $ingresosMap[$movimiento->id_modulo] ?? null;
+                } elseif ($movimiento->modulo == 3) {
+                    $padre = $gastosMap[$movimiento->id_modulo] ?? null;
+                }
+
                 if($padre){
-                    $createdBy = $padre->created_by();
-                    if($createdBy){
-                        $movNombre = $createdBy->nombres;
+                    if ($padre->created_by) {
+                        $createdBy = $usersMap[$padre->created_by] ?? null;
+                        if($createdBy){
+                            $movNombre = $createdBy->nombres;
+                        }
                     }
                 }
 
                 $totalFactura = 0;
                 $nroContrato = "";
-                if($movimiento->facturaId != null){
-                    $factura = Factura::Find($movimiento->facturaId);
+                
+                $facturaId = null;
+                if(isset($movimiento->facturaId) && $movimiento->facturaId != null){
+                    $facturaId = $movimiento->facturaId;
+                } elseif ($movimiento->modulo == 1 && isset($ingresosFacturasMap[$movimiento->id_modulo])) {
+                    $firstIngresoFactura = $ingresosFacturasMap[$movimiento->id_modulo][0] ?? null;
+                    if ($firstIngresoFactura) {
+                        $facturaId = $firstIngresoFactura->factura;
+                    }
+                }
+
+                if($facturaId != null){
+                    $factura = $facturasMap[$facturaId] ?? null;
                     if($factura){
                         $totalFactura = $factura->total()->total;
                         $sumaTotalFactura+=$totalFactura;
-                        $contratos = $factura->contratos();
-                        if($contratos && $contratos->count() > 0){
-                            $nroContrato = $contratos->first()->contrato_nro;
+                        
+                        $nroContrato = $facturasContratosMap[$facturaId] ?? "";
+                        if (empty($nroContrato)) {
+                            $contratoAsociado = $factura->contratoAsociado();
+                            if ($contratoAsociado) {
+                                $nroContrato = $contratoAsociado->nro;
+                            }
                         }
                     }
                 }
 
                 $barrio = "";
                 if ($cliente) {
-                    $barrioObj = $cliente->barrio();
-                    if($barrioObj){
-                        $barrio = $barrioObj->nombre;
+                    if ($cliente->barrio_id) {
+                        $barrioObj = $barriosMap[$cliente->barrio_id] ?? null;
+                        if($barrioObj){
+                            $barrio = $barrioObj->nombre;
+                        }
                     }
                 }
 
-                $showModulo = $movimiento->show_modulo();
-                $banco = $movimiento->banco();
-                $categoria = $movimiento->categoria();
-                $estatus = $movimiento->estatus();
-                $observaciones = $movimiento->observaciones();
-                $notas = $movimiento->notas();
+                $showModulo = $padre;
+                $banco = $bancosMap[$movimiento->banco] ?? null;
+                
+                // Mapear concepto/categoría en memoria de manera optimizada
+                $categoria = "";
+                if ($movimiento->modulo == 1 && $padre) {
+                    if ($padre->tipo == 1) {
+                        $ifs = $ingresosFacturasMap[$padre->id] ?? [];
+                        $facturaCodes = "";
+                        foreach ($ifs as $if) {
+                            $fac = $facturasMap[$if->factura] ?? null;
+                            if ($fac) {
+                                $facturaCodes .= " " . $fac->codigo . ",";
+                            }
+                        }
+                        $categoria = "Factura de Venta:" . substr($facturaCodes, 0, -1);
+                    } elseif ($padre->tipo == 2 || $padre->tipo == 4) {
+                        $ics = $ingresosCategoriaMap[$padre->id] ?? [];
+                        $catNames = "";
+                        foreach ($ics as $ic) {
+                            $catName = $categoriasNameMap[$ic->categoria] ?? "";
+                            if ($catName) {
+                                $catNames .= " " . $catName . ",";
+                            }
+                        }
+                        $categoria = "Categorías:" . substr($catNames, 0, -1);
+                    } else {
+                        if ($padre->nota_debito) {
+                            $nota = $notasDebitoMap[$padre->nota_debito] ?? null;
+                            if ($nota) {
+                                $categoria = 'Nota de Débito: ' . ($nota->codigo ? $nota->codigo : $nota->nro);
+                            }
+                        }
+                    }
+                } elseif ($movimiento->modulo == 3 && $padre) {
+                    $categoria = $padre->detalle();
+                }
+
+                $estatus = "";
+                if ($movimiento->estatus == 2) {
+                    $estatus = 'Anulado';
+                }
+
+                $observaciones = $padre ? $padre->observaciones : '';
+                $notas = $padre ? $padre->notas : '';
 
                 $metodoPago = '';
-                if($movimiento->modulo == 1 && $movimiento->padre()){
-                    $metodoPago = $movimiento->padre()->metodo_pago() ? $movimiento->padre()->metodo_pago() : '';
-                }elseif($movimiento->modulo == 2 && $movimiento->show_modulo()){
-                    $metodoPago = $movimiento->show_modulo()->metodo_pago() ? $movimiento->show_modulo()->metodo_pago() : '';
+                if ($movimiento->modulo == 1 && $padre) {
+                    $metodoPago = $padre->metodo_pago() ? $padre->metodo_pago() : '';
+                } elseif ($movimiento->modulo == 2 && $showModulo) {
+                    $metodoPago = $showModulo->metodo_pago() ? $showModulo->metodo_pago() : '';
                 }
 
                 $objPHPExcel->setActiveSheetIndex(0)
