@@ -2582,6 +2582,10 @@ class Controller extends BaseController
         $mes_susp = Carbon::now()->month;
         $anyo_susp = Carbon::now()->year;
         
+        if ($grupo_corte->fecha_factura > $grupo_corte->fecha_suspension) {
+            $mes_susp++;
+        }
+        
         $date_suspension_carbon = Carbon::create($anyo_susp, $mes_susp, 1);
         $date_suspension_carbon->day = min($dia_suspension, $date_suspension_carbon->daysInMonth);
         
