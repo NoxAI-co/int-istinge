@@ -972,6 +972,7 @@ class CronController extends Controller
 
         if($contactos){
             $empresa = Empresa::find(1);
+            $onuSerialsToDisable = []; // Acumular seriales OLT para bulk disable
             foreach ($contactos as $contacto) {
 
                 //** Desarrollo nuevo:
@@ -1140,10 +1141,9 @@ class CronController extends Controller
                                     $mikrotik_failed = false;
                                     $olt_executed = false;
 
-                                    // Lógica de Smart OLT
+                                    // Lógica de Smart OLT (acumular para bulk al final)
                                     if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                                        $oltController = app('App\Http\Controllers\OltController');
-                                        $oltController->disableOnu($contrato->serial_onu);
+                                        $onuSerialsToDisable[] = $contrato->serial_onu;
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
                                         $olt_executed = true;
                                         
@@ -1349,6 +1349,16 @@ class CronController extends Controller
                 }
             }
 
+            // SmartOLT: Enviar todos los seriales acumulados en llamada(s) bulk
+            if (!empty($onuSerialsToDisable)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $bulkResults = $oltController->bulkDisableOnus($onuSerialsToDisable, $empresa->id);
+                \Log::info('[CRON cortarFacturasDiaEspecifico] Bulk disable OLT ejecutado', [
+                    'total_serials' => count($onuSerialsToDisable),
+                    'results_count' => count($bulkResults),
+                ]);
+            }
+
             if (file_exists("CorteFacturas.txt")){
                 $file = fopen("CorteFacturas.txt", "a");
                 fputs($file, "-----------------".PHP_EOL);
@@ -1462,6 +1472,7 @@ class CronController extends Controller
 
             if($contactos){
             $empresa = Empresa::find(1);
+            $onuSerialsToDisable = []; // Acumular seriales OLT para bulk disable
             foreach ($contactos as $contacto) {
 
                 //** Desarrollo nuevo:
@@ -1635,10 +1646,9 @@ class CronController extends Controller
                                     $mikrotik_failed = false;
                                     $olt_executed = false;
 
-                                    // Lógica de Smart OLT
+                                    // Lógica de Smart OLT (acumular para bulk al final)
                                     if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                                        $oltController = app('App\Http\Controllers\OltController');
-                                        $oltController->disableOnu($contrato->serial_onu);
+                                        $onuSerialsToDisable[] = $contrato->serial_onu;
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
                                         $olt_executed = true;
                                         
@@ -1834,6 +1844,16 @@ class CronController extends Controller
                         }
                     }
                 }
+            }
+
+            // SmartOLT: Enviar todos los seriales acumulados en llamada(s) bulk
+            if (!empty($onuSerialsToDisable)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $bulkResults = $oltController->bulkDisableOnus($onuSerialsToDisable, $empresa->id);
+                \Log::info('[CRON CortarFacturas] Bulk disable OLT ejecutado', [
+                    'total_serials' => count($onuSerialsToDisable),
+                    'results_count' => count($bulkResults),
+                ]);
             }
 
             if (file_exists("CorteFacturas.txt")){
@@ -2162,6 +2182,7 @@ class CronController extends Controller
             get();
 
         $empresa = Empresa::find(1);
+        $onuSerialsToDisable = []; // Acumular seriales OLT para bulk disable
         foreach ($contactos as $contacto) {
             $contrato = Contrato::where('nro', $contacto->nro)->first();
 
@@ -2212,10 +2233,9 @@ class CronController extends Controller
                 }
             }
 
-            // 2. Bloque OLT independiente
+            // 2. Bloque OLT independiente (acumular para bulk al final)
             if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                $oltController = app('App\Http\Controllers\OltController');
-                $oltController->disableOnu($contrato->serial_onu);
+                $onuSerialsToDisable[] = $contrato->serial_onu;
 
                 $movimiento = new MovimientoLOG();
                 $movimiento->contrato    = $contrato->id;
@@ -2240,6 +2260,16 @@ class CronController extends Controller
                 $movimiento->empresa     = $contrato->empresa;
                 $movimiento->save();
             }
+        }
+
+        // SmartOLT: Enviar todos los seriales acumulados en llamada(s) bulk
+        if (!empty($onuSerialsToDisable)) {
+            $oltController = app('App\Http\Controllers\OltController');
+            $bulkResults = $oltController->bulkDisableOnus($onuSerialsToDisable, $empresa->id);
+            \Log::info('[CRON CortarPromesas] Bulk disable OLT ejecutado', [
+                'total_serials' => count($onuSerialsToDisable),
+                'results_count' => count($bulkResults),
+            ]);
         }
 
         if (file_exists("CortePromesas.txt")){

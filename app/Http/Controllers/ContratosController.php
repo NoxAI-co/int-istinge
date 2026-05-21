@@ -4808,6 +4808,7 @@ class ContratosController extends Controller
         $fail = 0;
 
         $contratos = explode(",", $contratos);
+        $onuSerialsBulk = []; // Acumular seriales OLT para bulk enable/disable
 
         for ($i = 0; $i < count($contratos); $i++) {
             $contrato = Contrato::find($contratos[$i]);
@@ -4986,14 +4987,9 @@ class ContratosController extends Controller
                 }
             }
 
-            // 2. Bloque Smart OLT (independiente de Mikrotik)
+            // 2. Bloque Smart OLT (acumular para bulk al final)
             if (($contrato->conexion == 2 || $contrato->conexion == 3) && $empresa->queries_dhcp_smartolt == 1 && !empty($contrato->serial_onu)) {
-                $oltController = app('App\Http\Controllers\OltController');
-                if ($state == 'enabled') {
-                    $oltController->enableOnu($contrato->serial_onu);
-                } else {
-                    $oltController->disableOnu($contrato->serial_onu);
-                }
+                $onuSerialsBulk[] = $contrato->serial_onu;
                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a ' . ($state == 'enabled' ? 'Habilitado' : 'Deshabilitado') . '<br>';
                 $olt_ok = true;
             }
@@ -5041,6 +5037,20 @@ class ContratosController extends Controller
             } else {
                 $fail++;
             }
+        }
+
+        // SmartOLT: Enviar todos los seriales acumulados en llamada(s) bulk
+        if (!empty($onuSerialsBulk)) {
+            $oltController = app('App\Http\Controllers\OltController');
+            if ($state == 'enabled') {
+                $bulkResults = $oltController->bulkEnableOnus($onuSerialsBulk);
+            } else {
+                $bulkResults = $oltController->bulkDisableOnus($onuSerialsBulk);
+            }
+            \Log::info('[state_lote] Bulk ' . $state . ' OLT ejecutado', [
+                'total_serials' => count($onuSerialsBulk),
+                'results_count' => count($bulkResults),
+            ]);
         }
 
         return response()->json([
