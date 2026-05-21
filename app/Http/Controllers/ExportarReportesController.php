@@ -4473,7 +4473,7 @@ class ExportarReportesController extends Controller
         $userIds = array_unique($userIds);
         $usersMap = [];
         if (!empty($userIds)) {
-            $users = User::whereIn('id', $userIds)->get();
+            $users = \App\User::whereIn('id', $userIds)->get();
             foreach ($users as $u) {
                 $usersMap[$u->id] = $u;
             }
