@@ -768,7 +768,6 @@
             @if(isset($CUFEvr))
             <div style="border:1px solid {{$empresa->color}}; border-radius:5px;padding:4px; font-size:8px;">
                 CUFE: {{$CUFEvr}} <br>
-                {{ $resolucion?->resolucion ?? "Sin resolución" }}
             </div>
             @endif
       </div>
