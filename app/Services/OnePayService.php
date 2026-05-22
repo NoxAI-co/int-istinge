@@ -97,8 +97,9 @@ class OnePayService
                 $periodoCobrado = "Facturación de servicios";
             }
 
-            // Auto-corregir y persistir el teléfono del cliente
+            // Auto-corregir y persistir el teléfono y correo del cliente
             $phoneFormatted = $cliente->celular ? $this->autoFixClientPhone($cliente) : null;
+            $emailFormatted = $this->autoFixClientEmail($cliente);
 
             // Preparar datos
             $data = [
@@ -108,7 +109,7 @@ class OnePayService
                 'amount' => $amount,
                 'name' => 'Factura #' . $factura->codigo,
                 'phone' => $phoneFormatted,
-                'email' => $cliente->email ?: null,
+                'email' => $emailFormatted,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
                 'description' => $periodoCobrado,
                 // 'document_url' => $documentUrl,
@@ -118,8 +119,8 @@ class OnePayService
                 ]
             ];
 
-            // Intentar enviar con reintento automático en caso de error E.164
-            $maxRetries = 2;
+            // Intentar enviar con reintento automático en caso de error de teléfono o correo
+            $maxRetries = 3;
             $responseData = null;
             $httpCode = null;
 
@@ -154,25 +155,37 @@ class OnePayService
 
                 $responseData = json_decode($response, true);
 
-                // Si es error de teléfono E.164 y es el primer intento, corregir y reintentar
+                // Si es error de validación y aún quedan reintentos, intentar auto-corregir
                 if ($httpCode >= 400 && $attempt < $maxRetries) {
                     $errorMsg = $responseData['message'] ?? '';
+
+                    // Error de teléfono E.164
                     if (stripos($errorMsg, 'E.164') !== false || stripos($errorMsg, 'teléfono') !== false || stripos($errorMsg, 'telefono') !== false) {
                         Log::warning("OnePay E.164 error en intento {$attempt}, auto-corrigiendo teléfono para cliente #{$cliente->id}");
-                        
-                        // Forzar un número de relleno válido y persistirlo
                         $cliente->celular = '3000000000';
                         $cliente->save();
                         $data['phone'] = '+573000000000';
 
                         $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección teléfono</b>: Teléfono inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
                         $this->registrarLogFactura($factura, $descripcion, false);
-                        
-                        continue; // Reintentar con el teléfono corregido
+                        continue;
+                    }
+
+                    // Error de correo electrónico
+                    if (stripos($errorMsg, 'correo') !== false || stripos($errorMsg, 'email') !== false || stripos($errorMsg, 'e-mail') !== false) {
+                        Log::warning("OnePay email error en intento {$attempt}, auto-corrigiendo correo para cliente #{$cliente->id}: '{$cliente->email}'");
+                        $fallbackEmail = 'cliente' . $cliente->id . '@integrapay.temp';
+                        $cliente->email = $fallbackEmail;
+                        $cliente->save();
+                        $data['email'] = $fallbackEmail;
+
+                        $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección correo</b>: Correo inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
+                        $this->registrarLogFactura($factura, $descripcion, false);
+                        continue;
                     }
                 }
 
-                break; // Si no es error de teléfono o ya es el último intento, salir del loop
+                break; // Si no es error corregible o ya es el último intento, salir del loop
             }
 
             if ($httpCode >= 200 && $httpCode < 300) {
@@ -250,8 +263,9 @@ class OnePayService
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
 
-            // Auto-corregir y persistir el teléfono del cliente
+            // Auto-corregir y persistir el teléfono y correo del cliente
             $phoneFormatted = $cliente->celular ? $this->autoFixClientPhone($cliente) : null;
+            $emailFormatted = $this->autoFixClientEmail($cliente);
 
             // Preparar datos
             $data = [
@@ -260,11 +274,11 @@ class OnePayService
                 'amount' => $amount,
                 'name' => 'Factura #' . $factura->codigo,
                 'phone' => $phoneFormatted,
-                'email' => $cliente->email ?: null
+                'email' => $emailFormatted
             ];
 
-            // Intentar enviar con reintento automático en caso de error E.164
-            $maxRetries = 2;
+            // Intentar enviar con reintento automático en caso de error de teléfono o correo
+            $maxRetries = 3;
             $responseData = null;
             $httpCode = null;
 
@@ -299,25 +313,37 @@ class OnePayService
 
                 $responseData = json_decode($response, true);
 
-                // Si es error de teléfono E.164 y es el primer intento, corregir y reintentar
+                // Si es error de validación y aún quedan reintentos, intentar auto-corregir
                 if ($httpCode >= 400 && $attempt < $maxRetries) {
                     $errorMsg = $responseData['message'] ?? '';
+
+                    // Error de teléfono E.164
                     if (stripos($errorMsg, 'E.164') !== false || stripos($errorMsg, 'teléfono') !== false || stripos($errorMsg, 'telefono') !== false) {
                         Log::warning("OnePay E.164 error en intento {$attempt}, auto-corrigiendo teléfono para cliente #{$cliente->id}");
-                        
-                        // Forzar un número de relleno válido y persistirlo
                         $cliente->celular = '3000000000';
                         $cliente->save();
                         $data['phone'] = '+573000000000';
 
                         $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección teléfono</b>: Teléfono inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
                         $this->registrarLogFactura($factura, $descripcion, false);
-                        
-                        continue; // Reintentar con el teléfono corregido
+                        continue;
+                    }
+
+                    // Error de correo electrónico
+                    if (stripos($errorMsg, 'correo') !== false || stripos($errorMsg, 'email') !== false || stripos($errorMsg, 'e-mail') !== false) {
+                        Log::warning("OnePay email error en intento {$attempt}, auto-corrigiendo correo para cliente #{$cliente->id}: '{$cliente->email}'");
+                        $fallbackEmail = 'cliente' . $cliente->id . '@integrapay.temp';
+                        $cliente->email = $fallbackEmail;
+                        $cliente->save();
+                        $data['email'] = $fallbackEmail;
+
+                        $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección correo</b>: Correo inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
+                        $this->registrarLogFactura($factura, $descripcion, false);
+                        continue;
                     }
                 }
 
-                break; // Si no es error de teléfono o ya es el último intento, salir del loop
+                break; // Si no es error corregible o ya es el último intento, salir del loop
             }
 
             if ($httpCode >= 200 && $httpCode < 300) {
@@ -532,6 +558,128 @@ class OnePayService
         }
 
         return $formattedPhone;
+    }
+
+    /**
+     * Formatear y validar correo electrónico para OnePay.
+     * Maneja casos como:
+     * - Correos que empiezan con punto: .usuario@gmail.com
+     * - Múltiples correos separados por coma o punto y coma: a@g.com, b@g.com
+     * - Espacios en el correo
+     * - Puntos consecutivos en la parte local: usuario..nombre@gmail.com
+     * - Correos sin @
+     * - Correos vacíos o nulos
+     * - Caracteres especiales no permitidos
+     */
+    protected function formatEmail($email)
+    {
+        if (empty($email) || trim($email) === '') {
+            return null; // Se generará un fallback en autoFixClientEmail
+        }
+
+        $email = trim($email);
+
+        // Si tiene múltiples correos separados por coma, punto y coma, o espacio, tomar solo el primero
+        if (preg_match('/[,;\s]/', $email)) {
+            $parts = preg_split('/[,;\s]+/', $email);
+            $email = '';
+            // Buscar el primer correo que parezca válido
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if (!empty($part) && strpos($part, '@') !== false) {
+                    $email = $part;
+                    break;
+                }
+            }
+            if (empty($email)) {
+                return null;
+            }
+        }
+
+        // Eliminar espacios internos
+        $email = str_replace(' ', '', $email);
+
+        // Eliminar puntos al inicio de la parte local
+        // .rodriguezlozano@gmail.com -> rodriguezlozano@gmail.com
+        $email = ltrim($email, '.');
+
+        // Separar parte local y dominio
+        $atPos = strpos($email, '@');
+        if ($atPos === false) {
+            return null; // Sin @ no es un correo válido
+        }
+
+        $local = substr($email, 0, $atPos);
+        $domain = substr($email, $atPos + 1);
+
+        // Limpiar la parte local
+        // Eliminar puntos consecutivos: usuario..nombre -> usuario.nombre
+        $local = preg_replace('/\.{2,}/', '.', $local);
+        // Eliminar punto al final de la parte local
+        $local = rtrim($local, '.');
+        // Eliminar punto al inicio de la parte local (por si quedó después de limpiar)
+        $local = ltrim($local, '.');
+
+        // Eliminar caracteres no permitidos en la parte local (solo letras, números, ., _, -, +)
+        $local = preg_replace('/[^a-zA-Z0-9._\-+]/', '', $local);
+
+        // Si la parte local quedó vacía después de limpiar
+        if (empty($local)) {
+            return null;
+        }
+
+        // Limpiar el dominio
+        $domain = strtolower(trim($domain));
+        // Eliminar puntos consecutivos en el dominio
+        $domain = preg_replace('/\.{2,}/', '.', $domain);
+        $domain = trim($domain, '.');
+
+        // Validar que el dominio tenga al menos un punto (ej: gmail.com)
+        if (strpos($domain, '.') === false || empty($domain)) {
+            return null;
+        }
+
+        $cleanEmail = $local . '@' . $domain;
+
+        // Validación final con filter_var de PHP
+        if (!filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $cleanEmail;
+    }
+
+    /**
+     * Corregir y persistir el correo del cliente en la base de datos.
+     * Si el correo es inválido o vacío, genera un correo de relleno.
+     * Retorna el correo formateado o null.
+     */
+    protected function autoFixClientEmail($cliente)
+    {
+        $originalEmail = $cliente->email;
+        $formattedEmail = $this->formatEmail($originalEmail);
+
+        // Si el correo no pudo ser formateado (inválido), generar uno de relleno
+        if ($formattedEmail === null) {
+            if (!empty($originalEmail)) {
+                // Tenía un correo pero era inválido: generar fallback
+                $formattedEmail = 'cliente' . $cliente->id . '@integrapay.temp';
+                Log::info("OnePay AutoFix correo cliente #{$cliente->id}: '{$originalEmail}' -> '{$formattedEmail}' (correo original inválido)");
+                $cliente->email = $formattedEmail;
+                $cliente->save();
+            }
+            // Si no tenía correo, retornar null (campo opcional)
+            return $formattedEmail;
+        }
+
+        // Si el correo fue corregido (diferente al original), persistir
+        if ($originalEmail !== $formattedEmail) {
+            Log::info("OnePay AutoFix correo cliente #{$cliente->id}: '{$originalEmail}' -> '{$formattedEmail}'");
+            $cliente->email = $formattedEmail;
+            $cliente->save();
+        }
+
+        return $formattedEmail;
     }
 
     /**
