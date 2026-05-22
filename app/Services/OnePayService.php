@@ -97,6 +97,9 @@ class OnePayService
                 $periodoCobrado = "Facturación de servicios";
             }
 
+            // Auto-corregir y persistir el teléfono del cliente
+            $phoneFormatted = $cliente->celular ? $this->autoFixClientPhone($cliente) : null;
+
             // Preparar datos
             $data = [
                 'reference' => $cliente->nit,
@@ -104,7 +107,7 @@ class OnePayService
                 'provider' => 'integra',
                 'amount' => $amount,
                 'name' => 'Factura #' . $factura->codigo,
-                'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
+                'phone' => $phoneFormatted,
                 'email' => $cliente->email ?: null,
                 'due_date' => $factura->vencimiento ? date('Y-m-d', strtotime($factura->vencimiento)) : null,
                 'description' => $periodoCobrado,
@@ -115,36 +118,62 @@ class OnePayService
                 ]
             ];
 
-            // Hacer petición POST
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => $this->baseUri . '/invoices',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => json_encode($data),
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . $this->token,
-                    'Content-Type: application/json',
-                    'x-idempotency: ' . $idempotencyKey
-                ],
-            ]);
+            // Intentar enviar con reintento automático en caso de error E.164
+            $maxRetries = 2;
+            $responseData = null;
+            $httpCode = null;
 
-            $response = curl_exec($curl);
-            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            $error = curl_error($curl);
-            curl_close($curl);
+            for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => $this->baseUri . '/invoices',
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_POSTFIELDS => json_encode($data),
+                    CURLOPT_HTTPHEADER => [
+                        'Authorization: Bearer ' . $this->token,
+                        'Content-Type: application/json',
+                        'x-idempotency: ' . $idempotencyKey . ($attempt > 1 ? '_retry' . $attempt : '')
+                    ],
+                ]);
 
-            if ($error) {
-                Log::error('OnePay Error: ' . $error);
-                throw new \Exception('Error en la conexión con OnePay: ' . $error);
+                $response = curl_exec($curl);
+                $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $error = curl_error($curl);
+                curl_close($curl);
+
+                if ($error) {
+                    Log::error('OnePay Error: ' . $error);
+                    throw new \Exception('Error en la conexión con OnePay: ' . $error);
+                }
+
+                $responseData = json_decode($response, true);
+
+                // Si es error de teléfono E.164 y es el primer intento, corregir y reintentar
+                if ($httpCode >= 400 && $attempt < $maxRetries) {
+                    $errorMsg = $responseData['message'] ?? '';
+                    if (stripos($errorMsg, 'E.164') !== false || stripos($errorMsg, 'teléfono') !== false || stripos($errorMsg, 'telefono') !== false) {
+                        Log::warning("OnePay E.164 error en intento {$attempt}, auto-corrigiendo teléfono para cliente #{$cliente->id}");
+                        
+                        // Forzar un número de relleno válido y persistirlo
+                        $cliente->celular = '3000000000';
+                        $cliente->save();
+                        $data['phone'] = '+573000000000';
+
+                        $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección teléfono</b>: Teléfono inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
+                        $this->registrarLogFactura($factura, $descripcion, false);
+                        
+                        continue; // Reintentar con el teléfono corregido
+                    }
+                }
+
+                break; // Si no es error de teléfono o ya es el último intento, salir del loop
             }
-
-            $responseData = json_decode($response, true);
 
             if ($httpCode >= 200 && $httpCode < 300) {
                 // Guardar onepay_invoice_id y la idempotency key en la factura
@@ -221,46 +250,75 @@ class OnePayService
                 throw new \Exception('El monto debe estar entre $5.000 y $100.000.000 COP');
             }
 
+            // Auto-corregir y persistir el teléfono del cliente
+            $phoneFormatted = $cliente->celular ? $this->autoFixClientPhone($cliente) : null;
+
             // Preparar datos
             $data = [
                 'reference' => $cliente->nit,
                 'provider_id' => $factura->codigo,
                 'amount' => $amount,
                 'name' => 'Factura #' . $factura->codigo,
-                'phone' => $cliente->celular ? $this->formatPhone($cliente->celular) : null,
+                'phone' => $phoneFormatted,
                 'email' => $cliente->email ?: null
             ];
 
-            // Hacer petición PUT
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => $this->baseUri . '/invoices/' . $factura->onepay_invoice_id,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'PUT',
-                CURLOPT_POSTFIELDS => json_encode($data),
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . $this->token,
-                    'Content-Type: application/json',
-                    'x-idempotency: ' . $idempotencyKey
-                ],
-            ]);
+            // Intentar enviar con reintento automático en caso de error E.164
+            $maxRetries = 2;
+            $responseData = null;
+            $httpCode = null;
 
-            $response = curl_exec($curl);
-            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            $error = curl_error($curl);
-            curl_close($curl);
+            for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => $this->baseUri . '/invoices/' . $factura->onepay_invoice_id,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'PUT',
+                    CURLOPT_POSTFIELDS => json_encode($data),
+                    CURLOPT_HTTPHEADER => [
+                        'Authorization: Bearer ' . $this->token,
+                        'Content-Type: application/json',
+                        'x-idempotency: ' . $idempotencyKey . ($attempt > 1 ? '_retry' . $attempt : '')
+                    ],
+                ]);
 
-            if ($error) {
-                Log::error('Integra Pay Error: ' . $error); // Corregido el typo "In  tegra"
-                throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
+                $response = curl_exec($curl);
+                $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $error = curl_error($curl);
+                curl_close($curl);
+
+                if ($error) {
+                    Log::error('Integra Pay Error: ' . $error);
+                    throw new \Exception('Error en la conexión con Integra Pay: ' . $error);
+                }
+
+                $responseData = json_decode($response, true);
+
+                // Si es error de teléfono E.164 y es el primer intento, corregir y reintentar
+                if ($httpCode >= 400 && $attempt < $maxRetries) {
+                    $errorMsg = $responseData['message'] ?? '';
+                    if (stripos($errorMsg, 'E.164') !== false || stripos($errorMsg, 'teléfono') !== false || stripos($errorMsg, 'telefono') !== false) {
+                        Log::warning("OnePay E.164 error en intento {$attempt}, auto-corrigiendo teléfono para cliente #{$cliente->id}");
+                        
+                        // Forzar un número de relleno válido y persistirlo
+                        $cliente->celular = '3000000000';
+                        $cliente->save();
+                        $data['phone'] = '+573000000000';
+
+                        $descripcion = '<i class="fas fa-sync text-info"></i> <b>Auto-corrección teléfono</b>: Teléfono inválido corregido automáticamente para cliente #' . $cliente->id . '. Reintentando envío a Integra Pay.';
+                        $this->registrarLogFactura($factura, $descripcion, false);
+                        
+                        continue; // Reintentar con el teléfono corregido
+                    }
+                }
+
+                break; // Si no es error de teléfono o ya es el último intento, salir del loop
             }
-
-            $responseData = json_decode($response, true);
 
             if ($httpCode >= 200 && $httpCode < 300) {
                 // Actualizar onepay_invoice_id si viene en la respuesta
@@ -400,25 +458,80 @@ class OnePayService
     }
 
     /**
-     * Formatear teléfono a formato E.164
+     * Formatear teléfono a formato E.164 para Colombia (+57XXXXXXXXXX)
+     * Maneja casos como:
+     * - Números con más de 10 dígitos (se recortan desde el final)
+     * - Números con menos de 10 dígitos (se genera uno de relleno válido)
+     * - Números con código de país ya incluido (+57 o 57)
+     * - Números vacíos o inválidos (se genera uno de relleno)
      */
     protected function formatPhone($phone)
     {
-        // Eliminar espacios y caracteres especiales
-        $phone = preg_replace('/[^0-9+]/', '', $phone);
+        if (empty($phone)) {
+            return '+573000000000'; // Número de relleno por defecto
+        }
 
-        // Si no empieza con +, agregar código de país de Colombia
-        if (substr($phone, 0, 1) !== '+') {
-            // Si empieza con 57, agregar +
-            if (substr($phone, 0, 2) === '57') {
-                $phone = '+' . $phone;
+        // Eliminar todo excepto dígitos
+        $digits = preg_replace('/[^0-9]/', '', $phone);
+
+        // Si no quedan dígitos después de limpiar, retornar relleno
+        if (empty($digits)) {
+            return '+573000000000';
+        }
+
+        // Si empieza con 57 y tiene más de 10 dígitos, es probable que tenga código de país
+        if (substr($digits, 0, 2) === '57' && strlen($digits) > 10) {
+            // Quitar el prefijo 57 para trabajar solo con el número nacional
+            $digits = substr($digits, 2);
+        }
+
+        // Ahora $digits debería ser el número nacional (idealmente 10 dígitos)
+        $len = strlen($digits);
+
+        if ($len > 10) {
+            // Más de 10 dígitos: recortar desde el final hasta tener 10
+            $digits = substr($digits, 0, 10);
+        } elseif ($len < 10) {
+            // Menos de 10 dígitos: número inválido, generar uno de relleno
+            // Usamos 300 como prefijo de operador genérico + los dígitos que hay + ceros de relleno
+            if ($len >= 3 && in_array(substr($digits, 0, 1), ['3'])) {
+                // Parece un celular colombiano incompleto, rellenar con ceros al final
+                $digits = str_pad($digits, 10, '0');
             } else {
-                // Asumir que es número colombiano y agregar +57
-                $phone = '+57' . $phone;
+                // No parece un celular válido, generar uno de relleno completo
+                $digits = '3000000000';
             }
         }
 
-        return $phone;
+        // Validar que el primer dígito sea 3 (celulares colombianos)
+        // Si no lo es, anteponer 3 y recortar para mantener 10 dígitos
+        if (substr($digits, 0, 1) !== '3') {
+            $digits = '3' . substr($digits, 0, 9);
+        }
+
+        return '+57' . $digits;
+    }
+
+    /**
+     * Corregir y persistir el teléfono del cliente en la base de datos.
+     * Retorna el teléfono formateado en E.164.
+     */
+    protected function autoFixClientPhone($cliente)
+    {
+        $originalPhone = $cliente->celular;
+        $formattedPhone = $this->formatPhone($originalPhone);
+
+        // Extraer solo los 10 dígitos nacionales para guardar en la BD
+        $nationalDigits = substr($formattedPhone, 3); // Quitar +57
+
+        // Solo actualizar si realmente cambió
+        if ($originalPhone !== $nationalDigits && $cliente->celular !== $nationalDigits) {
+            Log::info("OnePay AutoFix teléfono cliente #{$cliente->id}: '{$originalPhone}' -> '{$nationalDigits}'");
+            $cliente->celular = $nationalDigits;
+            $cliente->save();
+        }
+
+        return $formattedPhone;
     }
 
     /**
