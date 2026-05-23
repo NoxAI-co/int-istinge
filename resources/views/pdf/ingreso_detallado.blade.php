@@ -22,6 +22,24 @@
         }
     }
     $porpagar_factura_pdf = $porpagarFactura ?? ($factura_primary_pdf ? $factura_primary_pdf->porpagar() : null);
+
+    $direcciones_contratos = [];
+    $facturas_del_ingreso = $ingreso->ingresosFacturas();
+    if ($facturas_del_ingreso) {
+        foreach ($facturas_del_ingreso as $ingresoFactura) {
+            $fact = $ingresoFactura->factura();
+            if ($fact && $fact->relationContracts) {
+                foreach ($fact->relationContracts as $contrato) {
+                    if (isset($contrato->address_street) && trim($contrato->address_street) !== '') {
+                        if (!in_array($contrato->address_street, $direcciones_contratos)) {
+                            $direcciones_contratos[] = $contrato->address_street;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    $direccion_mostrar = implode(", ", $direcciones_contratos);
 @endphp
 <style type="text/css">
     #watermark {
@@ -206,7 +224,13 @@
         </tr>
         <tr>
             <th class="right smalltd">DIRECCIÓN</th>
-            <td colspan="3">@if($cliente_pdf){{$cliente_pdf->direccion}}@endif</td>
+            <td colspan="3">
+                @if($direccion_mostrar != "")
+                    {{$direccion_mostrar}}
+                @elseif($cliente_pdf)
+                    {{$cliente_pdf->direccion}}
+                @endif
+            </td>
             <td class="center" rowspan="4" style="font-size: 18px; border-right: 2px solid #ccc;">{{date('d/m/Y', strtotime($ingreso->fecha))}}</td>
         </tr>
         <tr>
