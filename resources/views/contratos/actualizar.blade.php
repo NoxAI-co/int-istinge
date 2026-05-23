@@ -24,7 +24,7 @@
 
             <li class="ml-3">Verifique que el comienzo de la data sea a partir de la fila 4.</li>
             <li class="ml-3">La columna A debe contener el <b>nro contrato</b> para identificar el contrato a actualizar. Si el contrato no existe, se creará uno nuevo.</li>
-            <li class="ml-3">Los campos obligatorios son <b>Nro Contrato, Identificacion, Servicio, Mikrotik, Plan, Estado, IP, Conexion, Interfaz, Segmento, Grupo de Corte, Facturacion, Tecnologia</b>.</li>
+            <li class="ml-3">Los campos obligatorios son <b>Nro Contrato, Identificacion, Servicio, Mikrotik, Plan Internet o Plan Television (al menos uno), Estado, IP, Conexion, Interfaz, Segmento, Grupo de Corte, Facturacion, Tecnologia</b>.</li>
 
             <li class="ml-3">Las mikrotik disponibles son los siguientes:
                 <div class="col-md-6 my-2">
@@ -43,17 +43,36 @@
                 </div>
             </li>
 
-            <li class="ml-3">Los planes de velocidad disponibles son los siguientes:
+            <li class="ml-3">Los planes de Internet disponibles son los siguientes:
                 <div class="col-md-6 my-2">
                     <div class="table-responsive">
                         <table class="table table-striped importar text-center" style="border: solid 2px {{Auth::user()->empresa()->color}} !important;">
-                            <thead><tr style="background-color: {{Auth::user()->empresa()->color}} !important; color: #fff;"><th>Planes</th></tr></thead>
+                            <thead><tr style="background-color: {{Auth::user()->empresa()->color}} !important; color: #fff;"><th>Planes de Internet</th></tr></thead>
                             <tbody>
                                 @foreach($planes as $plan)
                                 <tr>
                                     <td>{{$plan->name}}</td>
                                 </tr>
                                 @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </li>
+
+            <li class="ml-3">Los planes de Televisión disponibles son los siguientes:
+                <div class="col-md-6 my-2">
+                    <div class="table-responsive">
+                        <table class="table table-striped importar text-center" style="border: solid 2px {{Auth::user()->empresa()->color}} !important;">
+                            <thead><tr style="background-color: {{Auth::user()->empresa()->color}} !important; color: #fff;"><th>Planes de Televisión</th></tr></thead>
+                            <tbody>
+                                @forelse($serviciosTV as $tv)
+                                <tr>
+                                    <td>{{$tv->producto}}</td>
+                                </tr>
+                                @empty
+                                <tr><td class="text-muted">No hay planes de TV registrados</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
