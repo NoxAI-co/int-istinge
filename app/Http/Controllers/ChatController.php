@@ -251,7 +251,9 @@ class ChatController extends Controller
             return response()->json(['error' => 'La instancia no tiene configurado un ID de WhatsApp (phone_number_id)'], 400);
         }
 
+        $conversationId = trim((string) $conversationId);
         $cleanPhone = preg_replace('/[^0-9]/', '', $conversationId);
+        $recipient = strlen($cleanPhone) >= 7 ? $cleanPhone : $conversationId;
         $phone = substr($cleanPhone, -10);
         if ($phone && strlen($phone) >= 7) {
             $hasWarning = \App\Model\Ingresos\Factura::join('contracts as c', 'c.id', '=', 'factura.contrato_id')
@@ -286,7 +288,7 @@ class ChatController extends Controller
             $metaService = new MetaWhatsAppService();
             $result = $metaService->sendMessage(
                 $instance->phone_number_id,
-                $conversationId,
+                $recipient,
                 $request->message
             );
 
@@ -294,7 +296,7 @@ class ChatController extends Controller
                 $wamid = $result['data']['messages'][0]['id'] ?? null;
                 if ($wamid) {
                     $this->centralizedService->registerMessage($instance->phone_number_id, [
-                        'to'      => $conversationId,
+                        'to'      => $recipient,
                         'wamid'   => $wamid,
                         'content' => $request->message,
                         'type'    => 'text',
@@ -311,7 +313,7 @@ class ChatController extends Controller
         } else {
             $result = $this->centralizedService->sendMessage(
                 $instance->phone_number_id,
-                $conversationId, // phone_number
+                $recipient, // phone_number normalizado cuando aplica
                 $request->message
             );
         }
@@ -355,6 +357,112 @@ class ChatController extends Controller
             'success' => false,
             'error'   => 'El envío de imágenes no está disponible actualmente en la API centralizada.'
         ], 501);
+    }
+
+    /**
+     * Enviar audio.
+     * Disponible para instancias Meta Direct (type=1, meta=0).
+     */
+    public function sendAudio(Request $request, $conversationId)
+    {
+        $validator = Validator::make($request->all(), [
+            'audio' => 'required|file|mimetypes:audio/mpeg,audio/mp3,audio/ogg,audio/oga,audio/mp4,audio/aac,audio/amr,audio/3gpp,audio/webm|max:16384'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = auth()->user();
+        $instanceId = $request->instance_id;
+
+        if (!$instanceId) {
+            return response()->json(['error' => 'instance_id es requerido'], 400);
+        }
+
+        $instance = Instance::where('id', $instanceId)
+            ->where('company_id', $user->empresa)
+            ->firstOrFail();
+
+        if (empty($instance->phone_number_id)) {
+            return response()->json(['error' => 'La instancia no tiene configurado un ID de WhatsApp (phone_number_id)'], 400);
+        }
+
+        if (!($instance->type == 1 && $instance->meta == 0)) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'El envío de audio no está disponible para esta instancia.'
+            ], 501);
+        }
+
+        $conversationId = trim((string) $conversationId);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $conversationId);
+        $recipient = strlen($cleanPhone) >= 7 ? $cleanPhone : $conversationId;
+
+        try {
+            $audioFile = $request->file('audio');
+            $storedPath = $audioFile->store('whatsapp/media/audio', 'public');
+
+            $audioUrl = asset('storage/' . ltrim($storedPath, '/'));
+            if (!preg_match('/^https?:\/\//i', $audioUrl)) {
+                $audioUrl = url($audioUrl);
+            }
+
+            $metaService = new MetaWhatsAppService();
+            $result = $metaService->sendAudio(
+                $instance->phone_number_id,
+                $recipient,
+                $audioUrl
+            );
+
+            if (!(isset($result['success']) && $result['success'])) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => $result['error']['error']['message'] ?? ($result['error']['message'] ?? 'Error al enviar audio vía Meta Direct')
+                ], 500);
+            }
+
+            $wamid = $result['data']['messages'][0]['id'] ?? null;
+
+            if ($wamid) {
+                $this->centralizedService->registerMessage($instance->phone_number_id, [
+                    'to'              => $recipient,
+                    'wamid'           => $wamid,
+                    'type'            => 'audio',
+                    'status'          => 'sent',
+                    'media_url'       => $audioUrl,
+                    'filename'        => $audioFile->getClientOriginalName(),
+                    'media_mime_type' => $audioFile->getMimeType(),
+                ]);
+            }
+
+            $data = [
+                'id'              => $wamid ?: ('tmp_audio_' . uniqid()),
+                'wamid'           => $wamid,
+                'direction'       => 'outbound',
+                'type'            => 'audio',
+                'status'          => 'sent',
+                'media_url'       => $audioUrl,
+                'filename'        => $audioFile->getClientOriginalName(),
+                'media_mime_type' => $audioFile->getMimeType(),
+                'created_at'      => now()->toIso8601String(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Audio enviado',
+                'data'    => $data,
+            ]);
+        } catch (\Exception $e) {
+            logger()->error('ChatController::sendAudio exception', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error'   => 'No se pudo enviar el audio. Intenta nuevamente.',
+            ], 500);
+        }
     }
 
     /**

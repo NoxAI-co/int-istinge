@@ -437,6 +437,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('/conversations/{id}/send', 'ChatController@sendMessage')->name('chat.whatsapp.send');
         Route::post('/conversations/{id}/send-image', 'ChatController@sendImage')->name('chat.whatsapp.send_image');
+        Route::post('/conversations/{id}/send-audio', 'ChatController@sendAudio')->name('chat.whatsapp.send_audio');
         Route::post('/conversations/{id}/assign', 'ChatController@assign')->name('chat.whatsapp.assign');
         Route::post('/conversations/{id}/close', 'ChatController@close')->name('chat.whatsapp.close');
     });

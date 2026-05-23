@@ -4,16 +4,74 @@
 
 @section('content')
 <style>
+    /* Make parent containers stretch tightly around the chat panel */
+    body:has(#whatsapp-chat-app) .content-wrapper { padding-bottom: 16px !important; }
+    body:has(#whatsapp-chat-app) .grid-margin.stretch-card,
+    body:has(#whatsapp-chat-app) .card.top-radius,
+    body:has(#whatsapp-chat-app) .body-card,
+    body:has(#whatsapp-chat-app) main#app { margin-bottom: 0 !important; }
+    body:has(#whatsapp-chat-app) .grid-margin { margin-bottom: 0 !important; }
+
     /* Reset & Base */
     #whatsapp-chat-app {
         font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        height: calc(100vh - 100px); /* Adjust based on your layout header */
+        height: calc(100vh - 170px); /* JS adjusts dynamically on resize */
+        min-height: 520px;
         display: flex;
         flex-direction: column;
         background-color: #f0f2f5;
-        border: 1px solid #d1d7db;
-        border-radius: 8px;
+        border: 1px solid #e1e6ea;
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+    }
+
+    .btn-back {
+        display: none;
+        background: none;
+        border: none;
+        color: #54656f;
+        padding: 6px;
+        margin-right: 6px;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-back:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    @media (max-width: 768px) {
+        #whatsapp-chat-app {
+            border-radius: 8px;
+        }
+        .chat-sidebar {
+            width: 100%;
+            border-right: none;
+        }
+        .chat-layout.has-active .chat-sidebar {
+            display: none;
+        }
+        .chat-layout:not(.has-active) .chat-main {
+            display: none;
+        }
+        .btn-back {
+            display: inline-flex;
+        }
+        .chat-toolbar {
+            padding: 10px 14px;
+            height: auto;
+        }
+        .chat-toolbar h1 {
+            font-size: 0.95rem;
+        }
+        .message-bubble {
+            max-width: 80%;
+        }
     }
 
     /* Utilities */
@@ -38,27 +96,57 @@
     
     /* Toolbar */
     .chat-toolbar {
-        background-color: #008069;
+        background: linear-gradient(135deg, #008069 0%, #06b07a 100%);
         color: white;
-        padding: 10px 20px;
+        padding: 12px 22px;
         display: flex;
         align-items: center; 
         justify-content: space-between;
-        height: 60px;
+        height: 64px;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 6px rgba(0,0,0,0.12);
     }
     
     .chat-toolbar h1 {
-        font-size: 1.1rem;
-        font-weight: 500;
+        font-size: 1.05rem;
+        font-weight: 600;
         margin: 0;
+        letter-spacing: 0.2px;
     }
 
     .instance-selector select {
-        padding: 5px 10px;
-        border-radius: 4px;
-        border: none;
-        font-size: 0.9rem;
-        color: #333;
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.25);
+        background-color: rgba(255,255,255,0.95);
+        font-size: 0.88rem;
+        color: #1f2937;
+        outline: none;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .instance-selector select:focus {
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
+    }
+
+    .toolbar-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        opacity: 0.92;
+    }
+
+    .toolbar-status .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: #d1d5db;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+    }
+
+    .toolbar-status .status-dot.active {
+        background-color: #ffd166;
+        box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.25);
     }
 
     /* Layout */
@@ -71,26 +159,34 @@
 
     /* Sidebar */
     .chat-sidebar {
-        width: 350px;
-        border-right: 1px solid #d1d7db;
+        width: 360px;
+        border-right: 1px solid #e9eef1;
         display: flex;
         flex-direction: column;
         background-color: #fff;
     }
 
     .search-box {
-        padding: 10px;
+        padding: 12px 12px 8px;
         border-bottom: 1px solid #f0f2f5;
+        background-color: #fff;
     }
 
     .search-input {
         width: 100%;
-        padding: 8px 15px;
-        background-color: #f0f2f5;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95rem;
+        padding: 9px 16px;
+        background-color: #f3f5f7;
+        border: 1px solid transparent;
+        border-radius: 22px;
+        font-size: 0.92rem;
         outline: none;
+        transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .search-input:focus {
+        background-color: #fff;
+        border-color: #d4dadf;
+        box-shadow: 0 0 0 3px rgba(0, 128, 105, 0.08);
     }
 
     .chat-list {
@@ -101,33 +197,34 @@
     .chat-item {
         display: flex;
         align-items: center;
-        padding: 12px 15px;
+        padding: 12px 14px;
         cursor: pointer;
-        border-bottom: 1px solid #f0f2f5;
-        transition: background-color 0.2s;
+        border-bottom: 1px solid #f3f5f7;
+        transition: background-color 0.15s ease;
     }
 
     .chat-item:hover {
-        background-color: #f5f6f6;
+        background-color: #f7f9fa;
     }
 
     .chat-item.active {
-        background-color: #f0f2f5;
+        background-color: #eef6f4;
     }
 
     .avatar {
-        width: 45px;
-        height: 45px;
+        width: 46px;
+        height: 46px;
         border-radius: 50%;
-        background-color: #dfe3e5;
+        background: linear-gradient(135deg, #00a884 0%, #008069 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
+        font-weight: 600;
         color: #fff;
-        font-size: 1.1rem;
+        font-size: 1rem;
         flex-shrink: 0;
-        background: #00a884; /* Fallback/Default */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        letter-spacing: 0.5px;
     }
 
     .chat-info {
@@ -205,8 +302,21 @@
         justify-content: center;
         color: #41525d;
         text-align: center;
-        background-color: #f0f2f5;
-        border-bottom: 6px solid #25D366; 
+        background-color: #f6f8fa;
+        border-bottom: 5px solid #25D366;
+        padding: 24px;
+    }
+
+    .chat-placeholder h2 {
+        margin: 8px 0 4px;
+        font-weight: 500;
+        color: #1f2c33;
+    }
+
+    .chat-placeholder p {
+        color: #667781;
+        font-size: 0.92rem;
+        margin: 0;
     }
 
     .placeholder-icon svg {
@@ -217,14 +327,13 @@
 
     /* Chat Header */
     .active-chat-header {
-        height: 60px;
-        background-color: #f0f2f5;
-        padding: 0 16px;
+        height: 64px;
+        background-color: #ffffff;
+        padding: 0 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-left: 1px solid #d1d7db;
-        border-bottom: 1px solid #d1d7db;
+        border-bottom: 1px solid #e9eef1;
     }
 
     .header-info {
@@ -233,29 +342,38 @@
     }
     
     .header-details {
-        margin-left: 15px;
+        margin-left: 14px;
     }
 
     .header-details h3 {
         margin: 0;
-        font-size: 1rem;
-        font-weight: 500;
+        font-size: 0.98rem;
+        font-weight: 600;
+        color: #111b21;
     }
 
     .header-details p {
         margin: 0;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         color: #667781;
     }
 
     .btn-close {
-        background: #ef4444; /* red-500 */
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        font-size: 0.85rem;
+        background: #fff;
+        color: #ef4444;
+        border: 1px solid #fecaca;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 500;
         cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-close:hover {
+        background: #ef4444;
+        color: #fff;
+        border-color: #ef4444;
     }
 
     /* Message List */
@@ -279,22 +397,22 @@
 
     .message-bubble {
         max-width: 65%;
-        padding: 6px 7px 8px 9px;
-        border-radius: 7.5px;
+        padding: 8px 10px 6px 12px;
+        border-radius: 10px;
         position: relative;
-        font-size: 0.9rem;
-        line-height: 19px;
-        box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        font-size: 0.92rem;
+        line-height: 1.4;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
     }
 
     .message-bubble.outbound {
         background-color: #d9fdd3;
-        border-top-right-radius: 0;
+        border-top-right-radius: 2px;
     }
 
     .message-bubble.inbound {
         background-color: #ffffff;
-        border-top-left-radius: 0;
+        border-top-left-radius: 2px;
     }
 
     .message-content {
@@ -424,13 +542,13 @@
 
     /* Input Area */
     .chat-input-area {
-        min-height: 62px;
-        background-color: #f0f2f5;
-        padding: 10px 16px;
+        min-height: 66px;
+        background-color: #f6f7f9;
+        padding: 12px 16px;
         display: flex;
         align-items: center;
         gap: 10px;
-        border-top: 1px solid #d1d7db;
+        border-top: 1px solid #e9eef1;
     }
 
     .btn-attach {
@@ -439,15 +557,40 @@
         border: none;
         cursor: pointer;
         padding: 8px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-attach:hover:not(:disabled) {
+        background-color: rgba(0, 128, 105, 0.08);
+        color: #008069;
+    }
+
+    .btn-attach:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
 
     .input-wrapper {
         flex: 1;
-        background-color: white;
-        border-radius: 8px;
-        padding: 9px 12px;
+        background-color: #fff;
+        border-radius: 22px;
+        padding: 10px 16px;
         display: flex;
         align-items: center;
+        border: 1px solid #e9eef1;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .input-wrapper:focus-within {
+        border-color: #cfe6df;
+        box-shadow: 0 0 0 3px rgba(0, 128, 105, 0.1);
     }
 
     .message-input {
@@ -456,18 +599,116 @@
         outline: none;
         font-size: 0.95rem;
         background: transparent;
+        color: #111b21;
     }
 
     .btn-send {
+        background: #e9eef1;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        color: #8a9aa3;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+    .btn-send:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    /* Recording UI */
+    .recording-bar {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background-color: #fff;
+        border-radius: 22px;
+        padding: 9px 16px;
+        border: 1px solid #fbd5d5;
+        box-shadow: 0 1px 2px rgba(239, 68, 68, 0.08);
+    }
+
+    .recording-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: #54656f;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .recording-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #ef4444;
+        border-radius: 50%;
+        animation: pulse-rec 1.1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-rec {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.35; transform: scale(0.85); }
+    }
+
+    .recording-btn {
         background: none;
         border: none;
         cursor: pointer;
         padding: 8px;
-        color: #54656f;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .recording-btn.cancel {
+        color: #ef4444;
+    }
+
+    .recording-btn.cancel:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+    }
+
+    .recording-btn.stop {
+        color: #fff;
+        background-color: #008069;
+        box-shadow: 0 2px 6px rgba(0, 128, 105, 0.25);
+    }
+
+    .recording-btn.stop:hover {
+        background-color: #006a57;
+    }
+
+    .recording-btn.stop:active {
+        transform: scale(0.96);
+    }
+
+    .recording-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
     
     .btn-send.active {
-        color: #008069;
+        background-color: #008069;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(0, 128, 105, 0.25);
+    }
+
+    .btn-send.active:hover {
+        background-color: #006a57;
+    }
+
+    .btn-send.active:active {
+        transform: scale(0.96);
     }
 
     /* Modal */
@@ -583,7 +824,14 @@
     
     /* Scrollbar */
     .custom-scroll::-webkit-scrollbar { width: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
+    .custom-scroll::-webkit-scrollbar-track { background-color: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.15);
+        border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0,0,0,0.28);
+    }
 
     /* Error Alert Banner */
     .whatsapp-error-alert {
@@ -649,20 +897,15 @@
                 </select>
             </div>
             
-            <div style="display: flex; align-items: center; font-size: 0.8rem;">
-                <span style="margin-right: 5px;">@{{ lastUpdate }}</span>
-                <div :style="{
-                    width: '8px', 
-                    height: '8px', 
-                    borderRadius: '50%',
-                    backgroundColor: isPolling ? '#FFD700' : '#ccc'
-                }"></div>
+            <div class="toolbar-status">
+                <span>@{{ lastUpdate }}</span>
+                <span class="status-dot" :class="{ 'active': isPolling }"></span>
             </div>
         </div>
     </div>
 
     <!-- Main Layout -->
-    <div v-if="selectedInstanceId" class="chat-layout">
+    <div v-if="selectedInstanceId" class="chat-layout" :class="{ 'has-active': selectedConversation }">
         
         <!-- Sidebar -->
         <div class="chat-sidebar">
@@ -691,7 +934,7 @@
                     class="chat-item"
                     :class="{ 'active': selectedConversation && selectedConversation.id === conv.id }"
                 >
-                    <div class="avatar">
+                    <div class="avatar" :style="avatarStyle(conv.name || conv.phone_number)">
                         @{{ conv.initials }}
                     </div>
                     <div class="chat-info">
@@ -736,7 +979,12 @@
                 <!-- Chat Header -->
                 <div class="active-chat-header">
                     <div class="header-info">
-                        <div class="avatar" style="width: 40px; height: 40px;">
+                        <button class="btn-back" type="button" title="Volver" @click="goBackToList">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                            </svg>
+                        </button>
+                        <div class="avatar" style="width: 42px; height: 42px;" :style="avatarStyle(selectedConversation.name || selectedConversation.phone_number)">
                             @{{ selectedConversation.initials }}
                         </div>
                         <div class="header-details">
@@ -745,7 +993,7 @@
                         </div>
                     </div>
                     <div>
-                        <button class="btn-close" @click="closeConversation">
+                        <button class="btn-close" @click="goBackToList" title="Cerrar panel">
                             Cerrar
                         </button>
                     </div>
@@ -887,7 +1135,20 @@
                         <input type="file" @change="handleFileUpload" accept="image/*" class="hidden">
                     </label>
 
-                    <div class="input-wrapper">
+                    <button
+                        v-if="!isRecording"
+                        class="btn-attach"
+                        title="Grabar audio"
+                        type="button"
+                        @click="startRecording"
+                        :disabled="sending"
+                    >
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3zm5-3a1 1 0 10-2 0 3 3 0 11-6 0 1 1 0 10-2 0 5.002 5.002 0 004 4.9V19H9a1 1 0 000 2h6a1 1 0 100-2h-2v-3.1A5.002 5.002 0 0017 11z"></path>
+                        </svg>
+                    </button>
+
+                    <div v-if="!isRecording" class="input-wrapper">
                         <input 
                             v-model="newMessage" 
                             @keyup.enter="sendMessage"
@@ -898,8 +1159,44 @@
                         >
                     </div>
 
-                    <button @click="sendMessage" class="btn-send" :class="{ 'active': newMessage.trim() }">
+                    <div v-else class="recording-bar">
+                        <button
+                            class="recording-btn cancel"
+                            type="button"
+                            title="Cancelar grabación"
+                            @click="cancelRecording"
+                        >
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                        <div class="recording-indicator">
+                            <span class="recording-dot"></span>
+                            <span>Grabando... @{{ recordingTimeLabel }}</span>
+                        </div>
+                    </div>
+
+                    <button
+                        v-if="!isRecording"
+                        @click="sendMessage"
+                        class="btn-send"
+                        :class="{ 'active': newMessage.trim() && !sending }"
+                        :disabled="sending || !newMessage.trim()"
+                    >
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path>
+                        </svg>
+                    </button>
+
+                    <button
+                        v-else
+                        class="recording-btn stop"
+                        type="button"
+                        title="Detener y enviar"
+                        @click="stopRecording"
+                        :disabled="sending"
+                    >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                             <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path>
                         </svg>
                     </button>
@@ -969,6 +1266,7 @@ window.routes = {
     messages: (id) => "{{ route('chat.whatsapp.messages', ':id') }}".replace(':id', id),
     send: (id) => "{{ route('chat.whatsapp.send', ':id') }}".replace(':id', id),
     sendImage: (id) => "{{ route('chat.whatsapp.send_image', ':id') }}".replace(':id', id),
+    sendAudio: (id) => "{{ route('chat.whatsapp.send_audio', ':id') }}".replace(':id', id),
     assign: (id) => "{{ route('chat.whatsapp.assign', ':id') }}".replace(':id', id),
     close: (id) => "{{ route('chat.whatsapp.close', ':id') }}".replace(':id', id)
 };
@@ -1008,6 +1306,12 @@ new Vue({
         currentPage: 1,
         lastPage: 1,
         loadingMore: false,
+
+        // Voice recording
+        isRecording: false,
+        recordingMimeType: '',
+        recordingElapsed: 0,
+        maxRecordingSeconds: 180,
     },
     
     computed: {
@@ -1020,6 +1324,13 @@ new Vue({
                 (c.name && c.name.toLowerCase().includes(query)) ||
                 (c.phone_number && c.phone_number.includes(query))
             );
+        },
+
+        recordingTimeLabel() {
+            const total = this.recordingElapsed || 0;
+            const minutes = Math.floor(total / 60).toString().padStart(2, '0');
+            const seconds = (total % 60).toString().padStart(2, '0');
+            return `${minutes}:${seconds}`;
         },
 
         hasMoreConversations() {
@@ -1136,11 +1447,37 @@ new Vue({
                 this.$refs.chatList.addEventListener('scroll', this._convScrollHandler);
             }
         });
+
+        // Fallback for browsers without :has() — tighten parent paddings
+        const contentWrapper = document.querySelector('.content-wrapper');
+        if (contentWrapper) {
+            this._prevContentPaddingBottom = contentWrapper.style.paddingBottom;
+            contentWrapper.style.paddingBottom = '16px';
+        }
+        ['.grid-margin', '.stretch-card', '.card.top-radius', '.body-card'].forEach(selector => {
+            const node = document.querySelector(selector);
+            if (node) node.style.marginBottom = '0px';
+        });
+
+        // Dynamic height: fill the available space inside the layout
+        this._resizeHandler = this.adjustChatHeight.bind(this);
+        window.addEventListener('resize', this._resizeHandler);
+        this.$nextTick(() => this.adjustChatHeight());
+        // Re-measure shortly after to catch late-loaded fonts/menus
+        setTimeout(() => this.adjustChatHeight(), 200);
+        setTimeout(() => this.adjustChatHeight(), 800);
     },
 
     beforeDestroy() {
         if (this.$refs.chatList && this._convScrollHandler) {
             this.$refs.chatList.removeEventListener('scroll', this._convScrollHandler);
+        }
+        if (this._resizeHandler) {
+            window.removeEventListener('resize', this._resizeHandler);
+        }
+        const contentWrapper = document.querySelector('.content-wrapper');
+        if (contentWrapper && typeof this._prevContentPaddingBottom !== 'undefined') {
+            contentWrapper.style.paddingBottom = this._prevContentPaddingBottom;
         }
     },
     
@@ -1230,6 +1567,7 @@ new Vue({
         async selectConversation(conversation) {
             this.selectedConversation = conversation;
             this.loadingMessages = true;
+            this.$nextTick(() => this.adjustChatHeight());
             
             try {
                 // La API centralizada usa conversation.id para los mensajes, 
@@ -1254,15 +1592,23 @@ new Vue({
         },
         
         async sendMessage() {
-            if (!this.newMessage.trim()) return;
+            if (this.sending || !this.selectedConversation || !this.newMessage.trim()) return;
             
             const message = this.newMessage;
             this.newMessage = '';
             this.sending = true;
+            const recipient = this.getConversationRecipient(this.selectedConversation);
+            
+            if (!recipient) {
+                this.sending = false;
+                this.newMessage = message;
+                alert('No se pudo identificar el destinatario de la conversación.');
+                return;
+            }
             
             try {
                 const response = await axios.post(
-                    window.routes.send(this.selectedConversation.phone_number),
+                    window.routes.send(encodeURIComponent(recipient)),
                     { 
                         message: message,
                         instance_id: this.selectedInstanceId 
@@ -1280,7 +1626,10 @@ new Vue({
                 }
             } catch (error) {
                 console.error('Error enviando mensaje:', error);
-                alert('Error al enviar mensaje');
+                const serverMessage =
+                    (error.response && error.response.data && (error.response.data.error || (error.response.data.errors && Object.values(error.response.data.errors).flat().join(', ')))) ||
+                    null;
+                alert(serverMessage || 'Error al enviar mensaje');
                 this.newMessage = message;
             } finally {
                 this.sending = false;
@@ -1315,6 +1664,209 @@ new Vue({
                 this.sending = false;
                 event.target.value = '';
             }
+        },
+
+        async startRecording() {
+            if (this.isRecording || this.sending) return;
+            if (!this.selectedConversation) {
+                alert('Selecciona una conversación primero.');
+                return;
+            }
+
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                alert('Tu navegador no soporta grabación de audio. Usa Chrome, Edge o Firefox actualizado.');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                const candidateMimeTypes = [
+                    'audio/ogg;codecs=opus',
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/mp4',
+                    'audio/aac'
+                ];
+                let mimeType = '';
+                for (const type of candidateMimeTypes) {
+                    if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(type)) {
+                        mimeType = type;
+                        break;
+                    }
+                }
+
+                const recorder = mimeType
+                    ? new MediaRecorder(stream, { mimeType })
+                    : new MediaRecorder(stream);
+
+                this._recordedChunks = [];
+                this._mediaRecorder = recorder;
+                this._mediaStream = stream;
+                this._recordingCancelled = false;
+                this.recordingMimeType = recorder.mimeType || mimeType || 'audio/webm';
+
+                recorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        this._recordedChunks.push(event.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    this.stopRecordingTimer();
+                    this.releaseMediaStream();
+                    this.isRecording = false;
+
+                    if (this._recordingCancelled) {
+                        this._recordedChunks = [];
+                        return;
+                    }
+
+                    const chunks = this._recordedChunks || [];
+                    if (!chunks.length) {
+                        alert('No se pudo capturar audio.');
+                        return;
+                    }
+
+                    const blob = new Blob(chunks, { type: this.recordingMimeType });
+                    this._recordedChunks = [];
+                    this.uploadRecordedAudio(blob);
+                };
+
+                recorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error || event);
+                    this.cancelRecording();
+                    alert('Error durante la grabación de audio.');
+                };
+
+                this.isRecording = true;
+                this._recordingStartTime = Date.now();
+                this.recordingElapsed = 0;
+                recorder.start();
+
+                this._recordingTimer = setInterval(() => {
+                    this.recordingElapsed = Math.floor((Date.now() - this._recordingStartTime) / 1000);
+                    if (this.recordingElapsed >= this.maxRecordingSeconds) {
+                        this.stopRecording();
+                    }
+                }, 250);
+            } catch (error) {
+                console.error('No se pudo iniciar la grabación:', error);
+                if (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
+                    alert('Debes permitir el acceso al micrófono para grabar audios.');
+                } else if (error && error.name === 'NotFoundError') {
+                    alert('No se detectó ningún micrófono disponible.');
+                } else {
+                    alert('No se pudo iniciar la grabación.');
+                }
+                this.releaseMediaStream();
+            }
+        },
+
+        stopRecording() {
+            if (!this.isRecording || !this._mediaRecorder) return;
+            this._recordingCancelled = false;
+            try {
+                if (this._mediaRecorder.state !== 'inactive') {
+                    this._mediaRecorder.stop();
+                }
+            } catch (error) {
+                console.error('Error deteniendo grabación:', error);
+                this.releaseMediaStream();
+                this.stopRecordingTimer();
+                this.isRecording = false;
+            }
+        },
+
+        cancelRecording() {
+            this._recordingCancelled = true;
+            if (this._mediaRecorder && this._mediaRecorder.state !== 'inactive') {
+                try { this._mediaRecorder.stop(); } catch (e) { /* noop */ }
+            } else {
+                this.releaseMediaStream();
+                this.stopRecordingTimer();
+                this._recordedChunks = [];
+                this.isRecording = false;
+            }
+        },
+
+        stopRecordingTimer() {
+            if (this._recordingTimer) {
+                clearInterval(this._recordingTimer);
+                this._recordingTimer = null;
+            }
+        },
+
+        releaseMediaStream() {
+            if (this._mediaStream) {
+                try {
+                    this._mediaStream.getTracks().forEach(track => track.stop());
+                } catch (e) { /* noop */ }
+                this._mediaStream = null;
+            }
+            this._mediaRecorder = null;
+        },
+
+        async uploadRecordedAudio(blob) {
+            if (!blob || !this.selectedConversation) return;
+
+            const recipient = this.getConversationRecipient(this.selectedConversation);
+            if (!recipient) {
+                alert('No se pudo identificar el destinatario de la conversación.');
+                return;
+            }
+
+            const extension = this.getExtensionFromMime(this.recordingMimeType);
+            const filename = `voz_${Date.now()}.${extension}`;
+
+            const formData = new FormData();
+            formData.append('audio', blob, filename);
+            formData.append('instance_id', this.selectedInstanceId);
+
+            this.sending = true;
+
+            try {
+                const response = await axios.post(
+                    window.routes.sendAudio(encodeURIComponent(recipient)),
+                    formData,
+                    { headers: { 'Content-Type': 'multipart/form-data' } }
+                );
+
+                if (response.data.success) {
+                    const msg = response.data.data;
+                    if (msg && msg.id && (msg.content || msg.media_url || msg.type === 'audio')) {
+                        this.messages.push(msg);
+                        this.updateConversationLastMessage({
+                            content: '🎵 Audio',
+                            created_at: msg.created_at || new Date().toISOString()
+                        });
+                        this.$nextTick(() => this.scrollToBottom());
+                    }
+                }
+            } catch (error) {
+                console.error('Error enviando audio:', error);
+                const serverMessage =
+                    (error.response && error.response.data && (error.response.data.error || (error.response.data.errors && Object.values(error.response.data.errors).flat().join(', ')))) ||
+                    null;
+                alert(serverMessage || 'Error al enviar audio');
+            } finally {
+                this.sending = false;
+            }
+        },
+
+        getExtensionFromMime(mime) {
+            const base = String(mime || '').split(';')[0].trim().toLowerCase();
+            const map = {
+                'audio/ogg': 'ogg',
+                'audio/oga': 'ogg',
+                'audio/webm': 'webm',
+                'audio/mp4': 'm4a',
+                'audio/aac': 'aac',
+                'audio/mpeg': 'mp3',
+                'audio/amr': 'amr',
+                'audio/3gpp': '3gp'
+            };
+            return map[base] || 'webm';
         },
         
         async closeConversation() {
@@ -1583,6 +2135,61 @@ new Vue({
                 const yy = String(date.getFullYear()).slice(-2);
                 return `${dd}/${mm}/${yy}`;
             }
+        },
+
+        getConversationRecipient(conversation) {
+            if (!conversation) return '';
+
+            const candidate = String(conversation.phone_number || conversation.id || '').trim();
+            if (!candidate) return '';
+
+            const digits = candidate.replace(/\D+/g, '');
+            return digits.length >= 7 ? digits : candidate;
+        },
+
+        avatarStyle(seed) {
+            const text = String(seed || '?').trim() || '?';
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+            }
+            const hue = hash % 360;
+            const hue2 = (hue + 28) % 360;
+            return {
+                background: `linear-gradient(135deg, hsl(${hue}, 55%, 48%) 0%, hsl(${hue2}, 60%, 38%) 100%)`,
+                color: '#fff'
+            };
+        },
+
+        goBackToList() {
+            this.selectedConversation = null;
+        },
+
+        adjustChatHeight() {
+            const el = document.getElementById('whatsapp-chat-app');
+            if (!el) return;
+
+            el.style.height = '300px';
+
+            requestAnimationFrame(() => {
+                const elRect = el.getBoundingClientRect();
+                const footer = document.querySelector('footer.footer, .footer');
+
+                let targetBottom;
+                if (footer) {
+                    const footerRect = footer.getBoundingClientRect();
+                    targetBottom = footerRect.top;
+                } else {
+                    targetBottom = window.innerHeight;
+                }
+
+                const padding = 16;
+                const available = targetBottom - elRect.top - padding;
+                const minHeight = window.innerWidth <= 768 ? 360 : 480;
+                const finalHeight = Math.max(minHeight, Math.floor(available));
+
+                el.style.height = `${finalHeight}px`;
+            });
         },
         
         openImage(url) {
