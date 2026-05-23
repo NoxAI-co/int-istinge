@@ -606,6 +606,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('importacion-saldos/cargando', 'ContactosController@cargandoSaldos')->name('saldos_favor.cargando');
 		Route::get('importacion-saldos/ejemplo', 'ContactosController@ejemploSaldos')->name('saldos_favor.ejemplo');
 		Route::post('destroyMultiple', 'ContactosController@destroyMultiple')->name('contactos.destroyMultiple');
+		Route::post('correo-generico', 'ContactosController@asignarCorreoGenerico')->name('contactos.correoGenerico');
 	});
 	Route::resource('contactos', 'ContactosController');
 

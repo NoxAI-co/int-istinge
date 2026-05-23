@@ -82,6 +82,7 @@
                 @if(isset($_SESSION['permisos']['7']))
                 <button type="button" class="btn btn-danger btn-sm" id="btn_delete_multiple" onclick="deleteMultiple()" style="display:none;"><i class="fas fa-trash"></i> Eliminar Selección</button>
                 @endif
+                <button type="button" class="btn btn-primary btn-sm" id="btn_correo_generico" style="display:none;" data-toggle="modal" data-target="#modalCorreoGenerico"><i class="fas fa-envelope"></i> Asignar Correo Genérico</button>
     		</div>
     	</div>
     </div>
@@ -188,6 +189,32 @@
 		</div>
 	</div>
 	@endif
+
+    <!-- Modal Correo Genérico -->
+    <div id="modalCorreoGenerico" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Asignar Correo Genérico</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <form id="formCorreoGenerico">
+                    @csrf
+                    <div class="modal-body text-left">
+                        <p>Se asignará el correo ingresado a todos los clientes de la empresa que actualmente <strong>no tienen correo electrónico asignado</strong>.</p>
+                        <div class="form-group">
+                            <label for="correo_generico">Correo Electrónico Genérico</label>
+                            <input type="email" class="form-control" id="correo_generico" name="correo" required placeholder="ejemplo@dominio.com">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn_submit_correo_generico">Asignar Correo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -277,6 +304,14 @@
         	getDataTable();
         	return false;
         });
+
+        $('#otra_opcion').on('change', function() {
+            if ($(this).val() == 'opcion_2') {
+                $('#btn_correo_generico').show();
+            } else {
+                $('#btn_correo_generico').hide();
+            }
+        });
     });
 
 	function getDataTable() {
@@ -330,6 +365,7 @@
 		$('#t_contrato').val('').selectpicker('refresh');
 		$('#serial_onu').val('');
         $("#otra_opcion").val('');
+        $('#btn_correo_generico').hide();
 		$('#form-filter').addClass('d-none');
 		$('#boton-filtrar').html('<i class="fas fa-search"></i> Filtrar');
 		getDataTable();
@@ -417,5 +453,52 @@
 			});
 		}
 	}
+
+    $('#formCorreoGenerico').on('submit', function(e) {
+        e.preventDefault();
+        var correo = $('#correo_generico').val();
+        
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Se asignará este correo electrónico a todos los clientes que actualmente no tienen uno registrado.",
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, asignar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.value) {
+                $('#btn_submit_correo_generico').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Asignando...');
+                $.ajax({
+                    url: '{{ route('contactos.correoGenerico') }}',
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        correo: correo
+                    },
+                    success: function(response) {
+                        $('#btn_submit_correo_generico').prop('disabled', false).html('Asignar Correo');
+                        if (response.success) {
+                            $('#modalCorreoGenerico').modal('hide');
+                            $('#correo_generico').val('');
+                            Swal.fire('¡Éxito!', response.message, 'success');
+                            getDataTable();
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        $('#btn_submit_correo_generico').prop('disabled', false).html('Asignar Correo');
+                        var msg = 'Ocurrió un error al intentar asignar el correo genérico.';
+                        if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.correo) {
+                            msg = xhr.responseJSON.errors.correo[0];
+                        }
+                        Swal.fire('Error', msg, 'error');
+                    }
+                });
+            }
+        });
+    });
 </script>
 @endsection

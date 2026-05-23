@@ -2108,4 +2108,48 @@ class ContactosController extends Controller
             return back()->with('error', 'Ocurrió un error al procesar el archivo: ' . $e->getMessage());
         }
     }
+
+    public function asignarCorreoGenerico(Request $request)
+    {
+        $request->validate([
+            'correo' => 'required|email'
+        ]);
+
+        $correo = mb_strtolower($request->correo);
+        $empresa = Auth::user()->empresa;
+
+        // Obtener la cantidad de contactos que se van a actualizar
+        $count = Contacto::where('empresa', $empresa)
+            ->where('status', 1)
+            ->whereIn('tipo_contacto', [0, 2])
+            ->where(function ($query) {
+                $query->whereNull('email')
+                      ->orWhere('email', '=', '');
+            })
+            ->count();
+
+        if ($count == 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontraron clientes sin correo para actualizar.'
+            ]);
+        }
+
+        // Realizar la actualización en lote
+        Contacto::where('empresa', $empresa)
+            ->where('status', 1)
+            ->whereIn('tipo_contacto', [0, 2])
+            ->where(function ($query) {
+                $query->whereNull('email')
+                      ->orWhere('email', '=', '');
+            })
+            ->update([
+                'email' => $correo
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Se ha asignado el correo electrónico genérico '{$correo}' a {$count} clientes con éxito."
+        ]);
+    }
 }
