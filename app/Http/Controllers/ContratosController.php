@@ -509,6 +509,13 @@ class ContratosController extends Controller
                         ->orWhereNotNull('contracts.descuento_pesos');
                 });
             }
+
+            if ($request->otra_opcion && $request->otra_opcion == "opcion_7") {
+                $contratos->where(function ($query) {
+                    $query->where('contracts.pago_emitir', 0)
+                          ->orWhereNull('contracts.pago_emitir');
+                });
+            }
         }
 
         $contratos->where('contracts.empresa', Auth::user()->empresa);
@@ -3801,6 +3808,13 @@ class ContratosController extends Controller
             $contratos->where(function ($query) {
                 $query->whereNotNull('contracts.descuento')
                     ->orWhereNotNull('contracts.descuento_pesos');
+            });
+        }
+
+        if ($request->otra_opcion && $request->otra_opcion == "opcion_7") {
+            $contratos->where(function ($query) {
+                $query->where('contracts.pago_emitir', 0)
+                      ->orWhereNull('contracts.pago_emitir');
             });
         }
 

@@ -146,6 +146,7 @@
                         <div class="col-md-3 pl-1 pt-1">
                             <select title="Otras opciones" class="form-control selectpicker" id="otra_opcion" name="otra_opcion">
                                 <option value="opcion_1">Clientes con saldo a favor</option>
+                                <option value="opcion_2">Clientes sin correo electrónico</option>
                             </select>
                         </div>
 					</div>

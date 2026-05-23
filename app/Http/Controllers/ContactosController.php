@@ -152,6 +152,12 @@ class ContactosController extends Controller
                     $query->orWhere('saldo_favor', '>', 0);
                 });
             }
+            if ($request->otra_opcion && $request->otra_opcion == "opcion_2") {
+                $contactos->where(function ($query) {
+                    $query->whereNull('contactos.email')
+                          ->orWhere('contactos.email', '=', '');
+                });
+            }
 
             if ($request->t_contrato == 1) {
                 // SIN contrato
@@ -1056,6 +1062,12 @@ class ContactosController extends Controller
             }
             if ($request->otra_opcion && $request->otra_opcion == "opcion_1") {
                 $query->where('contactos.saldo_favor', '>', 0);
+            }
+            if ($request->otra_opcion && $request->otra_opcion == "opcion_2") {
+                $query->where(function ($q) {
+                    $q->whereNull('contactos.email')
+                      ->orWhere('contactos.email', '=', '');
+                });
             }
 
             if ($request->t_contrato == 1) {
