@@ -610,11 +610,97 @@ class SiigoController extends Controller
             ];
         }
 
+        /* ===============================
+           AUTOCREACIÓN / SINCRONIZACIÓN DE CLIENTE
+        =============================== */
+        // Consultar si el cliente ya existe en Siigo antes de proceder
+        $checkCustomer = $this->executeSiigoRequest([
+            CURLOPT_URL            => 'https://api.siigo.com/v1/customers?identification=' . $cliente_factura->nit,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => 'GET',
+            CURLOPT_HTTPHEADER     => [
+                'Partner-Id: Integra',
+                'Authorization: Bearer ' . $empresa->token_siigo
+            ]
+        ], true);
+
+        if (!isset($checkCustomer['results']) || count($checkCustomer['results']) === 0) {
+            // El cliente no existe en Siigo, se procede a crearlo de manera transparente
+            $newCustomerPayload = [
+                "type"        => "Customer",
+                "person_type" => $cliente_factura->dv ? "Company" : "Person",
+                "id_type"     => $cliente_factura->dv ? "31" : "13",
+                "identification" => $cliente_factura->nit,
+                "name"        => $nombreArr,
+                "active"      => true,
+                "address"     => [
+                    "address" => $cliente_factura->direccion ?: "Sin dirección",
+                    "city" => [
+                        "country_code" => "Co",
+                        "state_code"   => (string)$departamento->codigo,
+                        "city_code"    => (string)$municipio->codigo_completo
+                    ]
+                ],
+                "contacts" => [
+                    [
+                        "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
+                        "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
+                        "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
+                    ]
+                ]
+            ];
+
+            // Si es un cliente de tipo Empresa (NIT), Siigo requiere DV y responsabilidades fiscales
+            if ($cliente_factura->dv) {
+                $newCustomerPayload["check_digit"] = (string)$cliente_factura->dv;
+                $newCustomerPayload["fiscal_responsibilities"] = [
+                    ["code" => "R-99-PN"] // Responsabilidad tributaria estándar
+                ];
+                $newCustomerPayload["fiscal_details"] = [
+                    ["code" => "05"] // No responsable de IVA estándar
+                ];
+            }
+
+            if ($celular) {
+                $newCustomerPayload["phones"] = [
+                    ["number" => $celular]
+                ];
+            }
+
+            $createCustomerRes = $this->executeSiigoRequest([
+                CURLOPT_URL            => 'https://api.siigo.com/v1/customers',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST  => 'POST',
+                CURLOPT_POSTFIELDS     => json_encode($newCustomerPayload),
+                CURLOPT_HTTPHEADER     => [
+                    'Partner-Id: Integra',
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $empresa->token_siigo
+                ]
+            ], true);
+
+            if (!isset($createCustomerRes['id']) && isset($createCustomerRes['Errors'])) {
+                $errMsgs = [];
+                foreach ($createCustomerRes['Errors'] as $err) {
+                    if (isset($err['Message'])) {
+                        $errMsgs[] = $err['Message'];
+                    }
+                }
+                return response()->json([
+                    'status' => 400,
+                    'error'  => 'No se pudo registrar automáticamente al cliente en Siigo: ' . implode(' | ', $errMsgs)
+                ]);
+            }
+        }
+
         $data = [
             "document" => ["id" => (int) $request->tipo_comprobante],
             "date"     => $factura->fecha,
             "draft"    => $draft,
-            "customer" => $customerData,
+            "customer" => [
+                "identification" => $cliente_factura->nit,
+                "branch_office"  => 0
+            ],
             "seller"   => (int) $request->usuario,
             "items"    => $array_items_factura,
         ];
