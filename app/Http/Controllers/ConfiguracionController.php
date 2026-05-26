@@ -3644,4 +3644,11 @@ class ConfiguracionController extends Controller
         return redirect()->route('configuracion.etiquetas_automaticas')
             ->with('success', 'Etiquetas automáticas configuradas correctamente.');
     }
+
+    public function integra2()
+    {
+        $this->getAllPermissions(\Illuminate\Support\Facades\Auth::user()->id);
+        view()->share(['title' => 'Integra 2.0', 'icon' => 'fas fa-rocket', 'seccion' => 'integra_2_0']);
+        return view('integraciones.integra2');
+    }
 }

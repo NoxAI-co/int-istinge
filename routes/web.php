@@ -421,6 +421,8 @@ Route::post('save_pass', 'Auth\ResetPasswordController@cambiar_pass')->name('pas
 
 Route::get('/categorymassive', 'HomeController@createCategoryMassive');
 
+Route::get('/integraciones/integra2', 'ConfiguracionController@integra2')->name('integra2.index')->middleware('auth');
+
 // Webhooks (sin auth)
 Route::get('/webhooks/whatsapp', 'WhatsAppWebhookController@verify')->name('whatsapp.webhook.verify');
 Route::post('/webhooks/whatsapp', 'WhatsAppWebhookController@webhook')->name('whatsapp.webhook');

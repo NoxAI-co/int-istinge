@@ -1,3 +1,22 @@
+<li class="nav-item" id="integra_crm">
+    <a class="nav-link" href="https://wpp.integracolombia.online/login" target="_blank">
+        <i class="menu-icon fas fa-plug"></i>
+        <span class="menu-title">Integra CRM <span class="badge badge-danger ml-1">!nuevo</span></span>
+    </a>
+</li>
+<li class="nav-item" id="integra_pay">
+    <a class="nav-link" href="https://admin.onepay.la/login" target="_blank">
+        <i class="menu-icon fas fa-credit-card"></i>
+        <span class="menu-title">Integra Pay <span class="badge badge-danger ml-1">!nuevo</span></span>
+    </a>
+</li>
+<li class="nav-item" id="integra_2_0">
+    <a class="nav-link" href="{{ route('integra2.index') }}">
+        <i class="menu-icon fas fa-rocket"></i>
+        <span class="menu-title">Integra 2.0! <span class="badge badge-danger ml-1">!nuevo</span></span>
+    </a>
+</li>
+
 @if(Auth::user()->rol==1)
 <li class="nav-item" id="empresas">
     <a class="nav-link" href="{{url('master/empresas')}}">
@@ -31,6 +50,9 @@
         </ul>
     </div>
 </li>
+
+
+
 <li class="nav-item" id="logout-lateral">
     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">{{ csrf_field() }}</form>
     <a class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
@@ -542,6 +564,8 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
     </div>
     @endif
 </li>
+
+
 
 @if(isset($_SESSION['permisos']['281']))
 <li class="nav-item" id="bancos">
