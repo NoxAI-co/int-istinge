@@ -625,9 +625,12 @@ class SiigoController extends Controller
 
         $celular = !empty($cliente_factura->celular) ? $cliente_factura->celular : (!empty($cliente_factura->telefono1) ? $cliente_factura->telefono1 : null);
         if ($celular) {
-            $customerData["phones"] = [
-                ["number" => $celular]
-            ];
+            $celularNumerico = preg_replace('/[^0-9]/', '', $celular);
+            if (!empty($celularNumerico)) {
+                $customerData["phones"] = [
+                    ["number" => $celularNumerico]
+                ];
+            }
         }
 
         /* ===============================
@@ -682,9 +685,12 @@ class SiigoController extends Controller
             }
 
             if ($celular) {
-                $newCustomerPayload["phones"] = [
-                    ["number" => $celular]
-                ];
+                $celularNumerico = preg_replace('/[^0-9]/', '', $celular);
+                if (!empty($celularNumerico)) {
+                    $newCustomerPayload["phones"] = [
+                        ["number" => $celularNumerico]
+                    ];
+                }
             }
 
             $createCustomerRes = $this->executeSiigoRequest([
