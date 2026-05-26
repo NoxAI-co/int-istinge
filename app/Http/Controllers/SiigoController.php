@@ -616,8 +616,8 @@ class SiigoController extends Controller
             ],
             "contacts" => [
                 [
-                    "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
-                    "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
+                    "first_name" => substr(isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto", 0, 50),
+                    "last_name"  => substr(isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"), 0, 50),
                     "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
                 ]
             ]
@@ -663,8 +663,8 @@ class SiigoController extends Controller
                 ],
                 "contacts" => [
                     [
-                        "first_name" => isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto",
-                        "last_name"  => isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"),
+                        "first_name" => substr(isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Contacto", 0, 50),
+                        "last_name"  => substr(isset($nombreArr[1]) && !empty($nombreArr[1]) ? $nombreArr[1] : (isset($nombreArr[0]) && !empty($nombreArr[0]) ? $nombreArr[0] : "Apellido"), 0, 50),
                         "email"      => !empty($cliente_factura->email) ? $cliente_factura->email : "correo@ejemplo.com"
                     ]
                 ]
