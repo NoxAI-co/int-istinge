@@ -240,7 +240,7 @@
 @section('content')
 <div class="integra2-wrapper">
     <div class="integra2-header">
-        <h1>Integra 2.0</h1>
+        <h1>Integra Plus!</h1>
         <p>El futuro de la gestión ISP ya está aquí. Más rápido, más inteligente, más poderoso.</p>
     </div>
 
@@ -263,25 +263,25 @@
         <h2 class="showcase-title">Visualiza el Siguiente Nivel</h2>
         <div class="image-grid">
             <div class="image-container">
-                <img src="https://redestvsat.net/images/I-1.png" alt="Dashboard Integra 2.0 - Vista 1" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/00f0ff?text=INTEGRA+2.0+PREVIEW'">
+                <img src="https://redestvsat.net/images/I-1.png" alt="Dashboard Integra Plus - Vista 1" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/00f0ff?text=INTEGRA+2.0+PREVIEW'">
                 <div class="image-overlay">
                     <span style="color: #00f0ff; font-weight: bold; font-size: 1.2rem;">Panel de Control Unificado</span>
                 </div>
             </div>
             <div class="image-container">
-                <img src="https://redestvsat.net/images/I-2.png" alt="Dashboard Integra 2.0 - Vista 2" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/ff00ff?text=NUEVA+INTERFAZ'">
+                <img src="https://redestvsat.net/images/I-2.png" alt="Dashboard Integra Plus - Vista 2" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/ff00ff?text=NUEVA+INTERFAZ'">
                 <div class="image-overlay">
                     <span style="color: #ff00ff; font-weight: bold; font-size: 1.2rem;">Analíticas Avanzadas</span>
                 </div>
             </div>
             <div class="image-container">
-                <img src="https://redestvsat.net/images/I-3.png" alt="Dashboard Integra 2.0 - Vista 3" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/00f0ff?text=GESTIÓN+DE+RED'">
+                <img src="https://redestvsat.net/images/I-3.png" alt="Dashboard Integra Plus - Vista 3" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/00f0ff?text=GESTIÓN+DE+RED'">
                 <div class="image-overlay">
                     <span style="color: #00f0ff; font-weight: bold; font-size: 1.2rem;">Gestión de Nodos y Mapas</span>
                 </div>
             </div>
             <div class="image-container">
-                <img src="https://redestvsat.net/images/I-4.png" alt="Dashboard Integra 2.0 - Vista 4" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/ff00ff?text=MODO+OSCURO+ATIVADO'">
+                <img src="https://redestvsat.net/images/I-4.png" alt="Dashboard Integra Plus - Vista 4" onerror="this.src='https://via.placeholder.com/800x450/0b0c10/ff00ff?text=MODO+OSCURO+ATIVADO'">
                 <div class="image-overlay">
                     <span style="color: #ff00ff; font-weight: bold; font-size: 1.2rem;">Experiencia Visual Inmersiva</span>
                 </div>
@@ -291,7 +291,7 @@
 
     <div class="cta-section">
         <div class="cta-text">Eleva tu ISP al siguiente nivel. Actualiza hoy y disfruta de la plataforma definitiva.</div>
-        <div class="cta-price">OBTENER INTEGRA 2.0 POR 69.900 MÁS A TU FACTURA MENSUAL</div>
+        <div class="cta-price">OBTENER Integra Plus POR 69.900 MÁS A TU FACTURA MENSUAL</div>
         <a href="https://wa.me/573054823310?text=Quiero%20obtener%20integra%202.0" target="_blank" class="cyber-btn">
             <i class="fab fa-whatsapp"></i> Lo Quiero Ahora
         </a>

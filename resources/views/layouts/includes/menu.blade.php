@@ -13,7 +13,7 @@
 <li class="nav-item" id="integra_2_0">
     <a class="nav-link" href="{{ route('integra2.index') }}">
         <i class="menu-icon fas fa-rocket"></i>
-        <span class="menu-title">Integra 2.0! <span class="badge badge-danger ml-1">!nuevo</span></span>
+        <span class="menu-title">Integra Plus! <span class="badge badge-danger ml-1">!nuevo</span></span>
     </a>
 </li>
 
