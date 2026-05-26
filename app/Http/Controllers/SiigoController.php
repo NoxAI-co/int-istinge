@@ -1107,6 +1107,22 @@ class SiigoController extends Controller
             $sellerData = $this->getSeller();
             $sellers = collect($sellerData['results'] ?? []);
 
+            // Obtener tipo de comprobante por defecto de la configuración de Mikrotik
+            $defaultTipoComprobante = \DB::table('mikrotik')
+                ->whereNotNull('tipodoc_siigo_id')
+                ->where('tipodoc_siigo_id', '!=', '')
+                ->where('tipodoc_siigo_id', '!=', 0)
+                ->value('tipodoc_siigo_id');
+
+            // Si no hay ninguno configurado en Mikrotik, obtenemos el primer tipo de comprobante de venta (FV) activo en Siigo
+            if (!$defaultTipoComprobante) {
+                $docTypes = collect($this->getDocumentTypes());
+                $defaultTipoComprobante = $docTypes->first()['id'] ?? null;
+            }
+
+            // Vendedor por defecto de Siigo (el primero activo en la cuenta de Siigo)
+            $defaultSellerId = $sellers->first()['id'] ?? null;
+ 
             $tipoPagoCredito = $tiposPago
                 ->whereIn('name', ['Pago a crédito', 'Crédito'])
                 ->first();
@@ -1171,24 +1187,36 @@ class SiigoController extends Controller
                 $servidor = $factura->servidor();
                 $usuario  = null;
 
-                if ($servidor && isset($servidor->email_siigo)) {
+                if ($servidor && is_object($servidor) && isset($servidor->email_siigo)) {
                     $usuario = $sellers->where('username', $servidor->email_siigo)->first()['id'] ?? null;
                 }
 
-                // Fallback: usuar el vendedor de la factura si no hay usuario por servidor
+                // Fallback 1: usar el vendedor de la factura si no hay usuario por servidor
                 if (!$usuario && $factura->vendedorObj) {
                     $usuario = $factura->vendedorObj->siigo_id;
+                }
+
+                // Fallback 2: usar el primer vendedor de la cuenta de Siigo
+                if (!$usuario) {
+                    $usuario = $defaultSellerId;
                 }
     
                 // ==============================
                 // REQUEST PARA sendInvoice
                 // ==============================
                 $request = new Request();
+                $tipoComprobante = ($servidor && is_object($servidor) && isset($servidor->tipodoc_siigo_id)) ? $servidor->tipodoc_siigo_id : null;
+
+                // Fallback para tipo de comprobante si no se pudo determinar por el servidor/contrato
+                if (!$tipoComprobante) {
+                    $tipoComprobante = $defaultTipoComprobante;
+                }
+
                 $request->merge([
                     'tipos_pago'       => $tipoPagoSeleccionado,
                     'factura_id'       => $facturaId,
                     'usuario'          => $usuario,
-                    'tipo_comprobante' => ($servidor && isset($servidor->tipodoc_siigo_id)) ? $servidor->tipodoc_siigo_id : null
+                    'tipo_comprobante' => $tipoComprobante
                 ]);
     
                 if (!$request->tipo_comprobante) {
@@ -1197,7 +1225,7 @@ class SiigoController extends Controller
                         'codigo'     => $factura->codigo,
                         'resultado'  => [
                             'status' => 400,
-                            'error'  => 'No se ha configurado el tipo de comprobante Siigo para el servidor de esta factura.'
+                            'error'  => 'No se ha configurado el tipo de comprobante Siigo para el servidor de esta factura ni existe un valor por defecto.'
                         ]
                     ];
                     continue;
