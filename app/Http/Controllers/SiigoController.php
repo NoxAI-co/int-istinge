@@ -592,6 +592,11 @@ class SiigoController extends Controller
             return $nArr;
         })($cliente_factura);
 
+        // Sanitizar el nombre para remover comillas simples y dobles prohibidas por la API de Siigo
+        $nombreArr = array_map(function($val) {
+            return str_replace(["'", '"'], "", $val);
+        }, $nombreArr);
+
         $customerData = [
             "person_type"    => $cliente_factura->dv ? "Company" : "Person",
             "id_type"        => $cliente_factura->dv ? "31" : "13",
