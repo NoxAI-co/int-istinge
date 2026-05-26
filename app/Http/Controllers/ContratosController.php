@@ -2352,7 +2352,10 @@ class ContratosController extends Controller
                         $contrato->rd_item_vencimiento     = $request->rd_item_vencimiento;
                     }
 
-                    if ($request->olt_sn_mac && $empresa->adminOLT != null && isset($request->state_olt_catv)) {
+                    if (empty($request->olt_sn_mac)) {
+                        $contrato->olt_sn_mac = null;
+                        $contrato->state_olt_catv = null;
+                    } elseif ($request->olt_sn_mac && $empresa->adminOLT != null && isset($request->state_olt_catv)) {
 
                         $contrato->olt_sn_mac          = $request->olt_sn_mac;
                         $curl = curl_init();
@@ -2401,6 +2404,8 @@ class ContratosController extends Controller
                                 $contrato->state_olt_catv = 1;
                             }
                         }
+                    } elseif ($request->olt_sn_mac) {
+                        $contrato->olt_sn_mac = $request->olt_sn_mac;
                     }
 
                     if (isset($request->factura_individual)) {
