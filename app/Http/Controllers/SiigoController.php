@@ -411,6 +411,7 @@ class SiigoController extends Controller
         $retencionesFactura = FacturaRetencion::where('factura', $factura->id)->get();
         $totalRetencionSiigo = 0;
         $retencionesArray = [];
+        $retefuenteArray = []; // Guardará las retenciones de fuente para aplicar por ítem
 
         // Necesitamos calcular el IVA global y subtotal para las retenciones
         $ivaTotalFactura = 0;
@@ -437,10 +438,16 @@ class SiigoController extends Controller
                 $baseRet = ($retObj->tipo == 1) ? $ivaTotalFactura : $subtotalTotalFactura;
                 $totalRetencionSiigo += round($baseRet * ($retObj->porcentaje / 100), 2);
 
-                $retencionesArray[] = [
-                    "id"    => (int) $retObj->siigo_id,
-                    "value" => round((float) $ret->valor, 2)
-                ];
+                if ($retObj->tipo == 2) {
+                    // Es Retefuente (se aplicará a nivel de ítem en Siigo)
+                    $retefuenteArray[] = (int) $retObj->siigo_id;
+                } else {
+                    // Es ReteIVA o ReteICA (se aplica a nivel global)
+                    $retencionesArray[] = [
+                        "id"    => (int) $retObj->siigo_id,
+                        "value" => round((float) $ret->valor, 2)
+                    ];
+                }
             }
         }
 
@@ -483,6 +490,14 @@ class SiigoController extends Controller
             if ($impuesto && $impuesto->siigo_id) {
                 $siigoItem["taxes"][] = [
                     "id"       => (int) $impuesto->siigo_id,
+                    "tax_base" => round($subtotalConDesc, 2)
+                ];
+            }
+
+            // Aplicar Retenciones en la fuente (tipo 2) a nivel de ítem
+            foreach ($retefuenteArray as $retefuenteId) {
+                $siigoItem["taxes"][] = [
+                    "id"       => $retefuenteId,
                     "tax_base" => round($subtotalConDesc, 2)
                 ];
             }
