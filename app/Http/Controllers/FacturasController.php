@@ -5525,81 +5525,103 @@ class FacturasController extends Controller{
                         $API = new RouterosAPI();
                         $API->port = $mikrotik->puerto_api;
 
-                        if ($API->connect($mikrotik->ip,$mikrotik->usuario,$mikrotik->clave)) {
-                            $API->write('/ip/firewall/address-list/print', TRUE);
+                        if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                            $API->write('/ip/firewall/address-list/print', true);
                             $ARRAYS = $API->read();
 
-                            #HABILITACION DEL SECRET#
-                            if(isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1){
+                            // PASO 1: Siempre sacar de morosos
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address=' . $contrato->ip, false);
+                            $API->write("?list=morosos", false);
+                            $API->write('=.proplist=.id');
+                            $ARRAYS = $API->read();
 
-                                if($contrato->conexion == 1 && $contrato->usuario != null){
-                                    // Buscar el ID interno del secret
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[Promesa de Pago] Búsqueda en morosos para IP ' . $contrato->ip . ': ' . count($ARRAYS) . ' entrada(s) encontrada(s).';
+                            $movimiento->created_by  = Auth::user()->id;
+                            $movimiento->empresa     = Auth::user()->empresa;
+                            $movimiento->save();
+
+                            if (count($ARRAYS) > 0) {
+                                $idsToRemove = array_filter(array_column($ARRAYS, '.id'));
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[Promesa de Pago] Intentando remover de morosos la IP ' . $contrato->ip . ' (' . count($idsToRemove) . ' entrada(s): ' . implode(', ', $idsToRemove) . ')';
+                                $movimiento->created_by  = Auth::user()->id;
+                                $movimiento->empresa     = Auth::user()->empresa;
+                                $movimiento->save();
+
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id=' . $ARRAYS[0]['.id']);
+                                $READ = $API->read();
+
+                                // Verificación post-remoción
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address=' . $contrato->ip, false);
+                                $API->write('?list=morosos', false);
+                                $API->write('=.proplist=.id');
+                                $verificacion = $API->read();
+
+                                $descVerif = empty($verificacion)
+                                    ? '[Promesa de Pago] Verificación exitosa: IP ' . $contrato->ip . ' ya no está en la lista de morosos.'
+                                    : '[Promesa de Pago] ADVERTENCIA: IP ' . $contrato->ip . ' sigue en morosos (' . count($verificacion) . ' entrada(s) restantes).';
+
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = $descVerif;
+                                $movimiento->created_by  = Auth::user()->id;
+                                $movimiento->empresa     = Auth::user()->empresa;
+                                $movimiento->save();
+                            } else {
+                                $movimiento = new MovimientoLOG;
+                                $movimiento->contrato    = $contrato->id;
+                                $movimiento->modulo      = 5;
+                                $movimiento->descripcion = '[Promesa de Pago] IP ' . $contrato->ip . ' no se encontró en morosos al habilitar contrato.';
+                                $movimiento->created_by  = Auth::user()->id;
+                                $movimiento->empresa     = Auth::user()->empresa;
+                                $movimiento->save();
+                            }
+
+                            // PASO 2: Si activeconn_secret == 1 y es PPPoE, habilitar secret
+                            if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
+                                if ($contrato->conexion == 1 && $contrato->usuario != null) {
                                     $API->write('/ppp/secret/print', false);
                                     $API->write('?name=' . $contrato->usuario, true);
                                     $ARRAYS = $API->read();
-
                                     if (count($ARRAYS) > 0) {
-                                        $id = $ARRAYS[0]['.id'];
-                                        // Habilitar el secret
                                         $API->write('/ppp/secret/enable', false);
-                                        $API->write('=numbers=' . $id, true);
-                                        $response = $API->read();
+                                        $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
+                                        $resp = $API->read();
+
+                                        $movimiento = new MovimientoLOG;
+                                        $movimiento->contrato    = $contrato->id;
+                                        $movimiento->modulo      = 5;
+                                        $movimiento->descripcion = '[Promesa de Pago] Secret PPPoE "' . $contrato->usuario . '" habilitado en MikroTik.';
+                                        $movimiento->created_by  = Auth::user()->id;
+                                        $movimiento->empresa     = Auth::user()->empresa;
+                                        $movimiento->save();
                                     }
                                 }
-                                #HABILITACION DEL SECRET#
-
-                            }else{
-
-                                $API->write('/ip/firewall/address-list/print', false);
-                                $API->write('?address=' . $contrato->ip, false);
-                                $API->write('?list=morosos', true);
-                                $result = $API->read();
-
-                                if (!empty($result)) {
-
-                                    #ELIMINAMOS DE MOROSOS#
-                                    $API->write('/ip/firewall/address-list/print', false);
-                                    $API->write('?address='.$contrato->ip, false);
-                                    $API->write("?list=morosos",false);
-                                    $API->write('=.proplist=.id');
-                                    $ARRAYS = $API->read();
-
-                                    if(count($ARRAYS)>0){
-                                        $API->write('/ip/firewall/address-list/remove', false);
-                                        $API->write('=.id='.$ARRAYS[0]['.id']);
-                                        $READ = $API->read();
-
-
-                                        #AGREGAMOS A IP_AUTORIZADAS#
-                                        $API->comm("/ip/firewall/address-list/add", array(
-                                            "address" => $contrato->ip,
-                                            "list" => 'ips_autorizadas'
-                                            )
-                                        );
-                                        #AGREGAMOS A IP_AUTORIZADAS#
-
-
-                                        $mensaje = "- Se ha sacado la ip de morosos.";
-                                        $contrato->state = 'enabled';
-                                        $contrato->save();
-
-                                    }else{
-                                        Log::info('Contrato nro:' . $contrato->nro . ' no se pudo sacar de morosos desde promesa de pago');
-                                    }
-                                    #ELIMINAMOS DE MOROSOS#
-                                }else{
-                                    Log::info('Contrato nro:' . $contrato->nro . ' no estaba en morosos desde promesa de pago');
-                                }
-                                #ELIMINAMOS DE MOROSOS#
                             }
 
-                            #AGREGAMOS A IP_AUTORIZADAS#
-                            $API->comm("/ip/firewall/address-list/add", array(
+                            // PASO 3: Agregar a ips_autorizadas
+                            $resultAdd = $API->comm("/ip/firewall/address-list/add", [
                                 "address" => $contrato->ip,
                                 "list" => 'ips_autorizadas'
-                                )
-                            );
-                            #AGREGAMOS A IP_AUTORIZADAS#
+                            ]);
+
+                            $movimiento = new MovimientoLOG;
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '[Promesa de Pago] Resultado agregar a ips_autorizadas: ' . json_encode($resultAdd);
+                            $movimiento->created_by  = Auth::user()->id;
+                            $movimiento->empresa     = Auth::user()->empresa;
+                            $movimiento->save();
 
                             $contrato->state = 'enabled';
                             $contrato->save();
