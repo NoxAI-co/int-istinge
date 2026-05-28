@@ -269,7 +269,7 @@
         </table>
     </div>
 
-    <div style="clear: both; width: 100%;">
+    <div style="clear: both; width: 100%; page-break-before: always;">
         <div style="width: 49%; float: left; margin: 0; padding: 0;">
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">PAGO Y FACTURACIÓN</p><br>
                         <p style="text-align: justify;" class="small">La factura le debe llegar como mínimo 5 días hábiles antes de la fecha de pago. Si no llega, puede solicitarla a través de nuestros Medios de Atención y debe pagarla oportunamente.<br>Si no paga a tiempo, previo aviso, suspenderemos su servicio hasta que pague sus saldos pendientes. Contamos con 3 días hábiles luego de su pago para reconectarle el servicio. Si no paga a tiempo, también podemos reportar su deuda a las centrales de riesgo.<br>Para esto tenemos que avisarle por lo menos con 20 días calendario de anticipación. Si paga luego de este reporte tenemos la obligación dentro del mes de seguimiento de informar su pago para que ya no aparezca reportado.<br>Si tiene un reclamo sobre su factura, puede presentarlo antes de la fecha de pago y en ese caso no debe pagar las sumas reclamadas hasta que resolvamos su solicitud. Si ya pagó, tiene 6 meses para presentar la reclamación</p><br>
