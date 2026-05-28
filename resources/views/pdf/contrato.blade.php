@@ -269,11 +269,8 @@
         </table>
     </div>
 
-    <div style="">
-        <table width="100%">
-            <tbody>
-                <tr>
-                    <td style="vertical-align:top;" width="50%">
+    <div style="clear: both; width: 100%;">
+        <div style="width: 49%; float: left; margin: 0; padding: 0;">
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">PAGO Y FACTURACIÓN</p><br>
                         <p style="text-align: justify;" class="small">La factura le debe llegar como mínimo 5 días hábiles antes de la fecha de pago. Si no llega, puede solicitarla a través de nuestros Medios de Atención y debe pagarla oportunamente.<br>Si no paga a tiempo, previo aviso, suspenderemos su servicio hasta que pague sus saldos pendientes. Contamos con 3 días hábiles luego de su pago para reconectarle el servicio. Si no paga a tiempo, también podemos reportar su deuda a las centrales de riesgo.<br>Para esto tenemos que avisarle por lo menos con 20 días calendario de anticipación. Si paga luego de este reporte tenemos la obligación dentro del mes de seguimiento de informar su pago para que ya no aparezca reportado.<br>Si tiene un reclamo sobre su factura, puede presentarlo antes de la fecha de pago y en ese caso no debe pagar las sumas reclamadas hasta que resolvamos su solicitud. Si ya pagó, tiene 6 meses para presentar la reclamación</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CÓMO COMUNICARSE CON NOSOTROS (MEDIOS DE ATENCIÓN)</p>
@@ -417,8 +414,8 @@
                                 </tr>
                             </tbody>
                         </table>
-                    </td>
-                    <td style="vertical-align:top;" width="50%">
+        </div>
+        <div style="width: 49%; float: right; margin: 0; padding: 0;">
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CAMBIO DE DOMICILIO</p><br>
                         <p style="text-align: justify;" class="small">Usted puede cambiar de domicilio y continuar con el servicio siempre que sea técnicamente posible. Si desde el punto de vista técnico no es viable el traslado del servicio, usted puede ceder su contrato a un tercero o terminarlo pagando el valor de la cláusula de permanencia mínima si esta vigente.</p><br>
                         <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">LARGA DISTANCIA (TELEFONÍA)</p><br>
@@ -456,11 +453,9 @@
                         <div style="margin-top: 5px;">
                             <p style="color: #000;text-align: left; padding:5px 0;" class="small">Consulte el régimen de protección de usuarios en <a href="www.crcom.gov.co" target="_blank"><b>www.crcom.gov.co</b></a></p>
                         </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        </div>
     </div>
+    <div style="clear: both;"></div>
 
     <div style="">
         <table width="100%">
