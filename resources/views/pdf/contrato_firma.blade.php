@@ -95,13 +95,13 @@
         }
     </style>
 
-    <div style="">
+    <div style="page-break-inside: avoid;">
         <table width="100%">
             <tbody>
                 <tr>
                     <td>
                         <div style="margin-top: 10px; text-align:center;">
-                            {{-- <img src="{{asset('images/Empresas/Empresa'.$empresa.'/'.$empresa->color->logo)}}" alt="" style="width: 130px !important;"> --}}
+                            <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="" style="width: 130px !important;">
                         </div>
 
                         <div style="width: 100%; background-color: {{$empresa->color}}; clear:both;  margin-top: 10px;">
@@ -149,7 +149,7 @@
                         </div>
 
                         <div style="width: 100%;  margin-top: 10px; border: 1px  solid #000;">
-                            <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INFORMACIÓN DEL SUSCRIPTOR</p><br>
+                            <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">INFORMACIÓN DEL SUSCRIPTOR</p>
                             <p style="text-align: justify;" class="small pl-2">Contrato No.: <b>{{ isset($contract->nro) ? $contract->nro : '' }}</b> </p>
                             <p style="text-align: justify;" class="small pl-2">Nombre / Razón Social: <b>{{ $contact->nombre }} {{ $contact->apellidos() }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Identificación: <b>{{ $contact->tip_iden('corta') }} {{ $contact->nit }}@if($contact->dv != null || $contact->dv === 0)-{{$contact->dv}} @endif</b></p>
@@ -157,14 +157,14 @@
                             <p style="text-align: justify;" class="small pl-2">Teléfono de contacto: <b>{{ $contact->celular }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Dirección Servicio: <b>{{ $contact->direccion }}</b> Estrato: <b>{{ $contact->estrato ? $contact->estrato : '   ' }}</b></p>
                             <p style="text-align: justify;" class="small pl-2">Departamento: <b>{{ $contact->departamento()->nombre }}</b> Municipio: <b>{{ $contact->municipio()->nombre }}</b></p>
-                            <p style="text-align: justify;" class="small pl-2">Dirección Suscriptor: <b>{{ $contact->direccion }}</b></p><br>
+                            <p style="text-align: justify; margin-bottom: 3px;" class="small pl-2">Dirección Suscriptor: <b>{{ $contact->direccion }}</b></p>
                         </div>
 
                         <div style="width: 100%;  margin-top: 5px; border: 1px  solid #000;">
-                            <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CONDICIONES COMERCIALES CARACTERÍSTICAS DEL PLAN</p><br>
+                            <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">CONDICIONES COMERCIALES CARACTERÍSTICAS DEL PLAN</p>
                             <p style="text-align: justify;" class="small pl-2">Tipo de Cliente: Nuevo <input type="checkbox" /> Modificación <input type="checkbox" /></p>
 
-                            <p style="text-align: justify;" class="small pl-2">Tipo red: FTTH <input type="checkbox"> WIRELESS <input type="checkbox" ></p><br>
+                            <p style="text-align: justify; margin-bottom: 3px;" class="small pl-2">Tipo red: FTTH <input type="checkbox"> WIRELESS <input type="checkbox" ></p>
 
                             <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">INTERNET</p>
                             <table style="width: 100%; text-align:center; padding:5px;">
@@ -230,25 +230,25 @@
                     </td>
 
                     <td style="vertical-align:top;" width="50%">
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">PRINCIPALES OBLIGACIONES DEL USUARIO</p><br>
-                        <p style="text-align: justify;" class="small">1) Pagar oportunamente los servicios prestados, incluyendo los intereses de mora cuando haya incumplimiento 2) suministrar información verdadera 3) hacer uso adecuado de los equipos y los servicios 4) No divulgar ni acceder a pornografía infantil (consultar anexo) 5) avisar a las autoridades cualquier evento de robo o hurto de elementos de la red, como el cable 6) No cometer o ser partícipe de fraude 7) hacer uso adecuado de su derecho a presentar PQR. 8) actuar de buena fe. El operador podrá terminar el contrato ante incumplimiento de estas obligaciones.</p><br>
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CALIDAD Y COMPENSACIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Cuando se presente indisponibilidad del servicio o este se suspenda a pesar de su pago oportuno, lo compensaremos en su próxima factura. Debemos cumplir con las condiciones de calidad definidas por la CRC.<br>Consúltelas en la página: {{ $empresa->web }}</p><br>
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">CESIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Si quiere ceder este contrato a otra persona, debe presentar una solicitud por escrito a través de nuestros Medios de Atención, acompañada de la aceptación por escrito de la persona a la que se hará la cesión. Dentro de los 15 días hábiles siguientes, analizaremos su solicitud y le daremos una respuesta. Si se acepta la cesión queda liberado de cualquier responsabilidad con nosotros.</p><br>
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">MODIFICACIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Nosotros no podemos modificar el contrato sin su autorización. Esto incluye que no podemos cobrarle servicios que no haya aceptado expresamente. Si esto ocurre tiene derecho a terminar el contrato, incluso estando vigente la cláusula de permanencia mínima, sin la obligación de pagar suma alguna por este concepto. No obstante, usted puede en cualquier momento modificar los servicios contratados. Dicha modificación se hará efectiva en el período de facturación siguiente, para lo cual deberá presentar la solicitud de modificación por lo menos con 3 días hábiles de anterioridad al corte de facturación.</p><br>
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">SUSPENSIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Usted tiene derecho a solicitar la suspensión del servicio por un máximo de 2 meses al año. Para esto debe presentar la solicitud antes del inicio del ciclo de facturación que desea suspender. Si existe una cláusula de permanencia mínima, su vigencia se prorrogará por el tiempo que dure la suspensión.</p><br>
-                        <p style="text-align: justify;font-weight: bold;" class="small titulo-bg">TERMINACIÓN</p><br>
-                        <p style="text-align: justify;" class="small">Usted puede terminar el contrato en cualquier momento sin penalidades. Para esto debe realizar una solicitud a través de cualquiera de nuestros Medios de Atención mínimo 3 días hábiles antes del corte de facturación (su corte de facturación es el día ___ de cada mes). Si presenta la solicitud con una anticipación menor, la terminación del servicio se dará en el siguiente periodo de facturación.<br><br>Así mismo, usted puede cancelar cualquiera de los servicios contratados, para lo que le informaremos las condiciones en las que serán prestados los servicios no cancelados y actualizaremos el contrato. Así mismo, si el operador no inicia la prestación del servicio en el plazo acordado, usted puede pedir la restitución de su dinero y la terminación del contrato.</p><br>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">PRINCIPALES OBLIGACIONES DEL USUARIO</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">1) Pagar oportunamente los servicios prestados, incluyendo los intereses de mora cuando haya incumplimiento 2) suministrar información verdadera 3) hacer uso adecuado de los equipos y los servicios 4) No divulgar ni acceder a pornografía infantil (consultar anexo) 5) avisar a las autoridades cualquier evento de robo o hurto de elementos de la red, como el cable 6) No cometer o ser partícipe de fraude 7) hacer uso adecuado de su derecho a presentar PQR. 8) actuar de buena fe. El operador podrá terminar el contrato ante incumplimiento de estas obligaciones.</p>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">CALIDAD Y COMPENSACIÓN</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">Cuando se presente indisponibilidad del servicio o este se suspenda a pesar de su pago oportuno, lo compensaremos en su próxima factura. Debemos cumplir con las condiciones de calidad definidas por la CRC.<br>Consúltelas en la página: {{ $empresa->web }}</p>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">CESIÓN</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">Si quiere ceder este contrato a otra persona, debe presentar una solicitud por escrito a través de nuestros Medios de Atención, acompañada de la aceptación por escrito de la persona a la que se hará la cesión. Dentro de los 15 días hábiles siguientes, analizaremos su solicitud y le daremos una respuesta. Si se acepta la cesión queda liberado de cualquier responsabilidad con nosotros.</p>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">MODIFICACIÓN</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">Nosotros no podemos modificar el contrato sin su autorización. Esto incluye que no podemos cobrarle servicios que no haya aceptado expresamente. Si esto ocurre tiene derecho a terminar el contrato, incluso estando vigente la cláusula de permanencia mínima, sin la obligación de pagar suma alguna por este concepto. No obstante, usted puede en cualquier momento modificar los servicios contratados. Dicha modificación se hará efectiva en el período de facturación siguiente, para lo cual deberá presentar la solicitud de modificación por lo menos con 3 días hábiles de anterioridad al corte de facturación.</p>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">SUSPENSIÓN</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">Usted tiene derecho a solicitar la suspensión del servicio por un máximo de 2 meses al año. Para esto debe presentar la solicitud antes del inicio del ciclo de facturación que desea suspender. Si existe una cláusula de permanencia mínima, su vigencia se prorrogará por el tiempo que dure la suspensión.</p>
+                        <p style="text-align: justify;font-weight: bold; margin-bottom: 3px;" class="small titulo-bg">TERMINACIÓN</p>
+                        <p style="text-align: justify; margin-bottom: 6px;" class="small">Usted puede terminar el contrato en cualquier momento sin penalidades. Para esto debe realizar una solicitud a través de cualquiera de nuestros Medios de Atención mínimo 3 días hábiles antes del corte de facturación (su corte de facturación es el día ___ de cada mes). Si presenta la solicitud con una anticipación menor, la terminación del servicio se dará en el siguiente periodo de facturación.<br><br>Así mismo, usted puede cancelar cualquiera de los servicios contratados, para lo que le informaremos las condiciones en las que serán prestados los servicios no cancelados y actualizaremos el contrato. Así mismo, si el operador no inicia la prestación del servicio en el plazo acordado, usted puede pedir la restitución de su dinero y la terminación del contrato.</p>
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div style="">
+    <div style="page-break-inside: avoid;">
         <table width="100%">
             <tbody>
                 <tr>
