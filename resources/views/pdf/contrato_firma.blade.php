@@ -2,6 +2,10 @@
 
 @section('content')
     <style type="text/css">
+        @page {
+            margin: 15px 25px;
+        }
+
         body, td, th {
             font-family: Segoe, "Segoe UI", "DejaVu Sans", "Trebuchet MS", Verdana, sans-serif;
             font-style: normal;
@@ -86,16 +90,7 @@
             padding-left: .75em;
         }
     </style>
-    <style media="print" type="text/css">
-        @page {
-            size: auto;
-            /* auto is the initial value */
-            margin-bottom: 0px;
-            /* this affects the margin in the printer settings */
-        }
-    </style>
-
-    <div style="page-break-inside: avoid;">
+    <div style="">
         <table width="100%">
             <tbody>
                 <tr>
@@ -248,7 +243,7 @@
         </table>
     </div>
 
-    <div style="page-break-inside: avoid;">
+    <div style="">
         <table width="100%">
             <tbody>
                 <tr>
