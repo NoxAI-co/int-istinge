@@ -53,7 +53,7 @@
         </div>
     @endif
 
-	@if($tipo_usuario == 1 && isset($_SESSION['permisos']['3']) || $tipo_usuario == 0 && isset($_SESSION['permisos']['2']))
+	@if((isset($tipo_usuario) && $tipo_usuario == 1 && isset($_SESSION['permisos']['3'])) || (isset($tipo_usuario) && $tipo_usuario == 0 && isset($_SESSION['permisos']['2'])))
 	<div class="container-fluid d-none" id="form-filter">
 		<fieldset>
 			<legend>Filtro de Búsqueda</legend>

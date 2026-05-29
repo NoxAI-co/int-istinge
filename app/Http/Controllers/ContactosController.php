@@ -66,9 +66,11 @@ class ContactosController extends Controller
         $this->getAllPermissions(Auth::user()->id);
         $tabla = Campos::join('campos_usuarios', 'campos_usuarios.id_campo', '=', 'campos.id')->where('campos_usuarios.id_modulo', 1)->where('campos_usuarios.id_usuario', Auth::user()->id)->where('campos_usuarios.estado', 1)->orderBy('campos_usuarios.orden', 'ASC')->get();
         $barrios = DB::table('barrios')->where('status',1)->get();
+        $etiquetas = Etiqueta::where('empresa_id', auth()->user()->empresa)->get();
+        $tipo_usuario = 0;
         view()->share(['invert' => true]);
 
-        return view('contactos.indexnew',compact('barrios'));
+        return view('contactos.indexnew', compact('barrios', 'tabla', 'etiquetas', 'tipo_usuario'));
     }
 
     public function contactos(Request $request, $tipo_usuario)
