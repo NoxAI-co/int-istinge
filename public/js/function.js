@@ -4615,6 +4615,14 @@ function getPlanes(mikrotik, consultasMk, currentPlanId, currentConexion) {
                     // Solo limpiar si no hay valor actual
                     $('#conexion').val('').selectpicker('refresh');
                 }
+
+                // Solo llamar getInterfaces y actualizar amarre_mac si mikrotik existe
+                if (data.mikrotik) {
+                    getInterfaces(mikrotik);
+                    if (data.mikrotik.amarre_mac) {
+                        $("#amarre_mac").val(data.mikrotik.amarre_mac);
+                    }
+                }
             },
             error: function (data) {
                 console.log('Error al obtener planes:', data);
