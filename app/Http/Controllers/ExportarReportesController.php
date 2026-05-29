@@ -206,17 +206,97 @@ class ExportarReportesController extends Controller
             exit;
     }
 
+    /**
+     * Precarga en batch los datos del export de facturas electrónicas (evita N+1).
+     */
+    private function preloadDatosExportFacturasElectronicas(array $facturasIds): array
+    {
+        $empty = [
+            'totales'      => collect(),
+            'pagos'        => collect(),
+            'devoluciones' => collect(),
+            'planInternet' => [],
+            'planTV'       => [],
+            'listItems'    => [],
+            'formaPago'    => [],
+        ];
+
+        if (empty($facturasIds)) {
+            return $empty;
+        }
+
+        $totales = DB::table('items_factura')
+            ->whereIn('factura', $facturasIds)
+            ->select(
+                'factura',
+                DB::raw('SUM((`cant` * `precio`)) as bruto'),
+                DB::raw('SUM((precio * (`desc` / 100) * `cant`)) as descuento'),
+                DB::raw('SUM((precio - (precio * (IF(`desc`, `desc`, 0) / 100))) * (`impuesto` / 100) * cant) as impuesto')
+            )
+            ->groupBy('factura')
+            ->get()
+            ->keyBy('factura');
+
+        $pagos = DB::table('ingresos_factura as if')
+            ->join('ingresos as i', 'if.ingreso', '=', 'i.id')
+            ->whereIn('if.factura', $facturasIds)
+            ->where('i.estatus', '<>', 2)
+            ->select('if.factura', DB::raw('SUM(if.pago) as pagado'))
+            ->groupBy('if.factura')
+            ->get()
+            ->keyBy('factura');
+
+        $devoluciones = DB::table('notas_factura')
+            ->whereIn('factura', $facturasIds)
+            ->select('factura', DB::raw('SUM(pago) as total'))
+            ->groupBy('factura')
+            ->pluck('total', 'factura');
+
+        $formaPago = DB::table('ingresos_factura as if')
+            ->join('ingresos as i', 'if.ingreso', '=', 'i.id')
+            ->join('bancos as b', 'b.id', '=', 'i.cuenta')
+            ->whereIn('if.factura', $facturasIds)
+            ->where('i.estatus', '<>', 2)
+            ->select('if.factura', DB::raw('GROUP_CONCAT(DISTINCT b.nombre ORDER BY b.nombre SEPARATOR ", ") as formas'))
+            ->groupBy('if.factura')
+            ->pluck('formas', 'factura');
+
+        $itemsInventario = DB::table('items_factura as if')
+            ->join('inventario as inv', 'inv.id', '=', 'if.producto')
+            ->whereIn('if.factura', $facturasIds)
+            ->select('if.factura', 'if.precio', 'if.cant', 'if.impuesto', 'inv.type', 'inv.producto as nombre', 'if.id as item_id')
+            ->orderBy('if.id')
+            ->get();
+
+        $planInternet = [];
+        $planTV = [];
+        $listItems = [];
+
+        foreach ($itemsInventario as $row) {
+            if (!isset($planInternet[$row->factura]) && $row->type === 'PLAN') {
+                $planInternet[$row->factura] = $row;
+            }
+            if (!isset($planTV[$row->factura]) && $row->type === 'TV') {
+                $planTV[$row->factura] = $row;
+            }
+            $listItems[$row->factura][] = $row->nombre;
+        }
+
+        $listItems = array_map(function ($items) {
+            return implode(',', $items);
+        }, $listItems);
+
+        return compact('totales', 'pagos', 'devoluciones', 'planInternet', 'planTV', 'listItems', 'formaPago');
+    }
+
     public function facturasElectronicas(Request $request){
-        // Aumentar tiempo y memoria para exportaciones grandes
-        set_time_limit(300);
-        ini_set('memory_limit', '512M');
+        set_time_limit(600);
+        ini_set('memory_limit', '768M');
 
         $dates = $this->setDateRequest($request);
 
-        // Validar cantidad de registros antes de procesar
         $countQuery = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
             ->where('factura.tipo', 2)
-            ->where('c.status',1)
             ->where('factura.empresa', Auth::user()->empresa);
 
         if ($request->tipo !== null && $request->tipo != 2) {
@@ -227,7 +307,13 @@ class ExportarReportesController extends Controller
             $countQuery->where('factura.fecha', '>=', $dates['inicio'])->where('factura.fecha', '<=', $dates['fin']);
         }
 
-        $totalRegistros = $countQuery->count();
+        if ($request->forma_pago) {
+            $countQuery->join('ingresos_factura as ig', 'factura.id', '=', 'ig.factura')
+                ->join('ingresos as i', 'ig.ingreso', '=', 'i.id')
+                ->where('i.forma_pago', $request->forma_pago);
+        }
+
+        $totalRegistros = $countQuery->distinct('factura.id')->count('factura.id');
 
         if ($totalRegistros > 5000) {
             return back()->with('error', "La consulta contiene {$totalRegistros} facturas, lo cual es demasiada información para exportar. Por favor, reduzca el rango de fechas o agregue más filtros. El límite máximo es de 5000 facturas.");
@@ -254,12 +340,10 @@ class ExportarReportesController extends Controller
         $estilo =array('fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'd08f50')));
         $objPHPExcel->getActiveSheet()->getStyle('A3:Z3')->applyFromArray($estilo);
 
-
         for ($i=0; $i <count($titulosColumnas) ; $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i].'3', utf8_decode($titulosColumnas[$i]));
         }
 
-        // Consulta optimizada con joins para evitar N+1
         $facturas = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
             ->leftJoin('barrios as b', 'c.barrio_id', '=', 'b.id')
             ->leftJoin('municipios as m', 'c.fk_idmunicipio', '=', 'm.id')
@@ -270,6 +354,8 @@ class ExportarReportesController extends Controller
             ->leftJoin('contracts as cs', 'cs.nro', '=', 'fc.contrato_nro')
             ->select(
                 'factura.id',
+                'factura.cliente',
+                'factura.contrato_id',
                 'factura.codigo',
                 'factura.fecha',
                 'factura.vencimiento',
@@ -281,7 +367,6 @@ class ExportarReportesController extends Controller
                 DB::raw("(SELECT GROUP_CONCAT(cs.estrato) FROM facturas_contratos fc2 INNER JOIN contracts cs ON cs.nro = fc2.contrato_nro WHERE fc2.factura_id = factura.id) as cliente_estrato"),
                 'c.celular as cliente_celular',
                 'c.direccion as cliente_direccion',
-                'c.email as cliente_email',
                 DB::raw('IFNULL(m.nombre, "N/A") as municipio_nombre'),
                 DB::raw('IFNULL(b.nombre, "N/A") as barrio_nombre'),
                 'cs.state as contrato_state',
@@ -295,11 +380,9 @@ class ExportarReportesController extends Controller
                                  AND if1.id = (SELECT MAX(if2.id) FROM ingresos_factura if2 JOIN ingresos i2 ON if2.ingreso = i2.id WHERE if2.factura = if1.factura AND i2.estatus <> 2)
                                 ) as last_pago'), 'factura.id', '=', 'last_pago.factura')
             ->where('factura.tipo', 2)
-
             ->where('factura.empresa', Auth::user()->empresa)
             ->groupBy('factura.id');
 
-        // Soporte para "Ambas"
         if ($request->tipo !== null && $request->tipo != 2) {
             $facturas->where('emitida', $request->tipo);
         }
@@ -308,46 +391,71 @@ class ExportarReportesController extends Controller
             $facturas->where('factura.fecha', '>=', $dates['inicio'])->where('factura.fecha', '<=', $dates['fin']);
         }
 
-        $facturas = $facturas->orderBy('factura.id', 'DESC')->get();
+        if ($request->forma_pago) {
+            $facturas->join('ingresos_factura as ig', 'factura.id', '=', 'ig.factura')
+                ->join('ingresos as i', 'ig.ingreso', '=', 'i.id')
+                ->where('i.forma_pago', $request->forma_pago);
+        }
 
+        $facturas = $facturas->orderBy('factura.id', 'DESC')->get();
         $facturasIds = $facturas->pluck('id')->toArray();
 
-        // Pre-cargar modelos completos para métodos que los necesiten
-        $facturasModelos = Factura::whereIn('id', $facturasIds)->get()->keyBy('id');
+        $preload = $this->preloadDatosExportFacturasElectronicas($facturasIds);
 
-        // Escribir en el archivo
+        // Solo campos necesarios para periodoCobradoTexto (única consulta por factura restante)
+        $facturasModelos = Factura::whereIn('id', $facturasIds)
+            ->select('id', 'cliente', 'contrato_id', 'created_at', 'fecha', 'estatus', 'empresa')
+            ->get()
+            ->keyBy('id');
+
         $i = 4;
         $total = 0;
         $facturasParaActualizar = [];
 
         foreach ($facturas as $facturaRow) {
-            $facturaModelo = $facturasModelos[$facturaRow->id] ?? null;
+            $facturaId = $facturaRow->id;
+            $facturaModelo = $facturasModelos[$facturaId] ?? null;
 
-            if (!$facturaModelo) continue;
-
-            // Marcar para actualización masiva
-            if ($facturaModelo->porpagar() == 0 && $facturaRow->estatus == 1) {
-                $facturasParaActualizar[] = $facturaRow->id;
+            $totalFactura = 0;
+            $totalIva = 0;
+            if (isset($preload['totales'][$facturaId])) {
+                $itemTot = $preload['totales'][$facturaId];
+                $subtotalCalc = $this->precision($itemTot->bruto - $itemTot->descuento);
+                $totalIva = $itemTot->impuesto;
+                $totalFactura = $this->precision((float) $subtotalCalc + $totalIva);
+            } elseif ($facturaModelo) {
+                $tot = $facturaModelo->total();
+                $totalFactura = $tot->total;
+                $totalIva = $tot->valImpuesto;
             }
 
-            $formaPago = $facturaModelo->cuentaPagoListIngreso();
-            $planInternet = $facturaModelo->planInternet();
-            $planTV = $facturaModelo->planTV();
+            $pagado = isset($preload['pagos'][$facturaId]) ? (float) $preload['pagos'][$facturaId]->pagado : 0;
+            $devolucion = isset($preload['devoluciones'][$facturaId]) ? (float) $preload['devoluciones'][$facturaId] : 0;
+            $porPagar = ($pagado > $totalFactura) ? 0 : abs($totalFactura - $pagado - $devolucion);
 
-            $contratoState = $facturaRow->contrato_state ?? 'N/A';
+            if ($porPagar == 0 && $facturaRow->estatus == 1) {
+                $facturasParaActualizar[] = $facturaId;
+            }
+
+            $planInternet = $preload['planInternet'][$facturaId] ?? null;
+            $planTV = $preload['planTV'][$facturaId] ?? null;
 
             $ivaInternet = 0;
-            if ($planInternet && $planInternet['iva'] != 0) {
-                $ivaInternet = ($planInternet['precio'] * $planInternet['cant']) * ($planInternet['iva'] / 100);
+            if ($planInternet && $planInternet->impuesto != 0) {
+                $ivaInternet = ($planInternet->precio * $planInternet->cant) * ($planInternet->impuesto / 100);
             }
 
             $ivaTV = 0;
-            if ($planTV && $planTV['iva'] != 0) {
-                $ivaTV = ($planTV['precio'] * $planTV['cant']) * ($planTV['iva'] / 100);
+            if ($planTV && $planTV->impuesto != 0) {
+                $ivaTV = ($planTV->precio * $planTV->cant) * ($planTV->impuesto / 100);
             }
 
-            $total += $totalFactura = $facturaModelo->total()->total;
-            $totalIva = $facturaModelo->total()->valImpuesto;
+            $formaPago = $preload['formaPago'][$facturaId] ?? '';
+            $listItems = $preload['listItems'][$facturaId] ?? '';
+            $estatusTexto = $facturaRow->estatus == 1 ? 'Abierta' : 'Cerrada';
+            $periodoCobrado = $facturaModelo ? $facturaModelo->periodoCobradoTexto() : '';
+
+            $total += $totalFactura;
 
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0].$i, $facturaRow->codigo)
@@ -361,26 +469,25 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[8].$i, date('d-m-Y', strtotime($facturaRow->fecha)))
                 ->setCellValue($letras[9].$i, date('d-m-Y', strtotime($facturaRow->vencimiento)))
                 ->setCellValue($letras[10].$i, $facturaRow->emitida == 1 ? 'Emitida' : 'No Emitida')
-                ->setCellValue($letras[11].$i, $facturaModelo->estatus())
-                ->setCellValue($letras[12].$i, $formaPago != "" ? $formaPago : "No tiene forma de pago.")
-                ->setCellValue($letras[13].$i, $facturaModelo->periodoCobradoTexto())
-                ->setCellValue($letras[14].$i, $planInternet ? $planInternet['producto'] : 'N/A')
-                ->setCellValue($letras[15].$i, $planInternet ? round($planInternet['precio'] * $planInternet['cant']) : 0 )
+                ->setCellValue($letras[11].$i, $estatusTexto)
+                ->setCellValue($letras[12].$i, $formaPago !== '' ? $formaPago : 'No tiene forma de pago.')
+                ->setCellValue($letras[13].$i, $periodoCobrado)
+                ->setCellValue($letras[14].$i, $planInternet ? $planInternet->nombre : 'N/A')
+                ->setCellValue($letras[15].$i, $planInternet ? round($planInternet->precio * $planInternet->cant) : 0)
                 ->setCellValue($letras[16].$i, $planInternet ? round($ivaInternet) : 0)
-                ->setCellValue($letras[17].$i, $planTV ? $planTV['producto'] : 'N/A')
-                ->setCellValue($letras[18].$i, $planTV ? round($planTV['precio'] * $planTV['cant']): 0)
+                ->setCellValue($letras[17].$i, $planTV ? $planTV->nombre : 'N/A')
+                ->setCellValue($letras[18].$i, $planTV ? round($planTV->precio * $planTV->cant) : 0)
                 ->setCellValue($letras[19].$i, $planTV ? round($ivaTV) : 0)
                 ->setCellValue($letras[20].$i, round($totalIva))
                 ->setCellValue($letras[21].$i, round($totalFactura))
                 ->setCellValue($letras[22].$i, $facturaRow->pago_fecha ? date('d-m-Y', strtotime($facturaRow->pago_fecha)) : '')
                 ->setCellValue($letras[23].$i, $facturaRow->pago_nro ?? '')
-                ->setCellValue($letras[24].$i, $contratoState)
-                ->setCellValue($letras[25].$i, $facturaModelo->listItems());
+                ->setCellValue($letras[24].$i, $facturaRow->contrato_state ?? 'N/A')
+                ->setCellValue($letras[25].$i, $listItems);
 
             $i++;
         }
 
-        // Actualización masiva de estatus
         if (!empty($facturasParaActualizar)) {
             DB::table('factura')->whereIn('id', $facturasParaActualizar)->update(['estatus' => 0]);
         }
@@ -395,11 +502,12 @@ class ExportarReportesController extends Controller
                     'style' => PHPExcel_Style_Border::BORDER_THIN
                 )
             ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:X'.$i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:Z'.$i)->applyFromArray($estilo);
 
-        for($i = 'A'; $i <= $letras[22]; $i++){
-
-            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension($i)->setAutoSize(TRUE);
+        // Ancho fijo: setAutoSize recorre todas las filas y provoca timeout en exportaciones grandes
+        $anchosColumnas = [14, 28, 14, 10, 16, 14, 24, 16, 12, 12, 12, 10, 18, 28, 22, 14, 12, 22, 14, 12, 12, 14, 12, 12, 14, 30];
+        foreach ($anchosColumnas as $idx => $ancho) {
+            $objPHPExcel->getActiveSheet()->getColumnDimension($letras[$idx])->setWidth($ancho);
         }
 
         $objPHPExcel->getActiveSheet()->setTitle('Facturas Electrónicas');
