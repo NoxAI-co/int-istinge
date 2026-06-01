@@ -41,7 +41,11 @@ WORKDIR /var/www/html
 
 # 1) Dependencias PHP (sin scripts: aún no está todo el código)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-interaction --no-progress \
+# composer.json declara database/{seeds,factories} en el classmap; el dump del
+# autoloader las escanea aunque estén vacías, así que las creamos para que el
+# install no falle antes de copiar el resto del código.
+RUN mkdir -p database/seeds database/factories \
+ && composer install --no-dev --no-scripts --no-interaction --no-progress \
         --prefer-dist --optimize-autoloader
 
 # 2) Código de la aplicación (vendor/ ya está, .env queda excluido)
