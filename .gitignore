@@ -56,3 +56,17 @@ auth.json
 # Logs de deployment
 logs/deploy*.log
 deployment.log
+
+# ============================================
+# DOCKER MULTIEMPRESA
+# ============================================
+
+# .env por cliente (BD, APP_KEY, password) — NUNCA al repo
+/clientes/*/.env
+/clientes/*/.env.*
+
+# Credenciales del stack infra (MYSQL_ROOT_PASSWORD)
+/infra.env
+
+# Dumps de BD de clientes (grandes y con datos)
+/dumps

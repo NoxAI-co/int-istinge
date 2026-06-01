@@ -1,0 +1,56 @@
+# ============================================================================
+#  int-istinge — APP DE UN CLIENTE (un "proyecto" de compose por cliente).
+#  Usa la MISMA imagen para todos; lo único distinto es el .env y el dominio.
+#  NO publica puertos: el proxy Caddy lo alcanza por la red 'web'.
+#
+#  Variables requeridas al levantar:
+#     CLIENT  -> nombre corto del cliente (ej. acme)  -> usa clientes/$CLIENT/.env
+#     DOMAIN  -> dominio del cliente (ej. acme.com.co)
+#
+#  Ejemplo (un cliente):
+#     CLIENT=acme DOMAIN=acme.com.co \
+#       docker compose -p acme -f docker-compose.client.yml up -d
+#
+#  Preferí siempre `./deploy.sh <cliente>` en vez de invocar compose a mano.
+# ============================================================================
+
+services:
+  app:
+    image: integra-int:latest            # imagen única compartida (construida una vez)
+    restart: unless-stopped
+    env_file:
+      # Falla ruidosamente si CLIENT no está set, en vez de intentar leer
+      # clientes//.env y morir con un error confuso de "file not found".
+      - "./clientes/${CLIENT:?falta CLIENT. Usá ./deploy.sh <cliente> o exportá CLIENT=<cliente> DOMAIN=<dominio> ASSET_URL=<url>}/.env"
+    environment:
+      # ASSET_URL lo computa ./deploy.sh (default = APP_URL; override desde
+      # el .env si el cliente lo declara). 'environment:' tiene precedencia
+      # sobre 'env_file:', así que el valor pasado por deploy.sh siempre gana.
+      ASSET_URL: "${ASSET_URL:?falta ASSET_URL. Usá ./deploy.sh <cliente> (lo deriva de APP_URL automáticamente)}"
+    labels:
+      # Sin DOMAIN, Caddy no sabría qué dominio emitir.
+      caddy: "${DOMAIN:?falta DOMAIN. Usá ./deploy.sh <cliente> o exportá CLIENT=<cliente> DOMAIN=<dominio>}"
+      # La app vive bajo /software. handle_path matchea /software* y STRIPEA el
+      # prefijo antes de reenviar al contenedor, así Laravel sigue viendo rutas
+      # como /contratos, /dashboard, etc.
+      caddy.handle_path: /software*
+      caddy.handle_path.reverse_proxy: "{{upstreams 80}}"
+      # Redirige la raíz al sub-path (ajusta si la raíz del dominio va a servir
+      # otra cosa — p. ej. el sitio web del cliente — en otro contenedor).
+      caddy.redir: / /software/ 302
+    networks:
+      - web        # alcanzable por el proxy
+      - internal   # alcanza a MySQL
+    volumes:
+      - storage:/var/www/html/storage/app     # archivos que sube/genera el cliente
+      - adjuntos:/var/www/html/public/adjuntos
+
+networks:
+  web:
+    external: true
+  internal:
+    external: true
+
+volumes:
+  storage:
+  adjuntos:

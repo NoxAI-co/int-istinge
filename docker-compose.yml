@@ -1,0 +1,56 @@
+# ============================================================================
+#  int-istinge — compose de arranque (UNA instancia de cliente + MySQL).
+#
+#  Este archivo te deja correr la PRIMERA instancia para validar la imagen.
+#  Modelo objetivo (varios clientes): 1 servidor MySQL compartido + 1 contenedor
+#  `app` por cliente (todos con la MISMA imagen, cada uno con su propio .env),
+#  detrás de un reverse proxy central que enruta por subdominio.
+#  Eso vive en docker-compose.infra.yml + docker-compose.client.yml.
+# ============================================================================
+
+services:
+  # ── Servidor MySQL compartido (una BD por cliente) ────────────────────────
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-integra_clienteX}
+      MYSQL_USER: ${DB_USERNAME:-integra_clienteX}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    command:
+      - --innodb-buffer-pool-size=2G        # subir según RAM del VPS
+      - --max-connections=500
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"               # expuesto solo a localhost (para importar dumps)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-changeme-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── App de un cliente (replicar este bloque por cada cliente) ─────────────
+  app:
+    build:
+      context: .
+      target: runtime
+    image: integra-int:latest               # imagen única compartida por todos los clientes
+    restart: unless-stopped
+    env_file:
+      - .env                                # el .env de ESTE cliente (copiado de .env.docker.example)
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:80"                           # solo para probar local; en prod va detrás del proxy
+    volumes:
+      # Persistir lo que el cliente sube/escribe (no debe vivir solo dentro del contenedor)
+      - app-storage:/var/www/html/storage/app
+      - app-adjuntos:/var/www/html/public/adjuntos
+
+volumes:
+  mysql-data:
+  app-storage:
+  app-adjuntos:

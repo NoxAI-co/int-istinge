@@ -1,0 +1,63 @@
+# Dependencias y artefactos que se generan/copian dentro de la imagen
+/vendor
+/node_modules
+/bootstrap/cache/*.php
+
+# Entorno y secretos (cada instancia monta su propio .env)
+.env
+.env.*
+!.env.docker.example
+
+# Git y editores
+.git
+.gitignore
+.gitattributes
+.github
+.idea
+.vscode
+.zed
+.fleet
+.nova
+.claude
+
+# Logs y caches locales
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/.phpunit.cache
+/.phpunit.result.cache
+npm-debug.log
+yarn-error.log
+.DS_Store
+
+# Tests y docs (no se necesitan en producción)
+/tests
+/phpunit.xml
+README.md
+
+# Scripts de desarrollo / scratch que no van al contenedor
+/scratch
+scratch_*.php
+check_*.php
+test_*.php
+debug_*.php
+diff_*.php
+fix_contratos*.php
+fix_contratos*.py
+mintty.exe.stackdump
+composer.phar
+
+# Dumps de BD de clientes (se importan a mano, no van en la imagen)
+/dumps
+*.sql
+*.sql.gz
+
+# Claves locales (NUNCA al contenedor)
+/ssl
+*.pem
+*.key
+id_rsa*
+
+# Scripts de deploy local
+/scripts

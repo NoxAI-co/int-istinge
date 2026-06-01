@@ -1,0 +1,60 @@
+# ============================================================================
+#  int-istinge — STACK COMPARTIDO (se levanta UNA sola vez en el VPS).
+#  Contiene el reverse proxy (Caddy) y el servidor MySQL que usan TODOS los
+#  clientes. Los contenedores de cada cliente se conectan a estas redes.
+#
+#  Requiere crear antes las redes externas:
+#     docker network create web
+#     docker network create internal
+#
+#  Y un archivo infra.env con: MYSQL_ROOT_PASSWORD=...
+#  Arranque:
+#     docker compose --env-file infra.env -f docker-compose.infra.yml up -d
+# ============================================================================
+
+services:
+  # ── Reverse proxy: enruta por dominio y emite HTTPS automático por cliente ──
+  caddy:
+    image: lucaslorentz/caddy-docker-proxy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Solo considera la red 'web' para alcanzar a los contenedores de cliente
+      - CADDY_INGRESS_NETWORKS=web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # lee los labels de los contenedores
+      - caddy-data:/data                               # ¡aquí viven los certificados! (persistente)
+      - caddy-config:/config
+    networks:
+      - web
+
+  # ── MySQL compartido: una base de datos por cliente ─────────────────────────
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en infra.env}
+    command:
+      - --innodb-buffer-pool-size=16G   # ajusta a la RAM del VPS (64GB -> 16-24G está bien)
+      - --max-connections=500
+      # Nota: en MySQL 8.0 el plugin mysql_native_password ya viene activo por
+      # defecto, así que los dumps legados conectan sin flags extra.
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"           # solo localhost del VPS (para importar dumps)
+    networks:
+      - internal
+
+networks:
+  web:
+    external: true
+  internal:
+    external: true
+
+volumes:
+  caddy-data:
+  caddy-config:
+  mysql-data:
