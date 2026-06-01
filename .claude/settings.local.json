@@ -20,7 +20,10 @@
       "Bash(/c/php/7.4/php.exe \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\artisan\" route:clear)",
       "Bash(/c/php/7.4/php.exe \"C:\\\\Users\\\\juanm\\\\Desktop\\\\istinge\\\\int-istinge\\\\artisan\" cache:clear)",
       "Bash(php *)",
-      "Bash(git -C /Users/juanmanuel/Documents/istinge/int-istinge check-ignore -v public/js/app.js public/css/app.css)"
+      "Bash(git -C /Users/juanmanuel/Documents/istinge/int-istinge check-ignore -v public/js/app.js public/css/app.css)",
+      "Bash(awk '/\"packages-dev\":/,/^    \\\\],/' composer.lock)",
+      "Bash(composer update *)",
+      "Bash(awk '/\"name\": \"laravel\\\\/sanctum\"/,/^        \\\\},?$/' /Users/juanmanuel/Documents/istinge/int-istinge/composer.lock)"
     ]
   }
 }
