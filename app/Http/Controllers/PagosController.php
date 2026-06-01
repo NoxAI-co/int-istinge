@@ -308,25 +308,25 @@ class PagosController extends Controller
                 }
             }else{
                 foreach ($request->categoria as $key => $value) {
-                    if ($request->precio_categoria[$key]) {
-                        $impuesto = Impuesto::where('id', $request->impuesto_categoria[$key])->first();
+                    if (!empty($request->precio_categoria[$key])) {
+                        $impuesto = Impuesto::where('id', $request->impuesto_categoria[$key] ?? 0)->first();
                         if (!$impuesto) {
                             $impuesto = Impuesto::where('id', 0)->first();
                         }
                         $items = new GastosCategoria;
                         $items->valor=$this->precision($request->precio_categoria[$key]);
-                        $items->id_impuesto=$request->impuesto_categoria[$key];
+                        $items->id_impuesto=$request->impuesto_categoria[$key] ?? null;
                         $items->gasto=$gasto->id;
                         $items->categoria=$request->categoria[$key];
-                        $items->cant=$request->cant_categoria[$key];
-                        $items->descripcion=$request->descripcion_categoria[$key];
+                        $items->cant=$request->cant_categoria[$key] ?? null;
+                        $items->descripcion=$request->descripcion_categoria[$key] ?? null;
                         $items->impuesto=$impuesto->porcentaje;
                         $items->save();
                     }
                 }
                 if ($request->retencion) {
                     foreach ($request->retencion as $key => $value) {
-                        if ($request->precio_reten[$key]) {
+                        if (!empty($request->precio_reten[$key])) {
                             $retencion = Retencion::where('id', $request->retencion[$key])->first();
                             $items = new GastosRetenciones;
                             $items->gasto=$gasto->id;
@@ -585,8 +585,8 @@ class PagosController extends Controller
             $inner=array();
             if ($request->categoria && is_array($request->categoria)) {
                 foreach ($request->categoria as $key => $value) {
-                    if ($request->precio_categoria[$key]) {
-                        $impuesto = Impuesto::where('id', $request->impuesto_categoria[$key])->first();
+                    if (!empty($request->precio_categoria[$key])) {
+                        $impuesto = Impuesto::where('id', $request->impuesto_categoria[$key] ?? 0)->first();
                         if (!$impuesto) { $impuesto = Impuesto::where('id', 0)->first(); }
                         $cat='id_cate'.($key+1);
 
@@ -597,10 +597,10 @@ class PagosController extends Controller
                             if ($item) { $items = $item; }
                         }
                         $items->valor=$this->precision($request->precio_categoria[$key]);
-                        $items->id_impuesto=$request->impuesto_categoria[$key];
+                        $items->id_impuesto=$request->impuesto_categoria[$key] ?? null;
                         $items->categoria=$request->categoria[$key];
-                        $items->cant=$request->cant_categoria[$key];
-                        $items->descripcion=$request->descripcion_categoria[$key];
+                        $items->cant=$request->cant_categoria[$key] ?? null;
+                        $items->descripcion=$request->descripcion_categoria[$key] ?? null;
                         $items->impuesto=$impuesto->porcentaje;
                         $items->save();
                         $inner[]=$items->id;
@@ -617,7 +617,7 @@ class PagosController extends Controller
             if ($request->retencion) {
                 $inner=array();
                 foreach ($request->retencion as $key => $value) {
-                    if ($request->precio_reten[$key]) {
+                    if (!empty($request->precio_reten[$key])) {
                         $retencion = Retencion::where('id', $request->retencion[$key])->first();
                         $items = new GastosRetenciones;
                         $items->gasto=$gasto->id;
