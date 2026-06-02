@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +17,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        if ($appUrl = config('app.url')) {
+            URL::forceRootUrl($appUrl);
+            if (strpos($appUrl, 'https://') === 0) {
+                URL::forceScheme('https');
+            }
+        }
+
         // Inyectar conteo de alertas de numeración DIAN para el badge en el menú lateral
         View::composer('layouts.includes.menu', function ($view) {
             $count = 0;
