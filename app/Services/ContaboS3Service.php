@@ -36,6 +36,9 @@ class ContaboS3Service
             'region'                  => $cfg['region'],
             'endpoint'                => $cfg['endpoint'],
             'use_path_style_endpoint' => true,
+            // El SDK lanza E_USER_DEPRECATED bajo PHP 7.4. Con APP_DEBUG=true
+            // Laravel lo escala a excepción y rompe el request. Lo silenciamos.
+            'suppress_php_deprecation_warning' => true,
             'credentials' => [
                 'key'    => $cfg['key'],
                 'secret' => $cfg['secret'],
