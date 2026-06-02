@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use App\Plantilla;
 use App\Instance;
+use App\Services\ContaboS3Service;
 
 include_once(app_path() .'/../public/routeros_api.class.php');
 include_once(app_path() .'/../public/api_mt_include2.php');
@@ -148,6 +149,13 @@ class ConfiguracionController extends Controller
         $nombre_imagen = 'logo.'.$imagen->getClientOriginalExtension();
         $empresa->logo=$nombre_imagen;
         $path = public_path() .'/images/Empresas/Empresa'.$empresa->id;
+        if ((int) $empresa->id === 1) {
+          try {
+            app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
+          } catch (\Throwable $e) {
+            \Log::warning('Contabo sync logo falló: '.$e->getMessage());
+          }
+        }
         $imagen->move($path,$nombre_imagen);
       }
 

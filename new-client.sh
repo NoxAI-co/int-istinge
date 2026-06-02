@@ -99,6 +99,13 @@ CREATE TABLE IF NOT EXISTS failed_jobs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SQL
 
+# --- 3b) Deltas de schema sobre el dump ---
+# Columnas agregadas después de que se exportó el dump fuente. Tolerante a que
+# ya existan (ALTER falla -> seguimos) o a que la tabla no esté en el dump.
+echo "==> Aplicando deltas de schema sobre el dump"
+dm "$DB" -e "ALTER TABLE instances ADD COLUMN access_token TEXT NULL;" 2>/dev/null \
+  || echo "    (instances.access_token ya existía o tabla no presente)"
+
 # --- 4) .env del cliente ---
 echo "==> Generando $ENVFILE"
 mkdir -p "clientes/${CLIENT}"
