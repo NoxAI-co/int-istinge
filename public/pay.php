@@ -28,7 +28,7 @@ include "include/conexion.php";
     <link href="./css/swiper.css" rel="stylesheet">
     <!-- <link href="./css/style.css" rel="stylesheet"> -->
 
-    <link rel="icon" href="../software/images/Empresas/Empresa1/favicon.png">
+    <link rel="icon" href="<?php echo contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png'); ?>">
 
     <style>
         :root {
@@ -466,7 +466,7 @@ include "include/conexion.php";
     <nav id="navbar" class="navbar navbar-expand-lg navbar-light" aria-label="Main navigation">
         <div class="container">
             <a class="navbar-brand logo-image" href="">
-                <img src="../software/images/Empresas/Empresa1/logo.png" alt="Logo">
+                <img src="<?php echo contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png'); ?>" alt="Logo">
             </a>
             <button class="navbar-toggler p-0 border-0" type="button" id="navbarSideCollapse" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>

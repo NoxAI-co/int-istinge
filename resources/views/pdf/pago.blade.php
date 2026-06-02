@@ -116,7 +116,7 @@
 
     <div style="width: 100%;">
         <div style="width: 20%; display: inline-block; vertical-align: top; text-align: center; ">
-            <img src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="" style="width: 100%;">
+            <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="width: 100%;">
         </div>
         <div style="width: 57%; text-align: center; display: inline-block;">
             <h4>{{Auth::user()->empresa()->nombre}}</h4>

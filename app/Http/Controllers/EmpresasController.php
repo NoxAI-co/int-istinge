@@ -240,16 +240,13 @@ class EmpresasController extends Controller
         $inventario->save();
 
 
-        if ($request->logo) {
-            $path = public_path() . '/images/Empresas/Empresa' . $empresa->id;
-            if ((int) $empresa->id === 1) {
-                try {
-                    app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
-                } catch (\Throwable $e) {
-                    \Log::warning('Contabo sync logo falló: '.$e->getMessage());
-                }
+        if ($request->file('logo')) {
+            // Único administrador del logo: Contabo.
+            try {
+                app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
+            } catch (\Throwable $e) {
+                \Log::error('Contabo sync logo falló: '.$e->getMessage());
             }
-            $imagen->move($path, $nombre_imagen);
         }
 
 
@@ -397,33 +394,19 @@ class EmpresasController extends Controller
 
             if ($request->logo) {
                 $request->validate([
-                    'logo' => 'mimes:jpeg,jpg,png| max:100'
+                    'logo' => 'mimes:jpeg,jpg,png|max:5120'
                 ], [
                     'logo.mimes' => 'La extensión del logo debe ser jpeg, jpg, png',
-                    'logo.max' => 'El peso máximo para el logo es de 100KB',
+                    'logo.max' => 'El peso máximo para el logo es de 5MB',
                 ]);
 
-                if ($empresa->logo) {
-                    $path = public_path() . '/images/Empresas/Empresa' . $empresa->id . "/" . $empresa->logo;
-                    if (file_exists($path)) {
-                        unlink($path);
-                    }
+                // Único administrador del logo: Contabo.
+                try {
+                    app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
+                    $empresa->logo = 'logo.png';
+                } catch (\Throwable $e) {
+                    \Log::error('Contabo sync logo falló: '.$e->getMessage());
                 }
-                $imagen = $request->file('logo');
-                $nombre_imagen = 'logo.' . $imagen->getClientOriginalExtension();
-                $empresa->logo = $nombre_imagen;
-                $path = public_path() . '/images/Empresas/Empresa' . $empresa->id;
-                // Antes del move(): si Contabo está disponible, sincronizamos
-                // logo.png y favicon.png (solo para la empresa principal id=1,
-                // que es la que alimenta login y favicon globales).
-                if ((int) $empresa->id === 1) {
-                    try {
-                        app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
-                    } catch (\Throwable $e) {
-                        \Log::warning('Contabo sync logo falló: '.$e->getMessage());
-                    }
-                }
-                $imagen->move($path, $nombre_imagen);
             }
             $empresa->nombre = $request->nombre;
             $empresa->nit = $request->nit;

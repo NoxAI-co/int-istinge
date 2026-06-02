@@ -440,9 +440,9 @@
 
 							<div class="edit-inv-img">
 								@if($inventario->imagen)
-								<img class="img-responsive pic-inv-img img-contenida" src="{{asset('images/Empresas/Empresa'.$inventario->empresa.'/inventario/'.$inventario->imagen)}}" alt="" style="    width: 100%;" onerror="this.onerror=null; this.src='@if(Auth::user()->empresa()->img_default) {{asset("images/Empresas/Empresa".Auth::user()->empresa."/".Auth::user()->empresa()->img_default)}} @else {{asset('images/producto-sin-imagen.png')}} @endif ';">
+								<img class="img-responsive pic-inv-img img-contenida" src="{{asset('images/Empresas/Empresa'.$inventario->empresa.'/inventario/'.$inventario->imagen)}}" alt="" style="    width: 100%;" onerror="this.onerror=null; this.src='@if(Auth::user()->empresa()->img_default) {{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'imagen_default.png') }} @else {{asset('images/producto-sin-imagen.png')}} @endif ';">
 								@else
-								<img class="img-responsive edit-inv-img img-contenida" src="@if(Auth::user()->empresa()->img_default) {{asset("images/Empresas/Empresa".Auth::user()->empresa."/".Auth::user()->empresa()->img_default)}} @else {{asset('images/producto-sin-imagen.png')}} @endif" alt="" style="    width: 100%;">
+								<img class="img-responsive edit-inv-img img-contenida" src="@if(Auth::user()->empresa()->img_default) {{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'imagen_default.png') }} @else {{asset('images/producto-sin-imagen.png')}} @endif" alt="" style="    width: 100%;">
 
 								@endif
 							</div>
@@ -536,7 +536,7 @@
     			@foreach($inventario->imagenes() as $imagen)
     				<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 img-obj-{{$imagen->id}}">
     			        <div class="image-thumb">
-    			            <img class="img-responsive thumbnail" src="{{asset('images/Empresas/Empresa'.$inventario->empresa.'/inventario/'.$inventario->id.'/'.$imagen->imagen)}}" onerror="this.src='@if(Auth::user()->empresa()->img_default) {{asset("images/Empresas/Empresa".Auth::user()->empresa."/".Auth::user()->empresa()->img_default)}} @else {{asset('images/producto-sin-imagen.png')}} @endif'">
+    			            <img class="img-responsive thumbnail" src="{{asset('images/Empresas/Empresa'.$inventario->empresa.'/inventario/'.$inventario->id.'/'.$imagen->imagen)}}" onerror="this.src='@if(Auth::user()->empresa()->img_default) {{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'imagen_default.png') }} @else {{asset('images/producto-sin-imagen.png')}} @endif'">
     			            <div class="image-fav">
     			            	<div class="image-fav-icons">
     			            		<button type="button" class="btn btn-link btn-icons" onclick="delete_img('{{$imagen->id}}');"><i class="fas fa-trash-alt"></i></button>

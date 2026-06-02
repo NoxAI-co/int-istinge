@@ -165,7 +165,7 @@
             @else
             @if(isset($empresa))
             @php $isImageLogo = true; @endphp
-                <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="{{$empresa->nombre}}" width="90%" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="{{$empresa->nombre}}" width="90%" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
             @endif
             @endif
         </div>
@@ -178,7 +178,7 @@
         @if(!isset($isImageLogo) && !isset($codqr))
 
          <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-bottom: 2%; overflow:hidden; align-self: flex-start;">
-            <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="{{$empresa->nombre}}" width="90%" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+            <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="{{$empresa->nombre}}" width="90%" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
         </div>
 
         @endif

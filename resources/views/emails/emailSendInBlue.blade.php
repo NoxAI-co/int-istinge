@@ -16,7 +16,7 @@
                     <table role="presentation" style="width:602px;border-collapse:collapse;border:1px solid #cccccc;border-spacing:0;text-align:left;">
                         <tr>
                             <td align="center" style="padding:0;background:#eeeeee;">
-                                <img src="{{config('app.url').'/images/Empresas/Empresa1/logo.png'}}" alt="" width="150" style="height:auto;display:block;" />
+                                <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" width="150" style="height:auto;display:block;" />
                             </td>
                         </tr>
                         <tr>

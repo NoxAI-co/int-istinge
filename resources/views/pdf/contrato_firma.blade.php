@@ -96,7 +96,7 @@
                 <tr>
                     <td>
                         <div style="margin-top: 10px; text-align:center;">
-                            <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="" style="width: 130px !important;">
+                            <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="width: 130px !important;">
                         </div>
 
                         <div style="width: 100%; background-color: {{$empresa->color}}; clear:both;  margin-top: 10px;">

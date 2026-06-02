@@ -103,7 +103,7 @@
 				<label class="control-label">Logo de la empresa</label>
 				@if($empresa->logo)
 					<div style="margin-bottom: 8px;">
-						<img src="{{ asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo) }}"
+						<img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}"
 						     alt="Logo actual"
 						     style="max-height: 80px; max-width: 220px; display: block; background: #f5f5f5; padding: 4px; border-radius: 4px;">
 					</div>

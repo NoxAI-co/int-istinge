@@ -139,58 +139,25 @@ class ConfiguracionController extends Controller
           'logo.max' => 'El peso máximo para el logo es de 5MB',
         ]);
 
-        if ($empresa->logo) {
-          $path = public_path() .'/images/Empresas/Empresa'.$empresa->id."/".$empresa->logo;
-          if (file_exists($path) ) {
-            unlink($path);
-          }
-        }
-        $imagen = $request->file('logo');
-        $nombre_imagen = 'logo.'.$imagen->getClientOriginalExtension();
-        $empresa->logo=$nombre_imagen;
-        $path = public_path() .'/images/Empresas/Empresa'.$empresa->id;
-        if ((int) $empresa->id === 1) {
-          try {
-            app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
-          } catch (\Throwable $e) {
-            \Log::warning('Contabo sync logo falló: '.$e->getMessage());
-          }
-        }
-
-        // Guardado local optimizado: si la imagen excede 1200px de ancho la
-        // reducimos manteniendo aspect ratio y re-encodeamos con calidad 85
-        // (calidad solo aplica a JPEG; PNG la ignora por ser lossless). Si la
-        // lib falla por cualquier motivo, cae al move() original sin tocar.
-        if (!is_dir($path)) {
-          @mkdir($path, 0775, true);
-        }
+        // Único administrador del logo: Contabo S3. syncLogoYFavicon normaliza
+        // la imagen a PNG (logo.png) y genera el favicon 64x64 (favicon.png)
+        // bajo CLIENTE/<LOGOS_FOLDER>/. Las vistas leen el logo vía contabo_url().
         try {
-          $img = \Intervention\Image\Facades\Image::make($imagen->getRealPath());
-          if ($img->width() > 1200) {
-            $img->resize(1200, null, function ($c) {
-              $c->aspectRatio();
-              $c->upsize();
-            });
-          }
-          $img->save($path.'/'.$nombre_imagen, 85);
+          app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
+          $empresa->logo = 'logo.png';
         } catch (\Throwable $e) {
-          \Log::warning('Optimización logo falló, guardado sin optimizar: '.$e->getMessage());
-          $imagen->move($path, $nombre_imagen);
+          \Log::error('Contabo sync logo falló: '.$e->getMessage());
+          return back()->withErrors(['logo' => 'No se pudo guardar el logo. Intenta de nuevo.'])->withInput();
         }
       }
 
-      if ($request->img_default) {
-        if ($empresa->img_default) {
-          $path = public_path() .'/images/Empresas/Empresa'.$empresa->id."/".$empresa->img_default;
-          if (file_exists($path) ) {
-            unlink($path);
-          }
+      if ($request->file('img_default')) {
+        try {
+          app(ContaboS3Service::class)->upload(env('LOGOS_FOLDER', 'logos'), $request->file('img_default'), 'imagen_default.png', 'public-read');
+          $empresa->img_default = 'imagen_default.png';
+        } catch (\Throwable $e) {
+          \Log::error('Contabo sync img_default falló: '.$e->getMessage());
         }
-        $imagen = $request->file('img_default');
-        $nombre_imagen = 'imagen_default.jpg';
-        $empresa->img_default=$nombre_imagen;
-        $path = public_path() .'/images/Empresas/Empresa'.$empresa->id;
-        $imagen->move($path,$nombre_imagen);
       }
 
 

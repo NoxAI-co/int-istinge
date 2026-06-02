@@ -1031,7 +1031,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header p-0">
-                                <center><img src="{{ asset('images/Empresas/Empresa1/logo.png') }}" style="width:15%"
+                                <center><img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" style="width:15%"
                                         class="m-2"></center>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                                     style="margin: -10px;">
@@ -1054,7 +1054,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header p-0">
-                                <center><img src="{{ asset('images/Empresas/Empresa1/logo.png') }}" style="width:15%"
+                                <center><img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" style="width:15%"
                                         class="m-2"></center>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                                     style="margin: -10px;">
@@ -1099,7 +1099,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header p-0">
-                                <center><img src="{{ asset('images/Empresas/Empresa1/logo.png') }}" style="width:15%"
+                                <center><img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" style="width:15%"
                                         class="m-2"></center>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                                     style="margin: -10px;">
@@ -1122,7 +1122,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header p-0">
-                                <center><img src="{{ asset('images/Empresas/Empresa1/logo.png') }}" style="width:15%"
+                                <center><img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" style="width:15%"
                                         class="m-2"></center>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                                     style="margin: -10px;">
@@ -1145,7 +1145,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header p-0">
-                                <center><img src="{{ asset('images/Empresas/Empresa1/logo.png') }}" style="width:15%"
+                                <center><img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" style="width:15%"
                                         class="m-2"></center>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"
                                     style="margin: -10px;">

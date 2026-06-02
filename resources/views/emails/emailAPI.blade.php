@@ -94,7 +94,7 @@
                                                         Factura elaborada y enviada a través de {{$empresa->nombre}}</div>
                                                         <center>
                                                             <div style="background-color: #fff;width: 50%;margin-top: 30px;">
-                                                                <img style="width:50%;" src="{{asset('/images/Empresas/Empresa1/logo.png')}}">
+                                                                <img style="width:50%;" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}">
                                                             </div>
                                                         </center>
                                                     </td>

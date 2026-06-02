@@ -130,7 +130,7 @@
             @if($inventarioEmpresa && $inventarioEmpresa->imagen)
                 <img src="{{asset('images/Empresas/Empresa'.$inventarioEmpresa->empresa.'/inventario/'.$inventarioEmpresa->imagen)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
             @else
-                <img src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
             @endif
         </div>
         <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;">

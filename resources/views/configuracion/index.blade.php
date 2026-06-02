@@ -189,7 +189,7 @@
         @endif
         <div class="col-sm-4" style="text-align: center;">
             <img class="img-responsive"
-                src="{{ asset('images/Empresas/Empresa' . Auth::user()->empresa()->id . '/' . Auth::user()->empresa()->logo) }}"
+                src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}"
                 alt="" style="max-width: 100%; max-width: 200px;">
         </div>
         <div class="col-sm-8">

@@ -10,7 +10,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}" />
         <title>{{$title}}</title>
         
-        <link rel="shortcut icon" href="{{asset('images/Empresas/Empresa1/favicon.png')}}" />
+        <link rel="shortcut icon" href="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png') }}" />
         
         <link rel="stylesheet" href="{{asset('vendors/iconfonts/mdi/css/materialdesignicons.min.css')}}">
         <link rel="stylesheet" href="{{asset('vendors/css/vendor.bundle.base.css')}}">

@@ -304,9 +304,9 @@
         <div class="divheader-pr">
             <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-top: 2%; overflow:hidden; text-align:center;">
                 @if(env('APP_ENV')=='local')
-                    <img src="{{ public_path('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo) }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
                 @else
-                    <img src="{{ asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo) }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
                 @endif
             </div>
             <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%;">

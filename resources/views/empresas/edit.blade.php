@@ -16,7 +16,7 @@
                       <div class="project">
                         <div class="photo-wrapper">
                             <div class="photo" style="background: #fff; padding-left: 20%;">
-                              <img class="img-responsive" src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="">
+                              <img class="img-responsive" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="">
                             </div>
                             <div class="overlay"></div>
                         </div>

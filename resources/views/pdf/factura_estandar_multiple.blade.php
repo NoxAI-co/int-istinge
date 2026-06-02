@@ -115,7 +115,7 @@
 @foreach($facturas as $key => $factura)
     <div style="width: 100%;height:auto;">
         <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-bottom: 2%; overflow:hidden; text-align:left;">
-            <img src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+            <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
         </div>
         <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;">
             <h4>{{Auth::user()->empresa()->nombre}}</h4>

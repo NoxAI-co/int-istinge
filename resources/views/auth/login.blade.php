@@ -358,7 +358,7 @@
     <div class="login-panel">
         <div class="panel-header">
             <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}"
-                 onerror="this.onerror=null;this.src='{{ asset('images/Empresas/Empresa1/logo.png') }}'"
+                 onerror="this.onerror=null;this.src='{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}'"
                  alt="Logo" class="panel-logo">
         </div>
 

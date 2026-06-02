@@ -4,7 +4,7 @@
 
 <div class="row card-description">
 	<div class="col-sm-4" style="text-align: center;">
-		<img class="img-responsive" src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa()->id.'/'.Auth::user()->empresa()->logo)}}" alt="" style="width: 100%">
+		<img class="img-responsive" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="width: 100%">
 	</div>
 	<div class="col-sm-8">
 		<p  class="card-title"> <span class="text-primary">Empresa:</span> {{Auth::user()->empresa()->nombre}} <br>

@@ -141,7 +141,7 @@
 
 <div style="width: 100%;height:auto;">
     <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-top: 2%; overflow:hidden;  text-align:left;">
-        <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain;">
+        <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain;">
     </div>
     <div style="width: 40%; text-align: center; display: inline-block;  height:auto">
         <h4>{{$empresa->nombre}}

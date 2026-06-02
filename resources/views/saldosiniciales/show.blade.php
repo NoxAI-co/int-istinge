@@ -56,7 +56,7 @@
         <!-- Membrete -->
         <div class="row">
             <div class="col-md-4 text-center">
-                <img class="img-responsive" src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="" width="50%">
+                <img class="img-responsive" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" width="50%">
             </div>
             <div class="col-md-4 text-center padding1">
                 <h4>{{Auth::user()->empresa()->nombre}}</h4>

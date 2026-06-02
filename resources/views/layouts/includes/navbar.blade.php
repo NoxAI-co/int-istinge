@@ -2,13 +2,13 @@
     <div class="text-center navbar-brand-wrapper d-flex align-items-top justify-content-center">
         <a class="navbar-brand brand-logo" href="{{route('home')}}">
             @if(Auth::user()->rol != 1)
-            <img class="img-contenida" src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/'.Auth::user()->empresa()->logo)}}" alt="logo" onerror="this.src='{{asset('../images/logo1.png')}}'" style="height: 50px;" />
+            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="logo" onerror="this.src='{{asset('../images/logo1.png')}}'" style="height: 50px;" />
             @else
-            <img class="img-contenida" src="{{asset('images/Empresas/Empresa1/logo.png')}}" alt="logo" style="height: 50px;" />
+            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="logo" style="height: 50px;" />
             @endif
         </a>
         <a class="navbar-brand brand-logo-mini" href="{{route('home')}}">
-            <img class="img-contenida" src="{{asset('images/Empresas/Empresa'.Auth::user()->empresa.'/favicon.png')}}" alt="logo" style="width: 75px !important;" />
+            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png') }}" alt="logo" style="width: 75px !important;" />
         </a>
     </div>
     <div class="navbar-menu-wrapper d-flex align-items-center">

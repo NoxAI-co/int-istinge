@@ -214,7 +214,7 @@
     }
 </style>
 <div class="tirilla-section" style="text-align: center;">
-    <img src="{{asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo)}}" alt="Logo" style="max-width: 180px; max-height:90px; object-fit:contain; margin-bottom: 2px;">
+    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="Logo" style="max-width: 180px; max-height:90px; object-fit:contain; margin-bottom: 2px;">
     <h4>{{Auth::user()->empresa()->nombre}}</h4>
     <div style="font-size:12px; line-height:13px; font-weight: bold; color: #000;">
         {{Auth::user()->empresa()->tip_iden('mini')}} {{Auth::user()->empresa()->nit}}<br>

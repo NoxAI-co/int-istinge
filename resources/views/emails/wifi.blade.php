@@ -5,7 +5,7 @@
 </head>
 <body>
 	<div align="center">
-		<img src="{{asset('/images/Empresas/Empresa1/logo.png')}}" width="25%">
+		<img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" width="25%">
 	</div>
     <h4>
         <b>Notificación de Cambio de Contraseña WIFI</b>
