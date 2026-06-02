@@ -44,6 +44,7 @@ RUN { \
       echo 'max_execution_time = 300'; \
       echo 'upload_max_filesize = 64M'; \
       echo 'post_max_size = 64M'; \
+      echo 'date.timezone = America/Bogota'; \
     } > /usr/local/etc/php/conf.d/zz-app.ini
 
 WORKDIR /var/www/html

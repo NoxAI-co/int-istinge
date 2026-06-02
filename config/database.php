@@ -50,6 +50,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
+            'timezone' => '-05:00',
             'strict' => false,
             'engine' => null,
             'options'   => [PDO::ATTR_EMULATE_PREPARES => true]
