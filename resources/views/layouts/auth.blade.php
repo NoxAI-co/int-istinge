@@ -20,7 +20,7 @@
      <link rel="stylesheet" type="text/css" href="{{asset('css/pushbar.css')}}">
   <link rel="stylesheet" href="{{asset('css/paginicio.css')}}">
   <!-- endinject -->
-   <link rel="shortcut icon" href="{{asset('images/Empresas/Empresa1/favicon.png')}}" />
+   <link rel="shortcut icon" href="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png') }}" />
    <style type="text/css">
     * {
   margin: 0px; 

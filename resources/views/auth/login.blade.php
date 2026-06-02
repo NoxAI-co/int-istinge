@@ -357,7 +357,9 @@
 <div class="login-wrapper">
     <div class="login-panel">
         <div class="panel-header">
-            <img src="{{asset('images/Empresas/Empresa1/logo.png')}}" alt="Logo" class="panel-logo">
+            <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}"
+                 onerror="this.onerror=null;this.src='{{ asset('images/Empresas/Empresa1/logo.png') }}'"
+                 alt="Logo" class="panel-logo">
         </div>
 
         @if(Session::has('success'))
