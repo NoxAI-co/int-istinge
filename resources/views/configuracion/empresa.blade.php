@@ -109,7 +109,7 @@
 					</div>
 				@endif
 				<input type="file" class="form-control" name="logo" accept="image/png,image/jpeg,image/jpg">
-				<small class="text-muted">Formatos permitidos: PNG, JPG, JPEG. Peso máximo 200&nbsp;KB.</small>
+				<small class="text-muted">Formatos permitidos: PNG, JPG, JPEG. Peso máximo 5&nbsp;MB. Las imágenes grandes se redimensionan automáticamente.</small>
 				<span class="help-block error">
 					<strong>{{ $errors->first('logo') }}</strong>
 				</span>

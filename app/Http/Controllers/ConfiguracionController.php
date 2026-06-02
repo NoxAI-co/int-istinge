@@ -134,9 +134,9 @@ class ConfiguracionController extends Controller
 
       if ($request->logo) {
         $request->validate([
-            'logo'=>'mimes:jpeg,jpg,png| max:200'
+            'logo'=>'mimes:jpeg,jpg,png|max:5120'
         ],['logo.mimes' => 'La extensión del logo debe ser jpeg, jpg, png',
-          'logo.max' => 'El peso máximo para el logo es de 200KB',
+          'logo.max' => 'El peso máximo para el logo es de 5MB',
         ]);
 
         if ($empresa->logo) {
@@ -156,7 +156,27 @@ class ConfiguracionController extends Controller
             \Log::warning('Contabo sync logo falló: '.$e->getMessage());
           }
         }
-        $imagen->move($path,$nombre_imagen);
+
+        // Guardado local optimizado: si la imagen excede 1200px de ancho la
+        // reducimos manteniendo aspect ratio y re-encodeamos con calidad 85
+        // (calidad solo aplica a JPEG; PNG la ignora por ser lossless). Si la
+        // lib falla por cualquier motivo, cae al move() original sin tocar.
+        if (!is_dir($path)) {
+          @mkdir($path, 0775, true);
+        }
+        try {
+          $img = \Intervention\Image\Facades\Image::make($imagen->getRealPath());
+          if ($img->width() > 1200) {
+            $img->resize(1200, null, function ($c) {
+              $c->aspectRatio();
+              $c->upsize();
+            });
+          }
+          $img->save($path.'/'.$nombre_imagen, 85);
+        } catch (\Throwable $e) {
+          \Log::warning('Optimización logo falló, guardado sin optimizar: '.$e->getMessage());
+          $imagen->move($path, $nombre_imagen);
+        }
       }
 
       if ($request->img_default) {
