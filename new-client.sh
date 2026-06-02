@@ -111,6 +111,7 @@ APP_URL_FULL="https://${DOMAIN}/software"
 sed -i.bak -E \
   -e "s#^APP_KEY=.*#APP_KEY=${APP_KEY}#" \
   -e "s#^APP_URL=.*#APP_URL=${APP_URL_FULL}#" \
+  -e "s#^CLIENTE=.*#CLIENTE=${CLIENT}#" \
   -e "s#^DB_DATABASE=.*#DB_DATABASE=${DB}#" \
   -e "s#^DB_USERNAME=.*#DB_USERNAME=${DB}#" \
   -e "s#^DB_PASSWORD=.*#DB_PASSWORD=${DB_PASS}#" \
