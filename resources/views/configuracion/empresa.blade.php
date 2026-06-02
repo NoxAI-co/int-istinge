@@ -99,6 +99,24 @@
 		</div>
 
 		<div class="row">
+			<div class="form-group col-md-12">
+				<label class="control-label">Logo de la empresa</label>
+				@if($empresa->logo)
+					<div style="margin-bottom: 8px;">
+						<img src="{{ asset('images/Empresas/Empresa'.$empresa->id.'/'.$empresa->logo) }}"
+						     alt="Logo actual"
+						     style="max-height: 80px; max-width: 220px; display: block; background: #f5f5f5; padding: 4px; border-radius: 4px;">
+					</div>
+				@endif
+				<input type="file" class="form-control" name="logo" accept="image/png,image/jpeg,image/jpg">
+				<small class="text-muted">Formatos permitidos: PNG, JPG, JPEG. Peso máximo 200&nbsp;KB.</small>
+				<span class="help-block error">
+					<strong>{{ $errors->first('logo') }}</strong>
+				</span>
+			</div>
+		</div>
+
+		<div class="row">
 
 		<div class="form-group col-md-3">
 			<label class="control-label">País</label>
