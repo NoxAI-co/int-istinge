@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Contacto;
 use App\Impuesto;
 use App\Retencion;
+use App\Services\ContaboS3Service;
 use App\SuscripcionPago;
 use App\TipoEmpresa;
 use Illuminate\Http\Request;
@@ -241,6 +242,13 @@ class EmpresasController extends Controller
 
         if ($request->logo) {
             $path = public_path() . '/images/Empresas/Empresa' . $empresa->id;
+            if ((int) $empresa->id === 1) {
+                try {
+                    app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
+                } catch (\Throwable $e) {
+                    \Log::warning('Contabo sync logo falló: '.$e->getMessage());
+                }
+            }
             $imagen->move($path, $nombre_imagen);
         }
 
@@ -405,6 +413,16 @@ class EmpresasController extends Controller
                 $nombre_imagen = 'logo.' . $imagen->getClientOriginalExtension();
                 $empresa->logo = $nombre_imagen;
                 $path = public_path() . '/images/Empresas/Empresa' . $empresa->id;
+                // Antes del move(): si Contabo está disponible, sincronizamos
+                // logo.png y favicon.png (solo para la empresa principal id=1,
+                // que es la que alimenta login y favicon globales).
+                if ((int) $empresa->id === 1) {
+                    try {
+                        app(ContaboS3Service::class)->syncLogoYFavicon($imagen);
+                    } catch (\Throwable $e) {
+                        \Log::warning('Contabo sync logo falló: '.$e->getMessage());
+                    }
+                }
                 $imagen->move($path, $nombre_imagen);
             }
             $empresa->nombre = $request->nombre;

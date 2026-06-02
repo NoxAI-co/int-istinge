@@ -5,6 +5,7 @@ namespace App\Services;
 use Aws\S3\S3Client;
 use Aws\S3\Exception\S3Exception;
 use Illuminate\Http\UploadedFile;
+use Intervention\Image\Facades\Image;
 use RuntimeException;
 
 class ContaboS3Service
@@ -174,5 +175,52 @@ class ContaboS3Service
             'Key'    => $key,
             'Body'   => '',
         ]);
+    }
+
+    /**
+     * A partir de una sola imagen subida por el cliente, deja en Contabo:
+     *   <CLIENTE>/<folder>/logo.png       (la misma imagen, normalizada a PNG)
+     *   <CLIENTE>/<folder>/favicon.png    (versión cuadrada de 64x64)
+     *
+     * $folder por defecto = env('LOGOS_FOLDER', 'logos').
+     * Devuelve las dos keys finales.
+     */
+    public function syncLogoYFavicon(UploadedFile $file, ?string $folder = null): array
+    {
+        $folder = $folder ?: env('LOGOS_FOLDER', 'logos');
+        $this->ensureClientFolderExists($folder);
+
+        // Logo: re-encode a PNG manteniendo dimensiones originales.
+        $logoPng = (string) Image::make($file->getRealPath())
+            ->encode('png', 90);
+
+        $logoKey = $this->key($folder, 'logo.png');
+        $this->client()->putObject([
+            'Bucket'      => $this->bucket(),
+            'Key'         => $logoKey,
+            'Body'        => $logoPng,
+            'ContentType' => 'image/png',
+            'ACL'         => 'private',
+        ]);
+
+        // Favicon: 64x64 cuadrado, manteniendo aspect ratio sobre fondo transparente.
+        $favicon = Image::make($file->getRealPath())
+            ->resize(64, 64, function ($c) {
+                $c->aspectRatio();
+                $c->upsize();
+            })
+            ->resizeCanvas(64, 64, 'center', false, [0, 0, 0, 0])
+            ->encode('png', 90);
+
+        $favKey = $this->key($folder, 'favicon.png');
+        $this->client()->putObject([
+            'Bucket'      => $this->bucket(),
+            'Key'         => $favKey,
+            'Body'        => (string) $favicon,
+            'ContentType' => 'image/png',
+            'ACL'         => 'private',
+        ]);
+
+        return ['logo' => $logoKey, 'favicon' => $favKey];
     }
 }

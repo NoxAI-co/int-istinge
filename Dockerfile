@@ -40,7 +40,7 @@ RUN a2enmod rewrite headers \
 # ── Config PHP runtime: subir límites para evitar OOM en clientes con
 #    catálogos/movimientos grandes. (php:7.4-apache trae 128M / 30s.)
 RUN { \
-      echo 'memory_limit = 512M'; \
+      echo 'memory_limit = 2048M'; \
       echo 'max_execution_time = 300'; \
       echo 'upload_max_filesize = 64M'; \
       echo 'post_max_size = 64M'; \
