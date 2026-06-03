@@ -2888,10 +2888,11 @@ class ConfiguracionController extends Controller
                 return response()->json(['success' => 0, 'message' => 'Debe configurar el WhatsApp Business Account ID primero'], 400);
             }
 
-            // Obtener ACCESS_TOKEN_META del .env
-            $accessToken = env('ACCESS_TOKEN_META');
+            // Obtener access_token de la instancia
+            $instance = \App\Instance::where('company_id', Auth::user()->empresa)->where('meta', 0)->where('activo', 1)->first();
+            $accessToken = $instance ? $instance->access_token : null;
             if (empty($accessToken)) {
-                return response()->json(['success' => 0, 'message' => 'ACCESS_TOKEN_META no está configurado en el archivo .env'], 400);
+                return response()->json(['success' => 0, 'message' => 'El token de acceso no está configurado en la instancia de Meta'], 400);
             }
 
             // Hacer petición cURL a Facebook Graph API
@@ -3320,12 +3321,12 @@ class ConfiguracionController extends Controller
                 ], 400);
             }
 
-            // Obtener ACCESS_TOKEN_META del .env
-            $accessToken = env('ACCESS_TOKEN_META');
+            // Obtener access_token de la instancia
+            $accessToken = $instance->access_token;
             if (empty($accessToken)) {
                 return response()->json([
                     'success' => 0,
-                    'message' => 'ACCESS_TOKEN_META no está configurado en el archivo .env'
+                    'message' => 'El token de acceso no está configurado en la instancia de Meta'
                 ], 400);
             }
 
@@ -3472,12 +3473,13 @@ class ConfiguracionController extends Controller
                 ], 400);
             }
 
-            // Obtener ACCESS_TOKEN_META del .env
-            $accessToken = env('ACCESS_TOKEN_META');
+            // Obtener access_token de la instancia
+            $instance = \App\Instance::where('company_id', Auth::user()->empresa)->where('meta', 0)->where('activo', 1)->first();
+            $accessToken = $instance ? $instance->access_token : null;
             if (empty($accessToken)) {
                 return response()->json([
                     'success' => 0,
-                    'message' => 'ACCESS_TOKEN_META no está configurado en el archivo .env'
+                    'message' => 'El token de acceso no está configurado en la instancia de Meta'
                 ], 400);
             }
 

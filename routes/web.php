@@ -1482,7 +1482,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::resource('integracion-whatsapp', 'IntegracionWhatsAppController');
 
 		//INSTANCIAS WHATSAPP META
-		Route::resource('instances', 'InstancesController')->only(['index', 'store', 'destroy']);
+		Route::resource('instances', 'InstancesController')->only(['index', 'store', 'update', 'destroy']);
 
 		//INTEGRACION PASARELAS DE PAGO
 		Route::group(['prefix' => 'integracion-pasarelas'], function () {

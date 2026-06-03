@@ -45,6 +45,7 @@ class InstancesController extends Controller
         $request->validate([
             'phone_number_id' => 'required|string|max:255',
             'waba_id' => 'required|string|max:255',
+            'access_token' => 'nullable|string',
         ]);
 
         // Validar que ACCESS_TOKEN_META esté en .env (opcional, pero buena práctica)
@@ -81,6 +82,7 @@ class InstancesController extends Controller
                 'activo' => 1,
                 'phone_number_id' => $request->phone_number_id,
                 'waba_id' => $request->waba_id,
+                'access_token' => $request->access_token,
                 'addr' => url(''), // Dirección base del sistema
             ]);
 
@@ -131,6 +133,72 @@ class InstancesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar la instancia: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'phone_number_id' => 'required|string|max:255',
+            'waba_id' => 'required|string|max:255',
+            'access_token' => 'nullable|string',
+        ]);
+
+        try {
+            $instance = Instance::where('id', $id)
+                ->where('company_id', Auth::user()->empresa)
+                ->where('meta', 0)
+                ->first();
+
+            if (!$instance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Instancia no encontrada'
+                ], 404);
+            }
+
+            // Verificar si el phone_number_id se cambió y si ya existe
+            if ($instance->phone_number_id !== $request->phone_number_id) {
+                $existingInstance = Instance::where('phone_number_id', $request->phone_number_id)
+                    ->where('company_id', Auth::user()->empresa)
+                    ->where('id', '!=', $id)
+                    ->first();
+
+                if ($existingInstance) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe otra instancia registrada con este Phone Number ID.'
+                    ], 400);
+                }
+            }
+
+            $instance->phone_number_id = $request->phone_number_id;
+            $instance->waba_id = $request->waba_id;
+            $instance->access_token = $request->access_token;
+            $instance->uuid = $request->phone_number_id;
+            $instance->api_key = $request->phone_number_id;
+            $instance->uuid_whatsapp = $request->phone_number_id;
+            
+            $instance->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Instancia Meta actualizada correctamente.',
+                'instance' => $instance
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error inesperado al actualizar instancia WhatsApp Meta: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la instancia: ' . $e->getMessage()
             ], 500);
         }
     }
