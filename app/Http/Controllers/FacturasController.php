@@ -7923,14 +7923,17 @@ class FacturasController extends Controller{
     {
         try {
             $controller = new CronController();
-            $controller->envioFacturaWpp();
+            $result = $controller->envioFacturaWpp(Auth::user()->empresa);
+            
+            $status = ($result && isset($result['success']) && $result['success']) ? 'success' : 'error';
+            $message = $result['message'] ?? 'Proceso ejecutado.';
 
             if ($request->ajax()) {
-                return response()->json(['status' => 'success', 'message' => 'Mensajes enviados con éxito.']);
+                return response()->json(['status' => $status, 'message' => $message]);
             }
 
             return redirect()->route('facturas.whatsapp.index')
-                ->with('success', 'Mensajes enviados con éxito.');
+                ->with($status, $message);
         } catch (\Throwable $th) {
             \Log::error('Error WhatsApp: ' . $th->getMessage());
 

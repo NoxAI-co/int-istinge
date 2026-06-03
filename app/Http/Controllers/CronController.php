@@ -5435,13 +5435,13 @@ class CronController extends Controller
         ]);
     }
 
-    public function envioFacturaWpp()
+    public function envioFacturaWpp($empresa_id = 1)
     {
         try {
-            $empresa = Empresa::find(1);
+            $empresa = Empresa::find($empresa_id);
             if (!$empresa) {
-                Log::error("Empresa no encontrada (id=1).");
-                return;
+                Log::error("Empresa no encontrada (id={$empresa_id}).");
+                return ['success' => false, 'message' => 'Empresa no encontrada'];
             }
 
             $fecha = $empresa->cron_fecha_whatsapp ?? date('Y-m-d');
@@ -5454,11 +5454,11 @@ class CronController extends Controller
             }
 
             // Refrescar empresa
-            $empresa = Empresa::find(1);
+            $empresa = Empresa::find($empresa_id);
 
             $grupos_corte = GrupoCorte::where('status', 1)->get();
             if ($grupos_corte->count() === 0) {
-                return;
+                return ['success' => false, 'message' => 'No hay grupos de corte activos'];
             }
 
             $grupos_corte_array = $grupos_corte->pluck('id')->toArray();
@@ -5473,13 +5473,13 @@ class CronController extends Controller
 
             if (!$instance || empty($instance->phone_number_id)) {
                 Log::error("Instancia Meta Direct activa no encontrada o sin phone_number_id (meta=0, activo=1).");
-                return;
+                return ['success' => false, 'message' => 'Instancia Meta Direct activa no encontrada o sin phone_number_id (meta=0, activo=1).'];
             }
 
             // Validar type = 1 (Meta Direct)
             if ($instance->type != 1) {
                 Log::error("La instancia configurada no es compatible con Meta Direct (Type != 1).");
-                return;
+                return ['success' => false, 'message' => 'La instancia configurada no es compatible con Meta Direct (Type != 1).'];
             }
 
             // ✅ Límite para Meta (generalmente más alto, pero seguro)
@@ -5751,8 +5751,11 @@ class CronController extends Controller
                 $this->limpiarPdfsTemp();
             }
 
+            return ['success' => true, 'message' => "Se procesaron {$facturas->count()} facturas.", 'count' => $facturas->count()];
+
         } catch (\Exception $e) {
             Log::error("Error general en envioFacturaWpp: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Ocurrió un error al enviar facturas: ' . $e->getMessage()];
         }
     }
 
