@@ -112,7 +112,7 @@ class MetaWhatsAppService
                 ->attach(
                     'file',
                     file_get_contents($filePath),
-                    basename($filePath),
+                    basename(parse_url($filePath, PHP_URL_PATH) ?: $filePath),
                     ['Content-Type' => $mimeType]
                 )
                 ->post($url, [
