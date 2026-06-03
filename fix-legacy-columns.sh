@@ -3,8 +3,8 @@
 #  Ajustes a tablas legacy para BDs `integra_*` existentes.
 #
 #  Operaciones (todas idempotentes):
-#    1) instances.access_token -> agrega TEXT NULL si no existe
-#    2) radicados.firma        -> hace la columna nullable si está NOT NULL
+#    1) instances.access_token       -> agrega TEXT NULL si no existe
+#    2) radicados.firma, adjunto_4   -> hace cada columna nullable si está NOT NULL
 #
 #  Uso:
 #     ./fix-legacy-columns.sh                 # todas las BDs integra_*
@@ -49,17 +49,19 @@ for DB in "${DBS[@]}"; do
     echo "    (sin tabla instances)"
   fi
 
-  # --- 2) radicados.firma nullable ------------------------------------------
+  # --- 2) radicados: columnas a hacer nullable ------------------------------
   if table_exists "$DB" "radicados"; then
-    if ! column_exists "$DB" "radicados" "firma"; then
-      echo "    (radicados.firma no existe, salto)"
-    elif column_is_nullable "$DB" "radicados" "firma"; then
-      echo "    [radicados.firma] ya es nullable, salto"
-    else
-      TYPE="$(column_type "$DB" "radicados" "firma")"
-      dm "$DB" -e "SET SESSION sql_mode=''; ALTER TABLE radicados MODIFY firma ${TYPE} NULL DEFAULT NULL;"
-      echo "    [radicados.firma] ahora ${TYPE} NULL DEFAULT NULL"
-    fi
+    for COL in firma adjunto_4; do
+      if ! column_exists "$DB" "radicados" "$COL"; then
+        echo "    (radicados.${COL} no existe, salto)"
+      elif column_is_nullable "$DB" "radicados" "$COL"; then
+        echo "    [radicados.${COL}] ya es nullable, salto"
+      else
+        TYPE="$(column_type "$DB" "radicados" "$COL")"
+        dm "$DB" -e "SET SESSION sql_mode=''; ALTER TABLE radicados MODIFY ${COL} ${TYPE} NULL DEFAULT NULL;"
+        echo "    [radicados.${COL}] ahora ${TYPE} NULL DEFAULT NULL"
+      fi
+    done
   else
     echo "    (sin tabla radicados)"
   fi
