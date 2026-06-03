@@ -1171,11 +1171,23 @@ class IngresosController extends Controller
                         $pdf = PDF::loadView('pdf.plantillas.ingreso_tirilla', compact('ingreso', 'items', 'retenciones',
                         'itemscount','empresa', 'resolucion'));
                         $pdf->setPaper($paper_size, 'portrait');
-                        $pdf->save(public_path() . "/convertidor/" . $ingreso->nro . ".pdf")->stream();
+                        $pdfContent = $pdf->output();
+                        $s3Service = new \App\Services\ContaboS3Service();
+                        $fileName = $ingreso->nro . '.pdf';
+                        $s3Key = $s3Service->key('convertidor', $fileName);
+                        $s3Service->client()->putObject([
+                            'Bucket' => $s3Service->bucket(),
+                            'Key'    => $s3Key,
+                            'Body'   => $pdfContent,
+                            'ACL'    => 'public-read',
+                            'ContentType' => 'application/pdf',
+                        ]);
+                        $s3Url = $s3Service->signedUrl('convertidor', $fileName);
+
                         $fields = [
                             "action"=>"sendFile",
                             "id"=>$numero."@c.us",
-                            "file"=>public_path() . "/convertidor/" . $ingreso->nro . ".pdf", // debe existir el archivo en la ubicacion que se indica aqui
+                            "file"=>$s3Url,
                             "mime"=>"application/pdf",
                             "namefile"=>"Recibo ".$ingreso->nro,
                             "mensaje"=>$mensaje,

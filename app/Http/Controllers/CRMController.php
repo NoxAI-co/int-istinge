@@ -379,13 +379,14 @@ class CRMController extends Controller
         $telefono = $request->numero;
         $mensaje = $request->mensaje;
         $pdf = $request->file;
+        $fileUrl = (strpos($pdf, 'http') === 0) ? $pdf : "https://enternet.site/software" . $pdf;
         $postdata = array(
             "contact" => array(
                 array(
                     "number" => $telefono,
                     "message" => $mensaje,
                     "media" => "document",
-                    "url" => "https://enternet.site/software" . $pdf
+                    "url" => $fileUrl
                 )
             )
         );

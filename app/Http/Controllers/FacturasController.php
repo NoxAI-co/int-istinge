@@ -6798,10 +6798,22 @@ class FacturasController extends Controller{
             /*..............................
             Construcción del código qr a la factura
             ................................*/
-            $pdf = PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->stream();
+            $pdfContent = PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa'))->output();
         }else{
-            $pdf = PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->stream();
+            $pdfContent = PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa'))->output();
         }
+        
+        $s3Service = new \App\Services\ContaboS3Service();
+        $fileName = $factura->codigo . '.pdf';
+        $s3Key = $s3Service->key('convertidor', $fileName);
+        $s3Service->client()->putObject([
+            'Bucket' => $s3Service->bucket(),
+            'Key'    => $s3Key,
+            'Body'   => $pdfContent,
+            'ACL'    => 'public-read',
+            'ContentType' => 'application/pdf',
+        ]);
+        $s3Url = $s3Service->signedUrl('convertidor', $fileName);
 
 
         if(is_null($instancia) || empty($instancia)){
@@ -6835,7 +6847,7 @@ class FacturasController extends Controller{
                 $fields = [
                     "action"=>"sendFile",
                     "id"=>$numero."@c.us",
-                    "file"=>public_path() . "/convertidor/" . $factura->codigo . ".pdf", // debe existir el archivo en la ubicacion que se indica aqui
+                    "file"=>$s3Url,
                     "mime"=>"application/pdf",
                     "namefile"=>$factura->codigo,
                     "mensaje"=>$mensaje,
