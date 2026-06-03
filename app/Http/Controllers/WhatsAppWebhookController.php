@@ -92,6 +92,11 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
+        // Configurar el token de la instancia específica en el servicio
+        if (!empty($instance->access_token)) {
+            $this->metaService->setAccessToken($instance->access_token);
+        }
+
         // Mensajes recibidos
         if (isset($value['messages'])) {
             foreach ($value['messages'] as $message) {

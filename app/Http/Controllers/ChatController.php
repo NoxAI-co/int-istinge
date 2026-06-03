@@ -285,7 +285,7 @@ class ChatController extends Controller
 
         // Enviar mensaje vía API Centralizada o Local (Meta Direct)
         if ($instance->type == 1 && $instance->meta == 0) {
-            $metaService = new MetaWhatsAppService();
+            $metaService = new MetaWhatsAppService($instance->access_token);
             $result = $metaService->sendMessage(
                 $instance->phone_number_id,
                 $recipient,
@@ -408,7 +408,7 @@ class ChatController extends Controller
                 $audioUrl = url($audioUrl);
             }
 
-            $metaService = new MetaWhatsAppService();
+            $metaService = new MetaWhatsAppService($instance->access_token);
             $result = $metaService->sendAudio(
                 $instance->phone_number_id,
                 $recipient,

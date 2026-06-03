@@ -399,7 +399,7 @@ class AvisosController extends Controller
                     $telefonoCompleto = $prefijo . ltrim($contacto->celular, '0'); // Sin '+' para Meta Service si la librería lo maneja, o como string
 
                     try {
-                        $metaService = new \App\Services\MetaWhatsAppService();
+                        $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
                         // Factura para campos dinámicos.
                         // Se busca a través de facturas_contratos filtrando por contrato_nro Y client_id
@@ -917,7 +917,7 @@ class AvisosController extends Controller
             $telefonoCompleto = $prefijo . ltrim($contacto->celular, '0');
 
             try {
-                $metaService = new \App\Services\MetaWhatsAppService();
+                $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
                 // Factura para campos dinámicos.
                 // Se busca a través de facturas_contratos filtrando por contrato_nro Y client_id

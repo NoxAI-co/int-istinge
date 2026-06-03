@@ -6326,7 +6326,7 @@ class FacturasController extends Controller{
             }
         }
 
-        $metaService = new \App\Services\MetaWhatsAppService();
+        $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
         // 🧩 GENERAR Y GUARDAR PDF TEMPORALMENTE EN S3
         $token = config('app.key');
@@ -6537,7 +6537,7 @@ class FacturasController extends Controller{
             return response()->json(['success' => false, 'message' => 'No tiene seleccionada una plantilla para facturas por defecto.']);
         }
 
-        $metaService = new \App\Services\MetaWhatsAppService();
+        $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
         $token = config('app.key');
         $empresaObj = auth()->user()->empresa();
 

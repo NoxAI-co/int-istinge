@@ -5510,7 +5510,7 @@ class CronController extends Controller
 
             Log::info("Facturas encontradas para procesar: " . $facturas->count());
 
-            $metaService = new \App\Services\MetaWhatsAppService();
+            $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
             foreach ($facturas as $factura) {
 

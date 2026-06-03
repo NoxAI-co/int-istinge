@@ -1893,7 +1893,7 @@ class IngresosController extends Controller
             ]
         ];
 
-        $metaService = new \App\Services\MetaWhatsAppService();
+        $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
         if ($plantilla->body_header === 'DOCUMENT') {
             // Subir PDF a Meta en vez de pasar un link

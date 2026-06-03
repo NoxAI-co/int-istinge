@@ -17,11 +17,17 @@ class MetaWhatsAppService
     protected $apiVersion;
     public $lastError = null;
 
-    public function __construct()
+    public function __construct($accessToken = null)
     {
         $this->apiVersion = config('services.meta.api_version', 'v25.0');
         $this->baseUri = "https://graph.facebook.com/{$this->apiVersion}";
-        $this->accessToken = config('services.meta.access_token');
+        $this->accessToken = $accessToken ?? config('services.meta.access_token');
+    }
+
+    public function setAccessToken($accessToken)
+    {
+        $this->accessToken = $accessToken;
+        return $this;
     }
 
     /**
