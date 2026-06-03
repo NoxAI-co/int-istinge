@@ -50,6 +50,13 @@
         	<button type="button" id="generar" class="btn btn-outline-primary">Guardar Configuración</button>
             <button type="button" id="enviar-lote" class="btn btn-outline-info">Enviar lote de 45</button>
             <button type="button" id="reiniciar-lote" class="btn btn-outline-danger">Reiniciar envío de facturas</button>
+            <div class="custom-control custom-switch d-inline-block ml-3" style="vertical-align: middle;">
+                <input type="checkbox" class="custom-control-input" id="autoEnviarSwitch">
+                <label class="custom-control-label" for="autoEnviarSwitch" style="font-weight: bold; cursor: pointer;">
+                    Envío Automático (cada 5 min)
+                </label>
+            </div>
+            <span id="autoEnviarStatus" class="badge badge-secondary ml-2" style="vertical-align: middle;">Apagado</span>
 	  	</div>
 	</div>
 
@@ -135,19 +142,99 @@
             type: 'GET',
             success: function(response) {
                 clearTimeout(timeout); // Detener el timeout si responde a tiempo
-                alert(response.message || 'Los mensajes se enviaron correctamente.');
+                Swal.fire('Éxito', response.message || 'Los mensajes se enviaron correctamente.', 'success').then(() => {
+                    location.reload();
+                });
             },
             error: function(xhr, status, error) {
                 clearTimeout(timeout); // Detener el timeout si hay error
                 console.error(xhr.responseText);
-                alert('Ocurrió un error al enviar los mensajes.');
+                Swal.fire('Error', 'Ocurrió un error al enviar los mensajes.', 'error');
             },
             complete: function() {
-                $('#enviar-lote').prop('disabled', false).text('Enviar WhatsApp');
+                $('#enviar-lote').prop('disabled', false).text('Enviar lote de 45');
             }
         });
     });
 
+    let autoEnviarInterval = null;
+    let enviosAutomaticosCount = 0;
+
+    $('#autoEnviarSwitch').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#autoEnviarStatus').removeClass('badge-secondary').addClass('badge-success').text('Activo');
+            Swal.fire({
+                title: 'Envío automático activado',
+                text: 'Se enviarán lotes de 45 facturas cada 5 minutos mientras mantengas esta pestaña abierta.',
+                type: 'info',
+                timer: 4000,
+                showConfirmButton: false
+            });
+            
+            // Ejecutar la primera vez inmediatamente
+            enviarLoteAutomatico();
+            
+            // Iniciar intervalo cada 5 minutos (300000 ms)
+            autoEnviarInterval = setInterval(function() {
+                enviarLoteAutomatico();
+            }, 300000);
+        } else {
+            $('#autoEnviarStatus').removeClass('badge-success').addClass('badge-secondary').text('Apagado');
+            if (autoEnviarInterval) {
+                clearInterval(autoEnviarInterval);
+                autoEnviarInterval = null;
+            }
+            Swal.fire({
+                title: 'Envío automático pausado',
+                text: 'Se ha detenido el envío automático. Se realizaron ' + enviosAutomaticosCount + ' envíos.',
+                type: 'warning',
+                timer: 4000,
+                showConfirmButton: false
+            });
+        }
+    });
+
+    function enviarLoteAutomatico() {
+        let url = $('#url-enviar-lote').val();
+        $('#enviar-lote').prop('disabled', true).text('Enviando (Automático)...');
+
+        $.ajax({
+            url: url,
+            type: 'GET',
+            success: function(response) {
+                enviosAutomaticosCount++;
+                console.log('Lote automático enviado con éxito (#'+enviosAutomaticosCount+'):', response.message || 'OK');
+                // Actualizar la vista o tabla de forma dinámica para reflejar los envíos sin recargar la página.
+                // Podríamos usar toastr si está disponible en el proyecto, o simplemente un pequeño aviso.
+                const Toast = Swal.mixin({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
+                Toast.fire({
+                  type: 'success',
+                  title: 'Lote automático #' + enviosAutomaticosCount + ' enviado con éxito'
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Error en lote automático:', xhr.responseText);
+                const Toast = Swal.mixin({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
+                Toast.fire({
+                  type: 'error',
+                  title: 'Ocurrió un error en el envío automático'
+                });
+            },
+            complete: function() {
+                $('#enviar-lote').prop('disabled', false).text('Enviar lote de 45');
+            }
+        });
+    }
 
     $('#reiniciar-lote').on('click', function() {
         Swal.fire({
