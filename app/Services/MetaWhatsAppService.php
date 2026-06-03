@@ -15,6 +15,7 @@ class MetaWhatsAppService
     protected $baseUri;
     protected $accessToken;
     protected $apiVersion;
+    public $lastError = null;
 
     public function __construct()
     {
@@ -130,6 +131,8 @@ class MetaWhatsAppService
                 return $data['id'];
             }
 
+            $this->lastError = isset($data['error']['message']) ? $data['error']['message'] : json_encode($data);
+
             Log::error('Meta uploadMedia failed', [
                 'status'   => $response->status(),
                 'response' => $data,
@@ -138,6 +141,7 @@ class MetaWhatsAppService
             return null;
 
         } catch (\Exception $e) {
+            $this->lastError = $e->getMessage();
             Log::error('Meta uploadMedia exception', [
                 'message' => $e->getMessage(),
                 'file'    => basename($filePath),

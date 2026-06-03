@@ -6397,7 +6397,8 @@ class FacturasController extends Controller{
             );
 
             if (!$mediaId) {
-                return back()->with('danger', 'No se pudo subir el documento PDF a Meta.');
+                $errorMsg = $metaService->lastError ? ' Detalle: ' . $metaService->lastError : '';
+                return back()->with('danger', 'No se pudo subir el documento PDF a Meta.' . $errorMsg);
             }
 
             $components[] = [
