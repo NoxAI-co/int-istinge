@@ -2456,9 +2456,9 @@ class Controller extends BaseController
             /*..............................
             Construcción del código qr a la factura
             ................................*/
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion','codqr','CUFEvr', 'empresa', 'title'))->output();
         }else{
-            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa', 'title'))->save(public_path() . "/convertidor/" . $factura->codigo . ".pdf")->output();
+            return PDF::loadView('pdf.electronica', compact('items', 'factura', 'itemscount', 'tipo', 'retenciones','resolucion', 'empresa', 'title'))->output();
         }
     }
 
