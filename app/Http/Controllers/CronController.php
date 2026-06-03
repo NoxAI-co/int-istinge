@@ -5404,35 +5404,29 @@ class CronController extends Controller
         // 2️⃣ Buscar factura
         $factura = Factura::findOrFail($id);
 
-        // 3️⃣ Generar nombre y rutas relativas
+        // 3️⃣ Generar nombre
         $fileName = 'Factura_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . '.pdf';
-        $folderPath = public_path('documentos_meta');
-        $storagePath = $folderPath . '/' . $fileName;
+        $folderPath = 'documentos_meta';
 
-        // 4️⃣ Crear carpeta si no existe
-        if (!file_exists($folderPath)) {
-            mkdir($folderPath, 0775, true);
-        }
+        $s3Service = app(\App\Services\ContaboS3Service::class);
+        $s3Key = $s3Service->key($folderPath, $fileName);
 
-        // 5️⃣ Si ya existe, devolver directamente
-        if (file_exists($storagePath)) {
-            return response()->file($storagePath, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        // 4️⃣ Si NO existe en S3, generarlo y subirlo
+        if (!$s3Service->exists($folderPath, $fileName)) {
+            $facturaPDF = $this->getPdfFactura($id);
+
+            $s3Service->client()->putObject([
+                'Bucket'      => $s3Service->bucket(),
+                'Key'         => $s3Key,
+                'Body'        => $facturaPDF,
+                'ContentType' => 'application/pdf',
+                'ACL'         => 'public-read',
             ]);
         }
 
-        // 6️⃣ Generar el PDF en binario
-        $facturaPDF = $this->getPdfFactura($id);
-
-        // 7️⃣ Guardar el archivo directamente
-        file_put_contents($storagePath, $facturaPDF);
-
-        // 8️⃣ Retornar el archivo directamente
-        return response()->file($storagePath, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
-        ]);
+        // 5️⃣ Retornar el archivo redireccionando a la URL de S3
+        $url = $s3Service->signedUrl($folderPath, $fileName);
+        return redirect($url);
     }
 
     public function envioFacturaWpp($empresa_id = 1)
@@ -5553,24 +5547,19 @@ class CronController extends Controller
                 }
 
                 // ===================================
-                // 🧩 GENERAR PDF TEMPORAL
+                // 🧩 GENERAR PDF TEMPORAL EN S3
                 // ===================================
                 $this->getFacturaTemp($factura->id, config('app.key'));
                 $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
-                $storagePath = public_path("documentos_meta/{$fileName}");
-
-                $attempts = 0;
-                while (!file_exists($storagePath) && $attempts < 5) {
-                    usleep(300000);
-                    $attempts++;
-                }
-
-                if (!file_exists($storagePath)) {
-                    Log::error("Factura {$factura->codigo}: No se pudo generar PDF.");
+                
+                $s3Service = app(\App\Services\ContaboS3Service::class);
+                if (!$s3Service->exists('documentos_meta', $fileName)) {
+                    Log::error("Factura {$factura->codigo}: No se pudo generar PDF en S3.");
                     continue;
                 }
 
-                $urlFactura = url("documentos_meta/{$fileName}");
+                $storagePath = $s3Service->signedUrl('documentos_meta', $fileName);
+                $urlFactura = $storagePath;
 
                 // ===================================
                 // 📦 PREPARAR DATOS PLANTILLA
@@ -5766,27 +5755,7 @@ class CronController extends Controller
     public function limpiarPdfsTemp()
     {
         try {
-            $tempPath = public_path('documentos_meta');
-
-            // Si no existe la carpeta, no hay nada que borrar
-            if (!File::exists($tempPath)) {
-                return;
-            }
-
-            $hoy = Carbon::today();
-
-            // Obtener todos los archivos de la carpeta temp
-            $files = File::files($tempPath);
-
-            foreach ($files as $file) {
-                // Fecha de modificación del archivo
-                $lastModified = Carbon::createFromTimestamp($file->getMTime());
-
-                // Si el archivo es de una fecha anterior a hoy, se elimina
-                if ($lastModified->lt($hoy)) {
-                    File::delete($file->getRealPath());
-                }
-            }
+            // Ya no es necesario limpiar archivos locales porque se usan en S3 (o el S3 tiene lifecycle rules).
         } catch (\Exception $e) {
             Log::error("Error al limpiar PDFs temporales: " . $e->getMessage());
         }

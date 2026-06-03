@@ -1,5 +1,90 @@
 @extends('layouts.app')
 @section('content')
+<style>
+.switch-container {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 15px;
+    vertical-align: middle;
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-radius: 30px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    margin-bottom: 0;
+    margin-right: 10px;
+}
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border-radius: 34px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+input:checked + .slider {
+    background-color: #10b981;
+}
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+.switch-label {
+    font-weight: 600;
+    color: #475569;
+    font-size: 14px;
+    cursor: pointer;
+}
+.badge-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 10px;
+    transition: all 0.3s ease;
+}
+.badge-apagado {
+    background-color: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+.badge-activo {
+    background-color: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+    animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+</style>
 <input type="hidden" id="valuefecha" value="{{$request->fechas}}">
 <input type="hidden" id="primera" value="{{$request->date ? $request->date['primera'] : ''}}">
 <input type="hidden" id="ultima" value="{{$request->date ? $request->date['ultima'] : ''}}">
@@ -50,13 +135,14 @@
         	<button type="button" id="generar" class="btn btn-outline-primary">Guardar Configuración</button>
             <button type="button" id="enviar-lote" class="btn btn-outline-info">Enviar lote de 45</button>
             <button type="button" id="reiniciar-lote" class="btn btn-outline-danger">Reiniciar envío de facturas</button>
-            <div class="custom-control custom-switch d-inline-block ml-3" style="vertical-align: middle;">
-                <input type="checkbox" class="custom-control-input" id="autoEnviarSwitch">
-                <label class="custom-control-label" for="autoEnviarSwitch" style="font-weight: bold; cursor: pointer;">
-                    Envío Automático (cada 5 min)
+            <div class="switch-container">
+                <label class="switch">
+                    <input type="checkbox" id="autoEnviarSwitch">
+                    <span class="slider"></span>
                 </label>
+                <label for="autoEnviarSwitch" class="switch-label mb-0">Auto (5 min)</label>
+                <span id="autoEnviarStatus" class="badge-status badge-apagado">Apagado</span>
             </div>
-            <span id="autoEnviarStatus" class="badge badge-secondary ml-2" style="vertical-align: middle;">Apagado</span>
 	  	</div>
 	</div>
 
@@ -162,7 +248,7 @@
 
     $('#autoEnviarSwitch').on('change', function() {
         if ($(this).is(':checked')) {
-            $('#autoEnviarStatus').removeClass('badge-secondary').addClass('badge-success').text('Activo');
+            $('#autoEnviarStatus').removeClass('badge-apagado').addClass('badge-activo').text('Procesando');
             Swal.fire({
                 title: 'Envío automático activado',
                 text: 'Se enviarán lotes de 45 facturas cada 5 minutos mientras mantengas esta pestaña abierta.',
@@ -179,7 +265,7 @@
                 enviarLoteAutomatico();
             }, 300000);
         } else {
-            $('#autoEnviarStatus').removeClass('badge-success').addClass('badge-secondary').text('Apagado');
+            $('#autoEnviarStatus').removeClass('badge-activo').addClass('badge-apagado').text('Apagado');
             if (autoEnviarInterval) {
                 clearInterval(autoEnviarInterval);
                 autoEnviarInterval = null;
