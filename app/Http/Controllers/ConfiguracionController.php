@@ -145,6 +145,9 @@ class ConfiguracionController extends Controller
         try {
           app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
           $empresa->logo = 'logo.png';
+          $folder = env('LOGOS_FOLDER', 'logos');
+          \Cache::forget(\App\Http\Controllers\ContaboAssetController::cacheKey($folder, 'logo.png'));
+          \Cache::forget(\App\Http\Controllers\ContaboAssetController::cacheKey($folder, 'favicon.png'));
         } catch (\Throwable $e) {
           \Log::error('Contabo sync logo falló: '.$e->getMessage());
           return back()->withErrors(['logo' => 'No se pudo guardar el logo. Intenta de nuevo.'])->withInput();
@@ -155,6 +158,7 @@ class ConfiguracionController extends Controller
         try {
           app(ContaboS3Service::class)->upload(env('LOGOS_FOLDER', 'logos'), $request->file('img_default'), 'imagen_default.png', 'public-read');
           $empresa->img_default = 'imagen_default.png';
+          \Cache::forget(\App\Http\Controllers\ContaboAssetController::cacheKey(env('LOGOS_FOLDER', 'logos'), 'imagen_default.png'));
         } catch (\Throwable $e) {
           \Log::error('Contabo sync img_default falló: '.$e->getMessage());
         }

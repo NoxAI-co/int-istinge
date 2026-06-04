@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Contacto;
 use App\Impuesto;
 use App\Retencion;
+use App\Http\Controllers\ContaboAssetController;
 use App\Services\ContaboS3Service;
 use App\SuscripcionPago;
 use App\TipoEmpresa;
@@ -244,6 +245,9 @@ class EmpresasController extends Controller
             // Único administrador del logo: Contabo.
             try {
                 app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
+                $folder = env('LOGOS_FOLDER', 'logos');
+                \Cache::forget(ContaboAssetController::cacheKey($folder, 'logo.png'));
+                \Cache::forget(ContaboAssetController::cacheKey($folder, 'favicon.png'));
             } catch (\Throwable $e) {
                 \Log::error('Contabo sync logo falló: '.$e->getMessage());
             }
@@ -404,6 +408,9 @@ class EmpresasController extends Controller
                 try {
                     app(ContaboS3Service::class)->syncLogoYFavicon($request->file('logo'));
                     $empresa->logo = 'logo.png';
+                    $folder = env('LOGOS_FOLDER', 'logos');
+                    \Cache::forget(ContaboAssetController::cacheKey($folder, 'logo.png'));
+                    \Cache::forget(ContaboAssetController::cacheKey($folder, 'favicon.png'));
                 } catch (\Throwable $e) {
                     \Log::error('Contabo sync logo falló: '.$e->getMessage());
                 }

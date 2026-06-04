@@ -16,18 +16,13 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ACSController;
-use App\Http\Controllers\ContaboAssetController;
 use App\Http\Controllers\PlanesVelocidadController;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Cache;
 
-
-// Proxy de assets de Contabo: el browser pega a esta URL estable y la app
-// responde con un 302 a una URL firmada (que caduca). Permite usar <img src>
-// directo sin pelearse con la expiración de las URLs.
-Route::get('cstorage/{folder}/{filename}', [ContaboAssetController::class, 'show'])
-    ->where('filename', '.+')
-    ->name('contabo.asset');
+// La ruta `cstorage/{folder}/{filename}` (proxy de Contabo) se registra en
+// RouteServiceProvider::mapStatelessAssetRoutes() fuera del middleware `web`
+// para que no tome el lock de sesión.
 
 Route::get('sendmail', 'Controller@sendmail');
 

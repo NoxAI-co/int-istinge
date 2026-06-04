@@ -35,11 +35,29 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function map()
     {
+        $this->mapStatelessAssetRoutes();
+
         $this->mapApiRoutes();
 
         $this->mapWebRoutes();
 
         //
+    }
+
+    /**
+     * Proxy de assets de Contabo. Vive fuera del middleware `web` para no tomar
+     * el lock de sesión del usuario — si caía adentro, los 3 <img> del logo en
+     * cada página serializaban con el AJAX de las DataTables y dejaban las
+     * tablas pegadas mientras no había logo subido.
+     */
+    protected function mapStatelessAssetRoutes()
+    {
+        Route::namespace($this->namespace)
+             ->group(function () {
+                 Route::get('cstorage/{folder}/{filename}', 'ContaboAssetController@show')
+                      ->where('filename', '.+')
+                      ->name('contabo.asset');
+             });
     }
 
     /**
