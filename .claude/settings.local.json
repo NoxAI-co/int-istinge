@@ -32,7 +32,9 @@
       "Bash(composer --version)",
       "Bash(composer require *)",
       "Bash(composer dump-autoload *)",
-      "Bash(chmod +x *)"
+      "Bash(chmod +x *)",
+      "Bash(bash -n reset-client-db.sh)",
+      "Bash(git rebase *)"
     ]
   }
 }
