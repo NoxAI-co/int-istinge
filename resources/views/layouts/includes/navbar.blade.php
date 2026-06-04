@@ -1,15 +1,13 @@
 <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
     <div class="text-center navbar-brand-wrapper d-flex align-items-top justify-content-center">
+        @if(optional(Auth::user()->empresa())->logo)
         <a class="navbar-brand brand-logo" href="{{route('home')}}">
-            @if(Auth::user()->rol != 1)
-            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="logo" onerror="this.src='{{asset('../images/logo1.png')}}'" style="height: 50px;" />
-            @else
-            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="logo" style="height: 50px;" />
-            @endif
+            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" onerror="this.style.display='none'" style="height: 50px;" />
         </a>
         <a class="navbar-brand brand-logo-mini" href="{{route('home')}}">
-            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png') }}" alt="logo" style="width: 75px !important;" />
+            <img class="img-contenida" src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png') }}" alt="" onerror="this.style.display='none'" style="width: 75px !important;" />
         </a>
+        @endif
     </div>
     <div class="navbar-menu-wrapper d-flex align-items-center">
         <ul class="navbar-nav navbar-nav-right d-block">
