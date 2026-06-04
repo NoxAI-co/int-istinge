@@ -25,6 +25,7 @@ use Barryvdh\DomPDF\Facade as PDF;
 use Illuminate\Support\Facades\Storage;
 use App\Empresa;
 use App\ServidorCorreo;
+use App\Services\ContaboS3Service;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Mail;
@@ -92,7 +93,6 @@ class AsignacionesController extends Controller
             }
         }
 
-        $ext_permitidas = array('jpeg','png','gif');
         $digital = new ContratoDigital;
 
         if($request->firma_isp) {
@@ -120,7 +120,7 @@ class AsignacionesController extends Controller
         $digital->fecha_firma = date('Y-m-d');
 
         // Documento principal: campo requerido, ya validado arriba.
-        $nombreDoc = $this->moverYRedimensionar($request->file('documento'), $idContrato, $cliente, 'doc_');
+        $nombreDoc = $this->subirAdjunto($request->file('documento'), $idContrato, $cliente, 'doc_');
         if ($nombreDoc !== null) {
             $digital->documento = $nombreDoc;
         }
@@ -138,26 +138,18 @@ class AsignacionesController extends Controller
         ];
         foreach ($imagenesOpcionales as $campo => $prefix) {
             if ($request->file($campo)) {
-                $nombre = $this->moverYRedimensionar($request->file($campo), $idContrato, $cliente, $prefix);
+                $nombre = $this->subirAdjunto($request->file($campo), $idContrato, $cliente, $prefix);
                 if ($nombre !== null) {
                     $digital->$campo = $nombre;
                 }
             }
         }
 
-        // Audio: solo se mueve, no se procesa como imagen.
+        // Audio: sin resize, pero también va a Contabo.
         if ($request->file('adjunto_audio')) {
-            $audio = $request->file('adjunto_audio');
-            $nombreAudio = $idContrato.'adjunto_audio'.$cliente->nit.'.'.$audio->getClientOriginalExtension();
-            $rutaAudio = public_path('/adjuntos/documentos/');
-            try {
-                if (!is_dir($rutaAudio)) {
-                    @mkdir($rutaAudio, 0755, true);
-                }
-                $audio->move($rutaAudio, $nombreAudio);
+            $nombreAudio = $this->subirAdjunto($request->file('adjunto_audio'), $idContrato, $cliente, 'adjunto_audio');
+            if ($nombreAudio !== null) {
                 $digital->adjunto_audio = $nombreAudio;
-            } catch (\Throwable $e) {
-                \Log::error('asignaciones: move adjunto_audio falló: '.$e->getMessage());
             }
         }
 
@@ -190,7 +182,6 @@ class AsignacionesController extends Controller
 
     public function update(Request $request, $id)
     {
-        $ext_permitidas = array('jpeg','png','gif');
         $digital = ContratoDigital::find($id);
 
         if ($digital) {
@@ -206,57 +197,31 @@ class AsignacionesController extends Controller
                 $digital->fecha_firma = date('Y-m-d');
             }
 
-            $campos_imagen = ['documento', 'imgA', 'imgB', 'imgC', 'imgD', 'imgE', 'imgF', 'imgG', 'imgH'];
-            $ruta = public_path('/adjuntos/documentos/');
+            $campos_imagen = [
+                'documento' => 'doc_',
+                'imgA' => 'imgA_',
+                'imgB' => 'imgB_',
+                'imgC' => 'imgC_',
+                'imgD' => 'imgD_',
+                'imgE' => 'imgE_',
+                'imgF' => 'imgF_',
+                'imgG' => 'imgG_',
+                'imgH' => 'imgH_',
+            ];
 
-            foreach ($campos_imagen as $campo) {
+            foreach ($campos_imagen as $campo => $prefix) {
                 if ($request->file($campo)) {
-                    $file = $request->file($campo);
-                    $ext = $file->getClientOriginalExtension();
-                    $nombre = $digital->contrato_id . $campo . '_' . $digital->cliente->nit . '.' . $ext;
-
-                    try {
-                        if (!is_dir($ruta)) {
-                            @mkdir($ruta, 0755, true);
-                        }
-                        $file->move($ruta, $nombre);
+                    $nombre = $this->subirAdjunto($request->file($campo), $digital->contrato_id, $digital->cliente, $prefix);
+                    if ($nombre !== null) {
                         $digital->$campo = $nombre;
-                    } catch (\Throwable $e) {
-                        \Log::error('asignaciones update: move '.$campo.' falló: '.$e->getMessage());
-                        continue;
-                    }
-
-                    if (in_array($ext, $ext_permitidas) && file_exists($ruta . $nombre)) {
-                        try {
-                            $sourcePath = $ruta . $nombre;
-                            $image = null;
-                            switch ($ext) {
-                                case 'jpeg': $image = @imagecreatefromjpeg($sourcePath); break;
-                                case 'png':  $image = @imagecreatefrompng($sourcePath); break;
-                                case 'gif':  $image = @imagecreatefromgif($sourcePath); break;
-                            }
-                            if ($image) {
-                                imagejpeg($image, $sourcePath, 50);
-                                imagedestroy($image);
-                            }
-                        } catch (\Throwable $e) {
-                            \Log::error('asignaciones update: recomprimir '.$campo.' falló: '.$e->getMessage());
-                        }
                     }
                 }
             }
 
             if ($request->file('adjunto_audio')) {
-                $audio = $request->file('adjunto_audio');
-                $nombreAudio = $digital->contrato_id.'adjunto_audio'.$digital->cliente->nit.'.'.$audio->getClientOriginalExtension();
-                try {
-                    if (!is_dir($ruta)) {
-                        @mkdir($ruta, 0755, true);
-                    }
-                    $audio->move($ruta, $nombreAudio);
+                $nombreAudio = $this->subirAdjunto($request->file('adjunto_audio'), $digital->contrato_id, $digital->cliente, 'adjunto_audio');
+                if ($nombreAudio !== null) {
                     $digital->adjunto_audio = $nombreAudio;
-                } catch (\Throwable $e) {
-                    \Log::error('asignaciones update: move adjunto_audio falló: '.$e->getMessage());
                 }
             }
 
@@ -503,82 +468,77 @@ class AsignacionesController extends Controller
     }
 
     /**
-     * Mueve un archivo subido a public/adjuntos/documentos/ y, si es imagen
-     * (jpeg/png/gif), la redimensiona in-place. Crea la carpeta si no existe.
-     * Es tolerante a fallos: ante cualquier error de filesystem o de GD,
-     * loguea y sigue — nunca tira excepción a quien llama. Retorna el nombre
-     * del archivo guardado, o null si ni siquiera el move pudo hacerse.
+     * Redimensiona el archivo (si es imagen) en el temp file de PHP y lo sube
+     * a Contabo bajo CLIENTE/<ADJUNTOS_FOLDER>/<nombre>. Las vistas lo leen
+     * después con contabo_url(env('ADJUNTOS_FOLDER'), $nombre). No toca el
+     * filesystem local del server.
      *
      * $prefix se concatena entre $idContrato y $cliente->nit, por ejemplo
-     * 'doc_', 'imgA_', 'imgB_'.
+     * 'doc_', 'imgA_', 'imgB_'. Retorna el nombre final o null si la subida
+     * falló.
      */
-    private function moverYRedimensionar($file, $idContrato, $cliente, $prefix, $xmax = 1080, $ymax = 720)
+    private function subirAdjunto($file, $idContrato, $cliente, $prefix, $xmax = 1080, $ymax = 720)
     {
-        $extPermitidas = ['jpeg', 'png', 'gif'];
-        $ext = $file->getClientOriginalExtension();
-        $nombre = $idContrato . $prefix . $cliente->nit . '.' . $ext;
-        $ruta = public_path('/adjuntos/documentos/');
-
-        try {
-            if (!is_dir($ruta)) {
-                @mkdir($ruta, 0755, true);
-            }
-            $file->move($ruta, $nombre);
-        } catch (\Throwable $e) {
-            \Log::error('asignaciones: move falló para '.$nombre.': '.$e->getMessage());
+        if (!$file) {
             return null;
         }
 
-        $rutaArchivo = $ruta . $nombre;
+        $extPermitidas = ['jpeg', 'png', 'gif'];
+        $ext = strtolower($file->getClientOriginalExtension());
+        $nombre = $idContrato . $prefix . $cliente->nit . '.' . $ext;
 
-        if (!in_array($ext, $extPermitidas) || !file_exists($rutaArchivo)) {
-            return $nombre;
+        // Si es imagen, redimensionamos in-place en el temp file que PHP creó
+        // para el upload. Si falla cualquier parte del resize, seguimos con el
+        // archivo original (mejor subir grande que no subir nada).
+        if (in_array($ext, $extPermitidas)) {
+            try {
+                $tempPath = $file->getRealPath();
+                $imagen = null;
+                switch ($ext) {
+                    case 'jpeg': $imagen = @imagecreatefromjpeg($tempPath); break;
+                    case 'png':  $imagen = @imagecreatefrompng($tempPath); break;
+                    case 'gif':  $imagen = @imagecreatefromgif($tempPath); break;
+                }
+
+                if ($imagen) {
+                    $x = imagesx($imagen);
+                    $y = imagesy($imagen);
+
+                    if ($x > $xmax || $y > $ymax) {
+                        if ($x >= $y) {
+                            $nuevax = $xmax;
+                            $nuevay = $nuevax * $y / $x;
+                        } else {
+                            $nuevay = $ymax;
+                            $nuevax = $x / $y * $nuevay;
+                        }
+                        $img2 = imagecreatetruecolor((int) $nuevax, (int) $nuevay);
+                        imagecopyresized($img2, $imagen, 0, 0, 0, 0, (int) floor($nuevax), (int) floor($nuevay), $x, $y);
+                        switch ($ext) {
+                            case 'jpeg': imagejpeg($img2, $tempPath, 90); break;
+                            case 'png':  imagepng($img2, $tempPath, 9); break;
+                            case 'gif':  imagegif($img2, $tempPath); break;
+                        }
+                        imagedestroy($img2);
+                    }
+                    imagedestroy($imagen);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('asignaciones: redimensionar falló ('.$nombre.'): '.$e->getMessage());
+            }
         }
 
         try {
-            $imagen = null;
-            switch ($ext) {
-                case 'jpeg': $imagen = @imagecreatefromjpeg($rutaArchivo); break;
-                case 'png':  $imagen = @imagecreatefrompng($rutaArchivo); break;
-                case 'gif':  $imagen = @imagecreatefromgif($rutaArchivo); break;
-            }
-
-            if (!$imagen) {
-                \Log::warning('asignaciones: imagecreatefrom* falló para '.$rutaArchivo);
-                return $nombre;
-            }
-
-            $x = imagesx($imagen);
-            $y = imagesy($imagen);
-
-            if ($x <= $xmax && $y <= $ymax) {
-                switch ($ext) {
-                    case 'jpeg': imagejpeg($imagen, $rutaArchivo, 5); break;
-                    case 'png':  imagepng($imagen, $rutaArchivo, 5); break;
-                    case 'gif':  imagegif($imagen, $rutaArchivo); break;
-                }
-            } else {
-                if ($x >= $y) {
-                    $nuevax = $xmax;
-                    $nuevay = $nuevax * $y / $x;
-                } else {
-                    $nuevay = $ymax;
-                    $nuevax = $x / $y * $nuevay;
-                }
-                $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                switch ($ext) {
-                    case 'jpeg': imagejpeg($img2, $rutaArchivo, 90); break;
-                    case 'png':  imagepng($img2, $rutaArchivo, 9); break;
-                    case 'gif':  imagegif($img2, $rutaArchivo); break;
-                }
-                imagedestroy($img2);
-            }
-            imagedestroy($imagen);
+            app(ContaboS3Service::class)->upload(
+                env('ADJUNTOS_FOLDER', 'adjuntos'),
+                $file,
+                $nombre,
+                'public-read'
+            );
+            return $nombre;
         } catch (\Throwable $e) {
-            \Log::error('asignaciones: redimensionar falló para '.$rutaArchivo.': '.$e->getMessage());
+            \Log::error('asignaciones: subir a Contabo falló ('.$nombre.'): '.$e->getMessage());
+            return null;
         }
-
-        return $nombre;
     }
 }

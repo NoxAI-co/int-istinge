@@ -87,7 +87,7 @@
                 <label class="control-label" id="div_campo_1">{{$empresa->campo_1}}</label>
                 <input type="file" class="form-control"  id="documento" name="documento" value="{{old('documento')}}" accept=".jpg, .jpeg, .png">
                 @if($asignacion->documento)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->documento)}}" target="_blank">Ver archivo</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->documento)}}" target="_blank">Ver archivo</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('documento') }}</strong>
@@ -98,7 +98,7 @@
                 <label class="control-label" id="div_campo_a">{{$empresa->campo_a}}</label>
                 <input type="file" class="form-control"  id="imgA" name="imgA"  value="{{old('imgA')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgA)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgA)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgA)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgA') }}</strong>
@@ -108,7 +108,7 @@
                 <label class="control-label" id="div_campo_b">{{$empresa->campo_b}}</label>
                 <input type="file" class="form-control"  id="imgB" name="imgB"  value="{{old('imgB')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgB)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgB)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgB)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgB') }}</strong>
@@ -118,7 +118,7 @@
                 <label class="control-label" id="div_campo_c">{{$empresa->campo_c}}</label>
                 <input type="file" class="form-control"  id="imgC" name="imgC"  value="{{old('imgC')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgC)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgC)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgC)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgC') }}</strong>
@@ -128,7 +128,7 @@
                 <label class="control-label" id="div_campo_d">{{$empresa->campo_d}}</label>
                 <input type="file" class="form-control"  id="imgD" name="imgD"  value="{{old('imgD')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgD)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgD)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgD)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgD') }}</strong>
@@ -139,7 +139,7 @@
                 <label class="control-label" id="div_campo_e">{{$empresa->campo_e}}</label>
                 <input type="file" class="form-control"  id="imgE" name="imgE"  value="{{old('imgE')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgE)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgE)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgE)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgE') }}</strong>
@@ -149,7 +149,7 @@
                 <label class="control-label" id="div_campo_f">{{$empresa->campo_f}}</label>
                 <input type="file" class="form-control"  id="imgF" name="imgF"  value="{{old('imgF')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgF)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgF)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgF)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgF') }}</strong>
@@ -159,7 +159,7 @@
                 <label class="control-label" id="div_campo_g">{{$empresa->campo_g}}</label>
                 <input type="file" class="form-control"  id="imgG" name="imgG"  value="{{old('imgG')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgG)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgG)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgG)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgG') }}</strong>
@@ -169,7 +169,7 @@
                 <label class="control-label" id="div_campo_h">{{$empresa->campo_h}}</label>
                 <input type="file" class="form-control"  id="imgH" name="imgH"  value="{{old('imgH')}}" accept=".jpg, .jpeg, .png">
                  @if($asignacion->imgH)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->imgH)}}" target="_blank">Ver adjunto</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->imgH)}}" target="_blank">Ver adjunto</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('imgH') }}</strong>
@@ -180,7 +180,7 @@
                 <label class="control-label" id="">Adjuntar audio</label>
                 <input type="file" class="form-control" name="adjunto_audio" accept="audio/*" id="adjunto_audio" >
                 @if($asignacion->adjunto_audio)
-                    <small>Actual: <a href="{{asset('adjuntos/documentos/'.$asignacion->adjunto_audio)}}" target="_blank">Ver audio</a></small>
+                    <small>Actual: <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'),$asignacion->adjunto_audio)}}" target="_blank">Ver audio</a></small>
                 @endif
                 <span style="color: red;">
                     <strong>{{ $errors->first('adjunto_audio') }}</strong>

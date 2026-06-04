@@ -696,7 +696,7 @@
                                                     <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #17a2b8; border-radius: 0.25rem;">
                                                         <h6 class="card-title text-info font-weight-bold">Audio Adjunto</h6>
                                                         <div class="mt-2">
-                                                            <a href="{{asset('/adjuntos/documentos/'.$contrato->contratoDigital->adjunto_audio)}}" target="_blank" class="btn btn-outline-info btn-sm btn-icons"><i class="fas fa-volume-up"></i></a>
+                                                            <a href="{{contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->contratoDigital->adjunto_audio)}}" target="_blank" class="btn btn-outline-info btn-sm btn-icons"><i class="fas fa-volume-up"></i></a>
                                                         </div>
                                                     </div>
                                                 </div>

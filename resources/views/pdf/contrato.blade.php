@@ -674,7 +674,7 @@
                     <td style="text-align: center; vertical-align: middle; padding: 30px; width: 100%;">
                         <p style="font-weight: bold; margin-bottom: 20px; margin-top: 0; padding: 8px; text-align: center;" class="small titulo-bg">Imagen {{ $imagen['letra'] }}</p>
                         <div style="text-align: center; width: 100%; margin: 0; padding: 0;">
-                            <img src="{{ asset('adjuntos/documentos/'.$imagen['ruta']) }}" alt="Imagen {{ $imagen['letra'] }}">
+                            <img src="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $imagen['ruta']) }}" alt="Imagen {{ $imagen['letra'] }}">
                         </div>
                     </td>
                 </tr>
