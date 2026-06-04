@@ -13,7 +13,7 @@
     </script>
     @endif
 
-	<form method="POST" action="{{ route('ingresos.update', $ingreso->nro) }}" style="padding: 2% 3%;    " role="form" class="forms-sample" novalidate id="form-ingreso" >
+	<form method="POST" action="{{ route('ingresos.update', $ingreso->nro) }}" style="padding: 2% 3%;    " role="form" class="forms-sample" novalidate id="form-ingreso" enctype="multipart/form-data">
     <h5>INFORMACIÓN GENERAL DEL INGRESO </h5>
   		{{ csrf_field() }}
       <input name="_method" type="hidden" value="PATCH">
@@ -392,15 +392,33 @@
           </table>
           <p id="p_rentencion" class="text-danger"></p>
         </div>
-        </div>
       </div>
-  		</div>
+  	</div>
 </div>
 @endif
 
-  		<hr>
-  		<div class="row" >
+        <div class="row form-inline mt-3">
+            <div class="col-md-4 form-inline">
+                <div class="form-group inline-block">
+                    <label class="mr-2 form-label">Nro Comprobante de Pago</label>
+                    <input type="text" class="form-control form-control-sm" id="comprobante_pago" name="comprobante_pago" value="{{$ingreso->comprobante_pago}}" style="width: 40%;">
+                </div>
+            </div>
+            <div class="col-md-6 form-inline">
+                <div class="form-group inline-block">
+                    <label class="mr-2 form-label">Soporte de Pago</label>
+                    <input type="file" class="form-control form-control-sm" id="adjunto_pago" name="adjunto_pago" accept=".jpg, .jpeg, .png, .pdf" style="width: 60%;">
+                    @if($ingreso->adjunto_pago)
+                        <div class="mt-1">
+                            <small>Actual: <a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $ingreso->adjunto_pago) }}" target="_blank">Ver archivo</a></small>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        <hr>
 
+        <div class="row" >
         <div class="col-sm-12" style="text-align: right;  padding-top: 1%;">
 
           <a href="{{route('ingresos.index')}}" class="btn btn-outline-secondary">Cancelar</a>

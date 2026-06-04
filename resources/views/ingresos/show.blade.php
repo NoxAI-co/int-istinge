@@ -193,10 +193,11 @@
 						</tr>
 						@if($ingreso->adjunto_pago)
 						<tr>
-							<th>Soporte de Pago</th>
-							<td><a href="{{asset('adjuntos/documentos/'.$ingreso->adjunto_pago)}}" target="_blank">Ver Archivo</a></td>
+						        <th>Soporte de Pago</th>
+						        <td><a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $ingreso->adjunto_pago) }}" target="_blank">Ver Archivo</a></td>
 						</tr>
 						@endif
+
 						@if($ingreso->created_by)
 						<tr>
 							<th><strong>Realizado por</strong></th>

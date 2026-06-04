@@ -40,6 +40,8 @@ use App\Instance;
 use App\MovimientoLOG;
 use App\Plantilla;
 use App\Services\WapiService;
+use App\Services\ContaboS3Service;
+use Image;
 
 include_once(app_path() .'/../public/routeros_api.class.php');
 use RouterosAPI;
@@ -1202,67 +1204,12 @@ class IngresosController extends Controller
                 }
 
                 ### ADJUNTO DE PAGO ###
-
-                $xmax = 1080; $ymax = 720;
-                if($request->file('adjunto_pago')){
-                    $ext_permitidas = array('image/jpeg','image/png','image/gif');
-                    $file = $request->file('adjunto_pago');
-                    $nombre =  'adjunto_pago_'.$ingreso->nro.'.'.$file->getClientOriginalExtension();
-                    Storage::disk('documentos')->put($nombre, \File::get($file));
-                    $ingreso->adjunto_pago = $nombre;
-
-                    if(in_array($file->getMimeType(), $ext_permitidas)){
-                        switch($file->getMimeType()){
-                            case 'image/jpeg':
-                            $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                            break;
-                            case 'image/png':
-                            $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                            break;
-                            case 'image/gif':
-                            $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                            break;
-                        }
-                        $x = imagesx($imagen);
-                        $y = imagesy($imagen);
-
-                        if($x <= $xmax && $y <= $ymax){
-                            switch($file->getMimeType()){
-                                case 'image/jpeg':
-                                imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                                break;
-                                case 'image/png':
-                                imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                                break;
-                                case 'image/gif':
-                                imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                                break;
-                            }
-                        }else{
-                            if($x >= $y) {
-                                $nuevax = $xmax;
-                                $nuevay = $nuevax * $y / $x;
-                            }else{
-                                $nuevay = $ymax;
-                                $nuevax = $x / $y * $nuevay;
-                            }
-                            $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                            imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                            switch($file->getMimeType()){
-                                case 'image/jpeg':
-                                imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 100);
-                                break;
-                                case 'image/png':
-                                imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 100);
-                                break;
-                                case 'image/gif':
-                                imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 100);
-                                break;
-                            }
-                        }
+                if ($request->file('adjunto_pago')) {
+                    $nombre = $this->subirAdjunto($request->file('adjunto_pago'), $ingreso);
+                    if ($nombre) {
+                        $ingreso->adjunto_pago = $nombre;
+                        $ingreso->save();
                     }
-
-                    $ingreso->save();
                 }
 
                 // // DB::commit();
@@ -1595,6 +1542,14 @@ class IngresosController extends Controller
         $ingreso->anticipo = 1;
         $ingreso->valor_anticipo = $request->valor_recibido;
         $ingreso->save();
+
+        if ($request->file('adjunto_pago')) {
+            $nombre = $this->subirAdjunto($request->file('adjunto_pago'), $ingreso);
+            if ($nombre) {
+                $ingreso->adjunto_pago = $nombre;
+                $ingreso->save();
+            }
+        }
 
         $impuesto = Impuesto::where('porcentaje',0)->first();
 
@@ -2038,6 +1993,14 @@ class IngresosController extends Controller
         $ingreso->valor_anticipo = $request->valor_recibido;
         $ingreso->save();
 
+        if ($request->file('adjunto_pago')) {
+            $nombre = $this->subirAdjunto($request->file('adjunto_pago'), $ingreso);
+            if ($nombre) {
+                $ingreso->adjunto_pago = $nombre;
+                $ingreso->save();
+            }
+        }
+
         $impuesto = Impuesto::where('porcentaje',0)->first();
 
         //Registramos el ingreso de anticipo en una sola cuenta del puc.
@@ -2280,6 +2243,14 @@ class IngresosController extends Controller
             $ingreso->updated_by = Auth::user()->id;
             $ingreso->forma_pago = $request->forma_pago;
             $ingreso->save();
+
+            if ($request->file('adjunto_pago')) {
+                $nombre = $this->subirAdjunto($request->file('adjunto_pago'), $ingreso);
+                if ($nombre) {
+                    $ingreso->adjunto_pago = $nombre;
+                    $ingreso->save();
+                }
+            }
 
             //Si el tipo de ingreso es de facturas de venta
             if ($ingreso->tipo==1) {
@@ -4586,5 +4557,45 @@ class IngresosController extends Controller
             ->exists();
             
         return response()->json(['pago_emitir' => $pago_emitir]);
+    }
+
+    private function subirAdjunto($file, $ingreso)
+    {
+        if (!$file) {
+            return null;
+        }
+
+        $nombre = 'adjunto_pago_' . $ingreso->nro . '.' . $file->getClientOriginalExtension();
+        $extPermitidas = ['jpeg', 'jpg', 'png', 'gif'];
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        if (in_array($ext, $extPermitidas)) {
+            try {
+                $tempPath = $file->getRealPath();
+                $image = Image::make($tempPath);
+                if ($image->width() > 1080 || $image->height() > 720) {
+                    $image->resize(1080, 720, function ($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize();
+                    })->save($tempPath);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('ingresos: redimensionar falló (' . $nombre . '): ' . $e->getMessage());
+            }
+        }
+
+        try {
+            app(ContaboS3Service::class)->upload(
+                env('ADJUNTOS_FOLDER', 'adjuntos'),
+                $file,
+                $nombre,
+                'public-read'
+            );
+            \Cache::forget(\App\Http\Controllers\ContaboAssetController::cacheKey(env('ADJUNTOS_FOLDER', 'adjuntos'), $nombre));
+            return $nombre;
+        } catch (\Throwable $e) {
+            Log::error('ingresos: subir a Contabo falló (' . $nombre . '): ' . $e->getMessage());
+            return null;
+        }
     }
 }
