@@ -14,7 +14,7 @@ class ContaboAssetController extends Controller
     // PNG 1x1 totalmente transparente (43 bytes). Sirve como placeholder
     // neutro cuando la empresa no tiene logo cargado — se estira al tamaño
     // del <img> sin mostrar marca ajena.
-    const TRANSPARENT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwAEhgJ/lK+jcQAAAABJRU5ErkJggg==';
+    const TRANSPARENT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=';
 
     public static function cacheKey(string $folder, string $filename): string
     {
