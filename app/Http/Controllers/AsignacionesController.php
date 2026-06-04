@@ -117,562 +117,48 @@ class AsignacionesController extends Controller
         $digital->nro = ContratoDigital::count() + 1;
         $cliente = Contacto::find($request->id);
 
-        try {
+        $digital->fecha_firma = date('Y-m-d');
 
-            $digital->fecha_firma = date('Y-m-d');
-            $file = $request->file('documento');
-            $nombre =  $idContrato . 'doc_' . $cliente->nit . '.' . $file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->documento = $nombre;
-
-        } catch (\Exception $e) {
-            // Manejar el error, por ejemplo, registrar un mensaje de error o mostrarlo al usuario.
-            \Log::error($e->getMessage());
+        // Documento principal: campo requerido, ya validado arriba.
+        $nombreDoc = $this->moverYRedimensionar($request->file('documento'), $idContrato, $cliente, 'doc_');
+        if ($nombreDoc !== null) {
+            $digital->documento = $nombreDoc;
         }
 
-        //archivos.
-        $xmax = 1080;
-        $ymax = 720;
-
-        if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-            switch($file->getClientOriginalExtension()) {
-                case 'jpeg':
-                    $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                    break;
-                case 'png':
-                    $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                    break;
-                case 'gif':
-                    $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                    break;
-            }
-
-            $x = imagesx($imagen);
-            $y = imagesy($imagen);
-
-            if($x <= $xmax && $y <= $ymax) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                        break;
-                    case 'png':
-                        imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                        break;
-                    case 'gif':
-                        imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                        break;
-                }
-            } else {
-                if($x >= $y) {
-                    $nuevax = $xmax;
-                    $nuevay = $nuevax * $y / $x;
-                } else {
-                    $nuevay = $ymax;
-                    $nuevax = $x / $y * $nuevay;
-                }
-                $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                        break;
-                    case 'png':
-                        imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                        break;
-                    case 'gif':
-                        imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                        break;
+        // Imágenes opcionales imgA..imgH siguen el mismo patrón.
+        $imagenesOpcionales = [
+            'imgA' => 'imgA_',
+            'imgB' => 'imgB_',
+            'imgC' => 'imgC_',
+            'imgD' => 'imgD_',
+            'imgE' => 'imgE_',
+            'imgF' => 'imgF_',
+            'imgG' => 'imgG_',
+            'imgH' => 'imgH_',
+        ];
+        foreach ($imagenesOpcionales as $campo => $prefix) {
+            if ($request->file($campo)) {
+                $nombre = $this->moverYRedimensionar($request->file($campo), $idContrato, $cliente, $prefix);
+                if ($nombre !== null) {
+                    $digital->$campo = $nombre;
                 }
             }
         }
 
-        if($request->file('imgA')) {
-            $file = $request->file('imgA');
-            $nombre =  $idContrato.'imgA_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgA = $nombre;
-
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
+        // Audio: solo se mueve, no se procesa como imagen.
+        if ($request->file('adjunto_audio')) {
+            $audio = $request->file('adjunto_audio');
+            $nombreAudio = $idContrato.'adjunto_audio'.$cliente->nit.'.'.$audio->getClientOriginalExtension();
+            $rutaAudio = public_path('/adjuntos/documentos/');
+            try {
+                if (!is_dir($rutaAudio)) {
+                    @mkdir($rutaAudio, 0755, true);
                 }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
+                $audio->move($rutaAudio, $nombreAudio);
+                $digital->adjunto_audio = $nombreAudio;
+            } catch (\Throwable $e) {
+                \Log::error('asignaciones: move adjunto_audio falló: '.$e->getMessage());
             }
-        }
-
-
-        if($request->file('imgB')) {
-            $file = $request->file('imgB');
-            $nombre =  $idContrato.'imgB_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgB = $nombre;
-
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('imgC')) {
-            $file = $request->file('imgC');
-            $nombre =  $idContrato.'imgC_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgC = $nombre;
-
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('imgD')) {
-            $file = $request->file('imgD');
-            $nombre =  $idContrato.'imgD_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgD = $nombre;
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('imgE')) {
-            $file = $request->file('imgE');
-            $nombre =  $idContrato.'imgE_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgE = $nombre;
-
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('imgF')) {
-            $file = $request->file('imgF');
-            $nombre =  $idContrato.'imgF_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgF = $nombre;
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('imgG')) {
-            $file = $request->file('imgG');
-            $nombre =  $idContrato.'imgG_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgG = $nombre;
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-        }
-
-        if($request->file('adjunto_audio')){
-            $file = $request->file('adjunto_audio');
-            $nombre =  $idContrato.'adjunto_audio'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->adjunto_audio = $nombre;
-        }
-
-        if($request->file('imgH')) {
-
-            $file = $request->file('imgH');
-            $nombre =  $idContrato.'imgH_'.$cliente->nit.'.'.$file->getClientOriginalExtension();
-            $ruta = public_path('/adjuntos/documentos/');
-            $file->move($ruta, $nombre);
-            $digital->imgH = $nombre;
-
-            if(in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                switch($file->getClientOriginalExtension()) {
-                    case 'jpeg':
-                        $imagen = imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'png':
-                        $imagen = imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                    case 'gif':
-                        $imagen = imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre);
-                        break;
-                }
-
-                $x = imagesx($imagen);
-                $y = imagesy($imagen);
-
-                if($x <= $xmax && $y <= $ymax) {
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg(imagecreatefromjpeg(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'png':
-                            imagepng(imagecreatefrompng(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                        case 'gif':
-                            imagegif(imagecreatefromgif(public_path('/adjuntos/documentos').'/'.$nombre), public_path('/adjuntos/documentos').'/'.$nombre, 5);
-                            break;
-                    }
-                } else {
-                    if($x >= $y) {
-                        $nuevax = $xmax;
-                        $nuevay = $nuevax * $y / $x;
-                    } else {
-                        $nuevay = $ymax;
-                        $nuevax = $x / $y * $nuevay;
-                    }
-                    $img2 = imagecreatetruecolor($nuevax, $nuevay);
-                    imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
-                    switch($file->getClientOriginalExtension()) {
-                        case 'jpeg':
-                            imagejpeg($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                        case 'png':
-                            imagepng($img2, public_path('/adjuntos/documentos').'/'.$nombre, 9);
-                            break;
-                        case 'gif':
-                            imagegif($img2, public_path('/adjuntos/documentos').'/'.$nombre, 90);
-                            break;
-                    }
-                }
-            }
-
         }
 
         $digital->save();
@@ -721,40 +207,57 @@ class AsignacionesController extends Controller
             }
 
             $campos_imagen = ['documento', 'imgA', 'imgB', 'imgC', 'imgD', 'imgE', 'imgF', 'imgG', 'imgH'];
+            $ruta = public_path('/adjuntos/documentos/');
 
             foreach ($campos_imagen as $campo) {
                 if ($request->file($campo)) {
                     $file = $request->file($campo);
-                    // Use a unique name: contrato_id + field_name + nit + extension
-                    $nombre = $digital->contrato_id . $campo . '_' . $digital->cliente->nit . '.' . $file->getClientOriginalExtension();
-                    $ruta = public_path('/adjuntos/documentos/');
-                    $file->move($ruta, $nombre);
-                    $digital->$campo = $nombre;
+                    $ext = $file->getClientOriginalExtension();
+                    $nombre = $digital->contrato_id . $campo . '_' . $digital->cliente->nit . '.' . $ext;
 
-                    // Resize logic (simplified version of original logic to ensure images aren't massive)
-                    if (in_array($file->getClientOriginalExtension(), $ext_permitidas)) {
-                        $sourcePath = $ruta . '/' . $nombre;
-                        $image = null;
-                        switch ($file->getClientOriginalExtension()) {
-                            case 'jpeg': $image = imagecreatefromjpeg($sourcePath); break;
-                            case 'png': $image = imagecreatefrompng($sourcePath); break;
-                            case 'gif': $image = imagecreatefromgif($sourcePath); break;
+                    try {
+                        if (!is_dir($ruta)) {
+                            @mkdir($ruta, 0755, true);
                         }
+                        $file->move($ruta, $nombre);
+                        $digital->$campo = $nombre;
+                    } catch (\Throwable $e) {
+                        \Log::error('asignaciones update: move '.$campo.' falló: '.$e->getMessage());
+                        continue;
+                    }
 
-                        if ($image) {
-                            imagejpeg($image, $sourcePath, 50); // Compress to 50% quality as per request to not delete images but save them
-                            imagedestroy($image);
+                    if (in_array($ext, $ext_permitidas) && file_exists($ruta . $nombre)) {
+                        try {
+                            $sourcePath = $ruta . $nombre;
+                            $image = null;
+                            switch ($ext) {
+                                case 'jpeg': $image = @imagecreatefromjpeg($sourcePath); break;
+                                case 'png':  $image = @imagecreatefrompng($sourcePath); break;
+                                case 'gif':  $image = @imagecreatefromgif($sourcePath); break;
+                            }
+                            if ($image) {
+                                imagejpeg($image, $sourcePath, 50);
+                                imagedestroy($image);
+                            }
+                        } catch (\Throwable $e) {
+                            \Log::error('asignaciones update: recomprimir '.$campo.' falló: '.$e->getMessage());
                         }
                     }
                 }
             }
 
-            if($request->file('adjunto_audio')){
-                $file = $request->file('adjunto_audio');
-                $nombre =  $digital->contrato_id.'adjunto_audio'.$digital->cliente->nit.'.'.$file->getClientOriginalExtension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
-                $digital->adjunto_audio = $nombre;
+            if ($request->file('adjunto_audio')) {
+                $audio = $request->file('adjunto_audio');
+                $nombreAudio = $digital->contrato_id.'adjunto_audio'.$digital->cliente->nit.'.'.$audio->getClientOriginalExtension();
+                try {
+                    if (!is_dir($ruta)) {
+                        @mkdir($ruta, 0755, true);
+                    }
+                    $audio->move($ruta, $nombreAudio);
+                    $digital->adjunto_audio = $nombreAudio;
+                } catch (\Throwable $e) {
+                    \Log::error('asignaciones update: move adjunto_audio falló: '.$e->getMessage());
+                }
             }
 
             $digital->save();
@@ -997,5 +500,85 @@ class AsignacionesController extends Controller
             ]);
         }
         return response()->json(['success' => false, 'text' => 'Algo falló, intente nuevamente', 'type' => 'error']);
+    }
+
+    /**
+     * Mueve un archivo subido a public/adjuntos/documentos/ y, si es imagen
+     * (jpeg/png/gif), la redimensiona in-place. Crea la carpeta si no existe.
+     * Es tolerante a fallos: ante cualquier error de filesystem o de GD,
+     * loguea y sigue — nunca tira excepción a quien llama. Retorna el nombre
+     * del archivo guardado, o null si ni siquiera el move pudo hacerse.
+     *
+     * $prefix se concatena entre $idContrato y $cliente->nit, por ejemplo
+     * 'doc_', 'imgA_', 'imgB_'.
+     */
+    private function moverYRedimensionar($file, $idContrato, $cliente, $prefix, $xmax = 1080, $ymax = 720)
+    {
+        $extPermitidas = ['jpeg', 'png', 'gif'];
+        $ext = $file->getClientOriginalExtension();
+        $nombre = $idContrato . $prefix . $cliente->nit . '.' . $ext;
+        $ruta = public_path('/adjuntos/documentos/');
+
+        try {
+            if (!is_dir($ruta)) {
+                @mkdir($ruta, 0755, true);
+            }
+            $file->move($ruta, $nombre);
+        } catch (\Throwable $e) {
+            \Log::error('asignaciones: move falló para '.$nombre.': '.$e->getMessage());
+            return null;
+        }
+
+        $rutaArchivo = $ruta . $nombre;
+
+        if (!in_array($ext, $extPermitidas) || !file_exists($rutaArchivo)) {
+            return $nombre;
+        }
+
+        try {
+            $imagen = null;
+            switch ($ext) {
+                case 'jpeg': $imagen = @imagecreatefromjpeg($rutaArchivo); break;
+                case 'png':  $imagen = @imagecreatefrompng($rutaArchivo); break;
+                case 'gif':  $imagen = @imagecreatefromgif($rutaArchivo); break;
+            }
+
+            if (!$imagen) {
+                \Log::warning('asignaciones: imagecreatefrom* falló para '.$rutaArchivo);
+                return $nombre;
+            }
+
+            $x = imagesx($imagen);
+            $y = imagesy($imagen);
+
+            if ($x <= $xmax && $y <= $ymax) {
+                switch ($ext) {
+                    case 'jpeg': imagejpeg($imagen, $rutaArchivo, 5); break;
+                    case 'png':  imagepng($imagen, $rutaArchivo, 5); break;
+                    case 'gif':  imagegif($imagen, $rutaArchivo); break;
+                }
+            } else {
+                if ($x >= $y) {
+                    $nuevax = $xmax;
+                    $nuevay = $nuevax * $y / $x;
+                } else {
+                    $nuevay = $ymax;
+                    $nuevax = $x / $y * $nuevay;
+                }
+                $img2 = imagecreatetruecolor($nuevax, $nuevay);
+                imagecopyresized($img2, $imagen, 0, 0, 0, 0, floor($nuevax), floor($nuevay), $x, $y);
+                switch ($ext) {
+                    case 'jpeg': imagejpeg($img2, $rutaArchivo, 90); break;
+                    case 'png':  imagepng($img2, $rutaArchivo, 9); break;
+                    case 'gif':  imagegif($img2, $rutaArchivo); break;
+                }
+                imagedestroy($img2);
+            }
+            imagedestroy($imagen);
+        } catch (\Throwable $e) {
+            \Log::error('asignaciones: redimensionar falló para '.$rutaArchivo.': '.$e->getMessage());
+        }
+
+        return $nombre;
     }
 }
