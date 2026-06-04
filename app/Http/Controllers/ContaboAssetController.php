@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ContaboS3Service;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -10,18 +11,23 @@ class ContaboAssetController extends Controller
 {
     const MISSING_SENTINEL = '__MISSING__';
 
+    // PNG 1x1 totalmente transparente (43 bytes). Sirve como placeholder
+    // neutro cuando la empresa no tiene logo cargado — se estira al tamaño
+    // del <img> sin mostrar marca ajena.
+    const TRANSPARENT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwAEhgJ/lK+jcQAAAABJRU5ErkJggg==';
+
     public static function cacheKey(string $folder, string $filename): string
     {
         return 'contabo:asset:'.trim($folder, '/').'/'.ltrim($filename, '/');
     }
 
     /**
-     * Devuelve un redirect 302. Si el objeto existe en Contabo, redirige a la
-     * URL firmada (cacheada). Si no existe (o falla la consulta), redirige a un
-     * placeholder local — así nunca quedan íconos rotos cuando la empresa no
-     * tiene logo cargado todavía.
+     * Si el objeto existe en Contabo redirige (302) a la URL firmada (cacheada).
+     * Si no existe (o falla la consulta) devuelve un PNG 1x1 transparente — así
+     * nunca se muestra un logo de otra empresa como placeholder mientras la
+     * empresa actual no haya subido el suyo.
      */
-    public function show(string $folder, string $filename, ContaboS3Service $s3): RedirectResponse
+    public function show(string $folder, string $filename, ContaboS3Service $s3)
     {
         $cached = Cache::get(self::cacheKey($folder, $filename));
 
@@ -30,7 +36,7 @@ class ContaboAssetController extends Controller
         }
 
         if ($cached === self::MISSING_SENTINEL) {
-            return redirect()->away(asset('images/'.$this->fallbackFor($filename)), 302);
+            return $this->transparentPng();
         }
 
         return redirect()->away($cached, 302);
@@ -53,12 +59,11 @@ class ContaboAssetController extends Controller
         return self::MISSING_SENTINEL;
     }
 
-    private function fallbackFor(string $filename): string
+    private function transparentPng(): Response
     {
-        $base = strtolower(basename($filename));
-        if (strpos($base, 'favicon') !== false) {
-            return 'favicon2.png';
-        }
-        return 'logo1.png';
+        return new Response(base64_decode(self::TRANSPARENT_PNG_BASE64), 200, [
+            'Content-Type'  => 'image/png',
+            'Cache-Control' => 'public, max-age=120',
+        ]);
     }
 }
