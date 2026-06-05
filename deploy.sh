@@ -80,8 +80,31 @@ for dir in clientes/*/; do
   esac
 
   echo "  -> ${client}  (${domain})"
+
+  # Preservar los logs del contenedor anterior: hasta ahora storage/logs vivía
+  # en la capa efímera y se perdía al recrear. Los copiamos a un tmp y, tras
+  # levantar el contenedor nuevo (que ya monta el volumen 'logs' persistente),
+  # los restauramos para que el módulo de Logs no aparezca vacío tras el deploy.
+  old_cid="$(docker compose -p "$client" -f docker-compose.client.yml ps -q app 2>/dev/null || true)"
+  tmp_logs=""
+  if [ -n "$old_cid" ]; then
+    tmp_logs="$(mktemp -d)"
+    docker cp "${old_cid}:/var/www/html/storage/logs/." "$tmp_logs/" 2>/dev/null || true
+  fi
+
   CLIENT="$client" DOMAIN="$domain" ASSET_URL="$asset_url" \
     docker compose -p "$client" -f docker-compose.client.yml up -d --force-recreate
+
+  if [ -n "$tmp_logs" ] && [ -n "$(ls -A "$tmp_logs" 2>/dev/null)" ]; then
+    new_cid="$(docker compose -p "$client" -f docker-compose.client.yml ps -q app)"
+    if [ -n "$new_cid" ]; then
+      docker cp "$tmp_logs/." "${new_cid}:/var/www/html/storage/logs/" 2>/dev/null || true
+      docker compose -p "$client" -f docker-compose.client.yml exec -T app \
+        chown -R www-data:www-data /var/www/html/storage/logs 2>/dev/null || true
+      echo "     logs preservados del contenedor anterior"
+    fi
+  fi
+  [ -n "$tmp_logs" ] && rm -rf "$tmp_logs"
 done
 
 echo "==> Listo. Clientes corriendo:"
