@@ -203,6 +203,7 @@ class BancosController extends Controller
     }
 
     public function show($id){
+
         $this->getAllPermissions(Auth::user()->id);
         $banco = Banco::where('empresa',Auth::user()->empresa)->where('nro', $id)->first();
         if ($banco) {
