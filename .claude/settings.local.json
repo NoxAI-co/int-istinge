@@ -47,7 +47,8 @@
       "Bash(sed -n '/protected \\\\$signature/,/public function handle/p' app/Console/Commands/UpdateWhatsAppMessageStatus.php)",
       "Bash(grep -n 'class Factura\\\\|protected $table' app/Factura.php)",
       "Bash(grep -n 'adjuntos/documentos/'\\\\''.$contrato->adjunto' resources/views/contratos/show.blade.php resources/views/contactos/show.blade.php)",
-      "Bash(grep -n 'public_path\\('\\\\''/adjuntos\\\\|->move\\($ruta' app/Http/Controllers/RadicadosController.php)"
+      "Bash(grep -n 'public_path\\('\\\\''/adjuntos\\\\|->move\\($ruta' app/Http/Controllers/RadicadosController.php)",
+      "Bash(sh -n docker/start.sh)"
     ]
   }
 }
