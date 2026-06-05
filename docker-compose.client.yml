@@ -44,6 +44,7 @@ services:
     volumes:
       - storage:/var/www/html/storage/app     # archivos que sube/genera el cliente
       - adjuntos:/var/www/html/public/adjuntos
+      - logs:/var/www/html/storage/logs        # logs persistentes (los lee el módulo de Logs)
 
 networks:
   web:
@@ -54,3 +55,4 @@ networks:
 volumes:
   storage:
   adjuntos:
+  logs:

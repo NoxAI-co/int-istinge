@@ -49,8 +49,11 @@ services:
       # Persistir lo que el cliente sube/escribe (no debe vivir solo dentro del contenedor)
       - app-storage:/var/www/html/storage/app
       - app-adjuntos:/var/www/html/public/adjuntos
+      # Persistir los logs para que sobrevivan reinicios y el módulo de Logs los muestre
+      - app-logs:/var/www/html/storage/logs
 
 volumes:
   mysql-data:
   app-storage:
   app-adjuntos:
+  app-logs:

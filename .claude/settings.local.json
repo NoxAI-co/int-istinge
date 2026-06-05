@@ -35,7 +35,10 @@
       "Bash(chmod +x *)",
       "Bash(bash -n reset-client-db.sh)",
       "Bash(git rebase *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(docker compose *)",
+      "Bash(echo \"exit yml: $?\")",
+      "Bash(python3 -c \"import yaml,sys; yaml.safe_load\\(open\\('docker-compose.yml'\\)\\); yaml.safe_load\\(open\\('docker-compose.client.yml'\\)\\); print\\('YAML OK ambos'\\)\")"
     ]
   }
 }
