@@ -1593,22 +1593,15 @@ class IngresosController extends Controller
             abort(404, 'Ingreso no encontrado');
         }
 
-        // 3️⃣ Generar nombre y rutas relativas
+        // 3️⃣ Nombre del archivo y carpeta en Contabo (S3). Ya no se escribe en
+        //    public/ (no es escribible en el contenedor -> "mkdir: Permission denied").
         $fileName = 'Ingreso_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $ingreso->nro) . '.pdf';
-        $folderPath = public_path('documentos_meta');
-        $storagePath = $folderPath . '/' . $fileName;
+        $folder   = 'documentos_meta';
+        $contabo  = app(ContaboS3Service::class);
 
-        // 4️⃣ Crear carpeta si no existe
-        if (!file_exists($folderPath)) {
-            mkdir($folderPath, 0775, true);
-        }
-
-        // 5️⃣ Si ya existe, devolver directamente
-        if (file_exists($storagePath)) {
-            return response()->file($storagePath, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
-            ]);
+        // 5️⃣ Si ya está cacheado en Contabo, servirlo vía URL firmada
+        if ($contabo->exists($folder, $fileName)) {
+            return redirect($contabo->signedUrl($folder, $fileName));
         }
 
         // 5️⃣ Generar el PDF en binario
@@ -1690,11 +1683,17 @@ class IngresosController extends Controller
         $pdf->setPaper($paper_size, 'portrait');
         $ingresoPDF = $pdf->output();
 
-        // 6️⃣ Guardar el archivo directamente apuntando al directorio público
-        file_put_contents($storagePath, $ingresoPDF);
+        // 6️⃣ Subir el PDF a Contabo (S3) en vez de escribir en public/
+        $contabo->client()->putObject([
+            'Bucket'      => $contabo->bucket(),
+            'Key'         => $contabo->key($folder, $fileName),
+            'Body'        => $ingresoPDF,
+            'ACL'         => 'private',
+            'ContentType' => 'application/pdf',
+        ]);
 
-        // 8️⃣ Retornar el archivo directamente
-        return response()->file($storagePath, [
+        // 8️⃣ Retornar el PDF directamente desde memoria
+        return response($ingresoPDF, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $fileName . '"',
         ]);
@@ -1769,23 +1768,10 @@ class IngresosController extends Controller
         $token = config('app.key');
         $this->getIngresoTirillaTemp($nro, $token);
 
-        // Asegurar que el archivo fue generado y accesible
+        // El PDF ya quedó subido a Contabo por getIngresoTirillaTemp(). Si la
+        // plantilla usa DOCUMENT, más abajo lo descargamos a un temporal local
+        // (uploadMedia de Meta requiere una ruta de archivo).
         $fileName = 'Ingreso_' . preg_replace('/[^A-Za-z0-9\-\_]/', '', $ingreso->nro) . '.pdf';
-        $storagePath = public_path('documentos_meta/' . $fileName);
-
-        // Esperar hasta que el archivo exista (máx. 5 intentos)
-        $attempts = 0;
-        while (!file_exists($storagePath) && $attempts < 5) {
-            usleep(300000); // 0.3 segundos
-            $attempts++;
-        }
-
-        if (!file_exists($storagePath)) {
-            return back()->with('error', 'No se pudo generar el archivo PDF temporal.');
-        }
-
-        // Generar la URL pública accesible
-        $urlDoc = url('documentos_meta/' . $fileName);
 
         // ============================================================
         // 📦 CONSTRUIR BODY PARA META
@@ -1851,12 +1837,30 @@ class IngresosController extends Controller
         $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
         if ($plantilla->body_header === 'DOCUMENT') {
+            // uploadMedia de Meta necesita una ruta local: descargamos el PDF que
+            // getIngresoTirillaTemp ya dejó en Contabo a un temporal del sistema
+            // (sys_get_temp_dir() siempre es escribible, a diferencia de public/).
+            $contabo = app(ContaboS3Service::class);
+            $storagePath = tempnam(sys_get_temp_dir(), 'tirilla_') . '.pdf';
+            try {
+                $contabo->client()->getObject([
+                    'Bucket' => $contabo->bucket(),
+                    'Key'    => $contabo->key('documentos_meta', $fileName),
+                    'SaveAs' => $storagePath,
+                ]);
+            } catch (\Throwable $e) {
+                @unlink($storagePath);
+                return back()->with('error', 'No se pudo obtener el PDF de la tirilla desde el almacenamiento.');
+            }
+
             // Subir PDF a Meta en vez de pasar un link
             $mediaId = $metaService->uploadMedia(
                 $instance->phone_number_id,
                 $storagePath,
                 'application/pdf'
             );
+
+            @unlink($storagePath); // ya subido a Meta, limpiamos el temporal
 
             if (!$mediaId) {
                 return back()->with('error', 'No se pudo subir el documento PDF de la tirilla a Meta.');
