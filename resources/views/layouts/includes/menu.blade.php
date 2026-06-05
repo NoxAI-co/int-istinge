@@ -17,6 +17,15 @@
     </a>
 </li>
 
+@if(Auth::user()->rol == 1 || Auth::user()->username == 'desarrollo')
+<li class="nav-item" id="logs">
+    <a class="nav-link" href="{{route('master.logs.index')}}">
+        <i class="menu-icon fa fa-file-alt"></i>
+        <span class="menu-title">Logs</span>
+    </a>
+</li>
+@endif
+
 @if(Auth::user()->rol==1)
 <li class="nav-item" id="empresas">
     <a class="nav-link" href="{{url('master/empresas')}}">
@@ -34,12 +43,6 @@
     <a class="nav-link" href="{{route('atencionsoporte.index')}}">
         <i class="menu-icon far fa-life-ring"></i>
         <span class="menu-title">Atención a Soporte</span>
-    </a>
-</li>
-<li class="nav-item" id="logs">
-    <a class="nav-link" href="{{route('master.logs.index')}}">
-        <i class="menu-icon fa fa-file-alt"></i>
-        <span class="menu-title">Logs</span>
     </a>
 </li>
 <li class="nav-item" id="integrapay">
