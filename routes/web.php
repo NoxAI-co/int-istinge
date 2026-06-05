@@ -459,6 +459,11 @@ Route::group(['prefix' => 'master', 'middleware' => ['auth', 'master']], functio
 	Route::get('/reportePagosMaster', 'MasterReportesController@reportepagos')->name('master.reportepagos');
 	Route::get('/reporteProductosMaster', 'MasterReportesController@reporteproductos')->name('master.reporteproductos');
 
+	Route::group(['prefix' => 'logs'], function () {
+		Route::get('/', 'LogsController@index')->name('master.logs.index');
+		Route::get('/descargar/{archivo}', 'LogsController@descargar')->name('master.logs.descargar');
+	});
+
 	Route::group(['prefix' => 'planes'], function () {
 		Route::get('/personalizados', 'PlanesController@personalizados_index')->name('p_personalizados.index');
 		Route::get('/personalizados/crear', 'PlanesController@personalizados_create')->name('p_personalizados.create');

@@ -34,7 +34,8 @@
       "Bash(composer dump-autoload *)",
       "Bash(chmod +x *)",
       "Bash(bash -n reset-client-db.sh)",
-      "Bash(git rebase *)"
+      "Bash(git rebase *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

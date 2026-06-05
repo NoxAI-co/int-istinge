@@ -36,6 +36,12 @@
         <span class="menu-title">Atención a Soporte</span>
     </a>
 </li>
+<li class="nav-item" id="logs">
+    <a class="nav-link" href="{{route('master.logs.index')}}">
+        <i class="menu-icon fa fa-file-alt"></i>
+        <span class="menu-title">Logs</span>
+    </a>
+</li>
 <li class="nav-item" id="integrapay">
     <a class="nav-link" data-toggle="collapse" href="#ui-integrapay" aria-expanded="false" aria-controls="ui-integrapay">
         <i class="menu-icon fas fa-credit-card"></i>
