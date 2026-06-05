@@ -39,7 +39,12 @@
       "Bash(docker compose *)",
       "Bash(echo \"exit yml: $?\")",
       "Bash(python3 -c \"import yaml,sys; yaml.safe_load\\(open\\('docker-compose.yml'\\)\\); yaml.safe_load\\(open\\('docker-compose.client.yml'\\)\\); print\\('YAML OK ambos'\\)\")",
-      "Bash(bash -n deploy.sh)"
+      "Bash(bash -n deploy.sh)",
+      "Bash(grep -n \"^  [a-z].*:$\\\\|services:\" docker-compose.client.yml docker-compose.yml)",
+      "Bash(bash -n scheduler-all.sh)",
+      "Bash(grep -n 'protected \\\\$signature' app/Console/Commands/UpdateWhatsAppMessageStatus.php app/Console/Commands/SyncWhatsAppMetaLogs.php)",
+      "Bash(sed -n '/protected function schedule/,/^    }/p' app/Console/Kernel.php)",
+      "Bash(sed -n '/protected \\\\$signature/,/public function handle/p' app/Console/Commands/UpdateWhatsAppMessageStatus.php)"
     ]
   }
 }
