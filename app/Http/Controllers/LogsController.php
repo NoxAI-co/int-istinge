@@ -62,6 +62,25 @@ class LogsController extends Controller
     }
 
     /**
+     * Vacía (trunca) el contenido de un archivo de log sin borrarlo.
+     */
+    public function vaciar(Request $request)
+    {
+        $archivo = basename($request->get('archivo'));
+        $ruta    = storage_path('logs') . DIRECTORY_SEPARATOR . $archivo;
+
+        if (substr($archivo, -4) !== '.log' || !File::exists($ruta)) {
+            return redirect()->route('master.logs.index')
+                ->with('error', 'El archivo de log no existe.');
+        }
+
+        File::put($ruta, '');
+
+        return redirect()->route('master.logs.index', ['archivo' => $archivo])
+            ->with('success', "El log {$archivo} se vació correctamente.");
+    }
+
+    /**
      * Descarga un archivo de log.
      */
     public function descargar($archivo)

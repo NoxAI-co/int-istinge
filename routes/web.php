@@ -462,6 +462,7 @@ Route::group(['prefix' => 'master', 'middleware' => ['auth', 'master']], functio
 	Route::group(['prefix' => 'logs'], function () {
 		Route::get('/', 'LogsController@index')->name('master.logs.index');
 		Route::get('/descargar/{archivo}', 'LogsController@descargar')->name('master.logs.descargar');
+		Route::post('/vaciar', 'LogsController@vaciar')->name('master.logs.vaciar');
 	});
 
 	Route::group(['prefix' => 'planes'], function () {

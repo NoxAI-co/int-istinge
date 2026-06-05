@@ -2,6 +2,23 @@
 
 @section('content')
 
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <div class="row">
         {{-- Listado de archivos .log --}}
         <div class="col-lg-4 grid-margin stretch-card">
@@ -52,13 +69,26 @@
         <div class="col-lg-8 grid-margin stretch-card">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="card-title">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">
+                            @if($seleccionado)
+                                Contenido: {{ $seleccionado }}
+                            @else
+                                Contenido del log
+                            @endif
+                        </h4>
                         @if($seleccionado)
-                            Contenido: {{ $seleccionado }}
-                        @else
-                            Contenido del log
+                            <form action="{{ route('master.logs.vaciar') }}" method="POST"
+                                  onsubmit="return confirm('¿Seguro que deseas vaciar el archivo {{ $seleccionado }}? Esta acción no se puede deshacer.');">
+                                @csrf
+                                <input type="hidden" name="archivo" value="{{ $seleccionado }}">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fa fa-trash-alt"></i> Vaciar log
+                                </button>
+                            </form>
                         @endif
-                    </h4>
+                    </div>
+                    <hr>
 
                     @if($seleccionado)
                         <pre style="max-height: 70vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:15px; border-radius:4px; font-size:12px; white-space:pre-wrap; word-wrap:break-word;">{{ $contenido !== '' ? $contenido : 'El archivo está vacío.' }}</pre>
