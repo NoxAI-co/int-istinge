@@ -15,6 +15,7 @@ use App\TipoEmpresa;
 use App\PlanesVelocidad;
 use App\Empresa;
 use App\Funcion;
+use App\Services\ContaboS3Service;
 use Validator;
 use Auth;
 use DB;
@@ -468,8 +469,7 @@ class RadicadosController extends Controller
 
                 $file = $request->file('adjunto');
                 $nombre = $radicado->codigo . '-' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto = $nombre;
                 $radicado->update();
@@ -489,8 +489,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_1 = $request->adjunto1;
                 $file = $request->file('adjunto1');
                 $nombre = $radicado->codigo . '-' . '1' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_1 = $nombre;
                 $radicado->update();
@@ -512,8 +511,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_2 = $request->adjunto2;
                 $file = $request->file('adjunto2');
                 $nombre = $radicado->codigo . '-' . '2' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_2 = $nombre;
                 $radicado->update();
@@ -533,8 +531,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_3 = $request->adjunto3;
                 $file = $request->file('adjunto3');
                 $nombre = $radicado->codigo . '-' . '3' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_3 = $nombre;
                 $radicado->update();
@@ -554,8 +551,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_4 = $request->adjunto4;
                 $file = $request->file('adjunto4');
                 $nombre = $radicado->codigo . '-' . '4' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_4 = $nombre;
                 $radicado->update();
@@ -575,8 +571,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_5 = $request->adjunto4;
                 $file = $request->file('adjunto5');
                 $nombre = $radicado->codigo . '-' . '5' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_5 = $nombre;
                 $radicado->update();
@@ -596,8 +591,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_6 = $request->adjunto4;
                 $file = $request->file('adjunto6');
                 $nombre = $radicado->codigo . '-' . '6' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_6 = $nombre;
                 $radicado->update();
@@ -616,8 +610,7 @@ class RadicadosController extends Controller
                 $radicado->adjunto_audio = $request->archivo_de_audio;
                 $file = $request->file('archivo_de_audio');
                 $nombre = $radicado->codigo . '-' . date('Ymd') . '.' . $file->extension();
-                $ruta = public_path('/adjuntos/documentos/');
-                $file->move($ruta, $nombre);
+                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
 
                 $radicado->adjunto_audio = $nombre;
                 $radicado->update();
@@ -957,7 +950,7 @@ class RadicadosController extends Controller
             $nestedData[] = date('d-m-Y', strtotime($movimiento->fecha));
             $nestedData[] = $movimiento->servicio()->nombre;
             $nestedData[] = '<strong><span class="text-' . $movimiento->estatus('true') . '">' . $movimiento->estatus() . '</span></strong>';
-            $nestedData[] = '<a href="' . asset('../adjuntos/documentos/' . $movimiento->adjunto) . '" target="_blank" class="btn btn-outline-success btn-sm btn-icons" style="border-radius: 50%;" title="Ver Adjunto"><i class="fas fa-eye"></i>';
+            $nestedData[] = '<a href="' . contabo_url('documentos', $movimiento->adjunto) . '" target="_blank" class="btn btn-outline-success btn-sm btn-icons" style="border-radius: 50%;" title="Ver Adjunto"><i class="fas fa-eye"></i>';
             $data[] = $nestedData;
         }
 
