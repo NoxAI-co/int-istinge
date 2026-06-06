@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\CronController;
 
 class Kernel extends ConsoleKernel
@@ -46,32 +47,63 @@ class Kernel extends ConsoleKernel
 
         // Suspender contratos con facturas vencidas según grupos de corte.
         // Cada 15 min: el método compara hora_suspension del grupo con la hora actual.
-        $schedule->call([CronController::class, 'CortarFacturas'])
+        $schedule->call($this->cronLogueado('CortarFacturas', [CronController::class, 'CortarFacturas']))
             ->name('cron-cortar-facturas')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Generar las facturas recurrentes del día. Una vez al día (00:30 Bogotá).
-        $schedule->call([CronController::class, 'CrearFactura'])
+        $schedule->call($this->cronLogueado('CrearFactura', [CronController::class, 'CrearFactura']))
             ->name('cron-crear-factura')
             ->dailyAt('00:30')
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Aviso de pago oportuno (facturas con pago_oportuno = hoy). 08:00 Bogotá.
-        $schedule->call([CronController::class, 'PagoOportuno'])
+        $schedule->call($this->cronLogueado('PagoOportuno', [CronController::class, 'PagoOportuno']))
             ->name('cron-pago-oportuno')
             ->dailyAt('08:00')
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Aviso de vencimiento (facturas con vencimiento = hoy). 08:15 Bogotá.
-        $schedule->call([CronController::class, 'PagoVencimiento'])
+        $schedule->call($this->cronLogueado('PagoVencimiento', [CronController::class, 'PagoVencimiento']))
             ->name('cron-pago-vencimiento')
             ->dailyAt('08:15')
             ->timezone('America/Bogota')
             ->withoutOverlapping();
+    }
+
+    /**
+     * Envuelve un callable de cron para dejar traza en storage/logs/cortes.log:
+     * registra inicio, fin (con resultado y duración) y cualquier excepción.
+     * El error se relanza para que withoutOverlapping/scheduler lo manejen igual.
+     *
+     * @param  string    $nombre  Etiqueta legible del job.
+     * @param  callable  $fn      La lógica a ejecutar (ej. [CronController::class, 'CortarFacturas']).
+     * @return \Closure
+     */
+    private function cronLogueado($nombre, callable $fn)
+    {
+        return function () use ($nombre, $fn) {
+            $t0 = microtime(true);
+            Log::channel('cortes')->info("[$nombre] inicio");
+
+            try {
+                $resultado = $fn();
+                Log::channel('cortes')->info("[$nombre] fin", [
+                    'resultado' => is_scalar($resultado) ? (string) $resultado : 'ok',
+                    'segundos'  => round(microtime(true) - $t0, 1),
+                ]);
+            } catch (\Throwable $e) {
+                Log::channel('cortes')->error("[$nombre] ERROR: " . $e->getMessage(), [
+                    'archivo'  => $e->getFile() . ':' . $e->getLine(),
+                    'segundos' => round(microtime(true) - $t0, 1),
+                ]);
+                throw $e;
+            }
+        };
     }
 
     /**

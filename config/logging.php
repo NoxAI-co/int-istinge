@@ -51,6 +51,14 @@ return [
             'days' => 7,
         ],
 
+        // Canal dedicado para los cron de facturación (cortar/generar/pagos).
+        // Queda en storage/logs/cortes.log y el módulo de Logs lo lista solo.
+        'cortes' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/cortes.log'),
+            'level' => 'info',
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
