@@ -9,7 +9,7 @@
 		<span aria-hidden="true">&times;</span>
 	</button>
 </div>
-@else
+@elsedoc-soporte.index
 <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
 <a href="{{route('facturasp.createSoporte')}}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nuevo Documento Soporte</a>
 @endif

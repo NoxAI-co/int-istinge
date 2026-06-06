@@ -1856,21 +1856,11 @@ class CronController extends Controller
                 ]);
             }
 
-            if (file_exists("CorteFacturas.txt")){
-                $file = fopen("CorteFacturas.txt", "a");
-                fputs($file, "-----------------".PHP_EOL);
-                fputs($file, "Fecha de Corte: ".date('Y-m-d').''. PHP_EOL);
-                fputs($file, "Contratos Deshabilitados: ".$i.''. PHP_EOL);
-                fputs($file, "-----------------".PHP_EOL);
-                fclose($file);
-            }else{
-                $file = fopen("CorteFacturas.txt", "w");
-                fputs($file, "-----------------".PHP_EOL);
-                fputs($file, "Fecha de Corte: ".date('Y-m-d').''. PHP_EOL);
-                fputs($file, "Contratos Deshabilitados: ".$i.''. PHP_EOL);
-                fputs($file, "-----------------".PHP_EOL);
-                fclose($file);
-            }
+            $logContent = "-----------------" . PHP_EOL .
+                          "Fecha de Corte: " . date('Y-m-d') . PHP_EOL .
+                          "Contratos Deshabilitados: " . $i . PHP_EOL .
+                          "-----------------";
+            \Illuminate\Support\Facades\Storage::disk('s3')->append("CorteFacturas.txt", $logContent);
 
             if(request()->fechaCorte){
                 return back();
