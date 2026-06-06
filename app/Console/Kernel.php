@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use App\Http\Controllers\CronController;
 
 class Kernel extends ConsoleKernel
 {
@@ -34,6 +35,43 @@ class Kernel extends ConsoleKernel
 
         // Sincronizar logs de WhatsApp Meta (whatsapp_messages -> log_meta) cada 15 minutos para el día actual
         $schedule->command('whatsapp:sync-meta-logs')->everyFifteenMinutes();
+
+        // ──────────────────────────────────────────────────────────────────
+        // Cron de facturación (antes eran rutas /cortarfacturas, /generarfactura,
+        // etc. que disparaba un cron externo por URL). Ahora corren dentro del
+        // contenedor de cada cliente vía `schedule:run` (scheduler-all.sh en el
+        // host, cada minuto). Como corren headless usan la BD de ese cliente y
+        // Empresa::find(1); no dependen de login. Zona horaria explícita.
+        // ──────────────────────────────────────────────────────────────────
+
+        // Suspender contratos con facturas vencidas según grupos de corte.
+        // Cada 15 min: el método compara hora_suspension del grupo con la hora actual.
+        $schedule->call([CronController::class, 'CortarFacturas'])
+            ->name('cron-cortar-facturas')
+            ->everyFifteenMinutes()
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
+
+        // Generar las facturas recurrentes del día. Una vez al día (00:30 Bogotá).
+        $schedule->call([CronController::class, 'CrearFactura'])
+            ->name('cron-crear-factura')
+            ->dailyAt('00:30')
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
+
+        // Aviso de pago oportuno (facturas con pago_oportuno = hoy). 08:00 Bogotá.
+        $schedule->call([CronController::class, 'PagoOportuno'])
+            ->name('cron-pago-oportuno')
+            ->dailyAt('08:00')
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
+
+        // Aviso de vencimiento (facturas con vencimiento = hoy). 08:15 Bogotá.
+        $schedule->call([CronController::class, 'PagoVencimiento'])
+            ->name('cron-pago-vencimiento')
+            ->dailyAt('08:15')
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
     }
 
     /**

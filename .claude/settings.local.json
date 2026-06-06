@@ -50,7 +50,11 @@
       "Bash(grep -n 'public_path\\('\\\\''/adjuntos\\\\|->move\\($ruta' app/Http/Controllers/RadicadosController.php)",
       "Bash(sh -n docker/start.sh)",
       "Bash(grep -n 'urlDoc\\\\|$storagePath' app/Http/Controllers/IngresosController.php)",
-      "Bash(grep -n 'SaveAs\\\\|putObject\\\\|getObject\\\\|response\\($ingresoPDF' app/Http/Controllers/IngresosController.php)"
+      "Bash(grep -n 'SaveAs\\\\|putObject\\\\|getObject\\\\|response\\($ingresoPDF' app/Http/Controllers/IngresosController.php)",
+      "Bash(sed -n '253,275p' app/Http/Controllers/CronController.php)",
+      "Bash(sed -n '2400,2415p' app/Http/Controllers/CronController.php)",
+      "Bash(sed -n '2549,2564p' app/Http/Controllers/CronController.php)",
+      "Bash(sed -n '253,260p;1386,1392p;2400,2410p;2549,2559p' app/Http/Controllers/CronController.php)"
     ]
   }
 }
