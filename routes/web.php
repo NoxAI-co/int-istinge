@@ -1592,6 +1592,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/estadoCliente/consulta', 'ReportesController@estadoClienteShow')->name('reportes.estadoClienteShow');
 		Route::get('/planes', 'ReportesController@planes')->name('reportes.planes');
 		Route::get('/reporte-planes', 'ReportesController@reportePlanes')->name('reportes.reportePlanes');
+		Route::get('/pasarela-pago', 'ReportesController@pasarelaPago')->name('reportes.pasarela_pago');
 
 		Route::get('/ivas', 'ReportesController@ivas')->name('reportes.ivas');
 

@@ -4028,4 +4028,40 @@ class ReportesController extends Controller
             ->with('request', $request)
             ->with('municipio', $municipio);
     }
+
+    // ─── PASARELA DE PAGO ────────────────────────────────────────────────────
+
+    public function pasarelaPago(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+        $empresa = Auth::user()->empresa;
+        $rows = [];
+        $totales = ['total' => 0, 'count' => 0];
+        
+        $empresa_data = DB::table('empresas')->where('id', $empresa)->first(['moneda']);
+        $moneda = $empresa_data->moneda ?? '$';
+        
+        // Si no hay fecha en el request, por defecto el mes actual
+        if (!$request->fecha) {
+            $month = date('m');
+            $year = date('Y');
+            $day = date("d", mktime(0,0,0, $month+1, 0, $year));
+            $request->hasta = date('d-m-Y', mktime(0,0,0, $month, $day, $year));
+            $request->fecha = date('d-m-Y', mktime(0,0,0, $month, 1, $year));
+        }
+
+        $dates = $this->setDateRequest($request);
+
+        $query = DB::table('movimientos')
+            ->where('empresa', $empresa)
+            ->where('descripcion', 'LIKE', '%Combo%')
+            ->whereBetween('fecha', [$dates['inicio'], $dates['fin']]);
+
+        $totales['total'] = (clone $query)->sum('saldo');
+        $totales['count'] = (clone $query)->count();
+
+        $rows = $query->orderBy('fecha', 'desc')->paginate(25)->appends(['fecha' => $request->fecha, 'hasta' => $request->hasta]);
+
+        return view('reportes.pasarela-pago.index', compact('rows', 'totales', 'moneda', 'request'));
+    }
 }
