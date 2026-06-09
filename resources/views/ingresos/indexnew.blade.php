@@ -236,23 +236,50 @@
 					var rows = dt.rows({ page: 'current' }).nodes();
 					$.each(rows, function (_, tr) {
 						var $tr      = $(tr);
-						var idIng    = $tr.attr('data-ingreso-id');
-						var nroOrig  = $tr.attr('data-nro-original') || '';
 						var $celda   = $tr.children('td').eq(NRO_COL_INDEX);
+
+						// Preferimos los data-attrs del <tr> (los pone setRowAttr
+						// en el controller). Como fallback, parseamos la celda:
+						// el renderer arma <a href=".../ingresos/{id}">{nro}</a>,
+						// así que el text() de la celda es el nro y el href trae
+						// el id. Esto deja al feature operativo aunque el deploy
+						// del backend todavía no haya corrido.
+						var idIng   = $tr.attr('data-ingreso-id') || '';
+						var nroOrig = $tr.attr('data-nro-original') || '';
+						if (!nroOrig) { nroOrig = $celda.text().trim(); }
+						if (!idIng) {
+							var href = $celda.find('a').attr('href') || '';
+							var m = href.match(/\/ingresos\/(\d+)/);
+							if (m) { idIng = m[1]; }
+						}
+						if (!idIng || !nroOrig) { return; }
+
 						// Guardamos el HTML original para poder restaurarlo si
 						// el usuario cancela sin guardar.
 						$celda.data('original-html', $celda.html());
-						$celda.html(
-							'<input type="number" min="0" step="1" ' +
-							'class="form-control form-control-sm nro-edit-input" ' +
-							'data-ingreso-id="' + idIng + '" ' +
-							'data-nro-original="' + nroOrig + '" ' +
-							'value="' + nroOrig + '" ' +
-							'style="max-width:120px;">'
-						);
+						// type="text" + inputmode="numeric" en lugar de
+						// type="number": evita los spinners del navegador (que
+						// comen ~20px de ancho del input y dejan visible solo
+						// los primeros 2-3 dígitos en columnas estrechas como
+						// "Nro") sin perder el teclado numérico en mobile.
+						$celda
+							.css({ 'min-width': '110px', 'padding': '4px 6px' })
+							.html(
+								'<input type="text" inputmode="numeric" pattern="[0-9]*" ' +
+								'class="form-control form-control-sm nro-edit-input" ' +
+								'data-ingreso-id="' + idIng + '" ' +
+								'data-nro-original="' + nroOrig + '" ' +
+								'value="' + nroOrig + '" ' +
+								'style="width:100%; min-width:90px; text-align:right;">'
+							);
 					});
 					$('#btn-editar-nros').addClass('d-none');
 					$('#btn-guardar-nros, #btn-cancelar-nros').removeClass('d-none');
+
+					// Ajustar el ancho de columnas del DataTable después de
+					// inyectar inputs (si no, la columna queda con el ancho
+					// calculado antes del cambio y los inputs siguen apretados).
+					tabla.DataTable().columns.adjust();
 				});
 
 				$('#btn-cancelar-nros').on('click', function () {
