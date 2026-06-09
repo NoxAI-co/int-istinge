@@ -950,7 +950,11 @@ class RadicadosController extends Controller
             $nestedData[] = date('d-m-Y', strtotime($movimiento->fecha));
             $nestedData[] = $movimiento->servicio()->nombre;
             $nestedData[] = '<strong><span class="text-' . $movimiento->estatus('true') . '">' . $movimiento->estatus() . '</span></strong>';
-            $nestedData[] = '<a href="' . contabo_url('documentos', $movimiento->adjunto) . '" target="_blank" class="btn btn-outline-success btn-sm btn-icons" style="border-radius: 50%;" title="Ver Adjunto"><i class="fas fa-eye"></i>';
+            if (!empty($movimiento->adjunto)) {
+                $nestedData[] = '<a href="' . contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $movimiento->adjunto) . '" target="_blank" class="btn btn-outline-success btn-sm btn-icons" style="border-radius: 50%;" title="Ver Adjunto"><i class="fas fa-eye"></i></a>';
+            } else {
+                $nestedData[] = '';
+            }
             $data[] = $nestedData;
         }
 
