@@ -1134,6 +1134,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/movimiento/{id}', 'IngresosController@showMovimiento')->name('ingresos.showmovimiento');
 		Route::get('/tirillawpp/{id}', 'IngresosController@tirillaWpp')->name('ingresos.tirillawpp');
 		Route::post('/preview-next-invoice', 'IngresosController@previewNextInvoice')->name('ingresos.preview_next_invoice');
+
+		// Edición masiva del campo `nro` (consecutivo del recibo) desde el index.
+		Route::post('/actualizar-nros', 'IngresosController@actualizarNros')->name('ingresos.actualizarNros');
 	});
 
 	Route::resource('recurrentes', 'RecurrentesController');

@@ -221,8 +221,94 @@ class IngresosController extends Controller
                 return auth()->user()->empresa()->moneda . " {$ingreso->parsear($ingreso->pago())}";
             })
             ->addColumn('acciones', $modoLectura ?  "" : "ingresos.acciones-ingresos")
+            // Atributos del <tr> que usa el modo "Editar Nros" del index para
+            // identificar la fila (data-ingreso-id) y para poder restaurar el
+            // valor original si el usuario cancela (data-nro-original).
+            ->setRowAttr([
+                'data-ingreso-id'   => function ($ingreso) { return $ingreso->id; },
+                'data-nro-original' => function ($ingreso) { return $ingreso->nro; },
+            ])
             ->rawColumns(['nro', 'cliente', 'comprobante_pago', 'acciones'])
             ->toJson();
+    }
+
+    /**
+     * Actualiza en bloque el campo `nro` (consecutivo del recibo de caja) de
+     * varios ingresos. Se invoca desde el botón "Editar Nros" del index, que
+     * pasa solo las filas modificadas. Scope obligatorio por empresa para que
+     * un usuario no pueda escribir ingresos de otro tenant aunque mande IDs
+     * arbitrarios desde el navegador.
+     *
+     * Espera POST con `cambios`: [{id, nro}, ...]. Devuelve JSON con cantidad
+     * de filas actualizadas. NO valida unicidad de `nro` porque el modelo no
+     * tiene unique index y el usuario puede querer corregir gaps a mano.
+     */
+    public function actualizarNros(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $cambios = $request->input('cambios', []);
+        if (!is_array($cambios) || empty($cambios)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se recibieron cambios para guardar.',
+            ], 422);
+        }
+
+        $empresaId    = Auth::user()->empresa;
+        $userId       = Auth::user()->id;
+        $actualizados = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($cambios as $cambio) {
+                if (!isset($cambio['id']) || !isset($cambio['nro'])) {
+                    continue;
+                }
+                $id  = (int) $cambio['id'];
+                $nro = trim((string) $cambio['nro']);
+                if ($id <= 0 || $nro === '' || !ctype_digit($nro)) {
+                    continue;
+                }
+
+                // Scope por empresa: bloquea ediciones cross-tenant aun si el
+                // request trae un id que no pertenece a la empresa del usuario.
+                $ingreso = Ingreso::where('id', $id)
+                    ->where('empresa', $empresaId)
+                    ->first();
+                if (!$ingreso) {
+                    continue;
+                }
+                if ((string) $ingreso->nro === $nro) {
+                    continue; // sin cambio real
+                }
+
+                $ingreso->nro        = (int) $nro;
+                $ingreso->updated_by = $userId;
+                $ingreso->save();
+                $actualizados++;
+            }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('[Ingresos actualizarNros] Error guardando cambios', [
+                'empresa' => $empresaId,
+                'user'    => $userId,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar los cambios. Revisá el log.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success'      => true,
+            'actualizados' => $actualizados,
+            'message'      => $actualizados === 0
+                ? 'No se detectaron cambios.'
+                : "Se actualizaron {$actualizados} ingreso(s).",
+        ]);
     }
 
     public function create($cliente=false, $factura=false, $banco=false){

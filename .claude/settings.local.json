@@ -57,7 +57,9 @@
       "Bash(sed -n '253,260p;1386,1392p;2400,2410p;2549,2559p' app/Http/Controllers/CronController.php)",
       "Bash(grep -nE \"function |foreach|^\\\\s*\\\\}\\\\s*$\" /Users/juanmanuel/Documents/istinge/int-istinge/app/Http/Controllers/CronController.php)",
       "Bash(awk -F: '$1 >= 1380 && $1 <= 1870')",
-      "Bash(awk -F: '$1 >= 1820 && $1 <= 1870')"
+      "Bash(awk -F: '$1 >= 1820 && $1 <= 1870')",
+      "Bash(grep -n 'fillable\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/Ingreso.php)",
+      "Bash(grep -n 'fillable\\\\|protected $table\\\\|class Ingreso' /Users/juanmanuel/Documents/istinge/int-istinge/app/Model/Ingresos/Ingreso.php)"
     ]
   }
 }

@@ -10,6 +10,27 @@
         <a href="javascript:abrirFiltrador()" class="btn btn-info btn-sm my-1" id="boton-filtrar"><i class="fas fa-search"></i>Filtrar</a>
         <a href="{{route('ingresos.create')}}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nuevo Ingreso</a>
         <a href="{{route('ingresos.importar')}}" class="btn btn-success btn-sm"><i class="fas fa-file-excel"></i> Importar Pagos</a>
+        @php
+            // Detectamos en qué posición visible está la columna `nro` para
+            // saber qué celda transformar a input cuando se entra a modo
+            // edición. Si el usuario la ocultó en "Organizar Tabla", $nroIndex
+            // queda en null y los botones de edición no se muestran.
+            $nroIndex = null;
+            foreach ($tabla as $idx => $campo) {
+                if ($campo->campo === 'nro') { $nroIndex = $idx; break; }
+            }
+        @endphp
+        @if($nroIndex !== null)
+            <button type="button" id="btn-editar-nros" class="btn btn-warning btn-sm">
+                <i class="fas fa-pen"></i> Editar Nros
+            </button>
+            <button type="button" id="btn-guardar-nros" class="btn btn-success btn-sm d-none">
+                <i class="fas fa-save"></i> Guardar cambios
+            </button>
+            <button type="button" id="btn-cancelar-nros" class="btn btn-secondary btn-sm d-none">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        @endif
     @endif
 @endsection
 
@@ -206,6 +227,107 @@
 								});
 				}, 1000);
 
+				// ── Modo "Editar Nros" ────────────────────────────────────
+				@if($nroIndex !== null)
+				const NRO_COL_INDEX = {{ $nroIndex }};
+
+				$('#btn-editar-nros').on('click', function () {
+					var dt = tabla.DataTable();
+					var rows = dt.rows({ page: 'current' }).nodes();
+					$.each(rows, function (_, tr) {
+						var $tr      = $(tr);
+						var idIng    = $tr.attr('data-ingreso-id');
+						var nroOrig  = $tr.attr('data-nro-original') || '';
+						var $celda   = $tr.children('td').eq(NRO_COL_INDEX);
+						// Guardamos el HTML original para poder restaurarlo si
+						// el usuario cancela sin guardar.
+						$celda.data('original-html', $celda.html());
+						$celda.html(
+							'<input type="number" min="0" step="1" ' +
+							'class="form-control form-control-sm nro-edit-input" ' +
+							'data-ingreso-id="' + idIng + '" ' +
+							'data-nro-original="' + nroOrig + '" ' +
+							'value="' + nroOrig + '" ' +
+							'style="max-width:120px;">'
+						);
+					});
+					$('#btn-editar-nros').addClass('d-none');
+					$('#btn-guardar-nros, #btn-cancelar-nros').removeClass('d-none');
+				});
+
+				$('#btn-cancelar-nros').on('click', function () {
+					tabla.DataTable().ajax.reload(null, false);
+					$('#btn-editar-nros').removeClass('d-none');
+					$('#btn-guardar-nros, #btn-cancelar-nros').addClass('d-none');
+				});
+
+				$('#btn-guardar-nros').on('click', function () {
+					var cambios = [];
+					$('.nro-edit-input').each(function () {
+						var $i      = $(this);
+						var nuevo   = ($i.val() || '').toString().trim();
+						var orig    = ($i.data('nro-original') || '').toString();
+						if (nuevo !== '' && nuevo !== orig) {
+							cambios.push({ id: $i.data('ingreso-id'), nro: nuevo });
+						}
+					});
+
+					if (cambios.length === 0) {
+						Swal.fire({
+							icon: 'info',
+							title: 'Sin cambios',
+							text: 'No modificaste ningún Nro.',
+							timer: 1800,
+							showConfirmButton: false
+						});
+						$('#btn-cancelar-nros').click();
+						return;
+					}
+
+					Swal.fire({
+						title: '¿Guardar cambios?',
+						text: 'Se van a actualizar ' + cambios.length + ' ingreso(s).',
+						icon: 'question',
+						showCancelButton: true,
+						confirmButtonText: 'Sí, guardar',
+						cancelButtonText: 'Cancelar'
+					}).then(function (res) {
+						if (!res.value) return;
+
+						var $btn = $('#btn-guardar-nros');
+						$btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
+
+						$.ajax({
+							url: '{{ route("ingresos.actualizarNros") }}',
+							method: 'POST',
+							data: {
+								_token: '{{ csrf_token() }}',
+								cambios: cambios
+							},
+							success: function (resp) {
+								$btn.prop('disabled', false).html('<i class="fas fa-save"></i> Guardar cambios');
+								$('#btn-guardar-nros, #btn-cancelar-nros').addClass('d-none');
+								$('#btn-editar-nros').removeClass('d-none');
+								tabla.DataTable().ajax.reload(null, false);
+								Swal.fire({
+									icon: resp.success ? 'success' : 'warning',
+									title: resp.success ? 'Listo' : 'Atención',
+									text: resp.message || 'Operación completada.',
+									timer: 2200,
+									showConfirmButton: false
+								});
+							},
+							error: function (xhr) {
+								$btn.prop('disabled', false).html('<i class="fas fa-save"></i> Guardar cambios');
+								var msg = (xhr.responseJSON && xhr.responseJSON.message)
+									? xhr.responseJSON.message
+									: 'No se pudo guardar. Reintentá.';
+								Swal.fire({ icon: 'error', title: 'Error', text: msg });
+							}
+						});
+					});
+				});
+				@endif
 
 			});
 
