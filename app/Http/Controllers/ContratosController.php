@@ -590,6 +590,54 @@ class ContratosController extends Controller
                 ->whereIn('contracts.id', $arrayContratos);
         }
 
+        if ($request->otra_opcion && $request->otra_opcion == "opcion_8") {
+
+            $contratos = Contrato::where('state', 'disabled')
+            ->orWhere('state_olt_catv',0)->where('olt_sn_mac','!=','NULL')
+            ->get();
+
+            $i = 0;
+            $arrayContratos = array();
+            foreach ($contratos as $contrato) {
+
+                $facturaContratos = DB::table('facturas_contratos')
+                    ->where('contrato_nro', $contrato->nro)->orderBy('id', 'DESC')->first();
+
+                if ($facturaContratos) {
+                    $ultFactura = Factura::Find($facturaContratos->factura_id);
+                    if ($ultFactura && $ultFactura->vencimiento > date('Y-m-d')) {
+                        array_push($arrayContratos, $contrato->id);
+                    }
+                }
+            }
+            $contratos = Contrato::select(
+                'contracts.*',
+                'contactos.id as c_id',
+                'contactos.nombre as c_nombre',
+                'contactos.apellido1 as c_apellido1',
+                'municipios.nombre as nombre_municipio',
+                'contactos.apellido2 as c_apellido2',
+                'contactos.nit as c_nit',
+                'contactos.celular as c_telefono',
+                'contactos.email as c_email',
+                'contactos.barrio as c_barrio',
+                'contactos.direccion',
+                'contactos.celular as c_celular',
+                'contactos.fk_idmunicipio',
+                'contactos.email as c_email',
+                'contactos.id as c_id',
+                'contactos.firma_isp',
+                'contracts.estrato',
+                'barrio.nombre as barrio_nombre',
+                DB::raw('(select fecha from ingresos where ingresos.cliente = contracts.client_id and ingresos.tipo = 1 LIMIT 1) AS pago')
+            )
+                ->selectRaw('INET_ATON(contracts.ip) as ipformat')
+                ->join('contactos', 'contracts.client_id', '=', 'contactos.id')
+                ->join('municipios', 'contactos.fk_idmunicipio', '=', 'municipios.id')
+                ->leftJoin('barrios as barrio', 'barrio.id', 'contactos.barrio_id')
+                ->whereIn('contracts.id', $arrayContratos);
+        }
+
         return datatables()->eloquent($contratos)
             ->editColumn('nro', function (Contrato $contrato) {
                 if ($contrato->ip) {
@@ -3834,6 +3882,22 @@ class ContratosController extends Controller
                 if ($facturaContratos) {
                     $ultFactura = Factura::find($facturaContratos->factura_id);
                     if (isset($ultFactura->estatus) && $ultFactura->estatus == 0) {
+                        array_push($arrayContratos, $contratoD->id);
+                    }
+                }
+            }
+            $contratos->whereIn('contracts.id', $arrayContratos);
+        }
+
+        if ($request->otra_opcion && $request->otra_opcion == "opcion_8") {
+            $contratosDisabled = Contrato::where('state', 'disabled')->get();
+            $arrayContratos = array();
+            foreach ($contratosDisabled as $contratoD) {
+                $facturaContratos = DB::table('facturas_contratos')
+                    ->where('contrato_nro', $contratoD->nro)->orderBy('id', 'DESC')->first();
+                if ($facturaContratos) {
+                    $ultFactura = Factura::find($facturaContratos->factura_id);
+                    if ($ultFactura && $ultFactura->vencimiento > date('Y-m-d')) {
                         array_push($arrayContratos, $contratoD->id);
                     }
                 }

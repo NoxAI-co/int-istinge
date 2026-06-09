@@ -250,6 +250,7 @@
                                 <option value="opcion_5">Contratos sin facturas</option>
                                 <option value="opcion_6">Última factura creada vencida</option>
                                 <option value="opcion_7">Contratos con emisión de factura a la DIAN al pagar deshabilitada</option>
+                                <option value="opcion_8">Contratos deshabilitados con última factura no vencida</option>
                             </select>
                         </div>
 
