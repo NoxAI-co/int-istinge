@@ -54,7 +54,10 @@
       "Bash(sed -n '253,275p' app/Http/Controllers/CronController.php)",
       "Bash(sed -n '2400,2415p' app/Http/Controllers/CronController.php)",
       "Bash(sed -n '2549,2564p' app/Http/Controllers/CronController.php)",
-      "Bash(sed -n '253,260p;1386,1392p;2400,2410p;2549,2559p' app/Http/Controllers/CronController.php)"
+      "Bash(sed -n '253,260p;1386,1392p;2400,2410p;2549,2559p' app/Http/Controllers/CronController.php)",
+      "Bash(grep -nE \"function |foreach|^\\\\s*\\\\}\\\\s*$\" /Users/juanmanuel/Documents/istinge/int-istinge/app/Http/Controllers/CronController.php)",
+      "Bash(awk -F: '$1 >= 1380 && $1 <= 1870')",
+      "Bash(awk -F: '$1 >= 1820 && $1 <= 1870')"
     ]
   }
 }
