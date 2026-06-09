@@ -59,6 +59,17 @@ return [
             'level' => 'info',
         ],
 
+        // Canal unificado para TODA la ejecución de cron jobs. Cada job logueado
+        // vía Kernel::cronLogueado() escribe inicio/fin/resultado/error acá, así
+        // que con `tail -f storage/logs/cron.log` (o desde el módulo de Logs) se
+        // ve toda la actividad del scheduler en un solo lugar, sin mezclarse con
+        // los warnings/errores del resto de la app que viven en laravel.log.
+        'cron' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/cron.log'),
+            'level' => 'info',
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

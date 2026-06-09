@@ -1856,13 +1856,13 @@ class CronController extends Controller
                 ]);
             }
 
-            // Resumen del corte en storage/logs/cortes.log (canal 'cortes' definido
-            // en config/logging.php). Antes esto iba a Storage::disk('s3') pero ese
+            // Resumen del corte en storage/logs/cron.log (canal 'cron' definido en
+            // config/logging.php). Antes esto iba a Storage::disk('s3') pero ese
             // disco usa env('AWS_DEFAULT_REGION'); en las instalaciones que ya solo
             // hablan con Contabo el .env no tiene esa variable y reventaba con
             // InvalidArgumentException ("Missing required client configuration
             // options: region"), abortando todo el cron con HTTP 500.
-            \Log::channel('cortes')->info('[CortarFacturas] resumen', [
+            \Log::channel('cron')->info('[CortarFacturas] resumen', [
                 'fecha'                   => date('Y-m-d'),
                 'contratos_deshabilitados' => $i,
             ]);

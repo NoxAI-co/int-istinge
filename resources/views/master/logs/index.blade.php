@@ -91,6 +91,16 @@
                     <hr>
 
                     @if($seleccionado)
+                        @if(!empty($truncado))
+                            <div class="alert alert-warning" role="alert">
+                                <i class="fa fa-exclamation-triangle"></i>
+                                El archivo pesa <strong>{{ $tamanoTotal }}</strong>.
+                                Solo se muestran los últimos <strong>{{ $tamanoMostrado }}</strong>
+                                (cola del log) para que el navegador no se cuelgue.
+                                Para ver el contenido completo usa el botón
+                                <i class="fa fa-download"></i> <strong>Descargar</strong>.
+                            </div>
+                        @endif
                         <pre style="max-height: 70vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:15px; border-radius:4px; font-size:12px; white-space:pre-wrap; word-wrap:break-word;">{{ $contenido !== '' ? $contenido : 'El archivo está vacío.' }}</pre>
                     @else
                         <p class="text-muted">Selecciona un archivo de la lista para ver su contenido.</p>

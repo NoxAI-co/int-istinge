@@ -19,6 +19,14 @@ class LogsController extends Controller
     }
 
     /**
+     * Máximo de bytes a renderizar inline en el navegador. Pasado este umbral
+     * sólo se muestra la cola (tail) del archivo: leer 4 MB de texto y meterlo
+     * en un único <pre> deja al navegador colgado varios segundos o devuelve
+     * una caja vacía. El log completo siempre está disponible vía "Descargar".
+     */
+    const MAX_INLINE_BYTES = 512 * 1024; // 512 KB
+
+    /**
      * Lista todos los archivos .log de la carpeta storage/logs y muestra
      * el contenido del archivo seleccionado.
      */
@@ -43,8 +51,11 @@ class LogsController extends Controller
             return strcmp($b['modificado'], $a['modificado']);
         });
 
-        $seleccionado = $request->get('archivo');
-        $contenido    = null;
+        $seleccionado  = $request->get('archivo');
+        $contenido     = null;
+        $truncado      = false;
+        $tamanoTotal   = null;
+        $tamanoMostrado = null;
 
         if ($seleccionado) {
             // Evitar que se acceda a rutas fuera de storage/logs.
@@ -52,13 +63,32 @@ class LogsController extends Controller
             $rutaArchivo  = $logPath . DIRECTORY_SEPARATOR . $seleccionado;
 
             if (substr($seleccionado, -4) === '.log' && File::exists($rutaArchivo)) {
-                $contenido = File::get($rutaArchivo);
+                $tamanoBytes = filesize($rutaArchivo);
+                $tamanoTotal = $this->formatBytes($tamanoBytes);
+
+                if ($tamanoBytes > self::MAX_INLINE_BYTES) {
+                    // Tail: nos posicionamos a MAX_INLINE_BYTES del final y
+                    // descartamos la primera línea (probablemente cortada por
+                    // la mitad) para no mostrar un registro corrupto.
+                    $fp = fopen($rutaArchivo, 'r');
+                    fseek($fp, -self::MAX_INLINE_BYTES, SEEK_END);
+                    fgets($fp);
+                    $contenido = stream_get_contents($fp);
+                    fclose($fp);
+                    $truncado       = true;
+                    $tamanoMostrado = $this->formatBytes(strlen($contenido));
+                } else {
+                    $contenido      = File::get($rutaArchivo);
+                    $tamanoMostrado = $tamanoTotal;
+                }
             } else {
                 $seleccionado = null;
             }
         }
 
-        return view('master.logs.index', compact('logs', 'seleccionado', 'contenido'));
+        return view('master.logs.index', compact(
+            'logs', 'seleccionado', 'contenido', 'truncado', 'tamanoTotal', 'tamanoMostrado'
+        ));
     }
 
     /**

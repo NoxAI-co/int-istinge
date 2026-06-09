@@ -76,7 +76,7 @@ class Kernel extends ConsoleKernel
     }
 
     /**
-     * Envuelve un callable de cron para dejar traza en storage/logs/cortes.log:
+     * Envuelve un callable de cron para dejar traza en storage/logs/cron.log:
      * registra inicio, fin (con resultado y duración) y cualquier excepción.
      * El error se relanza para que withoutOverlapping/scheduler lo manejen igual.
      *
@@ -88,16 +88,16 @@ class Kernel extends ConsoleKernel
     {
         return function () use ($nombre, $fn) {
             $t0 = microtime(true);
-            Log::channel('cortes')->info("[$nombre] inicio");
+            Log::channel('cron')->info("[$nombre] inicio");
 
             try {
                 $resultado = $fn();
-                Log::channel('cortes')->info("[$nombre] fin", [
+                Log::channel('cron')->info("[$nombre] fin", [
                     'resultado' => is_scalar($resultado) ? (string) $resultado : 'ok',
                     'segundos'  => round(microtime(true) - $t0, 1),
                 ]);
             } catch (\Throwable $e) {
-                Log::channel('cortes')->error("[$nombre] ERROR: " . $e->getMessage(), [
+                Log::channel('cron')->error("[$nombre] ERROR: " . $e->getMessage(), [
                     'archivo'  => $e->getFile() . ':' . $e->getLine(),
                     'segundos' => round(microtime(true) - $t0, 1),
                 ]);
