@@ -65,6 +65,17 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla radicados)"
   fi
+  # --- 3) factura.onepay_idempotency_key ------------------------------------
+  if table_exists "$DB" "factura"; then
+    if column_exists "$DB" "factura" "onepay_idempotency_key"; then
+      echo "    [factura.onepay_idempotency_key] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE factura ADD COLUMN onepay_idempotency_key VARCHAR(255) NULL;"
+      echo "    [factura.onepay_idempotency_key] agregada"
+    fi
+  else
+    echo "    (sin tabla factura)"
+  fi
 done
 
 echo "==> Listo."
