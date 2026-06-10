@@ -9106,24 +9106,34 @@ class FacturasController extends Controller{
      */
     public function abrirFacturasCerradasMal()
     {
-        // facturas cerradas
-        $facturasCerradas = \App\Model\Ingresos\Factura::where('estatus', 0)->get();
+        // Se obtiene la fecha de inicio desde el request o por defecto el 1 de enero del año actual
+        $fechaInicio = request('fecha_inicio', date('Y') . '-01-01');
+
+        // facturas cerradas desde la fecha indicada
+        $facturasCerradas = \App\Model\Ingresos\Factura::where('estatus', 0)
+            ->where('fecha', '>=', $fechaInicio)
+            ->get();
+        
         $abiertas = 0;
+        $idsReabiertas = [];
 
         foreach ($facturasCerradas as $factura) {
-            // Verificamos si no tiene pago asociado
-            if ($factura->pagado() == 0) {
+            // Verificamos si no tiene pago asociado (convertimos a float para prevenir problemas con nulos o strings "0.00")
+            if ((float)$factura->pagado() == 0) {
                 // actualizamos a estado 1 (abierta)
                 $factura->estatus = 1;
                 $factura->save();
                 $abiertas++;
+                $idsReabiertas[] = $factura->id; // opcionalmente la guardamos para reporte
             }
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Proceso completado.',
-            'facturas_reabiertas' => $abiertas
+            'filtro_fecha_inicio' => $fechaInicio,
+            'facturas_reabiertas_cantidad' => $abiertas,
+            'facturas_reabiertas_ids' => $idsReabiertas
         ]);
     }
 }
