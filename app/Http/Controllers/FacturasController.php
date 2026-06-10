@@ -9106,6 +9106,22 @@ class FacturasController extends Controller{
      */
     public function abrirFacturasCerradasMal()
     {
+        // ======================= DEBUG TEMPORAL =======================
+        $debugCodigo = request('debug_codigo');
+        if ($debugCodigo) {
+            $f = \App\Model\Ingresos\Factura::where('codigo', $debugCodigo)->orWhere('nro', $debugCodigo)->first();
+            return response()->json([
+                'id' => $f->id ?? null,
+                'estatus_db' => $f->estatus ?? null,
+                'fecha_db' => $f->fecha ?? null,
+                'pagado_calc' => $f ? $f->pagado() : null,
+                'notas_calc' => $f ? $f->notas_credito()->count() : null,
+                'estatus_method' => $f ? $f->estatus() : null,
+                'total_calc' => $f ? $f->total()->total : null
+            ]);
+        }
+        // ==============================================================
+
         // Se obtiene la fecha de inicio desde el request o por defecto el 1 de enero del año actual
         $fechaInicio = request('fecha_inicio', date('Y') . '-01-01');
 
