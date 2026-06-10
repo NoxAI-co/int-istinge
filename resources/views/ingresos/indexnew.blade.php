@@ -231,12 +231,28 @@
 				@if($nroIndex !== null)
 				const NRO_COL_INDEX = {{ $nroIndex }};
 
-				$('#btn-editar-nros').on('click', function () {
-					var dt = tabla.DataTable();
+				// Estado del modo edición. Como el DataTable es serverSide,
+				// cada paginación/orden vuelve a pedir los datos y redibuja la
+				// tabla, destruyendo los inputs de la página anterior. Para no
+				// perder lo editado mantenemos el estado en memoria (fuera del
+				// DOM) y lo reinyectamos en cada `draw.dt`:
+				//   - nrosEditados[id]   = valor que el usuario tiene escrito.
+				//   - nrosOriginales[id] = nro original (según backend) de cada
+				//     fila ya vista, para poder calcular qué cambió al guardar.
+				var enModoEdicion  = false;
+				var nrosEditados   = {};
+				var nrosOriginales = {};
+
+				// Convierte a input las celdas "Nro" de la página actualmente
+				// renderizada, rellenando con el valor editado si existe o con
+				// el original. Idempotente: si la celda ya tiene input, la salta.
+				function aplicarInputsNro() {
+					var dt   = tabla.DataTable();
 					var rows = dt.rows({ page: 'current' }).nodes();
 					$.each(rows, function (_, tr) {
-						var $tr      = $(tr);
-						var $celda   = $tr.children('td').eq(NRO_COL_INDEX);
+						var $tr    = $(tr);
+						var $celda = $tr.children('td').eq(NRO_COL_INDEX);
+						if ($celda.find('input.nro-edit-input').length) { return; }
 
 						// Preferimos los data-attrs del <tr> (los pone setRowAttr
 						// en el controller). Como fallback, parseamos la celda:
@@ -252,7 +268,14 @@
 							var m = href.match(/\/ingresos\/(\d+)/);
 							if (m) { idIng = m[1]; }
 						}
-						if (!idIng || !nroOrig) { return; }
+						if (!idIng || nroOrig === '') { return; }
+
+						// Registramos el original la primera vez que vemos la fila.
+						if (!(idIng in nrosOriginales)) { nrosOriginales[idIng] = nroOrig; }
+						// Valor a mostrar: lo que el usuario ya escribió (aunque
+						// haya sido en otra página) o, si no tocó esta fila, el
+						// original.
+						var valor = (idIng in nrosEditados) ? nrosEditados[idIng] : nroOrig;
 
 						// Guardamos el HTML original para poder restaurarlo si
 						// el usuario cancela sin guardar.
@@ -269,33 +292,62 @@
 								'class="form-control form-control-sm nro-edit-input" ' +
 								'data-ingreso-id="' + idIng + '" ' +
 								'data-nro-original="' + nroOrig + '" ' +
-								'value="' + nroOrig + '" ' +
+								'value="' + valor + '" ' +
 								'style="width:100%; min-width:90px; text-align:right;">'
 							);
 					});
-					$('#btn-editar-nros').addClass('d-none');
-					$('#btn-guardar-nros, #btn-cancelar-nros').removeClass('d-none');
 
 					// Ajustar el ancho de columnas del DataTable después de
 					// inyectar inputs (si no, la columna queda con el ancho
 					// calculado antes del cambio y los inputs siguen apretados).
-					tabla.DataTable().columns.adjust();
+					dt.columns.adjust();
+				}
+
+				// Cada tecleo persiste el valor en el estado en memoria, de modo
+				// que sobreviva a la paginación. Delegado en la tabla para que
+				// siga funcionando con los inputs recreados tras cada redibujado.
+				$('#tabla-ingresos').on('input', '.nro-edit-input', function () {
+					nrosEditados[$(this).data('ingreso-id')] = ($(this).val() || '').toString();
+				});
+
+				// Tras cada redibujado (paginar, ordenar, recargar) reaplicamos
+				// los inputs si seguimos en modo edición. Aquí está la clave de
+				// no perder lo editado al cambiar de página.
+				tabla.on('draw.dt', function () {
+					if (enModoEdicion) { aplicarInputsNro(); }
+				});
+
+				$('#btn-editar-nros').on('click', function () {
+					enModoEdicion = true;
+					aplicarInputsNro();
+					$('#btn-editar-nros').addClass('d-none');
+					$('#btn-guardar-nros, #btn-cancelar-nros').removeClass('d-none');
 				});
 
 				$('#btn-cancelar-nros').on('click', function () {
+					enModoEdicion  = false;
+					nrosEditados   = {};
+					nrosOriginales = {};
 					tabla.DataTable().ajax.reload(null, false);
 					$('#btn-editar-nros').removeClass('d-none');
 					$('#btn-guardar-nros, #btn-cancelar-nros').addClass('d-none');
 				});
 
 				$('#btn-guardar-nros').on('click', function () {
-					var cambios = [];
+					// Sincronizamos los inputs visibles al estado por si el
+					// usuario terminó de escribir sin disparar el evento.
 					$('.nro-edit-input').each(function () {
-						var $i      = $(this);
-						var nuevo   = ($i.val() || '').toString().trim();
-						var orig    = ($i.data('nro-original') || '').toString();
+						nrosEditados[$(this).data('ingreso-id')] = ($(this).val() || '').toString();
+					});
+
+					// Recolectamos los cambios de TODAS las páginas comparando
+					// contra el original registrado de cada fila.
+					var cambios = [];
+					$.each(nrosEditados, function (id, val) {
+						var nuevo = (val || '').toString().trim();
+						var orig  = (nrosOriginales[id] || '').toString();
 						if (nuevo !== '' && nuevo !== orig) {
-							cambios.push({ id: $i.data('ingreso-id'), nro: nuevo });
+							cambios.push({ id: id, nro: nuevo });
 						}
 					});
 
@@ -332,6 +384,11 @@
 								cambios: cambios
 							},
 							success: function (resp) {
+								// Cerramos el modo edición y limpiamos el estado:
+								// los nros ya quedaron persistidos en el backend.
+								enModoEdicion  = false;
+								nrosEditados   = {};
+								nrosOriginales = {};
 								$btn.prop('disabled', false).html('<i class="fas fa-save"></i> Guardar cambios');
 								$('#btn-guardar-nros, #btn-cancelar-nros').addClass('d-none');
 								$('#btn-editar-nros').removeClass('d-none');
