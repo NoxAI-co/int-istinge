@@ -79,7 +79,14 @@ for dir in clientes/*/; do
       ;;
   esac
 
-  echo "  -> ${client}  (${domain})"
+  # HESTIA_IP: IP del servidor Hestia que sirve la raíz del dominio (la página
+  # web del cliente). Caddy proxea ahí todo lo que NO sea /software*. Default
+  # global; se puede sobreescribir por cliente declarándolo en su .env.
+  hestia_ip="$(grep -E '^[[:space:]]*HESTIA_IP=' "$envfile" | head -1 \
+              | sed -E 's/\r$//; s/^[[:space:]]*HESTIA_IP=//; s/[[:space:]]*#.*$//; s/["'"'"']//g; s/[[:space:]]//g' || true)"
+  [ -z "$hestia_ip" ] && hestia_ip="13.140.155.227"
+
+  echo "  -> ${client}  (${domain}, raíz -> hestia ${hestia_ip})"
 
   # Preservar los logs del contenedor anterior: hasta ahora storage/logs vivía
   # en la capa efímera y se perdía al recrear. Los copiamos a un tmp y, tras
@@ -92,7 +99,7 @@ for dir in clientes/*/; do
     docker cp "${old_cid}:/var/www/html/storage/logs/." "$tmp_logs/" 2>/dev/null || true
   fi
 
-  CLIENT="$client" DOMAIN="$domain" ASSET_URL="$asset_url" \
+  CLIENT="$client" DOMAIN="$domain" ASSET_URL="$asset_url" HESTIA_IP="$hestia_ip" \
     docker compose -p "$client" -f docker-compose.client.yml up -d --force-recreate
 
   if [ -n "$tmp_logs" ] && [ -n "$(ls -A "$tmp_logs" 2>/dev/null)" ]; then

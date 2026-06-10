@@ -7,6 +7,11 @@
 #     CLIENT  -> nombre corto del cliente (ej. acme)  -> usa clientes/$CLIENT/.env
 #     DOMAIN  -> dominio del cliente (ej. acme.com.co)
 #
+#  Opcional:
+#     HESTIA_IP -> IP del servidor Hestia que sirve la raíz del dominio (la
+#                  página web del cliente). Default: 13.140.155.227. Se puede
+#                  sobreescribir por cliente con HESTIA_IP= en su .env.
+#
 #  Ejemplo (un cliente):
 #     CLIENT=acme DOMAIN=acme.com.co \
 #       docker compose -p acme -f docker-compose.client.yml up -d
@@ -28,16 +33,19 @@ services:
       # sobre 'env_file:', así que el valor pasado por deploy.sh siempre gana.
       ASSET_URL: "${ASSET_URL:?falta ASSET_URL. Usá ./deploy.sh <cliente> (lo deriva de APP_URL automáticamente)}"
     labels:
-      # Sin DOMAIN, Caddy no sabría qué dominio emitir.
+      # Dominio del cliente: Caddy le emite el HTTPS (el DNS apunta acá, ACME funciona).
       caddy: "${DOMAIN:?falta DOMAIN. Usá ./deploy.sh <cliente> o exportá CLIENT=<cliente> DOMAIN=<dominio>}"
-      # La app vive bajo /software. handle_path matchea /software* y STRIPEA el
-      # prefijo antes de reenviar al contenedor, así Laravel sigue viendo rutas
-      # como /contratos, /dashboard, etc.
-      caddy.handle_path: /software*
-      caddy.handle_path.reverse_proxy: "{{upstreams 80}}"
-      # Redirige la raíz al sub-path (ajusta si la raíz del dominio va a servir
-      # otra cosa — p. ej. el sitio web del cliente — en otro contenedor).
-      caddy.redir: / /software/ 302
+
+      # 0) /software -> la app Laravel. Igual que hoy: handle_path STRIPEA el prefijo.
+      caddy.0_handle_path: /software*
+      caddy.0_handle_path.reverse_proxy: "{{upstreams 80}}"
+
+      # 1) Todo lo demás (la raíz) -> landing servida por Hestia, en HTTP plano.
+      #    Caddy preserva el Host original por defecto, así Hestia matchea su vhost.
+      #    OJO: en Hestia NO activar "Force SSL" (el HTTPS lo emite Caddy; forzarlo
+      #    allá provocaría un loop de redirecciones).
+      caddy.1_handle: /*
+      caddy.1_handle.reverse_proxy: "${HESTIA_IP:-13.140.155.227}:80"
     networks:
       - web        # alcanzable por el proxy
       - internal   # alcanza a MySQL
