@@ -9125,8 +9125,9 @@ class FacturasController extends Controller{
         // Se obtiene la fecha de inicio desde el request o por defecto el 1 de enero del año actual
         $fechaInicio = request('fecha_inicio', date('Y') . '-01-01');
 
-        // facturas cerradas desde la fecha indicada
-        $facturasCerradas = \App\Model\Ingresos\Factura::where('estatus', 0)
+        // facturas que no están abiertas (1) ni anuladas (2) desde la fecha indicada
+        // ya que vimos en debug que la BD a veces guarda '3' para ciertas facturas cerradas
+        $facturasCerradas = \App\Model\Ingresos\Factura::whereNotIn('estatus', [1, 2])
             ->where('fecha', '>=', $fechaInicio)
             ->get();
         
@@ -9134,13 +9135,13 @@ class FacturasController extends Controller{
         $idsReabiertas = [];
 
         foreach ($facturasCerradas as $factura) {
-            // Verificamos si no tiene pago asociado (convertimos a float para prevenir problemas con nulos o strings "0.00")
-            if ((float)$factura->pagado() == 0) {
+            // Verificamos si no tiene pago asociado y si el método estatus dice 'Cerrada' (para mayor seguridad)
+            if ((float)$factura->pagado() == 0 && $factura->estatus() === 'Cerrada') {
                 // actualizamos a estado 1 (abierta)
                 $factura->estatus = 1;
                 $factura->save();
                 $abiertas++;
-                $idsReabiertas[] = $factura->id; // opcionalmente la guardamos para reporte
+                $idsReabiertas[] = $factura->id; // la guardamos para reporte
             }
         }
 
