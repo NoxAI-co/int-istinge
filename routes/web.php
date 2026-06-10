@@ -2125,3 +2125,6 @@ Route::get('/caja-naps/{id}/edit', 'CajaNapController@edit')->name('caja.naps.ed
 Route::patch('/caja-naps/{id}', 'CajaNapController@update')->name('caja.naps.update');
 Route::delete('/caja-naps/{id}', 'CajaNapController@destroy')->name('caja.naps.destroy');
 Route::get('/caja-naps/{id}/puertos-disponibles/{contratoId?}', 'CajaNapController@getPuertosDisponibles')->name('caja.naps.puertos.disponibles');
+
+// Ruta para abrir facturas que están cerradas pero no tienen pagos asociados
+Route::get('/abrirfacturascerradasmal', 'FacturasController@abrirFacturasCerradasMal');

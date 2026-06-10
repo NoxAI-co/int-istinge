@@ -9100,4 +9100,30 @@ class FacturasController extends Controller{
             'detalle' => $detalle
         ]);
     }
+
+    /**
+     * Reabre las facturas que están en estado cerrado (0) pero que no tienen un pago asociado
+     */
+    public function abrirFacturasCerradasMal()
+    {
+        // facturas cerradas
+        $facturasCerradas = \App\Model\Ingresos\Factura::where('estatus', 0)->get();
+        $abiertas = 0;
+
+        foreach ($facturasCerradas as $factura) {
+            // Verificamos si no tiene pago asociado
+            if ($factura->pagado() == 0) {
+                // actualizamos a estado 1 (abierta)
+                $factura->estatus = 1;
+                $factura->save();
+                $abiertas++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Proceso completado.',
+            'facturas_reabiertas' => $abiertas
+        ]);
+    }
 }
