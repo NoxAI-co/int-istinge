@@ -7,7 +7,7 @@
 <button id="btn-refresh" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-sync-alt"></i> Actualizar</button>
 @endsection
 
-@section('styles')
+@section('style')
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════════════
