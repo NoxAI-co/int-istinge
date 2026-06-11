@@ -254,7 +254,7 @@ class CronController extends Controller
         // Bloqueo atómico para evitar ejecuciones concurrentes del mismo grupo/periodo
         $fecha = $fechaRef ? $fechaRef : Carbon::now()->format('Y-m-d');
         $lockKey = "crear_factura_lock_{$idGrupo}_{$fecha}";
-        
+
         // El driver 'file' en Laravel 7 no soporta lock(), usamos add() como alternativa atómica
         // Cache::add solo devuelve true si la llave NO existe (implementa el bloqueo)
         if (!Cache::add($lockKey, true, 1800)) { // Bloqueo por 30 minutos
@@ -1146,7 +1146,7 @@ class CronController extends Controller
                                         $onuSerialsToDisable[] = $contrato->serial_onu;
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
                                         $olt_executed = true;
-                                        
+
                                         if($contrato->state == 'enabled'){
                                             $i++;
                                         }
@@ -1155,7 +1155,7 @@ class CronController extends Controller
                                     // Lógica de Mikrotik
                                     if ($empresa->consultas_mk == 1 && isset($contrato->server_configuration_id)) {
                                         $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-                                        
+
                                         if ($mikrotik) {
                                             $API = new RouterosAPI();
                                             $API->port = $mikrotik->puerto_api;
@@ -1207,7 +1207,7 @@ class CronController extends Controller
                                                             $API->write('/ip/firewall/address-list/remove', false);
                                                             $API->write('=.id='.$ARRAYS[0]['.id']);
                                                             $READ = $API->read();
-                                                            
+
                                                             $mov = new MovimientoLOG;
                                                             $mov->contrato    = $contrato->id;
                                                             $mov->modulo      = 5;
@@ -1238,7 +1238,7 @@ class CronController extends Controller
                                                                 $response = $API->read();
 
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Secret PPPoE deshabilitado</b> en MikroTik<br>';
-                                                                
+
                                                                 $mov = new MovimientoLOG;
                                                                 $mov->contrato    = $contrato->id;
                                                                 $mov->modulo      = 5;
@@ -1263,7 +1263,7 @@ class CronController extends Controller
                                                                     ".id" => $response['0']['.id']
                                                                 ]);
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->usuario . ') removida</b><br>';
-                                                                
+
                                                                 $mov = new MovimientoLOG;
                                                                 $mov->contrato    = $contrato->id;
                                                                 $mov->modulo      = 5;
@@ -1284,7 +1284,7 @@ class CronController extends Controller
                                                                         ".id" => $response['0']['.id']
                                                                     ]);
                                                                     $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->nro . ') removida</b><br>';
-                                                                    
+
                                                                     $mov = new MovimientoLOG;
                                                                     $mov->contrato    = $contrato->id;
                                                                     $mov->modulo      = 5;
@@ -1384,6 +1384,7 @@ class CronController extends Controller
 
 
     public static function CortarFacturas(){
+        return "";
         $i=0;
         $fecha = date('Y-m-d');
 
@@ -1651,7 +1652,7 @@ class CronController extends Controller
                                         $onuSerialsToDisable[] = $contrato->serial_onu;
                                         $descripcion .= '<i class="fas fa-check text-success"></i> <b>Cambiado en OLT</b> a deshabilitado por cronjob de corte facturas<br>';
                                         $olt_executed = true;
-                                        
+
                                         if($contrato->state == 'enabled'){
                                             $i++;
                                         }
@@ -1660,7 +1661,7 @@ class CronController extends Controller
                                     // Lógica de Mikrotik
                                     if ($empresa->consultas_mk == 1 && isset($contrato->server_configuration_id)) {
                                         $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
-                                        
+
                                         if ($mikrotik) {
                                             $API = new RouterosAPI();
                                             $API->port = $mikrotik->puerto_api;
@@ -1695,7 +1696,7 @@ class CronController extends Controller
                                                             $API->write('/ip/firewall/address-list/remove', false);
                                                             $API->write('=.id='.$ARRAYS[0]['.id']);
                                                             $READ = $API->read();
-                                                            
+
                                                             $mov = new MovimientoLOG;
                                                             $mov->contrato    = $contrato->id;
                                                             $mov->modulo      = 5;
@@ -1726,7 +1727,7 @@ class CronController extends Controller
                                                                 $response = $API->read();
 
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Secret PPPoE deshabilitado</b> en MikroTik<br>';
-                                                                
+
                                                                 $mov = new MovimientoLOG;
                                                                 $mov->contrato    = $contrato->id;
                                                                 $mov->modulo      = 5;
@@ -1751,7 +1752,7 @@ class CronController extends Controller
                                                                     ".id" => $response['0']['.id']
                                                                 ]);
                                                                 $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->usuario . ') removida</b><br>';
-                                                                
+
                                                                 $mov = new MovimientoLOG;
                                                                 $mov->contrato    = $contrato->id;
                                                                 $mov->modulo      = 5;
@@ -1772,7 +1773,7 @@ class CronController extends Controller
                                                                         ".id" => $response['0']['.id']
                                                                     ]);
                                                                     $descripcion .= '<i class="fas fa-check text-success"></i> <b>Conexión activa PPPoE (' . $contrato->nro . ') removida</b><br>';
-                                                                    
+
                                                                     $mov = new MovimientoLOG;
                                                                     $mov->contrato    = $contrato->id;
                                                                     $mov->modulo      = 5;
@@ -2768,7 +2769,7 @@ class CronController extends Controller
                         $cliente = Contacto::where('id', $factura->cliente)->first();
                         $f_contrato = DB::table('facturas_contratos')->where('factura_id', $factura->id)->first();
                         $contrato = $f_contrato ? Contrato::where('nro', $f_contrato->contrato_nro)->first() : Contrato::where('client_id', $cliente->id)->first();
-                        
+
                         if($contrato){
                             $res = DB::table('contracts')->where('id', $contrato->id)->update(["state" => 'enabled']);
 
@@ -2958,14 +2959,14 @@ class CronController extends Controller
         if ($requestData['event']['type'] == 'invoice.created') {
             $invoice = $requestData['invoice'] ?? [];
             $facturaId = $invoice['metadata']['factura_id'] ?? null;
-            
+
             if ($facturaId) {
                 $factura = Factura::find($facturaId);
                 if ($factura && (!$factura->onepay_invoice_id || $factura->onepay_invoice_id != $invoice['id'])) {
                     $factura->onepay_invoice_id = $invoice['id'];
                     $factura->save();
                     Log::info('[OnePay Webhook] Factura vinculada mediante invoice.created', [
-                        'factura_id' => $facturaId, 
+                        'factura_id' => $facturaId,
                         'onepay_id' => $invoice['id']
                     ]);
                 }
@@ -5546,7 +5547,7 @@ class CronController extends Controller
                 // ===================================
                 $this->getFacturaTemp($factura->id, config('app.key'));
                 $fileName = "Factura_" . preg_replace('/[^A-Za-z0-9\-\_]/', '', $factura->codigo) . ".pdf";
-                
+
                 $s3Service = app(\App\Services\ContaboS3Service::class);
                 if (!$s3Service->exists('documentos_meta', $fileName)) {
                     Log::error("Factura {$factura->codigo}: No se pudo generar PDF en S3.");
@@ -7032,7 +7033,7 @@ class CronController extends Controller
                 }
 
                 $onePayService->createInvoice($factura, $empresa->id);
-                
+
                 // VALIDACIÓN 3: Verificación extra post-retorno para garantizar que la ID generada y guardada no esté compartida con otra
                 $idGuardado = $factura->fresh()->onepay_invoice_id;
                 if ($idGuardado) {
