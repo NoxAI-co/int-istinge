@@ -244,8 +244,8 @@
                     <div class="bg-light p-3 rounded-circle mr-3 text-info"><i class="fas fa-file-invoice-dollar fa-lg"></i></div>
                     <div>
                         <h6 class="text-muted font-weight-bold mb-0 small uppercase">Resolución</h6>
-                        <h5 class="mb-0 font-weight-bold">{{ $numeracion->nombre ?? ($numeracion->prefijo ?? 'Sin activa') }}</h5>
-                        <small class="text-muted">Rango: {{ $numeracion->inicioverdadero ?? $numeracion->inicio }} - {{ $numeracion->final }}</small>
+                        <h5 class="mb-0 font-weight-bold">{{ optional($numeracion)->nombre ?? (optional($numeracion)->prefijo ?? 'Sin activa') }}</h5>
+                        <small class="text-muted">Rango: {{ optional($numeracion)->inicioverdadero ?? (optional($numeracion)->inicio ?? 'N/A') }} - {{ optional($numeracion)->final ?? 'N/A' }}</small>
                     </div>
                 </div>
             </div>
