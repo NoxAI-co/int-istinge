@@ -8,159 +8,314 @@
 @endsection
 
 @section('styles')
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --primary: #4e73df;
-    --success: #1cc88a;
-    --info: #36b9cc;
-    --warning: #f6c23e;
-    --danger: #e74a3b;
-    --secondary: #858796;
-    --dark: #5a5c69;
-    --light: #f8f9fc;
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bg-dark: #07090F;
+    --card-bg: rgba(16, 22, 36, 0.7);
+    --border-color: rgba(0, 240, 255, 0.15);
+    --text-primary: #E2E8F0;
+    --text-muted: #64748B;
+    
+    --neon-cyan: #00F0FF;
+    --neon-purple: #8A2BE2;
+    --neon-green: #00FF66;
+    --neon-red: #FF003C;
+    --neon-yellow: #FFEA00;
+    --neon-orange: #FF6600;
+
+    --font-family: 'Outfit', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 }
 
+body {
+    background-color: var(--bg-dark) !important;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(0, 240, 255, 0.03), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(138, 43, 226, 0.03), transparent 25%);
+    background-attachment: fixed;
+    color: var(--text-primary) !important;
+}
+
+/* Overall Container Override */
 .analisis-cortes-container {
     font-family: var(--font-family);
-    color: #5a5c69;
+    color: var(--text-primary);
 }
 
 /* Page Header */
 .page-header {
-    background: #fff;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 0.75rem;
     padding: 1.5rem 2rem;
-    border-radius: 1rem;
-    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.03);
     margin-bottom: 2rem;
-    border-left: 5px solid var(--danger);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
+    border-left: 4px solid var(--neon-cyan);
 }
 .page-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #3a3b45;
+    color: var(--text-primary);
+    font-size: 1.75rem;
+    font-weight: 700;
     margin: 0;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
 }
 .page-subtitle {
+    color: var(--neon-cyan);
     font-size: 0.9rem;
-    color: #858796;
-    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-top: 0.2rem;
 }
 
-/* Filters */
+/* Filters Card */
 .filters-card {
-    background: #fff;
-    border-radius: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
     padding: 1rem 1.5rem;
-    box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.02);
     margin-bottom: 2rem;
     display: flex;
     align-items: flex-end;
     gap: 1rem;
+    backdrop-filter: blur(12px);
+}
+.filters-card label {
+    color: var(--text-muted);
+}
+.filters-card input[type="date"] {
+    background-color: rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    color: var(--neon-cyan);
+    border-radius: 0.25rem;
+    font-family: var(--font-mono);
+}
+.filters-card input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) sepia(1) saturate(5) hue-rotate(175deg);
 }
 
 /* KPI Cards */
 .kpi-card {
-    border: none;
-    border-radius: 1rem;
-    background: #fff;
-    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.04);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    height: 100%;
     position: relative;
     overflow: hidden;
-    height: 100%;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(12px);
 }
 .kpi-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.08);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 8px 25px rgba(0, 240, 255, 0.15);
 }
-.kpi-card::before {
+.kpi-card::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; height: 4px;
+    top: 0; left: 0; width: 100%; height: 2px;
 }
-.kpi-card.total::before { background: linear-gradient(90deg, #858796, #6c757d); }
-.kpi-card.paid::before { background: linear-gradient(90deg, #1cc88a, #20c997); }
-.kpi-card.unpaid::before { background: linear-gradient(90deg, #e74a3b, #dc3545); }
-.kpi-card.cut::before { background: linear-gradient(90deg, #f6c23e, #fd7e14); }
-.kpi-card.pending::before { background: linear-gradient(90deg, #f6c23e, #ffc107); }
-.kpi-card.promise::before { background: linear-gradient(90deg, #36b9cc, #17a2b8); }
+.kpi-card.total::after { background: var(--text-primary); box-shadow: 0 0 10px var(--text-primary); }
+.kpi-card.paid::after { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+.kpi-card.unpaid::after { background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
+.kpi-card.cut::after { background: var(--neon-orange); box-shadow: 0 0 10px var(--neon-orange); }
+.kpi-card.pending::after { background: var(--neon-yellow); box-shadow: 0 0 10px var(--neon-yellow); }
+.kpi-card.promise::after { background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan); }
 
 .kpi-icon {
-    position: absolute;
-    right: -10px;
-    bottom: -15px;
-    font-size: 5rem;
-    opacity: 0.05;
-    transform: rotate(-15deg);
-    transition: all 0.3s ease;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
 }
-.kpi-card:hover .kpi-icon {
-    transform: rotate(0deg) scale(1.1);
-    opacity: 0.08;
+.kpi-card.total .kpi-icon { color: var(--text-primary); }
+.kpi-card.paid .kpi-icon { color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
+.kpi-card.unpaid .kpi-icon { color: var(--neon-red); text-shadow: 0 0 10px var(--neon-red); }
+.kpi-card.cut .kpi-icon { color: var(--neon-orange); text-shadow: 0 0 10px var(--neon-orange); }
+.kpi-card.pending .kpi-icon { color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); }
+.kpi-card.promise .kpi-icon { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+
+.kpi-number {
+    font-family: var(--font-mono);
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.2rem;
 }
-
-.kpi-number { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 0; line-height: 1.2; }
-.kpi-label  { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #a3a6b4; letter-spacing: 0.5px; }
-
-/* Badges */
-.badge { padding: 0.5em 0.8em; border-radius: 50rem; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.3px; }
-.badge-estado-pagado   { background-color: rgba(28, 200, 138, 0.15); color: #159666; }
-.badge-estado-abierta  { background-color: rgba(231, 74, 59, 0.15); color: #b7382c; }
-.badge-estado-cortado  { background-color: rgba(246, 194, 62, 0.15); color: #c49629; }
-.badge-estado-promesa  { background-color: rgba(54, 185, 204, 0.15); color: #2a8b99; }
-.badge-estado-bloqueado{ background-color: rgba(133, 135, 150, 0.15); color: #626470; }
-
-/* Buttons */
-.btn { border-radius: 0.5rem; font-weight: 600; transition: all 0.2s; letter-spacing: 0.3px; }
-.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
-.btn-primary { background: linear-gradient(90deg, #4e73df, #224abe); border: none; box-shadow: 0 4px 10px rgba(78,115,223,0.2); }
-.btn-danger { background: linear-gradient(90deg, #e74a3b, #be2617); border: none; box-shadow: 0 4px 10px rgba(231,74,59,0.2); }
-.btn-success { background: linear-gradient(90deg, #1cc88a, #138f62); border: none; box-shadow: 0 4px 10px rgba(28,200,138,0.2); }
-.btn-warning { background: linear-gradient(90deg, #f6c23e, #d8a00b); border: none; color: #fff; box-shadow: 0 4px 10px rgba(246,194,62,0.2); }
-.btn-info { background: linear-gradient(90deg, #36b9cc, #258391); border: none; box-shadow: 0 4px 10px rgba(54,185,204,0.2); }
-.btn-outline-secondary { border: 1px solid #eaecf4; color: #858796; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: #fff; }
-.btn-outline-secondary:hover { background: #f8f9fc; color: #5a5c69; border-color: #d1d3e2; }
+.kpi-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
 
 /* Tabs */
-.nav-tabs { border-bottom: 2px solid #eaecf4; border-radius: 1rem 1rem 0 0; background: #fff; padding: 0.5rem 1rem 0; }
-.nav-tabs .nav-link { border: none; color: #858796; font-weight: 600; padding: 1rem 1.5rem; position: relative; font-size: 0.9rem; transition: all 0.2s; border-radius: 0.5rem 0.5rem 0 0; }
-.nav-tabs .nav-link:hover { color: #4e73df; background: #f8f9fc; }
-.nav-tabs .nav-link.active { color: #4e73df; background: transparent; font-weight: 700; }
-.nav-tabs .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #4e73df; border-radius: 3px 3px 0 0; }
+.nav-tabs {
+    border-bottom: 1px solid var(--border-color);
+}
+.nav-tabs .nav-link {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 1rem 1.5rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    border-radius: 0;
+}
+.nav-tabs .nav-link:hover {
+    color: var(--text-primary);
+    border-bottom: 3px solid rgba(0, 240, 255, 0.5);
+    background: rgba(0,240,255,0.02);
+}
+.nav-tabs .nav-link.active {
+    color: var(--neon-cyan);
+    border-bottom: 3px solid var(--neon-cyan);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    background: rgba(0, 240, 255, 0.05);
+}
 
-.tab-content-wrapper { background: #fff; border-radius: 0 0 1rem 1rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.03); padding: 2rem; border: 1px solid #eaecf4; border-top: none; }
+.tab-content-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 0.75rem 0.75rem;
+    padding: 2rem;
+    backdrop-filter: blur(12px);
+}
 
 /* Tables */
-.table-responsive { border-radius: 0.75rem; border: 1px solid #eaecf4; overflow: hidden; }
-.table { margin-bottom: 0; }
-.table th { background-color: #f8f9fc; color: #5a5c69; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.8px; border-bottom: 2px solid #eaecf4; padding: 1rem; border-top: none; }
-.table td { vertical-align: middle; padding: 1rem; border-top: 1px solid #eaecf4; color: #5a5c69; font-size: 0.85rem; }
-.table tbody tr { transition: background-color 0.2s; }
-.table tbody tr:hover { background-color: #f8f9fc; }
-code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-size: 0.8rem; font-family: 'SFMono-Regular', Consolas, "Liberation Mono", Menlo, monospace; }
+.table-responsive {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.table {
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+.table th {
+    background-color: rgba(0,0,0,0.4);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    border-top: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 1rem;
+}
+.table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-top: 1px solid rgba(255,255,255,0.05) !important;
+    font-size: 0.9rem;
+}
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+.table tbody tr:hover {
+    background-color: rgba(0, 240, 255, 0.05);
+}
+code {
+    font-family: var(--font-mono);
+    color: var(--neon-cyan);
+    background: rgba(0, 240, 255, 0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+}
+
+/* Badges */
+.badge {
+    padding: 0.4em 0.7em;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+}
+.badge-estado-pagado   { background-color: rgba(0, 255, 102, 0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
+.badge-estado-abierta  { background-color: rgba(255, 0, 60, 0.15); color: var(--neon-red); border: 1px solid var(--neon-red); }
+.badge-estado-cortado  { background-color: rgba(255, 102, 0, 0.15); color: var(--neon-orange); border: 1px solid var(--neon-orange); }
+.badge-estado-promesa  { background-color: rgba(0, 240, 255, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+.badge-estado-bloqueado{ background-color: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid var(--text-muted); }
+
+/* Buttons Overrides */
+.analisis-cortes-container .btn {
+    border-radius: 0.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    font-size: 0.75rem;
+    padding: 0.5rem 1rem;
+}
+.analisis-cortes-container .btn-primary { background: rgba(0, 240, 255, 0.1); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 240, 255, 0.2); }
+.analisis-cortes-container .btn-primary:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px var(--neon-cyan); }
+
+.analisis-cortes-container .btn-danger { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255, 0, 60, 0.2); }
+.analisis-cortes-container .btn-danger:hover { background: var(--neon-red); color: #000; box-shadow: 0 0 20px var(--neon-red); }
+
+.analisis-cortes-container .btn-success { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); border: 1px solid var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.2); }
+.analisis-cortes-container .btn-success:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 20px var(--neon-green); }
+
+.analisis-cortes-container .btn-warning { background: rgba(255, 234, 0, 0.1); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); box-shadow: 0 0 10px rgba(255, 234, 0, 0.2); }
+.analisis-cortes-container .btn-warning:hover { background: var(--neon-yellow); color: #000; box-shadow: 0 0 20px var(--neon-yellow); }
+
+.analisis-cortes-container .btn-info { background: rgba(138, 43, 226, 0.1); color: var(--neon-purple); border: 1px solid var(--neon-purple); box-shadow: 0 0 10px rgba(138, 43, 226, 0.2); }
+.analisis-cortes-container .btn-info:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 20px var(--neon-purple); }
+
+.analisis-cortes-container .btn-outline-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); }
+.analisis-cortes-container .btn-outline-secondary:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); border-color: var(--text-primary); }
 
 /* Progress bar */
-.progress { border-radius: 50rem; height: 0.8rem; background-color: #eaecf4; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
-.progress-bar-animated { animation: progress-bar-stripes 1s linear infinite; }
+.progress { background-color: rgba(255, 0, 60, 0.1); height: 0.8rem; border-radius: 0.25rem; border: 1px solid rgba(255, 0, 60, 0.3); }
+.progress-bar { background-color: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
 
 /* Modals */
-.modal-content { border-radius: 1rem; border: none; box-shadow: 0 1rem 3rem rgba(0,0,0,0.1); }
-.modal-header { border-bottom: 1px solid #eaecf4; border-radius: 1rem 1rem 0 0; padding: 1.5rem; }
-.modal-body { padding: 1.5rem; }
-.modal-footer { border-top: 1px solid #eaecf4; border-radius: 0 0 1rem 1rem; padding: 1.5rem; }
+.modal-content { background: var(--bg-dark); border: 1px solid var(--neon-cyan); border-radius: 0.5rem; box-shadow: 0 0 30px rgba(0, 240, 255, 0.15); color: var(--text-primary); }
+.modal-header { border-bottom: 1px solid rgba(255,255,255,0.1); }
+.modal-footer { border-top: 1px solid rgba(255,255,255,0.1); }
+.close { color: var(--text-primary); text-shadow: none; opacity: 1; }
+.close:hover { color: var(--neon-red); }
+.modal-header.bg-danger { background: rgba(255, 0, 60, 0.1) !important; border-bottom: 1px solid var(--neon-red); color: var(--neon-red) !important; }
+.modal-header.bg-warning { background: rgba(255, 234, 0, 0.1) !important; border-bottom: 1px solid var(--neon-yellow); color: var(--neon-yellow) !important; }
+.modal-header.bg-success { background: rgba(0, 255, 102, 0.1) !important; border-bottom: 1px solid var(--neon-green); color: var(--neon-green) !important; }
+.alert-warning { background: rgba(255, 234, 0, 0.05); border: 1px solid var(--neon-yellow); color: var(--neon-yellow); }
 
-/* Subtabs Mk Sync */
-#mk-subtabs { padding: 0; background: transparent; border-radius: 0; margin-bottom: 1rem; }
-#mk-subtabs .nav-link { padding: 0.5rem 1rem; }
-#mk-subtabs .nav-link.active::after { height: 2px; }
+/* Select fields */
+.analisis-cortes-container select.form-control {
+    background-color: rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    color: var(--neon-cyan);
+    border-radius: 0.25rem;
+    font-family: var(--font-mono);
+}
+.analisis-cortes-container select.form-control:focus {
+    background-color: rgba(0,0,0,0.8);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+.analisis-cortes-container select.form-control option {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+/* MK Sync specific */
+.mk-sync-container {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+#mk-subtabs { border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 1rem; }
 
 </style>
 @endsection
@@ -172,15 +327,15 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
     <div class="page-header">
         <div>
             <h1 class="page-title">
-                <i class="fas fa-cut text-danger mr-2"></i> Análisis de Cortes
+                <i class="fas fa-satellite-dish mr-2" style="color: var(--neon-red);"></i> Análisis de Cortes / SYS-CORE
             </h1>
-            <div class="page-subtitle mt-1">
-                <strong>{{ $grupo->nombre }}</strong> &bull; Corte: día {{ $grupo->fecha_corte }} &bull; Suspensión: día {{ $grupo->fecha_suspension }}
+            <div class="page-subtitle">
+                OBJETIVO: <strong>{{ strtoupper($grupo->nombre) }}</strong> | CORTE: {{ $grupo->fecha_corte }} | SUSPENSIÓN: {{ $grupo->fecha_suspension }}
             </div>
         </div>
         <div>
-            <button id="btn-clear-cache" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-eraser mr-1"></i> Limpiar Caché
+            <button id="btn-clear-cache" class="btn btn-outline-secondary">
+                <i class="fas fa-terminal mr-1"></i> PURGAR CACHÉ
             </button>
         </div>
     </div>
@@ -188,12 +343,12 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
     {{-- Filters --}}
     <div class="filters-card">
         <div class="form-group mb-0">
-            <label class="small font-weight-bold text-muted mb-1 text-uppercase">Fecha de referencia</label>
-            <input type="date" id="fecha-ref" class="form-control form-control-sm" style="border-radius:0.5rem; padding:0.4rem 0.8rem; font-weight:500;" value="{{ date('Y-m-d') }}">
+            <label class="small font-weight-bold mb-1 text-uppercase">TIMESTAMP DE REFERENCIA</label>
+            <input type="date" id="fecha-ref" class="form-control form-control-sm px-3 py-2" value="{{ date('Y-m-d') }}">
         </div>
         <div>
-            <button id="btn-apply-date" class="btn btn-sm btn-primary">
-                <i class="fas fa-filter mr-1"></i> Aplicar Filtro
+            <button id="btn-apply-date" class="btn btn-primary">
+                <i class="fas fa-microchip mr-1"></i> APLICAR
             </button>
         </div>
     </div>
@@ -202,68 +357,56 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
     <div class="row mb-4" id="kpi-row">
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card total">
-                <div class="card-body p-4">
-                    <i class="fas fa-file-contract kpi-icon text-secondary"></i>
-                    <div class="kpi-label">Total Contratos</div>
-                    <div class="kpi-number text-secondary" id="kpi-total">—</div>
-                </div>
+                <i class="fas fa-network-wired kpi-icon"></i>
+                <div class="kpi-number text-white" id="kpi-total">0</div>
+                <div class="kpi-label">Total Contratos</div>
             </div>
         </div>
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card paid">
-                <div class="card-body p-4">
-                    <i class="fas fa-check-circle kpi-icon text-success"></i>
-                    <div class="kpi-label">Al día</div>
-                    <div class="kpi-number text-success" id="kpi-pagados">—</div>
-                </div>
+                <i class="fas fa-shield-check kpi-icon"></i>
+                <div class="kpi-number" style="color: var(--neon-green);" id="kpi-pagados">0</div>
+                <div class="kpi-label">Al día (SECURE)</div>
             </div>
         </div>
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card unpaid">
-                <div class="card-body p-4">
-                    <i class="fas fa-exclamation-circle kpi-icon text-danger"></i>
-                    <div class="kpi-label">En mora</div>
-                    <div class="kpi-number text-danger" id="kpi-mora">—</div>
-                </div>
+                <i class="fas fa-exclamation-triangle kpi-icon"></i>
+                <div class="kpi-number" style="color: var(--neon-red);" id="kpi-mora">0</div>
+                <div class="kpi-label">En mora (WARNING)</div>
             </div>
         </div>
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card cut">
-                <div class="card-body p-4">
-                    <i class="fas fa-power-off kpi-icon text-warning"></i>
-                    <div class="kpi-label">Ya cortados</div>
-                    <div class="kpi-number text-warning" id="kpi-cortados">—</div>
-                </div>
+                <i class="fas fa-power-off kpi-icon"></i>
+                <div class="kpi-number" style="color: var(--neon-orange);" id="kpi-cortados">0</div>
+                <div class="kpi-label">Cortados (OFFLINE)</div>
             </div>
         </div>
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card pending">
-                <div class="card-body p-4">
-                    <i class="fas fa-clock kpi-icon text-warning"></i>
-                    <div class="kpi-label">Pendientes corte</div>
-                    <div class="kpi-number text-warning" id="kpi-pendientes">—</div>
-                </div>
+                <i class="fas fa-hourglass-half kpi-icon"></i>
+                <div class="kpi-number" style="color: var(--neon-yellow);" id="kpi-pendientes">0</div>
+                <div class="kpi-label">Pénd. Corte (TARGET)</div>
             </div>
         </div>
         <div class="col-6 col-lg-2 col-md-4 mb-3">
             <div class="kpi-card promise">
-                <div class="card-body p-4">
-                    <i class="fas fa-handshake kpi-icon text-info"></i>
-                    <div class="kpi-label">Con promesa</div>
-                    <div class="kpi-number text-info" id="kpi-promesas">—</div>
-                </div>
+                <i class="fas fa-handshake kpi-icon"></i>
+                <div class="kpi-number" style="color: var(--neon-cyan);" id="kpi-promesas">0</div>
+                <div class="kpi-label">Con promesa (HOLD)</div>
             </div>
         </div>
     </div>
 
     {{-- Progress bar (corte en progreso) --}}
-    <div id="progress-bar-wrap" class="mb-4" style="display:none;">
+    <div id="progress-bar-wrap" class="mb-4" style="display:none; background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--neon-red);">
         <div class="d-flex justify-content-between small mb-2 font-weight-bold">
-            <span id="progress-label" class="text-danger">Ejecutando corte…</span>
-            <span id="progress-count" class="text-secondary">0 / 0</span>
+            <span id="progress-label" style="color: var(--neon-red); text-transform: uppercase; letter-spacing: 1px;">EJECUTANDO OPERACIÓN DE CORTE...</span>
+            <span id="progress-count" style="font-family: var(--font-mono); color: var(--neon-red);">0 / 0</span>
         </div>
         <div class="progress">
-            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
                  role="progressbar" style="width:0%"></div>
         </div>
     </div>
@@ -272,24 +415,24 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
     <ul class="nav nav-tabs" id="main-tabs" role="tablist">
         <li class="nav-item">
             <a class="nav-link active" id="tab-internet-link" data-toggle="tab" href="#tab-internet">
-                <i class="fas fa-wifi mr-1"></i> Internet
-                <span class="badge badge-danger ml-2" id="badge-internet" style="vertical-align: text-bottom;">0</span>
+                <i class="fas fa-globe mr-1"></i> Red Internet
+                <span class="badge ml-2" style="background: rgba(255,0,60,0.2); color: var(--neon-red); border: 1px solid var(--neon-red);" id="badge-internet">0</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-tv-link" data-toggle="tab" href="#tab-tv">
-                <i class="fas fa-tv mr-1"></i> Televisión
-                <span class="badge badge-warning text-dark ml-2" id="badge-tv" style="vertical-align: text-bottom;">0</span>
+                <i class="fas fa-tv mr-1"></i> Red TV
+                <span class="badge ml-2" style="background: rgba(255,234,0,0.2); color: var(--neon-yellow); border: 1px solid var(--neon-yellow);" id="badge-tv">0</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial">
-                <i class="fas fa-history mr-1"></i> Historial
+                <i class="fas fa-database mr-1"></i> Logs de Sist.
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-mk-link" data-toggle="tab" href="#tab-mk">
-                <i class="fas fa-network-wired mr-1"></i> Sync MikroTik
+                <i class="fas fa-server mr-1"></i> Sync MikroTik
             </a>
         </li>
     </ul>
@@ -299,40 +442,37 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
         <div class="tab-pane fade show active" id="tab-internet" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div class="d-flex align-items-center">
-                    <div class="icon-circle bg-danger text-white mr-3" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(231,74,59,0.2);">
-                        <i class="fas fa-wifi"></i>
-                    </div>
                     <div>
-                        <h5 class="mb-0 font-weight-bold text-dark">Pendientes de corte</h5>
-                        <small class="text-muted"><span id="internet-count" class="font-weight-bold text-danger">0</span> contratos encontrados</small>
+                        <h5 class="mb-0 font-weight-bold" style="color: var(--neon-red); text-transform: uppercase; letter-spacing: 1px;">TARGETS: INTERNET</h5>
+                        <small style="color: var(--text-muted);"><span id="internet-count" style="font-family: var(--font-mono); color: var(--text-primary);">0</span> nodos identificados</small>
                     </div>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
-                    <button id="btn-habilitar-cortados" class="btn btn-success btn-sm px-3">
-                        <i class="fas fa-check-circle mr-1"></i> Habilitar Cortados
+                    <button id="btn-habilitar-cortados" class="btn btn-success">
+                        <i class="fas fa-unlock mr-1"></i> ENABLE OFFLINE
                     </button>
-                    <button id="btn-ejecutar-corte" class="btn btn-danger btn-sm px-3">
-                        <i class="fas fa-cut mr-1"></i> Ejecutar Corte Internet
+                    <button id="btn-ejecutar-corte" class="btn btn-danger">
+                        <i class="fas fa-bolt mr-1"></i> EXECUTE CUT (NET)
                     </button>
                 </div>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover" id="tabla-internet">
+                <table class="table" id="tabla-internet">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th>ID</th>
                             <th>Contrato</th>
                             <th>Cliente</th>
-                            <th>IP</th>
-                            <th>MikroTik</th>
+                            <th>IP Addr</th>
+                            <th>Router MK</th>
                             <th>Factura</th>
                             <th>Valor</th>
                             <th>Vencimiento</th>
-                            <th>Estado</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-internet">
-                        <tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>
+                        <tr><td colspan="9" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -342,34 +482,31 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
         <div class="tab-pane fade" id="tab-tv" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div class="d-flex align-items-center">
-                    <div class="icon-circle bg-warning text-white mr-3" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(246,194,62,0.2);">
-                        <i class="fas fa-tv"></i>
-                    </div>
                     <div>
-                        <h5 class="mb-0 font-weight-bold text-dark">Pendientes de corte TV</h5>
-                        <small class="text-muted"><span id="tv-count" class="font-weight-bold text-warning">0</span> contratos encontrados</small>
+                        <h5 class="mb-0 font-weight-bold" style="color: var(--neon-yellow); text-transform: uppercase; letter-spacing: 1px;">TARGETS: TELEVISIÓN</h5>
+                        <small style="color: var(--text-muted);"><span id="tv-count" style="font-family: var(--font-mono); color: var(--text-primary);">0</span> nodos identificados</small>
                     </div>
                 </div>
-                <button id="btn-ejecutar-corte-tv" class="btn btn-warning btn-sm text-white px-3">
-                    <i class="fas fa-cut mr-1"></i> Ejecutar Corte TV
+                <button id="btn-ejecutar-corte-tv" class="btn btn-warning">
+                    <i class="fas fa-bolt mr-1"></i> EXECUTE CUT (TV)
                 </button>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover" id="tabla-tv">
+                <table class="table" id="tabla-tv">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th>ID</th>
                             <th>Contrato</th>
                             <th>Cliente</th>
                             <th>Serial ONU</th>
                             <th>Factura</th>
                             <th>Valor</th>
                             <th>Vencimiento</th>
-                            <th>Estado</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-tv">
-                        <tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>
+                        <tr><td colspan="8" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -378,29 +515,29 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
         {{-- TAB HISTORIAL --}}
         <div class="tab-pane fade" id="tab-historial" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="font-weight-bold text-dark mb-0">Historial de cortes ejecutados</h5>
-                <button id="btn-refresh-historial" class="btn btn-sm btn-outline-secondary px-3">
-                    <i class="fas fa-sync-alt mr-1"></i> Actualizar
+                <h5 class="font-weight-bold mb-0" style="color: var(--neon-purple); text-transform: uppercase; letter-spacing: 1px;">LOGS DE EJECUCIÓN</h5>
+                <button id="btn-refresh-historial" class="btn btn-outline-secondary">
+                    <i class="fas fa-sync-alt mr-1"></i> REFRESH LOGS
                 </button>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover" id="tabla-historial">
+                <table class="table" id="tabla-historial">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>PID</th>
                             <th>Tipo</th>
-                            <th>Procesados</th>
-                            <th>Cortados</th>
-                            <th>Omitidos</th>
-                            <th>Errores</th>
-                            <th>Duración</th>
-                            <th>Ejecutado por</th>
-                            <th>Fecha</th>
-                            <th>Acción</th>
+                            <th>Targets</th>
+                            <th>Success</th>
+                            <th>Ignored</th>
+                            <th>Errors</th>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Timestamp</th>
+                            <th>Trace</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-historial">
-                        <tr><td colspan="10" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>
+                        <tr><td colspan="10" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> FETCHING LOGS...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -408,52 +545,46 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
 
         {{-- TAB MK SYNC --}}
         <div class="tab-pane fade" id="tab-mk" role="tabpanel">
-            <div class="d-flex align-items-end mb-4 gap-3 bg-light p-3 rounded" style="border: 1px solid #eaecf4;">
+            <div class="mk-sync-container mb-4 d-flex align-items-end gap-3 flex-wrap">
                 <div style="min-width: 300px;">
-                    <label class="small font-weight-bold text-muted text-uppercase mb-1">Seleccionar MikroTik</label>
-                    <select id="select-mikrotik" class="form-control form-control-sm" style="border-radius:0.5rem; height: calc(1.5em + 0.8rem + 2px);">
-                        <option value="">— Seleccione MikroTik —</option>
+                    <label class="small font-weight-bold text-muted text-uppercase mb-1">ROUTER MIKROTIK</label>
+                    <select id="select-mikrotik" class="form-control">
+                        <option value="">— SELECT ROUTER —</option>
                         @foreach($mikrotiks as $mk)
                         <option value="{{ $mk->id }}">{{ $mk->nombre }} ({{ $mk->ip }})</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <button id="btn-analizar-mk" class="btn btn-sm btn-info px-3">
-                        <i class="fas fa-search mr-1"></i> Analizar
+                    <button id="btn-analizar-mk" class="btn btn-info">
+                        <i class="fas fa-radar mr-1"></i> SCAN MK
                     </button>
                 </div>
                 <div class="ml-auto">
-                    <button id="btn-solucionar-lote" class="btn btn-sm btn-warning text-white px-3" disabled>
-                        <i class="fas fa-magic mr-1"></i> Solucionar Lote
+                    <button id="btn-solucionar-lote" class="btn btn-warning" disabled>
+                        <i class="fas fa-wrench mr-1"></i> AUTO-FIX
                     </button>
                 </div>
             </div>
 
-            <div id="mk-sync-result" class="d-none mt-4">
+            <div id="mk-sync-result" class="d-none">
                 <div class="row mb-4">
                     <div class="col-md-4">
-                        <div class="kpi-card h-100" style="border-left: 4px solid var(--success);">
-                            <div class="card-body p-3">
-                                <div class="font-weight-bold text-success mb-1" style="font-size:1.8rem; line-height:1;" id="mk-ok-count">0</div>
-                                <div class="small font-weight-bold text-uppercase text-muted">Morosos OK</div>
-                            </div>
+                        <div class="kpi-card text-center" style="border-color: var(--neon-green);">
+                            <div class="font-weight-bold mb-1" style="color: var(--neon-green); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-ok-count">0</div>
+                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">SYNC OK</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card h-100" style="border-left: 4px solid var(--danger);">
-                            <div class="card-body p-3">
-                                <div class="font-weight-bold text-danger mb-1" style="font-size:1.8rem; line-height:1;" id="mk-faltantes-count">0</div>
-                                <div class="small font-weight-bold text-uppercase text-muted">Cortados sin morosos en MK</div>
-                            </div>
+                        <div class="kpi-card text-center" style="border-color: var(--neon-red);">
+                            <div class="font-weight-bold mb-1" style="color: var(--neon-red); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-faltantes-count">0</div>
+                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">MISSING IN MK</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card h-100" style="border-left: 4px solid var(--warning);">
-                            <div class="card-body p-3">
-                                <div class="font-weight-bold text-warning mb-1" style="font-size:1.8rem; line-height:1;" id="mk-extra-count">0</div>
-                                <div class="small font-weight-bold text-uppercase text-muted">En morosos MK sin corte</div>
-                            </div>
+                        <div class="kpi-card text-center" style="border-color: var(--neon-yellow);">
+                            <div class="font-weight-bold mb-1" style="color: var(--neon-yellow); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-extra-count">0</div>
+                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">GHOSTS IN MK</div>
                         </div>
                     </div>
                 </div>
@@ -461,47 +592,47 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
                 <ul class="nav nav-tabs" id="mk-subtabs">
                     <li class="nav-item">
                         <a class="nav-link active" data-toggle="tab" href="#mk-tab-faltantes">
-                            <i class="fas fa-exclamation-circle text-danger mr-1"></i> Faltantes en MK
-                            <span class="badge badge-danger ml-2" id="badge-faltantes">0</span>
+                            <i class="fas fa-exclamation-triangle" style="color: var(--neon-red);"></i> MISSING
+                            <span class="badge ml-2" style="background: rgba(255,0,60,0.2); color: var(--neon-red); border: 1px solid var(--neon-red);" id="badge-faltantes">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#mk-tab-extra">
-                            <i class="fas fa-question-circle text-warning mr-1"></i> Extras en MK
-                            <span class="badge badge-warning text-white ml-2" id="badge-extra">0</span>
+                            <i class="fas fa-ghost" style="color: var(--neon-yellow);"></i> GHOSTS
+                            <span class="badge ml-2" style="background: rgba(255,234,0,0.2); color: var(--neon-yellow); border: 1px solid var(--neon-yellow);" id="badge-extra">0</span>
                         </a>
                     </li>
                 </ul>
-                <div class="tab-content" style="border: 1px solid #eaecf4; border-top: none; border-radius: 0 0 0.5rem 0.5rem; padding: 1.5rem;">
+                <div class="tab-content">
                     <div class="tab-pane fade show active" id="mk-tab-faltantes">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                        <div class="table-responsive mt-3">
+                            <table class="table mb-0">
                                 <thead>
-                                    <tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Factura</th><th>Valor</th></tr>
+                                    <tr><th>Contrato</th><th>Cliente</th><th>IP Addr</th><th>Factura</th><th>Valor</th></tr>
                                 </thead>
                                 <tbody id="tbody-mk-faltantes">
-                                    <tr><td colspan="5" class="text-center text-muted py-3">Sin datos</td></tr>
+                                    <tr><td colspan="5" class="text-center py-4 text-muted">AWAITING SCAN...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="mk-tab-extra">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                        <div class="table-responsive mt-3">
+                            <table class="table mb-0">
                                 <thead>
-                                    <tr><th>IP</th><th>Lista MK</th><th>Comentario</th></tr>
+                                    <tr><th>IP Addr</th><th>Lista MK</th><th>Comentario</th></tr>
                                 </thead>
                                 <tbody id="tbody-mk-extra">
-                                    <tr><td colspan="3" class="text-center text-muted py-3">Sin datos</td></tr>
+                                    <tr><td colspan="3" class="text-center py-4 text-muted">AWAITING SCAN...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-            <div id="mk-sync-empty" class="text-muted text-center py-5 rounded" style="background:#f8f9fc; border:2px dashed #eaecf4;">
-                <i class="fas fa-network-wired fa-3x mb-3 text-secondary" style="opacity:0.3;"></i><br>
-                <strong>Seleccione un MikroTik y haga clic en Analizar.</strong>
+            <div id="mk-sync-empty" class="text-center py-5" style="border: 1px dashed var(--border-color); border-radius: 0.5rem; background: rgba(0,0,0,0.2);">
+                <i class="fas fa-radar fa-3x mb-3" style="color: var(--neon-cyan); opacity:0.5;"></i><br>
+                <strong style="color: var(--text-muted); letter-spacing: 1px; font-family: var(--font-mono);">AWAITING TARGET SELECTION</strong>
             </div>
         </div>
 
@@ -512,25 +643,24 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
 <div class="modal fade" id="modal-confirmar-corte" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white border-0" style="border-radius:1rem 1rem 0 0;">
-                <h5 class="modal-title font-weight-bold"><i class="fas fa-cut mr-2"></i> Confirmar Corte Internet</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-exclamation-triangle mr-2"></i> CONFIRM EXECUTION</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="font-weight-bold">Se ejecutará el corte de servicio para <span id="modal-corte-count" class="text-danger font-weight-bolder" style="font-size:1.2rem;">0</span> contrato(s) pendiente(s).</p>
-                <div class="alert alert-warning border-0" style="background: rgba(246,194,62,0.15); color: #b98a12; border-radius:0.5rem;">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    Esta acción moverá las IPs a la lista <code>morosos</code> en MikroTik y deshabilitará los contratos en el sistema.
+                <p>Targets to disable: <span id="modal-corte-count" style="color: var(--neon-red); font-size: 1.5rem; font-family: var(--font-mono); font-weight: bold;">0</span></p>
+                <div class="alert alert-warning" style="font-family: var(--font-mono); font-size: 0.85rem;">
+                    [WARNING] IPs will be moved to 'morosos' list. Network access will be dropped.
                 </div>
                 <div class="form-group mt-3 mb-0">
-                    <label class="small font-weight-bold text-uppercase text-muted">Fecha de corte</label>
-                    <input type="date" id="modal-fecha-corte" class="form-control form-control-sm" style="border-radius:0.5rem; padding:1rem 0.8rem;">
+                    <label class="small font-weight-bold text-uppercase text-muted">EXECUTION TIMESTAMP</label>
+                    <input type="date" id="modal-fecha-corte" class="form-control" style="background: rgba(0,0,0,0.5); border: 1px solid var(--neon-red); color: var(--neon-red); border-radius: 0.25rem;">
                 </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-corte" class="btn btn-danger btn-sm px-4">
-                    <i class="fas fa-cut mr-1"></i> Ejecutar Corte
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
+                <button type="button" id="btn-confirmar-corte" class="btn btn-danger">
+                    <i class="fas fa-bolt mr-1"></i> PROCEED
                 </button>
             </div>
         </div>
@@ -541,21 +671,20 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
 <div class="modal fade" id="modal-confirmar-corte-tv" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-warning border-0" style="border-radius:1rem 1rem 0 0;">
-                <h5 class="modal-title text-white font-weight-bold"><i class="fas fa-tv mr-2"></i> Confirmar Corte TV</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-exclamation-triangle mr-2"></i> CONFIRM EXECUTION (TV)</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="font-weight-bold">Se ejecutará el corte de TV para <span id="modal-corte-tv-count" class="text-warning font-weight-bolder" style="font-size:1.2rem;">0</span> contrato(s).</p>
-                <div class="alert alert-warning border-0" style="background: rgba(246,194,62,0.15); color: #b98a12; border-radius:0.5rem;">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    Esta acción deshabilitará las ONUs en SmartOLT.
+                <p>Targets to disable: <span id="modal-corte-tv-count" style="color: var(--neon-yellow); font-size: 1.5rem; font-family: var(--font-mono); font-weight: bold;">0</span></p>
+                <div class="alert alert-warning" style="font-family: var(--font-mono); font-size: 0.85rem;">
+                    [WARNING] SmartOLT ONUs will be disabled. Signal will be dropped.
                 </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-corte-tv" class="btn btn-warning text-white btn-sm px-4">
-                    <i class="fas fa-tv mr-1"></i> Ejecutar Corte TV
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
+                <button type="button" id="btn-confirmar-corte-tv" class="btn btn-warning">
+                    <i class="fas fa-bolt mr-1"></i> PROCEED
                 </button>
             </div>
         </div>
@@ -566,18 +695,18 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
 <div class="modal fade" id="modal-habilitar" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white border-0" style="border-radius:1rem 1rem 0 0;">
-                <h5 class="modal-title font-weight-bold"><i class="fas fa-check-circle mr-2"></i> Habilitar Cortados</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            <div class="modal-header bg-success">
+                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-unlock mr-2"></i> ENABLE NETWORK</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="font-weight-bold">¿Desea habilitar todos los contratos actualmente en estado cortado en este grupo?</p>
-                <p class="text-muted small">Se quitarán de la lista <code>morosos</code> y se agregarán a <code>ips_autorizadas</code> en MikroTik.</p>
+                <p>Do you want to enable all currently offline targets in this group?</p>
+                <p class="text-muted small" style="font-family: var(--font-mono);">Targets will be removed from 'morosos' list.</p>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-habilitar" class="btn btn-success btn-sm px-4">
-                    <i class="fas fa-check-circle mr-1"></i> Confirmar y Habilitar
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
+                <button type="button" id="btn-confirmar-habilitar" class="btn btn-success">
+                    <i class="fas fa-check mr-1"></i> EXECUTE
                 </button>
             </div>
         </div>
@@ -589,25 +718,25 @@ code { background: rgba(78, 115, 223, 0.1); color: #4e73df; padding: 0.2rem 0.4r
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title font-weight-bold text-dark"><i class="fas fa-list text-primary mr-2"></i> Detalle de Ejecución</h5>
+                <h5 class="modal-title font-weight-bold" style="color: var(--neon-purple); font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-terminal mr-2"></i> SYSTEM LOG TRACE</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th>Contrato</th>
+                                <th>Target</th>
                                 <th>Cliente</th>
-                                <th>IP</th>
-                                <th>Tipo</th>
-                                <th>Resultado</th>
-                                <th>Método</th>
-                                <th>Descripción</th>
+                                <th>IP Addr</th>
+                                <th>Protocol</th>
+                                <th>Result</th>
+                                <th>Method</th>
+                                <th>Stack/Msg</th>
                             </tr>
                         </thead>
                         <tbody id="log-detail-body">
-                            <tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>
+                            <tr><td colspan="7" class="text-center py-4" style="color: var(--neon-purple);"><i class="fas fa-circle-notch fa-spin mr-2"></i> DECRYPTING LOGS...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -645,7 +774,7 @@ function getSelectedFecha() {
 
 function fmt(n) {
     if (n === null || n === undefined) return '—';
-    return new Intl.NumberFormat('es-CO').format(n);
+    return new Intl.NumberFormat('en-US').format(n);
 }
 
 function badgeEstado(estado) {
@@ -656,8 +785,8 @@ function badgeEstado(estado) {
         'promesa':   'badge-estado-promesa',
         'bloqueado': 'badge-estado-bloqueado',
     };
-    var cls = map[estado] || 'badge-secondary';
-    return '<span class="badge ' + cls + '">' + (estado || '—') + '</span>';
+    var cls = map[estado] || 'badge-estado-bloqueado';
+    return '<span class="badge ' + cls + '">' + (estado || 'UNKNOWN') + '</span>';
 }
 
 /* ── KPIs ──────────────────────────────────────────────── */
@@ -676,7 +805,7 @@ function loadSummary() {
 /* ── Internet tab ──────────────────────────────────────── */
 function loadInternet() {
     var fecha = getSelectedFecha();
-    $('#tbody-internet').html('<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>');
+    $('#tbody-internet').html('<tr><td colspan="9" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>');
     $.getJSON(URLS.pendingInternet + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha)
         .done(function(res) {
             var rows = '';
@@ -685,18 +814,18 @@ function loadInternet() {
             $('#badge-internet').text(list.length);
             $('#modal-corte-count').text(list.length);
             if (!list.length) {
-                rows = '<tr><td colspan="9" class="text-center text-success py-4"><i class="fas fa-check-circle mr-2" style="font-size:1.5rem;"></i><br><span class="font-weight-bold mt-2 d-inline-block">Sin pendientes de corte</span></td></tr>';
+                rows = '<tr><td colspan="9" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO TARGETS FOUND. NETWORK SECURE.</td></tr>';
             } else {
                 list.forEach(function(c, i) {
                     rows += '<tr>' +
-                        '<td><span class="text-muted font-weight-bold">' + (i+1) + '</span></td>' +
-                        '<td class="font-weight-bold text-dark">' + (c.contrato_nro || '—') + '</td>' +
+                        '<td style="color: var(--text-muted); font-family: var(--font-mono);">[' + (i+1) + ']</td>' +
+                        '<td style="color: var(--text-primary); font-family: var(--font-mono);">' + (c.contrato_nro || '—') + '</td>' +
                         '<td>' + (c.cliente_nombre || '—') + '</td>' +
                         '<td><code>' + (c.ip || '—') + '</code></td>' +
-                        '<td class="small">' + (c.mikrotik_nombre || '—') + '</td>' +
-                        '<td class="small"><span class="badge" style="background:#f8f9fc;color:#5a5c69;border:1px solid #eaecf4;">' + (c.factura_codigo || '—') + '</span></td>' +
-                        '<td class="font-weight-bold text-dark">$' + fmt(c.factura_total) + '</td>' +
-                        '<td class="small">' + (c.fecha_vencimiento || '—') + '</td>' +
+                        '<td style="color: var(--neon-cyan); font-family: var(--font-mono); font-size: 0.8rem;">' + (c.mikrotik_nombre || '—') + '</td>' +
+                        '<td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);">' + (c.factura_codigo || '—') + '</td>' +
+                        '<td style="color: var(--text-primary); font-family: var(--font-mono); font-weight: bold;">$' + fmt(c.factura_total) + '</td>' +
+                        '<td style="color: var(--text-muted); font-size: 0.85rem;">' + (c.fecha_vencimiento || '—') + '</td>' +
                         '<td>' + badgeEstado(c.estado_contrato) + '</td>' +
                     '</tr>';
                 });
@@ -708,7 +837,7 @@ function loadInternet() {
 /* ── TV tab ────────────────────────────────────────────── */
 function loadTv() {
     var fecha = getSelectedFecha();
-    $('#tbody-tv').html('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>');
+    $('#tbody-tv').html('<tr><td colspan="8" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>');
     $.getJSON(URLS.pendingTv + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha)
         .done(function(res) {
             var rows = '';
@@ -717,17 +846,17 @@ function loadTv() {
             $('#badge-tv').text(list.length);
             $('#modal-corte-tv-count').text(list.length);
             if (!list.length) {
-                rows = '<tr><td colspan="8" class="text-center text-success py-4"><i class="fas fa-check-circle mr-2" style="font-size:1.5rem;"></i><br><span class="font-weight-bold mt-2 d-inline-block">Sin pendientes de corte TV</span></td></tr>';
+                rows = '<tr><td colspan="8" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO TARGETS FOUND. NETWORK SECURE.</td></tr>';
             } else {
                 list.forEach(function(c, i) {
                     rows += '<tr>' +
-                        '<td><span class="text-muted font-weight-bold">' + (i+1) + '</span></td>' +
-                        '<td class="font-weight-bold text-dark">' + (c.contrato_nro || '—') + '</td>' +
+                        '<td style="color: var(--text-muted); font-family: var(--font-mono);">[' + (i+1) + ']</td>' +
+                        '<td style="color: var(--text-primary); font-family: var(--font-mono);">' + (c.contrato_nro || '—') + '</td>' +
                         '<td>' + (c.cliente_nombre || '—') + '</td>' +
                         '<td><code>' + (c.serial_onu || '—') + '</code></td>' +
-                        '<td class="small"><span class="badge" style="background:#f8f9fc;color:#5a5c69;border:1px solid #eaecf4;">' + (c.factura_codigo || '—') + '</span></td>' +
-                        '<td class="font-weight-bold text-dark">$' + fmt(c.factura_total) + '</td>' +
-                        '<td class="small">' + (c.fecha_vencimiento || '—') + '</td>' +
+                        '<td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);">' + (c.factura_codigo || '—') + '</td>' +
+                        '<td style="color: var(--text-primary); font-family: var(--font-mono); font-weight: bold;">$' + fmt(c.factura_total) + '</td>' +
+                        '<td style="color: var(--text-muted); font-size: 0.85rem;">' + (c.fecha_vencimiento || '—') + '</td>' +
                         '<td>' + badgeEstado(c.estado_contrato) + '</td>' +
                     '</tr>';
                 });
@@ -738,29 +867,29 @@ function loadTv() {
 
 /* ── Historial tab ─────────────────────────────────────── */
 function loadHistorial() {
-    $('#tbody-historial').html('<tr><td colspan="10" class="text-center text-muted py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>');
+    $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> FETCHING LOGS...</td></tr>');
     $.getJSON(URLS.history)
         .done(function(data) {
             var rows = '';
             if (!data.length) {
-                rows = '<tr><td colspan="10" class="text-center text-muted py-4">Sin historial</td></tr>';
+                rows = '<tr><td colspan="10" class="text-center py-4 text-muted" style="font-family: var(--font-mono);">NO SYSTEM LOGS FOUND</td></tr>';
             } else {
                 data.forEach(function(h) {
                     var tipoBadge = h.tipo === 'internet'
-                        ? '<span class="badge" style="background:rgba(54,185,204,0.1);color:#36b9cc;">Internet</span>'
-                        : '<span class="badge" style="background:rgba(246,194,62,0.1);color:#d8a00b;">TV</span>';
+                        ? '<span class="badge" style="background:rgba(0,240,255,0.15);color:var(--neon-cyan);border:1px solid var(--neon-cyan);">NET</span>'
+                        : '<span class="badge" style="background:rgba(255,234,0,0.15);color:var(--neon-yellow);border:1px solid var(--neon-yellow);">TV</span>';
                     var duracion = h.duracion_ms ? (h.duracion_ms / 1000).toFixed(1) + 's' : '—';
                     rows += '<tr>' +
-                        '<td class="font-weight-bold">#' + h.id + '</td>' +
+                        '<td style="font-family: var(--font-mono); color: var(--neon-purple);">[' + h.id + ']</td>' +
                         '<td>' + tipoBadge + '</td>' +
-                        '<td>' + (h.total_procesados || 0) + '</td>' +
-                        '<td class="text-danger font-weight-bold">' + (h.total_cortados || 0) + '</td>' +
-                        '<td>' + (h.total_omitidos || 0) + '</td>' +
-                        '<td class="text-danger">' + (h.total_errores || 0) + '</td>' +
-                        '<td>' + duracion + '</td>' +
-                        '<td class="small">' + (h.ejecutado_por_nombre || 'CRON') + '</td>' +
-                        '<td class="small text-muted">' + (h.created_at || '—') + '</td>' +
-                        '<td><button class="btn btn-sm btn-outline-primary btn-ver-detalle" data-id="' + h.id + '" style="padding:0.2rem 0.5rem;"><i class="fas fa-eye"></i></button></td>' +
+                        '<td style="font-family: var(--font-mono);">' + (h.total_procesados || 0) + '</td>' +
+                        '<td style="color: var(--neon-red); font-family: var(--font-mono); font-weight: bold;">' + (h.total_cortados || 0) + '</td>' +
+                        '<td style="font-family: var(--font-mono);">' + (h.total_omitidos || 0) + '</td>' +
+                        '<td style="color: var(--neon-orange); font-family: var(--font-mono);">' + (h.total_errores || 0) + '</td>' +
+                        '<td style="font-family: var(--font-mono);">' + duracion + '</td>' +
+                        '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">' + (h.ejecutado_por_nombre || 'SYS_CRON') + '</td>' +
+                        '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">' + (h.created_at || '—') + '</td>' +
+                        '<td><button class="btn btn-primary btn-sm btn-ver-detalle" data-id="' + h.id + '"><i class="fas fa-terminal"></i></button></td>' +
                     '</tr>';
                 });
             }
@@ -771,8 +900,8 @@ function loadHistorial() {
 /* ── MK Sync ───────────────────────────────────────────── */
 $('#btn-analizar-mk').on('click', function() {
     var mkId = $('#select-mikrotik').val();
-    if (!mkId) { alert('Seleccione un MikroTik.'); return; }
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> Analizando…');
+    if (!mkId) { alert('ERROR: NO ROUTER SELECTED'); return; }
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> SCANNING...');
     $('#mk-sync-empty').addClass('d-none');
     $('#mk-sync-result').addClass('d-none');
     $.ajax({
@@ -781,7 +910,7 @@ $('#btn-analizar-mk').on('click', function() {
         data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
     }).done(function(d) {
         if (!d.disponible) {
-            $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger border-0" style="background:rgba(231,74,59,0.1);color:#e74a3b;">' + (d.error || 'No disponible') + '</div>');
+            $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger" style="background:rgba(255,0,60,0.1); border:1px solid var(--neon-red); color:var(--neon-red);">' + (d.error || 'UNAVAILABLE') + '</div>');
             return;
         }
         var faltantes = d.inconsistencias && d.inconsistencias.cortados_sin_morosos ? d.inconsistencias.cortados_sin_morosos : [];
@@ -796,10 +925,10 @@ $('#btn-analizar-mk').on('click', function() {
         // Faltantes
         var rowsF = '';
         if (!faltantes.length) {
-            rowsF = '<tr><td colspan="5" class="text-center text-success py-4"><i class="fas fa-check-circle mr-2" style="font-size:1.5rem;"></i><br><span class="font-weight-bold mt-2 d-inline-block">Sin discrepancias</span></td></tr>';
+            rowsF = '<tr><td colspan="5" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> ALL TARGETS PRESENT IN MK.</td></tr>';
         } else {
             faltantes.forEach(function(c) {
-                rowsF += '<tr><td class="font-weight-bold">'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td><code>'+(c.ip||'—')+'</code></td><td class="small"><span class="badge" style="background:#f8f9fc;color:#5a5c69;border:1px solid #eaecf4;">'+(c.factura_codigo||'—')+'</span></td><td class="font-weight-bold">$' + fmt(c.factura_total) + '</td></tr>';
+                rowsF += '<tr><td style="font-family: var(--font-mono);">'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td><code>'+(c.ip||'—')+'</code></td><td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(c.factura_codigo||'—')+'</td><td style="font-family: var(--font-mono);">$'+fmt(c.factura_total)+'</td></tr>';
             });
         }
         $('#tbody-mk-faltantes').html(rowsF);
@@ -807,10 +936,10 @@ $('#btn-analizar-mk').on('click', function() {
         // Extra
         var rowsE = '';
         if (!extra.length) {
-            rowsE = '<tr><td colspan="3" class="text-center text-success py-4"><i class="fas fa-check-circle mr-2" style="font-size:1.5rem;"></i><br><span class="font-weight-bold mt-2 d-inline-block">Sin extras</span></td></tr>';
+            rowsE = '<tr><td colspan="3" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO GHOST TARGETS IN MK.</td></tr>';
         } else {
             extra.forEach(function(e) {
-                rowsE += '<tr><td><code>'+(e.address||'—')+'</code></td><td><span class="badge badge-warning text-white">'+(e.list||'—')+'</span></td><td class="small">'+(e.comment||'—')+'</td></tr>';
+                rowsE += '<tr><td><code>'+(e.address||'—')+'</code></td><td><span class="badge" style="background: rgba(255,234,0,0.15); border: 1px solid var(--neon-yellow); color: var(--neon-yellow);">'+(e.list||'—')+'</span></td><td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(e.comment||'—')+'</td></tr>';
             });
         }
         $('#tbody-mk-extra').html(rowsE);
@@ -818,27 +947,27 @@ $('#btn-analizar-mk').on('click', function() {
         $('#mk-sync-result').removeClass('d-none');
         $('#btn-solucionar-lote').prop('disabled', faltantes.length === 0);
     }).fail(function() {
-        $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger border-0" style="background:rgba(231,74,59,0.1);color:#e74a3b;">Error al analizar MikroTik.</div>');
+        $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger" style="background:rgba(255,0,60,0.1); border:1px solid var(--neon-red); color:var(--neon-red);">SCAN FAILED. CHECK CONNECTION.</div>');
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-search mr-1"></i> Analizar');
+        $btn.prop('disabled', false).html('<i class="fas fa-radar mr-1"></i> SCAN MK');
     });
 });
 
 $('#btn-solucionar-lote').on('click', function() {
     var mkId = $('#select-mikrotik').val();
-    if (!mkId || !confirm('¿Agregar a morosos en MikroTik todos los contratos cortados con discrepancia?')) return;
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> Procesando…');
+    if (!mkId || !confirm('SYS-WARNING: Execute AUTO-FIX adding missing targets to MK?')) return;
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> FIXING...');
     $.ajax({
         url: URLS.solucionarLote,
         method: 'POST',
         data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
     }).done(function(r) {
-        alert(r.message || 'Listo');
+        alert(r.message || 'SYS-MSG: FIX APPLIED');
         $('#btn-analizar-mk').trigger('click');
     }).fail(function(xhr) {
-        alert('Error: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Error desconocido'));
+        alert('SYS-ERR: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'UNKNOWN ERROR'));
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-magic mr-1"></i> Solucionar Lote');
+        $btn.prop('disabled', false).html('<i class="fas fa-wrench mr-1"></i> AUTO-FIX');
     });
 });
 
@@ -854,7 +983,7 @@ $('#btn-confirmar-corte').on('click', function() {
 
     $('#progress-bar-wrap').fadeIn();
     $('#progress-bar').css('width', '0%');
-    $('#progress-label').text('Ejecutando corte internet…');
+    $('#progress-label').text('EXECUTING CUT ROUTINE...');
     $('#progress-count').text('0 / ?');
 
     var total = parseInt($('#internet-count').text()) || 0;
@@ -866,7 +995,7 @@ $('#btn-confirmar-corte').on('click', function() {
         if (d.done) {
             es.close();
             $('#progress-bar-wrap').fadeOut();
-            alert('Corte completado. Cortados: ' + d.cortados + ' | Errores: ' + d.errores);
+            alert('ROUTINE COMPLETED. SUCCESS: ' + d.cortados + ' | ERRORS: ' + d.errores);
             loadInternet();
             loadSummary();
             if ($('#tab-historial-link').hasClass('active') || $('#tab-historial').hasClass('show')) loadHistorial();
@@ -875,12 +1004,12 @@ $('#btn-confirmar-corte').on('click', function() {
         done = d.progreso;
         var pct = total > 0 ? Math.round(done / total * 100) : 0;
         $('#progress-bar').css('width', pct + '%');
-        $('#progress-count').text(done + ' / ' + d.total + ' (' + pct + '%)');
+        $('#progress-count').text(done + ' / ' + d.total + ' [' + pct + '%]');
     };
     es.onerror = function() {
         es.close();
         $('#progress-bar-wrap').fadeOut();
-        alert('Error en el stream de corte. Revise el historial.');
+        alert('STREAM ERROR DETECTED. CHECK SYSTEM LOGS.');
         loadHistorial();
     };
 });
@@ -892,19 +1021,19 @@ $('#btn-ejecutar-corte-tv').on('click', function() {
 
 $('#btn-confirmar-corte-tv').on('click', function() {
     $('#modal-confirmar-corte-tv').modal('hide');
-    var $btn = $('#btn-ejecutar-corte-tv').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> Ejecutando…');
+    var $btn = $('#btn-ejecutar-corte-tv').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> EXECUTING...');
     $.ajax({
         url: URLS.ejecutarTv,
         method: 'POST',
         data: { _token: csrfToken, grupo_id: GRUPO_ID, fecha: getSelectedFecha() },
     }).done(function(r) {
-        alert('Corte TV completado. Cortados: ' + r.cortados + ' | Errores: ' + r.errores);
+        alert('ROUTINE TV COMPLETED. SUCCESS: ' + r.cortados + ' | ERRORS: ' + r.errores);
         loadTv();
         loadSummary();
     }).fail(function(xhr) {
-        alert('Error: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Error desconocido'));
+        alert('SYS-ERR: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'UNKNOWN ERROR'));
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-cut mr-1"></i> Ejecutar Corte TV');
+        $btn.prop('disabled', false).html('<i class="fas fa-bolt mr-1"></i> EXECUTE CUT (TV)');
     });
 });
 
@@ -915,48 +1044,48 @@ $('#btn-habilitar-cortados').on('click', function() {
 
 $('#btn-confirmar-habilitar').on('click', function() {
     $('#modal-habilitar').modal('hide');
-    var $btn = $('#btn-habilitar-cortados').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> Procesando…');
+    var $btn = $('#btn-habilitar-cortados').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> ENABLING...');
     $.ajax({
         url: URLS.habilitarCortados,
         method: 'POST',
         data: { _token: csrfToken, grupo_id: GRUPO_ID },
     }).done(function(r) {
-        alert('Habilitados: ' + r.habilitados + ' | Errores: ' + r.errores);
+        alert('ENABLE ROUTINE FINISHED. SUCCESS: ' + r.habilitados + ' | ERRORS: ' + r.errores);
         loadInternet();
         loadSummary();
     }).fail(function() {
-        alert('Error al habilitar contratos.');
+        alert('SYS-ERR: FAILED TO ENABLE TARGETS.');
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Habilitar Cortados');
+        $btn.prop('disabled', false).html('<i class="fas fa-unlock mr-1"></i> ENABLE OFFLINE');
     });
 });
 
 /* ── Historial detail ──────────────────────────────────── */
 $(document).on('click', '.btn-ver-detalle', function() {
     var logId = $(this).data('id');
-    $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Cargando…</td></tr>');
+    $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color: var(--neon-purple);"><i class="fas fa-circle-notch fa-spin mr-2"></i> DECRYPTING TRACE...</td></tr>');
     $('#modal-log-detail').modal('show');
     $.getJSON(URLS.historyDetail.replace('LOGID_PH', logId))
         .done(function(data) {
             var rows = '';
             var list = data.detalle || data || [];
             if (!list.length) {
-                rows = '<tr><td colspan="7" class="text-center text-muted py-4">Sin detalle</td></tr>';
+                rows = '<tr><td colspan="7" class="text-center py-4 text-muted" style="font-family: var(--font-mono);">TRACE EMPTY</td></tr>';
             } else {
                 list.forEach(function(r) {
                     var res = r.resultado === 'cortado'
-                        ? '<span class="badge" style="background:rgba(28,200,138,0.15);color:#1cc88a;">cortado</span>'
+                        ? '<span class="badge" style="background:rgba(0,255,102,0.15);color:var(--neon-green);border:1px solid var(--neon-green);">SUCCESS</span>'
                         : (r.resultado === 'error'
-                            ? '<span class="badge" style="background:rgba(231,74,59,0.15);color:#e74a3b;">error</span>'
-                            : '<span class="badge" style="background:rgba(133,135,150,0.15);color:#858796;">'+(r.resultado||'—')+'</span>');
+                            ? '<span class="badge" style="background:rgba(255,0,60,0.15);color:var(--neon-red);border:1px solid var(--neon-red);">ERROR</span>'
+                            : '<span class="badge" style="background:rgba(255,255,255,0.1);color:var(--text-primary);border:1px solid var(--text-muted);">'+(r.resultado||'UNKNOWN')+'</span>');
                     rows += '<tr>' +
-                        '<td class="font-weight-bold">'+(r.contrato_nro||r.contrato_id||'—')+'</td>' +
+                        '<td style="font-family: var(--font-mono);">['+(r.contrato_nro||r.contrato_id||'—')+']</td>' +
                         '<td>'+(r.cliente_nombre||'—')+'</td>' +
                         '<td><code>'+(r.ip||'—')+'</code></td>' +
-                        '<td><span class="badge" style="background:#f8f9fc;color:#5a5c69;border:1px solid #eaecf4;">'+(r.tipo||'—')+'</span></td>' +
+                        '<td><span class="badge" style="background:rgba(0,240,255,0.1);color:var(--neon-cyan);border:1px solid var(--neon-cyan);">'+(r.tipo||'—')+'</span></td>' +
                         '<td>'+res+'</td>' +
-                        '<td class="small text-muted">'+(r.metodo||'—')+'</td>' +
-                        '<td class="small">'+(r.descripcion || r.error_detalle || '—')+'</td>' +
+                        '<td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(r.metodo||'—')+'</td>' +
+                        '<td style="font-family: var(--font-mono); font-size: 0.85rem;">'+(r.descripcion || r.error_detalle || '—')+'</td>' +
                     '</tr>';
                 });
             }
@@ -974,9 +1103,9 @@ $('#btn-refresh').on('click', function() {
 
 $('#btn-apply-date').on('click', function() {
     var $icon = $(this).find('i');
-    $icon.removeClass('fa-filter').addClass('fa-circle-notch fa-spin');
+    $icon.removeClass('fa-microchip').addClass('fa-circle-notch fa-spin');
     loadInternet(); loadTv(); loadSummary();
-    setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-filter'); }, 1000);
+    setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-microchip'); }, 1000);
 });
 
 $('#btn-refresh-historial').on('click', function(){
@@ -988,7 +1117,7 @@ $('#btn-refresh-historial').on('click', function(){
 
 $('#btn-clear-cache').on('click', function() {
     var $icon = $(this).find('i');
-    $icon.removeClass('fa-eraser').addClass('fa-circle-notch fa-spin');
+    $icon.removeClass('fa-terminal').addClass('fa-circle-notch fa-spin');
     $.ajax({
         url: URLS.limpiarCache,
         method: 'POST',
@@ -996,7 +1125,7 @@ $('#btn-clear-cache').on('click', function() {
     }).done(function() {
         loadSummary(); loadInternet(); loadTv();
     }).always(function() {
-        setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-eraser'); }, 1000);
+        setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-terminal'); }, 1000);
     });
 });
 
