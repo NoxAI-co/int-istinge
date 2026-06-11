@@ -5370,110 +5370,87 @@ $('#searchIP').click(function () {
     cargando(true);
     let prefijo = $("#local_address").val().split('/');
     let mk = $("#server_configuration_id").val();
-
-    if (window.location.pathname.split("/")[1] === "software") {
-        var url = '/software/api/getSubnetting/' + prefijo['0'] + '/' + prefijo['1'];
-    } else {
-        var url = '/api/getSubnetting/' + prefijo['0'] + '/' + prefijo['1'];
-    }
+    let inSoftware = window.location.pathname.split("/")[1] === "software";
+    let basePath = inSoftware ? '/software' : '';
+    let urlSubnet = basePath + '/api/getSubnetting/' + prefijo['0'] + '/' + prefijo['1'];
+    let prefijo3 = prefijo['0'].split('.').slice(0, 3).join('.');
+    let urlIps = basePath + '/api/getIps/' + mk + '?prefijo=' + encodeURIComponent(prefijo3);
+    let csrf = $('meta[name="csrf-token"]').attr('content');
 
     $.ajax({
-        url: url,
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        method: 'get',
-        success: function (data) {
-            $('#row_ip').html('');
-            let ip_ini = data.inicial.split('.');
-            let ip_fin = data.final.split('.');
-
-            var ini = ip_ini['3'];
-            var fin = ip_fin['3'];
-            var x = ip_ini['2'] * 1;
-            while (x <= ip_fin['2']) {
-                for (i = data.i; i <= fin; i++) {
-                    var div = `
-                    <div class="col-md-2 text-center mb-1" id="` + ip_ini['0'] + `` + ip_ini['1'] + `` + x + `` + i + `">
-                    <a href="javascript:selectIP('` + ip_ini['0'] + `.` + ip_ini['1'] + `.` + x + `.` + i + `')" class="btn btn-success btn-sm">` + ip_ini['0'] + `.` + ip_ini['1'] + `.` + x + `.` + i + `</a>
-                    </div>
-                    `;
-                    $('#row_ip').append(div);
-                }
-                x++;
+        url: urlSubnet,
+        headers: { 'X-CSRF-TOKEN': csrf },
+        method: 'GET',
+        timeout: 15000,
+    }).done(function (data) {
+        $('#row_ip').html('');
+        let ip_ini = data.inicial.split('.');
+        let ip_fin = data.final.split('.');
+        var fin = ip_fin['3'];
+        var x = ip_ini['2'] * 1;
+        while (x <= ip_fin['2']) {
+            for (i = data.i; i <= fin; i++) {
+                $('#row_ip').append(
+                    '<div class="col-md-2 text-center mb-1" id="' + ip_ini['0'] + ip_ini['1'] + x + i + '">' +
+                    '<a href="javascript:selectIP(\'' + ip_ini['0'] + '.' + ip_ini['1'] + '.' + x + '.' + i + '\')" class="btn btn-success btn-sm">' +
+                    ip_ini['0'] + '.' + ip_ini['1'] + '.' + x + '.' + i + '</a>' +
+                    '</div>'
+                );
             }
+            x++;
+        }
 
-            if (window.location.pathname.split("/")[1] === "software") {
-                var url = `/software/api/getIps/${mk}`;
-            } else {
-                var url = `/api/getIps/${mk}`;
-            }
-
-            $.ajax({
-                url: url,
-                method: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function (data) {
-                    /*console.log(data.software);
-                    if (data.software) {
-                        for (i = 0; i < data.software.length; i++){
-                            let ip = data.software[i].ip.replace(/\./g, '');
-                            $("#"+ip).remove();
+        // Segunda llamada: tachar IPs ya usadas. Si falla NO bloqueamos al usuario:
+        // el modal abre igual (con todas las IPs sin filtrar) y registramos un warning.
+        // Sin esto el loader quedaba pegado para siempre cuando Mikrotik tardaba/fallaba.
+        $.ajax({
+            url: urlIps,
+            method: 'GET',
+            headers: { 'X-CSRF-TOKEN': csrf },
+            timeout: 30000,
+        }).done(function (data) {
+            if (data.mikrotik) {
+                for (i = 0; i < data.mikrotik.length; i++) {
+                    var target = data.mikrotik[i].target.split('/');
+                    var ip_mk_a = target[0].split('.');
+                    var ip_so_a = prefijo[0].split('.');
+                    var ip_mk = ip_mk_a[0] + '.' + ip_mk_a[1] + '.' + ip_mk_a[2];
+                    var ip_so = ip_so_a[0] + '.' + ip_so_a[1] + '.' + ip_so_a[2];
+                    if (ip_mk == ip_so) {
+                        var ip = target[0].replace(/\./g, '');
+                        if (document.getElementById(ip)) {
+                            $("#" + ip).remove();
                         }
                     }
-
-                    console.log(data.mikrotik);
-                    if (data.mikrotik) {
-                        for (i = 0; i < data.mikrotik.length; i++){
-                            let target = data.mikrotik[i].target.split('/');
-                            let ip = target[0].replace(/\./g, '');
-                            $("#"+ip).remove();
-                        }
-                    }*/
-                    if (data.mikrotik) {
-                        for (i = 0; i < data.mikrotik.length; i++) {
-                            var target = data.mikrotik[i].target.split('/');
-
-                            var ip_mk_a = target[0].split('.');
-                            var ip_so_a = prefijo[0].split('.');
-
-                            var ip_mk = ip_mk_a[0] + `.` + ip_mk_a[1] + `.` + ip_mk_a[2];
-                            var ip_so = ip_so_a[0] + `.` + ip_so_a[1] + `.` + ip_so_a[2];
-
-                            if (ip_mk == ip_so) {
-                                var ip = target[0].replace(/\./g, '');
-                                if (document.getElementById(ip)) {
-                                    $("#" + ip).remove();
-                                }
-                            }
-                        }
-                    }
-                    if (data.software) {
-                        for (i = 0; i < data.software.length; i++) {
-                            if (data.software[i].ip) {
-                                var ip = data.software[i].ip.replace(/\./g, '');
-                                if (document.getElementById(ip)) {
-                                    $("#" + ip).remove();
-                                }
-                            }
-                        }
-                    }
-                    cargando(false);
                 }
-            });
+            }
+            if (data.software) {
+                for (i = 0; i < data.software.length; i++) {
+                    if (data.software[i].ip) {
+                        var ip = data.software[i].ip.replace(/\./g, '');
+                        if (document.getElementById(ip)) {
+                            $("#" + ip).remove();
+                        }
+                    }
+                }
+            }
+        }).fail(function () {
+            console.warn('getIps falló: el modal muestra todas las IPs del segmento sin filtrar las usadas');
+        }).always(function () {
+            cargando(false);
             $('#modal-ips').modal('show');
             $("#segmento_bd").val($("#local_address").val());
-        },
-        error: function (data) {
-            Swal.fire({
-                type: 'error',
-                title: 'ERROR EN EL CÁLCULO DE LA SUBNETTING',
-                text: 'INTENTE NUEVAMENTE',
-                showConfirmButton: false,
-                timer: 5000
-            })
-        }
-    })
+        });
+    }).fail(function () {
+        cargando(false);
+        Swal.fire({
+            type: 'error',
+            title: 'ERROR EN EL CÁLCULO DE LA SUBNETTING',
+            text: 'INTENTE NUEVAMENTE',
+            showConfirmButton: false,
+            timer: 5000
+        });
+    });
 });
 
 function selectIP(ip) {

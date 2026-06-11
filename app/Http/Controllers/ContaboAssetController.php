@@ -23,9 +23,10 @@ class ContaboAssetController extends Controller
 
     /**
      * Si el objeto existe en Contabo redirige (302) a la URL firmada (cacheada).
-     * Si no existe (o falla la consulta) devuelve un PNG 1x1 transparente — así
-     * nunca se muestra un logo de otra empresa como placeholder mientras la
-     * empresa actual no haya subido el suyo.
+     * Si no existe (o falla la consulta) el fallback depende del folder:
+     *   - logos  → PNG 1x1 transparente (placeholder neutro, no muestra marca ajena)
+     *   - resto  → 404 honesto (un PNG de 43 bytes haciéndose pasar por documento
+     *              abre una pestaña "blanca" inutilizable para el usuario).
      */
     public function show(string $folder, string $filename, ContaboS3Service $s3)
     {
@@ -36,10 +37,18 @@ class ContaboAssetController extends Controller
         }
 
         if ($cached === self::MISSING_SENTINEL) {
-            return $this->transparentPng();
+            if ($this->esFolderDeLogos($folder)) {
+                return $this->transparentPng();
+            }
+            abort(404, 'Archivo no encontrado en Contabo: '.trim($folder, '/').'/'.$filename);
         }
 
         return redirect()->away($cached, 302);
+    }
+
+    private function esFolderDeLogos(string $folder): bool
+    {
+        return trim($folder, '/') === env('LOGOS_FOLDER', 'logos');
     }
 
     private function resolve(ContaboS3Service $s3, string $folder, string $filename): string

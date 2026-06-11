@@ -1861,7 +1861,16 @@ class Controller extends BaseController
     }
 
     public function getIps($mikrotik){
-        $ips = Contrato::where('status', 1)->select('ip', 'state')->orderBy('ip', 'asc')->get();
+        // Filtrar por prefijo del segmento mostrado en el modal (ej: "10.1.101").
+        // Sin esto traíamos TODAS las IPs activas de la flota para que el JS
+        // tachara las del segmento visible — desperdicio de red y memoria.
+        // Backward-compatible: si el caller no manda ?prefijo=, devolvemos todo.
+        $prefijo = request()->query('prefijo');
+        $ipsQuery = Contrato::where('status', 1)->select('ip', 'state')->orderBy('ip', 'asc');
+        if ($prefijo) {
+            $ipsQuery->where('ip', 'like', $prefijo.'.%');
+        }
+        $ips = $ipsQuery->get();
 
         $mikrotikObj = Mikrotik::find($mikrotik);
         $sanitizedArray = [];
@@ -1891,27 +1900,27 @@ class Controller extends BaseController
                 $ARRAY = $API->parseResponse($READ);
                 $API->disconnect();
 
+                // mb_list_encodings() devuelve ~70 encodings; antes lo llamábamos
+                // dentro del loop (N veces por queue). Lo izamos una sola vez.
+                $encodings = mb_list_encodings();
+
                 foreach ($ARRAY as $item) {
                     $sanitizedItem = [];
 
                     foreach ($item as $key => $value) {
                         // Verificar si $value es una cadena antes de intentar convertirla
                         if (is_string($value)) {
-                            // Detectar la codificación
-                            $encoding = mb_detect_encoding($value, mb_list_encodings(), true);
+                            $encoding = mb_detect_encoding($value, $encodings, true);
                             if ($encoding) {
-                                // Convertir a UTF-8 si se detecta la codificación
                                 $sanitizedItem[$key] = mb_convert_encoding($value, "UTF-8", $encoding);
                             } else {
-                                // Sanitizar la cadena si la codificación no se detecta
                                 $sanitizedItem[$key] = iconv('UTF-8', 'UTF-8//IGNORE', $value);
                             }
                         } else {
-                            $sanitizedItem[$key] = $value; // Si no es una cadena, mantener el valor original
+                            $sanitizedItem[$key] = $value;
                         }
                     }
 
-                    // Agregar el item sanitizado al array resultante
                     $sanitizedArray[] = $sanitizedItem;
                 }
             }
