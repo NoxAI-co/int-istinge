@@ -76,6 +76,61 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla factura)"
   fi
+
+  # --- 4) cron_cortes_logs --------------------------------------------------
+  if table_exists "$DB" "cron_cortes_logs"; then
+    echo "    [cron_cortes_logs] ya existe, salto"
+  else
+    dm "$DB" -e "
+      CREATE TABLE cron_cortes_logs (
+        id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        tipo              VARCHAR(20) NOT NULL COMMENT 'internet | tv',
+        empresa           INT UNSIGNED NULL,
+        grupo_corte_id    BIGINT UNSIGNED NULL,
+        total_procesados  INT UNSIGNED NOT NULL DEFAULT 0,
+        total_cortados    INT UNSIGNED NOT NULL DEFAULT 0,
+        total_omitidos    INT UNSIGNED NOT NULL DEFAULT 0,
+        total_errores     INT UNSIGNED NOT NULL DEFAULT 0,
+        duracion_ms       INT UNSIGNED NOT NULL DEFAULT 0,
+        ejecutado_por     INT UNSIGNED NULL COMMENT 'NULL = CRON automatico',
+        contexto          JSON NULL,
+        created_at        TIMESTAMP NULL,
+        updated_at        TIMESTAMP NULL,
+        INDEX idx_grupo_tipo (grupo_corte_id, tipo),
+        INDEX idx_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "
+    echo "    [cron_cortes_logs] creada"
+  fi
+
+  # --- 5) cron_cortes_detalle -----------------------------------------------
+  if table_exists "$DB" "cron_cortes_detalle"; then
+    echo "    [cron_cortes_detalle] ya existe, salto"
+  else
+    dm "$DB" -e "
+      CREATE TABLE cron_cortes_detalle (
+        id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        log_id           BIGINT UNSIGNED NOT NULL,
+        contrato_id      BIGINT UNSIGNED NULL,
+        factura_id       BIGINT UNSIGNED NULL,
+        cliente_id       BIGINT UNSIGNED NULL,
+        grupo_corte_id   BIGINT UNSIGNED NULL,
+        tipo             VARCHAR(20) NULL COMMENT 'internet | tv',
+        resultado        VARCHAR(30) NULL COMMENT 'cortado | omitido | error',
+        metodo           VARCHAR(50) NULL COMMENT 'mikrotik | olt | pppoe | db_only',
+        descripcion      TEXT NULL,
+        ip               VARCHAR(50) NULL,
+        serial_onu       VARCHAR(100) NULL,
+        mikrotik_id      INT UNSIGNED NULL,
+        error_detalle    TEXT NULL,
+        created_at       TIMESTAMP NULL,
+        INDEX idx_log_id (log_id),
+        INDEX idx_log_resultado (log_id, resultado),
+        CONSTRAINT fk_ccd_log FOREIGN KEY (log_id) REFERENCES cron_cortes_logs(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "
+    echo "    [cron_cortes_detalle] creada"
+  fi
 done
 
 echo "==> Listo."

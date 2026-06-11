@@ -22,6 +22,8 @@ use App\Model\Ingresos\Factura;
 use App\Model\Ingresos\ItemsFactura;
 use App\Contacto;
 use App\Services\BillingCycleAnalyzer;
+use App\Services\CortesAnalyzer;
+use RouterosAPI;
 use App\NumeracionFactura;
 
 class GruposCorteController extends Controller
@@ -1606,5 +1608,490 @@ class GruposCorteController extends Controller
                 'message' => 'Error al procesar la solicitud: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  ANÁLISIS DE CORTES
+    // ══════════════════════════════════════════════════════════════════════════
+
+    public function analisisCortes(int $id)
+    {
+        $empresa = Auth::user()->empresa;
+        $grupo   = GrupoCorte::where('empresa', $empresa)->findOrFail($id);
+        $grupos  = GrupoCorte::where('empresa', $empresa)->orderBy('nombre')->get(['id', 'nombre', 'status']);
+        $mikrotiks = DB::table('mikrotik')->where('empresa', $empresa)->where('status', 1)->get(['id', 'nombre', 'ip']);
+        $empresaObj = Empresa::find($empresa);
+
+        return view('grupos-corte.analisis-cortes', compact('grupo', 'grupos', 'mikrotiks', 'empresaObj'));
+    }
+
+    public function corteSummaryApi(int $id)
+    {
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($id);
+        return response()->json((new CortesAnalyzer)->getCorteSummary($id));
+    }
+
+    public function allContractsApi(int $id)
+    {
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($id);
+        return response()->json((new CortesAnalyzer)->getAllContractsForCutView($id));
+    }
+
+    public function pendingInternetApi(Request $request)
+    {
+        $idGrupo = (int) $request->query('grupo_id');
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($idGrupo);
+        $lista = (new CortesAnalyzer)->getPendingInternetCuts($idGrupo, $request->query('fecha'));
+        return response()->json(['data' => $lista, 'total' => $lista->count()]);
+    }
+
+    public function pendingTvApi(Request $request)
+    {
+        $idGrupo = (int) $request->query('grupo_id');
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($idGrupo);
+        $lista = (new CortesAnalyzer)->getPendingTvCuts($idGrupo, $request->query('fecha'));
+        return response()->json(['data' => $lista, 'total' => $lista->count()]);
+    }
+
+    public function blockedReasonsApi(int $id)
+    {
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($id);
+        return response()->json((new CortesAnalyzer)->getBlockedReasons($id));
+    }
+
+    public function corteHistoryApi(int $id)
+    {
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($id);
+        $limit = min((int) request()->query('limit', 30), 100);
+        return response()->json((new CortesAnalyzer)->getCutHistory($id, $limit));
+    }
+
+    public function corteHistoryDetailApi(int $logId)
+    {
+        $empresa = Auth::user()->empresa;
+        $log = DB::table('cron_cortes_logs')->find($logId);
+        if (! $log) return response()->json(['error' => 'Log no encontrado'], 404);
+        if ($log->grupo_corte_id) GrupoCorte::where('empresa', $empresa)->findOrFail($log->grupo_corte_id);
+        return response()->json((new CortesAnalyzer)->getCutHistoryDetail($logId));
+    }
+
+    public function mkSyncApi(Request $request)
+    {
+        $request->validate(['mikrotik_id' => 'required|integer', 'grupo_id' => 'required|integer']);
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail((int) $request->grupo_id);
+        DB::table('mikrotik')->where('empresa', $empresa)->where('id', $request->mikrotik_id)->firstOrFail();
+        return response()->json((new CortesAnalyzer)->getMikrotikSyncAnalysis((int) $request->mikrotik_id, (int) $request->grupo_id));
+    }
+
+    public function limpiarCacheCortes(Request $request)
+    {
+        $request->validate(['grupo_id' => 'required|integer']);
+        $grupoId = (int) $request->grupo_id;
+        $empresa = Auth::user()->empresa;
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+        (new CortesAnalyzer)->clearCache($grupoId);
+        $mks = DB::table('contracts')->where('grupo_corte', $grupoId)
+            ->whereNotNull('server_configuration_id')->distinct()->pluck('server_configuration_id');
+        foreach ($mks as $mkId) {
+            \Cache::forget("cortes_mk_sync_{$mkId}_{$grupoId}");
+        }
+        return response()->json(['ok' => true]);
+    }
+
+    public function solucionarDiscrepanciaLote(Request $request)
+    {
+        set_time_limit(0);
+        $request->validate(['mikrotik_id' => 'required|integer', 'grupo_id' => 'required|integer']);
+        $empresa    = Auth::user()->empresa;
+        $mikrotikId = (int) $request->mikrotik_id;
+        $grupoId    = (int) $request->grupo_id;
+
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+        $mikrotik = DB::table('mikrotik')->where('empresa', $empresa)->where('id', $mikrotikId)->first();
+        if (! $mikrotik) return response()->json(['success' => false, 'message' => 'MikroTik no encontrado'], 404);
+
+        try {
+            $sync = (new CortesAnalyzer)->getMikrotikSyncAnalysis($mikrotikId, $grupoId);
+            if (! $sync['disponible']) return response()->json(['success' => false, 'message' => $sync['error'] ?? 'Sin conexión']);
+
+            $cortadosSinMorosos = collect($sync['inconsistencias']['cortados_sin_morosos'] ?? []);
+            if ($cortadosSinMorosos->isEmpty()) {
+                return response()->json(['success' => true, 'message' => 'No hay discrepancias que corregir.', 'agregados' => 0]);
+            }
+
+            $API = new RouterosAPI();
+            $API->port = (int) $mikrotik->puerto_api;
+            if (! $API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+                return response()->json(['success' => false, 'message' => 'No se pudo conectar al MikroTik']);
+            }
+
+            $agregados = 0;
+            foreach ($cortadosSinMorosos as $contrato) {
+                if (! $contrato->ip) continue;
+                $API->comm('/ip/firewall/address-list/add', [
+                    'address' => $contrato->ip,
+                    'list'    => 'morosos',
+                    'comment' => 'Discrepancia corregida - contrato '.$contrato->id,
+                ]);
+                $agregados++;
+            }
+            $API->disconnect();
+
+            \Cache::forget("cortes_mk_sync_{$mikrotikId}_{$grupoId}");
+
+            return response()->json([
+                'success'   => true,
+                'message'   => "Se corrigieron {$agregados} discrepancias (IPs agregadas a morosos en MikroTik).",
+                'agregados' => $agregados,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
+        }
+    }
+
+    public function ejecutarCorteInternet(Request $request)
+    {
+        set_time_limit(0);
+        ignore_user_abort(true);
+        $request->validate(['grupo_id' => 'required|integer']);
+
+        $empresa = Auth::user()->empresa;
+        $grupoId = (int) $request->grupo_id;
+        $grupo   = GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+        $empresaObj = Empresa::find($empresa);
+        $userId  = Auth::id();
+        $fecha   = $request->input('fecha', now()->format('Y-m-d'));
+        $inicio  = microtime(true);
+
+        $analyzer   = new CortesAnalyzer;
+        $pendientes = $analyzer->getPendingInternetCuts($grupoId, $fecha);
+
+        $totalProcesados = 0; $totalCortados = 0; $totalOmitidos = 0; $totalErrores = 0;
+
+        $logId = DB::table('cron_cortes_logs')->insertGetId([
+            'tipo' => 'internet', 'empresa' => $empresa, 'grupo_corte_id' => $grupoId,
+            'ejecutado_por' => $userId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ($pendientes as $contrato) {
+            $totalProcesados++;
+            try {
+                $metodo = 'db_only'; $cortado = false;
+
+                // MikroTik
+                if ($contrato->mikrotik_id && $contrato->ip && $empresaObj->consultas_mk == 1) {
+                    $mk = DB::table('mikrotik')->where('id', $contrato->mikrotik_id)->first();
+                    if ($mk) {
+                        $API = new RouterosAPI();
+                        $API->port = (int) $mk->puerto_api;
+                        if ($API->connect($mk->ip, $mk->usuario, $mk->clave)) {
+                            $API->comm('/ip/firewall/address-list/add', [
+                                'address' => $contrato->ip, 'list' => 'morosos',
+                                'comment' => 'Corte automático - '.now()->format('Y-m-d H:i'),
+                            ]);
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address='.$contrato->ip, false);
+                            $API->write('?list=ips_autorizadas', false);
+                            $API->write('=.proplist=.id');
+                            $entries = $API->read();
+                            foreach ($entries as $entry) {
+                                if (! isset($entry['.id'])) continue;
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id='.$entry['.id']);
+                                $API->read();
+                            }
+                            $API->disconnect();
+                            $metodo  = 'mikrotik';
+                            $cortado = true;
+                        }
+                    }
+                }
+
+                DB::table('contracts')->where('id', $contrato->contrato_id)->update(['state' => 'disabled']);
+                DB::table('log_movimientos')->insert([
+                    'contrato'    => $contrato->contrato_id,
+                    'modulo'      => 5,
+                    'descripcion' => 'Corte ejecutado desde Análisis de Cortes por usuario #'.$userId,
+                    'created_by'  => $userId,
+                    'empresa'     => $empresa,
+                    'created_at'  => now(),
+                ]);
+
+                $totalCortados++;
+                DB::table('cron_cortes_detalle')->insert([
+                    'log_id'         => $logId,
+                    'contrato_id'    => $contrato->contrato_id,
+                    'factura_id'     => $contrato->factura_id,
+                    'cliente_id'     => $contrato->cliente_id,
+                    'grupo_corte_id' => $grupoId,
+                    'tipo'           => 'internet',
+                    'resultado'      => 'cortado',
+                    'metodo'         => $metodo,
+                    'ip'             => $contrato->ip,
+                    'mikrotik_id'    => $contrato->mikrotik_id,
+                    'descripcion'    => 'Corte ejecutado. MK: '.($cortado ? 'sí' : 'no'),
+                    'created_at'     => now(),
+                ]);
+            } catch (\Throwable $e) {
+                $totalErrores++;
+                DB::table('cron_cortes_detalle')->insert([
+                    'log_id' => $logId, 'contrato_id' => $contrato->contrato_id,
+                    'grupo_corte_id' => $grupoId, 'tipo' => 'internet', 'resultado' => 'error',
+                    'ip' => $contrato->ip, 'error_detalle' => $e->getMessage(), 'created_at' => now(),
+                ]);
+            }
+        }
+
+        $duracion = (int) round((microtime(true) - $inicio) * 1000);
+        DB::table('cron_cortes_logs')->where('id', $logId)->update([
+            'total_procesados' => $totalProcesados, 'total_cortados' => $totalCortados,
+            'total_omitidos'   => $totalOmitidos,   'total_errores'  => $totalErrores,
+            'duracion_ms'      => $duracion,         'updated_at'     => now(),
+        ]);
+
+        $analyzer->clearCache($grupoId);
+
+        return response()->json([
+            'ok' => true, 'log_id' => $logId,
+            'cortados' => $totalCortados, 'omitidos' => $totalOmitidos,
+            'errores'  => $totalErrores,  'total'    => $totalProcesados,
+        ]);
+    }
+
+    public function ejecutarCorteInternetStream(Request $request)
+    {
+        $grupoId    = (int) $request->query('grupo_id');
+        $empresa    = Auth::user()->empresa;
+        $userId     = Auth::id();
+        $fecha      = $request->query('fecha', now()->format('Y-m-d'));
+        $empresaObj = Empresa::find($empresa);
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+
+        $analyzer   = new CortesAnalyzer;
+        $pendientes = $analyzer->getPendingInternetCuts($grupoId, $fecha);
+        $total      = $pendientes->count();
+
+        return response()->stream(function () use ($pendientes, $grupoId, $empresa, $userId, $fecha, $total, $empresaObj, $analyzer) {
+            $logId = DB::table('cron_cortes_logs')->insertGetId([
+                'tipo' => 'internet', 'empresa' => $empresa, 'grupo_corte_id' => $grupoId,
+                'ejecutado_por' => $userId, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+
+            $cortados = 0; $errores = 0; $i = 0;
+            $inicio = microtime(true);
+
+            foreach ($pendientes as $contrato) {
+                $i++;
+                try {
+                    $metodo = 'db_only';
+                    if ($contrato->mikrotik_id && $contrato->ip && $empresaObj->consultas_mk == 1) {
+                        $mk = DB::table('mikrotik')->where('id', $contrato->mikrotik_id)->first();
+                        if ($mk) {
+                            $API = new RouterosAPI();
+                            $API->port = (int) $mk->puerto_api;
+                            if ($API->connect($mk->ip, $mk->usuario, $mk->clave)) {
+                                $API->comm('/ip/firewall/address-list/add', [
+                                    'address' => $contrato->ip, 'list' => 'morosos',
+                                    'comment' => 'Corte '.now()->format('Y-m-d H:i'),
+                                ]);
+                                $API->write('/ip/firewall/address-list/print', false);
+                                $API->write('?address='.$contrato->ip, false);
+                                $API->write('?list=ips_autorizadas', false);
+                                $API->write('=.proplist=.id');
+                                $entries = $API->read();
+                                foreach ($entries as $entry) {
+                                    if (! isset($entry['.id'])) continue;
+                                    $API->write('/ip/firewall/address-list/remove', false);
+                                    $API->write('=.id='.$entry['.id']);
+                                    $API->read();
+                                }
+                                $API->disconnect();
+                                $metodo = 'mikrotik';
+                            }
+                        }
+                    }
+                    DB::table('contracts')->where('id', $contrato->contrato_id)->update(['state' => 'disabled']);
+                    DB::table('log_movimientos')->insert([
+                        'contrato' => $contrato->contrato_id, 'modulo' => 5,
+                        'descripcion' => 'Corte streaming por usuario #'.$userId,
+                        'created_by' => $userId, 'empresa' => $empresa, 'created_at' => now(),
+                    ]);
+                    DB::table('cron_cortes_detalle')->insert([
+                        'log_id' => $logId, 'contrato_id' => $contrato->contrato_id,
+                        'factura_id' => $contrato->factura_id, 'cliente_id' => $contrato->cliente_id,
+                        'grupo_corte_id' => $grupoId, 'tipo' => 'internet', 'resultado' => 'cortado',
+                        'metodo' => $metodo, 'ip' => $contrato->ip, 'mikrotik_id' => $contrato->mikrotik_id,
+                        'created_at' => now(),
+                    ]);
+                    $cortados++;
+                    echo 'data: '.json_encode(['progreso' => $i, 'total' => $total, 'cortados' => $cortados, 'errores' => $errores,
+                        'contrato' => $contrato->contrato_nro, 'cliente' => $contrato->cliente_nombre, 'resultado' => 'cortado'])."\n\n";
+                } catch (\Throwable $e) {
+                    $errores++;
+                    DB::table('cron_cortes_detalle')->insert([
+                        'log_id' => $logId, 'contrato_id' => $contrato->contrato_id,
+                        'grupo_corte_id' => $grupoId, 'tipo' => 'internet', 'resultado' => 'error',
+                        'ip' => $contrato->ip, 'error_detalle' => $e->getMessage(), 'created_at' => now(),
+                    ]);
+                    echo 'data: '.json_encode(['progreso' => $i, 'total' => $total, 'cortados' => $cortados, 'errores' => $errores,
+                        'contrato' => $contrato->contrato_nro, 'resultado' => 'error', 'error' => $e->getMessage()])."\n\n";
+                }
+                if (ob_get_level()) ob_flush();
+                flush();
+            }
+
+            $duracion = (int) round((microtime(true) - $inicio) * 1000);
+            DB::table('cron_cortes_logs')->where('id', $logId)->update([
+                'total_procesados' => $total, 'total_cortados' => $cortados,
+                'total_errores' => $errores, 'duracion_ms' => $duracion, 'updated_at' => now(),
+            ]);
+            $analyzer->clearCache($grupoId);
+
+            echo 'data: '.json_encode(['done' => true, 'log_id' => $logId, 'cortados' => $cortados,
+                'errores' => $errores, 'total' => $total])."\n\n";
+            if (ob_get_level()) ob_flush();
+            flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    public function ejecutarCorteTv(Request $request)
+    {
+        set_time_limit(0);
+        $request->validate(['grupo_id' => 'required|integer']);
+        $empresa    = Auth::user()->empresa;
+        $grupoId    = (int) $request->grupo_id;
+        $empresaObj = Empresa::find($empresa);
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+
+        if (empty($empresaObj->smartOLT)) {
+            return response()->json(['error' => 'SmartOLT no está configurado para esta empresa.'], 422);
+        }
+
+        $userId  = Auth::id();
+        $fecha   = $request->input('fecha', now()->format('Y-m-d'));
+        $inicio  = microtime(true);
+        $analyzer = new CortesAnalyzer;
+        $pendientes = $analyzer->getPendingTvCuts($grupoId, $fecha);
+
+        $totalProcesados = 0; $totalCortados = 0; $totalErrores = 0;
+        $logId = DB::table('cron_cortes_logs')->insertGetId([
+            'tipo' => 'tv', 'empresa' => $empresa, 'grupo_corte_id' => $grupoId,
+            'ejecutado_por' => $userId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $serialsToDisable = $pendientes->pluck('serial_onu')->filter()->unique()->values()->toArray();
+
+        if (! empty($serialsToDisable)) {
+            try {
+                $oltController = app('App\Http\Controllers\OltController');
+                $results = $oltController->bulkDisableOnus($serialsToDisable, $empresa);
+
+                foreach ($pendientes as $contrato) {
+                    $totalProcesados++;
+                    $resultado = isset($results[$contrato->serial_onu]) && ($results[$contrato->serial_onu]['success'] ?? false)
+                        ? 'cortado' : 'error';
+                    if ($resultado === 'cortado') {
+                        DB::table('contracts')->where('id', $contrato->contrato_id)->update(['state_olt_catv' => 0]);
+                        $totalCortados++;
+                    } else {
+                        $totalErrores++;
+                    }
+                    DB::table('cron_cortes_detalle')->insert([
+                        'log_id' => $logId, 'contrato_id' => $contrato->contrato_id,
+                        'factura_id' => $contrato->factura_id, 'cliente_id' => $contrato->cliente_id,
+                        'grupo_corte_id' => $grupoId, 'tipo' => 'tv', 'resultado' => $resultado,
+                        'metodo' => 'olt', 'serial_onu' => $contrato->serial_onu, 'created_at' => now(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                $totalErrores = $pendientes->count();
+            }
+        }
+
+        $duracion = (int) round((microtime(true) - $inicio) * 1000);
+        DB::table('cron_cortes_logs')->where('id', $logId)->update([
+            'total_procesados' => $totalProcesados, 'total_cortados' => $totalCortados,
+            'total_errores' => $totalErrores, 'duracion_ms' => $duracion, 'updated_at' => now(),
+        ]);
+        $analyzer->clearCache($grupoId);
+
+        return response()->json([
+            'ok' => true, 'log_id' => $logId,
+            'cortados' => $totalCortados, 'errores' => $totalErrores, 'total' => $totalProcesados,
+        ]);
+    }
+
+    public function habilitarCortadosInternet(Request $request)
+    {
+        set_time_limit(0);
+        $request->validate(['grupo_id' => 'required|integer']);
+        $empresa    = Auth::user()->empresa;
+        $grupoId    = (int) $request->grupo_id;
+        $empresaObj = Empresa::find($empresa);
+        $userId     = Auth::id();
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+
+        $analyzer = new CortesAnalyzer;
+        $cortados = $analyzer->getAlreadyCutInternet($grupoId);
+
+        $habilitados = 0; $errores = 0;
+        foreach ($cortados as $contrato) {
+            try {
+                if ($contrato->mikrotik_id && $contrato->ip && $empresaObj->consultas_mk == 1) {
+                    $mk = DB::table('mikrotik')->where('id', $contrato->mikrotik_id)->first();
+                    if ($mk) {
+                        $API = new RouterosAPI();
+                        $API->port = (int) $mk->puerto_api;
+                        if ($API->connect($mk->ip, $mk->usuario, $mk->clave)) {
+                            $API->write('/ip/firewall/address-list/print', false);
+                            $API->write('?address='.$contrato->ip, false);
+                            $API->write('?list=morosos', false);
+                            $API->write('=.proplist=.id');
+                            $entries = $API->read();
+                            foreach ($entries as $entry) {
+                                if (! isset($entry['.id'])) continue;
+                                $API->write('/ip/firewall/address-list/remove', false);
+                                $API->write('=.id='.$entry['.id']);
+                                $API->read();
+                            }
+                            $API->comm('/ip/firewall/address-list/add', [
+                                'address' => $contrato->ip, 'list' => 'ips_autorizadas',
+                                'comment' => 'Habilitado por Análisis de Cortes',
+                            ]);
+                            $API->disconnect();
+                        }
+                    }
+                }
+                DB::table('contracts')->where('id', $contrato->contrato_id)->update(['state' => 'enabled']);
+                DB::table('log_movimientos')->insert([
+                    'contrato' => $contrato->contrato_id, 'modulo' => 5,
+                    'descripcion' => 'Habilitado desde Análisis de Cortes por usuario #'.$userId,
+                    'created_by' => $userId, 'empresa' => $empresa, 'created_at' => now(),
+                ]);
+                $habilitados++;
+            } catch (\Throwable $e) {
+                $errores++;
+            }
+        }
+
+        $analyzer->clearCache($grupoId);
+
+        return response()->json([
+            'ok'         => true,
+            'habilitados'=> $habilitados,
+            'errores'    => $errores,
+            'total'      => $cortados->count(),
+        ]);
     }
 }

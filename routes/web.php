@@ -1937,6 +1937,22 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::get('/api/generated-invoices-datatable', 'GruposCorteController@datatableGeneratedInvoices')->name('grupos-corte.dt-generated-invoices');
 		Route::post('/api/habilitar-contratos-deshabilitados', 'GruposCorteController@habilitarContratosDeshabilitados')->name('grupos-corte.habilitar-contratos-deshabilitados');
 		Route::post('/api/actualizar-contratos-primer-mes', 'GruposCorteController@actualizarContratosPrimerMes')->name('grupos-corte.actualizar-contratos-primer-mes');
+		// ── Análisis de Cortes ──────────────────────────────────────────────────
+		Route::get('/analisis-cortes/{id}', 'GruposCorteController@analisisCortes')->name('grupos-corte.analisis-cortes');
+		Route::get('/api/{id}/corte-summary', 'GruposCorteController@corteSummaryApi')->name('grupos-corte.corte-summary');
+		Route::get('/api/{id}/all-contracts', 'GruposCorteController@allContractsApi')->name('grupos-corte.all-contracts');
+		Route::get('/api/corte-pending-internet', 'GruposCorteController@pendingInternetApi')->name('grupos-corte.corte-pending-internet');
+		Route::get('/api/corte-pending-tv', 'GruposCorteController@pendingTvApi')->name('grupos-corte.corte-pending-tv');
+		Route::get('/api/{id}/blocked-reasons', 'GruposCorteController@blockedReasonsApi')->name('grupos-corte.blocked-reasons');
+		Route::get('/api/{id}/corte-history', 'GruposCorteController@corteHistoryApi')->name('grupos-corte.corte-history');
+		Route::get('/api/corte-history-detail/{logId}', 'GruposCorteController@corteHistoryDetailApi')->name('grupos-corte.corte-history-detail');
+		Route::get('/api/ejecutar-corte-internet-stream', 'GruposCorteController@ejecutarCorteInternetStream')->name('grupos-corte.ejecutar-corte-internet-stream');
+		Route::post('/api/mk-sync', 'GruposCorteController@mkSyncApi')->name('grupos-corte.mk-sync');
+		Route::post('/api/solucionar-discrepancia-lote', 'GruposCorteController@solucionarDiscrepanciaLote')->name('grupos-corte.solucionar-discrepancia-lote');
+		Route::post('/api/limpiar-cache-cortes', 'GruposCorteController@limpiarCacheCortes')->name('grupos-corte.limpiar-cache-cortes');
+		Route::post('/api/ejecutar-corte-internet', 'GruposCorteController@ejecutarCorteInternet')->name('grupos-corte.ejecutar-corte-internet');
+		Route::post('/api/ejecutar-corte-tv', 'GruposCorteController@ejecutarCorteTv')->name('grupos-corte.ejecutar-corte-tv');
+		Route::post('/api/habilitar-cortados-internet', 'GruposCorteController@habilitarCortadosInternet')->name('grupos-corte.habilitar-cortados-internet');
 	});
 
 	Route::resource('grupos-corte', 'GruposCorteController');
