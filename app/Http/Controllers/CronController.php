@@ -1384,7 +1384,7 @@ class CronController extends Controller
 
 
     public static function CortarFacturas(){
-        return "";
+        // return "";
         $i=0;
         $fecha = date('Y-m-d');
 
