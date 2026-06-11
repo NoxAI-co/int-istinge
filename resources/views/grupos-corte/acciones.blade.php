@@ -15,6 +15,9 @@
 @if(isset($session['726']))
     <a href="{{route('grupos-corte.analisis-ciclo', $id)}}" class="btn btn-outline-primary btn-icons" title="Análisis de Ciclos"><i class="fas fa-chart-bar"></i></a>
 @endif
+@if(isset($session['726']))
+    <a href="{{route('grupos-corte.analisis-cortes', $id)}}" class="btn btn-outline-danger btn-icons" title="Análisis de Cortes"><i class="fas fa-cut"></i></a>
+@endif
 @if(isset($session['727']))
     <a href="{{route('grupos-corte.edit', $id)}}" class="btn btn-outline-primary btn-icons" title="Editar"><i class="fas fa-edit"></i></a>
 @endif
