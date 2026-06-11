@@ -800,7 +800,22 @@ class CRMController extends Controller
 
     public function carteraContacto($contacto, Request $request)
     {
-        $modoLectura = auth()->user()->modo_lectura();
+        // La ruta /cartera/contacto/{contacto} está fuera del middleware auth,
+        // así que si la sesión expiró auth()->user() es null y .modo_lectura()
+        // tira "Call to a member function on null" → 500 → DataTables muestra
+        // el popup "Ajax error". Devolvemos un response vacío válido para que
+        // el modal no rompa.
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json([
+                'draw'            => intval($request->draw),
+                'recordsTotal'    => 0,
+                'recordsFiltered' => 0,
+                'data'            => [],
+            ]);
+        }
+
+        $modoLectura = $user->modo_lectura();
 
 
         $columns = array(
@@ -817,7 +832,7 @@ class CRMController extends Controller
             ->join('contactos', 'crm.cliente', '=', 'contactos.id')
             ->leftjoin('factura', 'crm.factura', '=', 'factura.id')
             ->join('items_factura', 'items_factura.factura', '=', 'factura.id')
-            ->where('crm.empresa', Auth::user()->empresa)
+            ->where('crm.empresa', $user->empresa)
             ->where('contactos.id', $contacto);
 
 
@@ -833,7 +848,9 @@ class CRMController extends Controller
         $totalFiltered = $totalData = $contratos->count();
 
         $contratos = $contratos->skip($requestData['start'])->take($requestData['length']);
-        $contratos = $contratos->orderBy('created_at', 'desc');
+        // Las 4 tablas joineadas (crm, contactos, factura, items_factura) tienen
+        // created_at — sin prefijo MySQL tira "ambiguous column" y rompe el AJAX.
+        $contratos = $contratos->orderBy('crm.created_at', 'desc');
         $contratos = $contratos->distinct()->get();
         $data = array();
         foreach ($contratos as $c) {

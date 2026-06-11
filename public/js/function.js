@@ -5411,9 +5411,14 @@ $('#searchIP').click(function () {
         }).done(function (data) {
             if (data.mikrotik) {
                 for (i = 0; i < data.mikrotik.length; i++) {
+                    // Mikrotik puede devolver queues sin target (queues globales o
+                    // mal configuradas). Antes el .split() explotaba la callback y
+                    // dejaba el loader pegado en silencio.
+                    if (!data.mikrotik[i] || !data.mikrotik[i].target) continue;
                     var target = data.mikrotik[i].target.split('/');
                     var ip_mk_a = target[0].split('.');
                     var ip_so_a = prefijo[0].split('.');
+                    if (ip_mk_a.length < 3 || ip_so_a.length < 3) continue;
                     var ip_mk = ip_mk_a[0] + '.' + ip_mk_a[1] + '.' + ip_mk_a[2];
                     var ip_so = ip_so_a[0] + '.' + ip_so_a[1] + '.' + ip_so_a[2];
                     if (ip_mk == ip_so) {
@@ -5426,7 +5431,7 @@ $('#searchIP').click(function () {
             }
             if (data.software) {
                 for (i = 0; i < data.software.length; i++) {
-                    if (data.software[i].ip) {
+                    if (data.software[i] && data.software[i].ip) {
                         var ip = data.software[i].ip.replace(/\./g, '');
                         if (document.getElementById(ip)) {
                             $("#" + ip).remove();
