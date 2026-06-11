@@ -31,8 +31,8 @@ class Kernel extends ConsoleKernel
         //$schedule->command('pagos:end')->cron('0 */12 * * *');
         //$schedule->command('check:invoices')->everyMinute();everyFiveMinutes
 
-        // Actualizar status de WhatsApp cada 5 minutos
-        $schedule->command('whatsapp:update-status')->everyFiveMinutes();
+        // Actualizar status de WhatsApp cada 15 minutos
+        $schedule->command('whatsapp:update-status')->everyFifteenMinutes();
 
         // Sincronizar logs de WhatsApp Meta (whatsapp_messages -> log_meta) cada 15 minutos para el día actual
         $schedule->command('whatsapp:sync-meta-logs')->everyFifteenMinutes();
@@ -53,24 +53,24 @@ class Kernel extends ConsoleKernel
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
-        // Generar las facturas recurrentes del día. Una vez al día (00:30 Bogotá).
+        // Generar las facturas recurrentes del día. Cada 15 min.
         $schedule->call($this->cronLogueado('CrearFactura', [CronController::class, 'CrearFactura']))
             ->name('cron-crear-factura')
-            ->dailyAt('00:30')
+            ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
-        // Aviso de pago oportuno (facturas con pago_oportuno = hoy). 08:00 Bogotá.
+        // Aviso de pago oportuno (facturas con pago_oportuno = hoy). Cada 15 min.
         $schedule->call($this->cronLogueado('PagoOportuno', [CronController::class, 'PagoOportuno']))
             ->name('cron-pago-oportuno')
-            ->dailyAt('08:00')
+            ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
-        // Aviso de vencimiento (facturas con vencimiento = hoy). 08:15 Bogotá.
+        // Aviso de vencimiento (facturas con vencimiento = hoy). Cada 15 min.
         $schedule->call($this->cronLogueado('PagoVencimiento', [CronController::class, 'PagoVencimiento']))
             ->name('cron-pago-vencimiento')
-            ->dailyAt('08:15')
+            ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
     }
