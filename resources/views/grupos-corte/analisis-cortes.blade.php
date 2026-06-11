@@ -1,478 +1,505 @@
 @extends('layouts.app')
 
 @section('boton')
-<a href="{{ route('grupos-corte.index') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-backward"></i> Regresar</a>
+<a href="{{ route('grupos-corte.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-backward"></i> Regresar</a>
 <a href="{{ route('grupos-corte.show', $grupo->id) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eye"></i> Ver Grupo</a>
-<a href="{{ route('grupos-corte.analisis-ciclo', $grupo->id) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-chart-bar"></i> Análisis Ciclos</a>
-<button id="btn-refresh" class="btn btn-info btn-sm text-white"><i class="fas fa-sync-alt"></i> Actualizar</button>
 @endsection
 
 @section('styles')
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg-dark: #07090F;
-    --card-bg: rgba(16, 22, 36, 0.7);
-    --border-color: rgba(0, 240, 255, 0.15);
-    --text-primary: #E2E8F0;
-    --text-muted: #64748B;
+    --bg-main: #0a0a0a;
+    --bg-card: #121212;
+    --border-color: #262626;
+    --text-main: #f5f5f5;
+    --text-muted: #a3a3a3;
+    --text-dark-muted: #525252;
     
-    --neon-cyan: #00F0FF;
-    --neon-purple: #8A2BE2;
-    --neon-green: #00FF66;
-    --neon-red: #FF003C;
-    --neon-yellow: #FFEA00;
-    --neon-orange: #FF6600;
+    --color-blue: #3b82f6;
+    --bg-blue-dim: rgba(59, 130, 246, 0.1);
+    
+    --color-red: #ef4444;
+    --bg-red-dim: rgba(239, 68, 68, 0.1);
+    
+    --color-orange: #f97316;
+    --bg-orange-dim: rgba(249, 115, 22, 0.1);
+    
+    --color-purple: #a855f7;
+    --bg-purple-dim: rgba(168, 85, 247, 0.1);
+    
+    --color-cyan: #06b6d4;
+    --bg-cyan-dim: rgba(6, 182, 212, 0.1);
 
-    --font-family: 'Outfit', -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --color-green: #10b981;
+    --bg-green-dim: rgba(16, 185, 129, 0.1);
+
+    --font-family: 'Inter', sans-serif;
 }
 
 body {
-    background-color: var(--bg-dark) !important;
-    background-image: 
-        radial-gradient(circle at 15% 50%, rgba(0, 240, 255, 0.03), transparent 25%),
-        radial-gradient(circle at 85% 30%, rgba(138, 43, 226, 0.03), transparent 25%);
-    background-attachment: fixed;
-    color: var(--text-primary) !important;
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    font-family: var(--font-family);
 }
 
-/* Overall Container Override */
 .analisis-cortes-container {
-    font-family: var(--font-family);
-    color: var(--text-primary);
+    padding: 1rem 2rem;
 }
 
 /* Page Header */
-.page-header {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.05);
-    backdrop-filter: blur(12px);
-    border-radius: 0.75rem;
-    padding: 1.5rem 2rem;
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-left: 4px solid var(--neon-cyan);
-}
 .page-title {
-    color: var(--text-primary);
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
     margin: 0;
-    text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
 }
 .page-subtitle {
-    color: var(--neon-cyan);
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
-    margin-top: 0.2rem;
-}
-
-/* Filters Card */
-.filters-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
-    padding: 1rem 1.5rem;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: flex-end;
-    gap: 1rem;
-    backdrop-filter: blur(12px);
-}
-.filters-card label {
+    font-size: 0.85rem;
     color: var(--text-muted);
-}
-.filters-card input[type="date"] {
-    background-color: rgba(0,0,0,0.5);
-    border: 1px solid var(--border-color);
-    color: var(--neon-cyan);
-    border-radius: 0.25rem;
-    font-family: var(--font-mono);
-}
-.filters-card input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) sepia(1) saturate(5) hue-rotate(175deg);
 }
 
 /* KPI Cards */
+.kpi-container {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+.kpi-container::-webkit-scrollbar { height: 6px; }
+.kpi-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
 .kpi-card {
-    background: var(--card-bg);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-    height: 100%;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 1.25rem;
+    min-width: 220px;
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
 }
-.kpi-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--neon-cyan);
-    box-shadow: 0 8px 25px rgba(0, 240, 255, 0.15);
+.kpi-content {
+    display: flex;
+    flex-direction: column;
 }
-.kpi-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 2px;
-}
-.kpi-card.total::after { background: var(--text-primary); box-shadow: 0 0 10px var(--text-primary); }
-.kpi-card.paid::after { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
-.kpi-card.unpaid::after { background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
-.kpi-card.cut::after { background: var(--neon-orange); box-shadow: 0 0 10px var(--neon-orange); }
-.kpi-card.pending::after { background: var(--neon-yellow); box-shadow: 0 0 10px var(--neon-yellow); }
-.kpi-card.promise::after { background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan); }
-
-.kpi-icon {
-    font-size: 2rem;
+.kpi-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
     margin-bottom: 0.5rem;
-    display: block;
 }
-.kpi-card.total .kpi-icon { color: var(--text-primary); }
-.kpi-card.paid .kpi-icon { color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
-.kpi-card.unpaid .kpi-icon { color: var(--neon-red); text-shadow: 0 0 10px var(--neon-red); }
-.kpi-card.cut .kpi-icon { color: var(--neon-orange); text-shadow: 0 0 10px var(--neon-orange); }
-.kpi-card.pending .kpi-icon { color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); }
-.kpi-card.promise .kpi-icon { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
-
-.kpi-number {
-    font-family: var(--font-mono);
+.kpi-value {
     font-size: 2.2rem;
     font-weight: 700;
     line-height: 1;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
 }
-.kpi-label {
+.kpi-subtitle {
     font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 600;
+    color: var(--text-dark-muted);
+    font-weight: 500;
 }
 
-/* Tabs */
-.nav-tabs {
-    border-bottom: 1px solid var(--border-color);
+.kpi-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
 }
-.nav-tabs .nav-link {
+
+/* Colors for KPIs */
+.kpi-blue .kpi-value { color: var(--color-blue); }
+.kpi-blue .kpi-icon-wrap { background: var(--bg-blue-dim); color: var(--color-blue); }
+
+.kpi-red .kpi-value { color: var(--color-red); }
+.kpi-red .kpi-icon-wrap { background: var(--bg-red-dim); color: var(--color-red); }
+
+.kpi-orange .kpi-value { color: var(--color-orange); }
+.kpi-orange .kpi-icon-wrap { background: var(--bg-orange-dim); color: var(--color-orange); }
+
+.kpi-purple .kpi-value { color: var(--color-purple); }
+.kpi-purple .kpi-icon-wrap { background: var(--bg-purple-dim); color: var(--color-purple); }
+
+.kpi-cyan .kpi-value { color: var(--color-cyan); }
+.kpi-cyan .kpi-icon-wrap { background: var(--bg-cyan-dim); color: var(--color-cyan); }
+
+
+/* Tabs Navigation (Pill style) */
+.nav-pills-custom {
+    background: #141414;
+    border-radius: 12px;
+    display: inline-flex;
+    padding: 0.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+.nav-pills-custom .nav-link {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.nav-pills-custom .nav-link:hover {
+    color: var(--text-main);
+}
+.nav-pills-custom .nav-link.active {
+    background: #262626;
+    color: var(--text-main);
+}
+.nav-pills-custom .nav-link i {
+    margin-right: 6px;
+    font-size: 1rem;
+    color: var(--color-blue);
+}
+.nav-pills-custom .nav-link.active i {
+    color: var(--color-blue);
+}
+
+/* Sub-filters (Image 3) */
+.filters-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.filter-pill {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.filter-pill:hover, .filter-pill.active {
+    background: #262626;
+    color: var(--text-main);
+}
+.filter-pill .count {
+    color: var(--text-dark-muted);
+}
+.filter-pill.active .count {
+    color: var(--text-muted);
+}
+.filter-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.dot-green { background: var(--color-green); }
+.dot-orange { background: var(--color-orange); }
+.dot-grey { background: var(--text-dark-muted); }
+
+/* Buttons */
+.btn-green-glow {
+    background: #059669;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-green-glow:hover {
+    background: #10b981;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    color: white;
+}
+
+.btn-red-glow {
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-red-glow:hover {
+    background: #ef4444;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    color: white;
+}
+
+/* Search Bar */
+.search-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+.search-input {
     background: transparent;
     border: none;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 1rem 1.5rem;
-    border-bottom: 3px solid transparent;
-    transition: all 0.3s ease;
-    border-radius: 0;
+    color: var(--text-main);
+    width: 100%;
+    outline: none;
+    font-size: 0.9rem;
 }
-.nav-tabs .nav-link:hover {
-    color: var(--text-primary);
-    border-bottom: 3px solid rgba(0, 240, 255, 0.5);
-    background: rgba(0,240,255,0.02);
-}
-.nav-tabs .nav-link.active {
-    color: var(--neon-cyan);
-    border-bottom: 3px solid var(--neon-cyan);
-    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-    background: rgba(0, 240, 255, 0.05);
-}
-
-.tab-content-wrapper {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 0.75rem 0.75rem;
-    padding: 2rem;
-    backdrop-filter: blur(12px);
+.search-input::placeholder {
+    color: var(--text-dark-muted);
 }
 
 /* Tables */
-.table-responsive {
-    border-radius: 0.5rem;
-    border: 1px solid rgba(255,255,255,0.05);
+.table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
 }
 .table {
-    color: var(--text-primary);
+    width: 100%;
     margin-bottom: 0;
+    color: var(--text-main);
 }
 .table th {
-    background-color: rgba(0,0,0,0.4);
-    color: var(--text-muted);
-    font-weight: 600;
+    background: transparent;
+    color: var(--text-dark-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.75rem;
     letter-spacing: 1px;
-    border-top: none !important;
-    border-bottom: 1px solid var(--border-color) !important;
+    border-top: none;
+    border-bottom: 1px solid var(--border-color);
     padding: 1rem;
 }
 .table td {
     padding: 1rem;
     vertical-align: middle;
-    border-top: 1px solid rgba(255,255,255,0.05) !important;
-    font-size: 0.9rem;
-}
-.table tbody tr {
-    transition: all 0.2s ease;
-}
-.table tbody tr:hover {
-    background-color: rgba(0, 240, 255, 0.05);
-}
-code {
-    font-family: var(--font-mono);
-    color: var(--neon-cyan);
-    background: rgba(0, 240, 255, 0.1);
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
+    border-top: 1px solid #1a1a1a;
     font-size: 0.85rem;
 }
-
-/* Badges */
-.badge {
-    padding: 0.4em 0.7em;
-    border-radius: 0.25rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    font-size: 0.7rem;
+.table tbody tr:hover {
+    background: #171717;
 }
-.badge-estado-pagado   { background-color: rgba(0, 255, 102, 0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
-.badge-estado-abierta  { background-color: rgba(255, 0, 60, 0.15); color: var(--neon-red); border: 1px solid var(--neon-red); }
-.badge-estado-cortado  { background-color: rgba(255, 102, 0, 0.15); color: var(--neon-orange); border: 1px solid var(--neon-orange); }
-.badge-estado-promesa  { background-color: rgba(0, 240, 255, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
-.badge-estado-bloqueado{ background-color: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid var(--text-muted); }
 
-/* Buttons Overrides */
-.analisis-cortes-container .btn {
-    border-radius: 0.25rem;
+.client-name {
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
+    color: var(--text-main);
+    display: block;
+}
+.client-doc {
     font-size: 0.75rem;
-    padding: 0.5rem 1rem;
+    color: var(--text-dark-muted);
 }
-.analisis-cortes-container .btn-primary { background: rgba(0, 240, 255, 0.1); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 240, 255, 0.2); }
-.analisis-cortes-container .btn-primary:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px var(--neon-cyan); }
+.ip-address {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-main);
+    display: block;
+}
+.pppoe-user {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.olt-info {
+    font-size: 0.7rem;
+    color: var(--color-blue);
+    font-weight: 600;
+}
 
-.analisis-cortes-container .btn-danger { background: rgba(255, 0, 60, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255, 0, 60, 0.2); }
-.analisis-cortes-container .btn-danger:hover { background: var(--neon-red); color: #000; box-shadow: 0 0 20px var(--neon-red); }
+.badge-status {
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+}
+.badge-status::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+}
+.badge-status.suspendidos { background: rgba(255,255,255,0.05); border-color: var(--border-color); color: var(--text-muted); }
+.badge-status.suspendidos::before { background: var(--text-dark-muted); }
 
-.analisis-cortes-container .btn-success { background: rgba(0, 255, 102, 0.1); color: var(--neon-green); border: 1px solid var(--neon-green); box-shadow: 0 0 10px rgba(0, 255, 102, 0.2); }
-.analisis-cortes-container .btn-success:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 20px var(--neon-green); }
+.badge-status.aldia { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: var(--color-green); }
+.badge-status.aldia::before { background: var(--color-green); }
 
-.analisis-cortes-container .btn-warning { background: rgba(255, 234, 0, 0.1); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); box-shadow: 0 0 10px rgba(255, 234, 0, 0.2); }
-.analisis-cortes-container .btn-warning:hover { background: var(--neon-yellow); color: #000; box-shadow: 0 0 20px var(--neon-yellow); }
+.badge-status.promesa { background: rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.2); color: var(--color-cyan); }
+.badge-status.promesa::before { background: var(--color-cyan); }
 
-.analisis-cortes-container .btn-info { background: rgba(138, 43, 226, 0.1); color: var(--neon-purple); border: 1px solid var(--neon-purple); box-shadow: 0 0 10px rgba(138, 43, 226, 0.2); }
-.analisis-cortes-container .btn-info:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 20px var(--neon-purple); }
+.badge-status.mora { background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.2); color: var(--color-orange); }
+.badge-status.mora::before { background: var(--color-orange); }
 
-.analisis-cortes-container .btn-outline-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); }
-.analisis-cortes-container .btn-outline-secondary:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); border-color: var(--text-primary); }
-
-/* Progress bar */
-.progress { background-color: rgba(255, 0, 60, 0.1); height: 0.8rem; border-radius: 0.25rem; border: 1px solid rgba(255, 0, 60, 0.3); }
-.progress-bar { background-color: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
 
 /* Modals */
-.modal-content { background: var(--bg-dark); border: 1px solid var(--neon-cyan); border-radius: 0.5rem; box-shadow: 0 0 30px rgba(0, 240, 255, 0.15); color: var(--text-primary); }
-.modal-header { border-bottom: 1px solid rgba(255,255,255,0.1); }
-.modal-footer { border-top: 1px solid rgba(255,255,255,0.1); }
-.close { color: var(--text-primary); text-shadow: none; opacity: 1; }
-.close:hover { color: var(--neon-red); }
-.modal-header.bg-danger { background: rgba(255, 0, 60, 0.1) !important; border-bottom: 1px solid var(--neon-red); color: var(--neon-red) !important; }
-.modal-header.bg-warning { background: rgba(255, 234, 0, 0.1) !important; border-bottom: 1px solid var(--neon-yellow); color: var(--neon-yellow) !important; }
-.modal-header.bg-success { background: rgba(0, 255, 102, 0.1) !important; border-bottom: 1px solid var(--neon-green); color: var(--neon-green) !important; }
-.alert-warning { background: rgba(255, 234, 0, 0.05); border: 1px solid var(--neon-yellow); color: var(--neon-yellow); }
-
-/* Select fields */
-.analisis-cortes-container select.form-control {
-    background-color: rgba(0,0,0,0.5);
-    border: 1px solid var(--border-color);
-    color: var(--neon-cyan);
-    border-radius: 0.25rem;
-    font-family: var(--font-mono);
-}
-.analisis-cortes-container select.form-control:focus {
-    background-color: rgba(0,0,0,0.8);
-    border-color: var(--neon-cyan);
-    color: var(--neon-cyan);
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-}
-.analisis-cortes-container select.form-control option {
-    background-color: var(--bg-dark);
-    color: var(--text-primary);
-}
-
-/* MK Sync specific */
-.mk-sync-container {
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.05);
-    padding: 1rem;
-    border-radius: 0.5rem;
-}
-#mk-subtabs { border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 1rem; }
-
+.modal-content { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-main); }
+.modal-header { border-bottom: 1px solid var(--border-color); }
+.modal-footer { border-top: 1px solid var(--border-color); }
+.close { color: var(--text-main); text-shadow: none; opacity: 1; }
+.close:hover { color: var(--color-red); }
 </style>
 @endsection
 
 @section('content')
 <div class="container-fluid analisis-cortes-container">
     
-    {{-- Page Header --}}
-    <div class="page-header">
+    {{-- Header --}}
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="page-title">
-                <i class="fas fa-satellite-dish mr-2" style="color: var(--neon-red);"></i> Análisis de Cortes / SYS-CORE
-            </h1>
-            <div class="page-subtitle">
-                OBJETIVO: <strong>{{ strtoupper($grupo->nombre) }}</strong> | CORTE: {{ $grupo->fecha_corte }} | SUSPENSIÓN: {{ $grupo->fecha_suspension }}
-            </div>
+            <h1 class="page-title">Análisis de Cortes: {{ $grupo->nombre }}</h1>
+            <div class="page-subtitle mt-1">Corte: {{ $grupo->fecha_corte }} | Suspensión: {{ $grupo->fecha_suspension }}</div>
         </div>
         <div>
-            <button id="btn-clear-cache" class="btn btn-outline-secondary">
-                <i class="fas fa-terminal mr-1"></i> PURGAR CACHÉ
-            </button>
+            <input type="date" id="fecha-ref" class="form-control form-control-sm d-inline-block w-auto mr-2" style="background:#121212; border:1px solid #262626; color:#a3a3a3; border-radius:8px;" value="{{ date('Y-m-d') }}">
+            <button id="btn-apply-date" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;"><i class="fas fa-sync-alt"></i></button>
         </div>
     </div>
 
-    {{-- Filters --}}
-    <div class="filters-card">
-        <div class="form-group mb-0">
-            <label class="small font-weight-bold mb-1 text-uppercase">TIMESTAMP DE REFERENCIA</label>
-            <input type="date" id="fecha-ref" class="form-control form-control-sm px-3 py-2" value="{{ date('Y-m-d') }}">
+    {{-- KPIs (Image 1 replica) --}}
+    <div class="kpi-container" id="kpi-row">
+        <div class="kpi-card kpi-blue">
+            <div class="kpi-content">
+                <div class="kpi-title">TOTAL CONTRATOS</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-subtitle"><span id="kpi-activos">0</span> activos</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-user-friends"></i></div>
         </div>
-        <div>
-            <button id="btn-apply-date" class="btn btn-primary">
-                <i class="fas fa-microchip mr-1"></i> APLICAR
-            </button>
+        <div class="kpi-card kpi-red">
+            <div class="kpi-content">
+                <div class="kpi-title">PENDIENTES INTERNET</div>
+                <div class="kpi-value" id="kpi-pendientes">0</div>
+                <div class="kpi-subtitle">por cortar ahora</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-wifi"></i></div>
+        </div>
+        <div class="kpi-card kpi-orange">
+            <div class="kpi-content">
+                <div class="kpi-title">CORTADOS INTERNET</div>
+                <div class="kpi-value" id="kpi-cortados">0</div>
+                <div class="kpi-subtitle">state=disabled</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-ban"></i></div>
+        </div>
+        <div class="kpi-card kpi-purple">
+            <div class="kpi-content">
+                <div class="kpi-title">PENDIENTES TV</div>
+                <div class="kpi-value" id="kpi-pendientes-tv">0</div>
+                <div class="kpi-subtitle">prorroga: 0d</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-tv"></i></div>
+        </div>
+        <div class="kpi-card kpi-purple">
+            <div class="kpi-content">
+                <div class="kpi-title">CORTADOS TV</div>
+                <div class="kpi-value" id="kpi-cortados-tv">0</div>
+                <div class="kpi-subtitle">state_olt_catv=0</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-eye-slash"></i></div>
+        </div>
+        <div class="kpi-card kpi-cyan">
+            <div class="kpi-content">
+                <div class="kpi-title">CON OLT</div>
+                <div class="kpi-value" id="kpi-olt">0</div>
+                <div class="kpi-subtitle"><span id="kpi-mk">0</span> con MikroTik</div>
+            </div>
+            <div class="kpi-icon-wrap"><i class="fas fa-network-wired"></i></div>
         </div>
     </div>
 
-    {{-- KPI Cards --}}
-    <div class="row mb-4" id="kpi-row">
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card total">
-                <i class="fas fa-network-wired kpi-icon"></i>
-                <div class="kpi-number text-white" id="kpi-total">0</div>
-                <div class="kpi-label">Total Contratos</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card paid">
-                <i class="fas fa-shield-check kpi-icon"></i>
-                <div class="kpi-number" style="color: var(--neon-green);" id="kpi-pagados">0</div>
-                <div class="kpi-label">Al día (SECURE)</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card unpaid">
-                <i class="fas fa-exclamation-triangle kpi-icon"></i>
-                <div class="kpi-number" style="color: var(--neon-red);" id="kpi-mora">0</div>
-                <div class="kpi-label">En mora (WARNING)</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card cut">
-                <i class="fas fa-power-off kpi-icon"></i>
-                <div class="kpi-number" style="color: var(--neon-orange);" id="kpi-cortados">0</div>
-                <div class="kpi-label">Cortados (OFFLINE)</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card pending">
-                <i class="fas fa-hourglass-half kpi-icon"></i>
-                <div class="kpi-number" style="color: var(--neon-yellow);" id="kpi-pendientes">0</div>
-                <div class="kpi-label">Pénd. Corte (TARGET)</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-2 col-md-4 mb-3">
-            <div class="kpi-card promise">
-                <i class="fas fa-handshake kpi-icon"></i>
-                <div class="kpi-number" style="color: var(--neon-cyan);" id="kpi-promesas">0</div>
-                <div class="kpi-label">Con promesa (HOLD)</div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Progress bar (corte en progreso) --}}
-    <div id="progress-bar-wrap" class="mb-4" style="display:none; background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--neon-red);">
-        <div class="d-flex justify-content-between small mb-2 font-weight-bold">
-            <span id="progress-label" style="color: var(--neon-red); text-transform: uppercase; letter-spacing: 1px;">EJECUTANDO OPERACIÓN DE CORTE...</span>
-            <span id="progress-count" style="font-family: var(--font-mono); color: var(--neon-red);">0 / 0</span>
-        </div>
-        <div class="progress">
-            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-                 role="progressbar" style="width:0%"></div>
-        </div>
-    </div>
-
-    {{-- Tabs --}}
-    <ul class="nav nav-tabs" id="main-tabs" role="tablist">
+    {{-- Tabs (Image 2 replica) --}}
+    <ul class="nav nav-pills-custom" id="main-tabs" role="tablist">
         <li class="nav-item">
-            <a class="nav-link active" id="tab-internet-link" data-toggle="tab" href="#tab-internet">
-                <i class="fas fa-globe mr-1"></i> Red Internet
-                <span class="badge ml-2" style="background: rgba(255,0,60,0.2); color: var(--neon-red); border: 1px solid var(--neon-red);" id="badge-internet">0</span>
+            <a class="nav-link active" id="tab-contratos-link" data-toggle="tab" href="#tab-contratos">
+                <i class="fas fa-wifi"></i> Internet
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-tv-link" data-toggle="tab" href="#tab-tv">
-                <i class="fas fa-tv mr-1"></i> Red TV
-                <span class="badge ml-2" style="background: rgba(255,234,0,0.2); color: var(--neon-yellow); border: 1px solid var(--neon-yellow);" id="badge-tv">0</span>
+                <i class="fas fa-tv" style="color:var(--color-purple);"></i> Televisión
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial">
-                <i class="fas fa-database mr-1"></i> Logs de Sist.
+                <i class="fas fa-history" style="color:var(--text-muted);"></i> Historial
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="tab-mk-link" data-toggle="tab" href="#tab-mk">
-                <i class="fas fa-server mr-1"></i> Sync MikroTik
+                <i class="fas fa-server" style="color:var(--color-cyan);"></i> Sync MK
             </a>
         </li>
     </ul>
 
-    <div class="tab-content-wrapper" id="main-tab-content">
-        {{-- TAB INTERNET --}}
-        <div class="tab-pane fade show active" id="tab-internet" role="tabpanel">
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <div class="d-flex align-items-center">
-                    <div>
-                        <h5 class="mb-0 font-weight-bold" style="color: var(--neon-red); text-transform: uppercase; letter-spacing: 1px;">TARGETS: INTERNET</h5>
-                        <small style="color: var(--text-muted);"><span id="internet-count" style="font-family: var(--font-mono); color: var(--text-primary);">0</span> nodos identificados</small>
+    <div class="tab-content" id="main-tab-content">
+        {{-- TAB CONTRATOS (Image 3 replica) --}}
+        <div class="tab-pane fade show active" id="tab-contratos" role="tabpanel">
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="filters-row mb-0">
+                    <div class="filter-pill active" data-filter="todos">
+                        Todos <span class="count" id="count-todos">0</span>
+                    </div>
+                    <div class="filter-pill" data-filter="aldia">
+                        <div class="dot dot-green"></div> Al día <span class="count" id="count-aldia">0</span>
+                    </div>
+                    <div class="filter-pill" data-filter="mora">
+                        <div class="dot dot-orange"></div> En mora <span class="count" id="count-mora">0</span>
+                    </div>
+                    <div class="filter-pill" data-filter="suspendidos">
+                        <div class="dot dot-grey"></div> Suspendidos <span class="count" id="count-suspendidos">0</span>
                     </div>
                 </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button id="btn-habilitar-cortados" class="btn btn-success">
-                        <i class="fas fa-unlock mr-1"></i> ENABLE OFFLINE
+                <div class="d-flex gap-2">
+                    <button id="btn-habilitar-cortados" class="btn-green-glow">
+                        <i class="fas fa-power-off"></i> Habilitar grupo cortado (<span id="btn-count-cortados">0</span>)
                     </button>
-                    <button id="btn-ejecutar-corte" class="btn btn-danger">
-                        <i class="fas fa-bolt mr-1"></i> EXECUTE CUT (NET)
+                    <button id="btn-ejecutar-corte" class="btn-red-glow" style="display:none;">
+                        <i class="fas fa-ban"></i> Ejecutar Corte Internet (<span id="btn-count-pendientes">0</span>)
                     </button>
                 </div>
             </div>
-            <div class="table-responsive">
+
+            <div class="search-container">
+                <input type="text" class="search-input" id="search-contratos" placeholder="Buscar cliente, NIT, contrato, IP, usuario PPPoE...">
+            </div>
+
+            <div class="table-card">
                 <table class="table" id="tabla-internet">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Contrato</th>
-                            <th>Cliente</th>
-                            <th>IP Addr</th>
-                            <th>Router MK</th>
-                            <th>Factura</th>
-                            <th>Valor</th>
-                            <th>Vencimiento</th>
-                            <th>Status</th>
+                            <th>CLIENTE</th>
+                            <th>CONTRATO</th>
+                            <th>ESTADO</th>
+                            <th>IP / ACCESO</th>
+                            <th>MIKROTIK</th>
+                            <th>ÚLT. FACTURA</th>
+                            <th>VENCIMIENTO</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-internet">
-                        <tr><td colspan="9" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">Cargando contratos...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -480,33 +507,27 @@ code {
 
         {{-- TAB TV --}}
         <div class="tab-pane fade" id="tab-tv" role="tabpanel">
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <div class="d-flex align-items-center">
-                    <div>
-                        <h5 class="mb-0 font-weight-bold" style="color: var(--neon-yellow); text-transform: uppercase; letter-spacing: 1px;">TARGETS: TELEVISIÓN</h5>
-                        <small style="color: var(--text-muted);"><span id="tv-count" style="font-family: var(--font-mono); color: var(--text-primary);">0</span> nodos identificados</small>
-                    </div>
-                </div>
-                <button id="btn-ejecutar-corte-tv" class="btn btn-warning">
-                    <i class="fas fa-bolt mr-1"></i> EXECUTE CUT (TV)
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 text-white font-weight-bold">Contratos TV Pendientes</h5>
+                <button id="btn-ejecutar-corte-tv" class="btn-red-glow">
+                    <i class="fas fa-ban"></i> Ejecutar Corte TV
                 </button>
             </div>
-            <div class="table-responsive">
+            <div class="table-card">
                 <table class="table" id="tabla-tv">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Contrato</th>
-                            <th>Cliente</th>
-                            <th>Serial ONU</th>
-                            <th>Factura</th>
-                            <th>Valor</th>
-                            <th>Vencimiento</th>
-                            <th>Status</th>
+                            <th>CLIENTE</th>
+                            <th>CONTRATO</th>
+                            <th>SERIAL ONU</th>
+                            <th>FACTURA</th>
+                            <th>VALOR</th>
+                            <th>VENCIMIENTO</th>
+                            <th>ESTADO</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-tv">
-                        <tr><td colspan="8" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -514,30 +535,30 @@ code {
 
         {{-- TAB HISTORIAL --}}
         <div class="tab-pane fade" id="tab-historial" role="tabpanel">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="font-weight-bold mb-0" style="color: var(--neon-purple); text-transform: uppercase; letter-spacing: 1px;">LOGS DE EJECUCIÓN</h5>
-                <button id="btn-refresh-historial" class="btn btn-outline-secondary">
-                    <i class="fas fa-sync-alt mr-1"></i> REFRESH LOGS
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 text-white font-weight-bold">Historial de Ejecución</h5>
+                <button id="btn-refresh-historial" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;">
+                    <i class="fas fa-sync-alt"></i> Actualizar
                 </button>
             </div>
-            <div class="table-responsive">
+            <div class="table-card">
                 <table class="table" id="tabla-historial">
                     <thead>
                         <tr>
-                            <th>PID</th>
-                            <th>Tipo</th>
-                            <th>Targets</th>
-                            <th>Success</th>
-                            <th>Ignored</th>
-                            <th>Errors</th>
-                            <th>Time</th>
-                            <th>User</th>
-                            <th>Timestamp</th>
-                            <th>Trace</th>
+                            <th>ID</th>
+                            <th>TIPO</th>
+                            <th>PROCESADOS</th>
+                            <th>CORTADOS</th>
+                            <th>OMITIDOS</th>
+                            <th>ERRORES</th>
+                            <th>DURACIÓN</th>
+                            <th>EJECUTADO POR</th>
+                            <th>FECHA</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="tbody-historial">
-                        <tr><td colspan="10" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> FETCHING LOGS...</td></tr>
+                        <tr><td colspan="10" class="text-center py-5 text-muted">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -545,24 +566,24 @@ code {
 
         {{-- TAB MK SYNC --}}
         <div class="tab-pane fade" id="tab-mk" role="tabpanel">
-            <div class="mk-sync-container mb-4 d-flex align-items-end gap-3 flex-wrap">
+            <div class="d-flex align-items-end gap-3 mb-4" style="background:#121212; border:1px solid #262626; padding:1.5rem; border-radius:12px;">
                 <div style="min-width: 300px;">
-                    <label class="small font-weight-bold text-muted text-uppercase mb-1">ROUTER MIKROTIK</label>
-                    <select id="select-mikrotik" class="form-control">
-                        <option value="">— SELECT ROUTER —</option>
+                    <label class="small font-weight-bold text-muted mb-2">Seleccionar MikroTik</label>
+                    <select id="select-mikrotik" class="form-control" style="background:#0a0a0a; border:1px solid #262626; color:white; border-radius:8px;">
+                        <option value="">— Seleccione —</option>
                         @foreach($mikrotiks as $mk)
                         <option value="{{ $mk->id }}">{{ $mk->nombre }} ({{ $mk->ip }})</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <button id="btn-analizar-mk" class="btn btn-info">
-                        <i class="fas fa-radar mr-1"></i> SCAN MK
+                    <button id="btn-analizar-mk" class="btn btn-primary" style="background:#3b82f6; border:none; border-radius:8px;">
+                        <i class="fas fa-search"></i> Analizar
                     </button>
                 </div>
                 <div class="ml-auto">
-                    <button id="btn-solucionar-lote" class="btn btn-warning" disabled>
-                        <i class="fas fa-wrench mr-1"></i> AUTO-FIX
+                    <button id="btn-solucionar-lote" class="btn btn-warning" style="border-radius:8px;" disabled>
+                        <i class="fas fa-magic"></i> Solucionar Lote
                     </button>
                 </div>
             </div>
@@ -570,98 +591,85 @@ code {
             <div id="mk-sync-result" class="d-none">
                 <div class="row mb-4">
                     <div class="col-md-4">
-                        <div class="kpi-card text-center" style="border-color: var(--neon-green);">
-                            <div class="font-weight-bold mb-1" style="color: var(--neon-green); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-ok-count">0</div>
-                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">SYNC OK</div>
+                        <div class="kpi-card" style="border-top: 3px solid var(--color-green);">
+                            <div class="kpi-content">
+                                <div class="kpi-title">MOROSOS OK</div>
+                                <div class="kpi-value" style="color:var(--color-green);" id="mk-ok-count">0</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card text-center" style="border-color: var(--neon-red);">
-                            <div class="font-weight-bold mb-1" style="color: var(--neon-red); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-faltantes-count">0</div>
-                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">MISSING IN MK</div>
+                        <div class="kpi-card" style="border-top: 3px solid var(--color-red);">
+                            <div class="kpi-content">
+                                <div class="kpi-title">CORTADOS SIN MOROSOS MK</div>
+                                <div class="kpi-value" style="color:var(--color-red);" id="mk-faltantes-count">0</div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="kpi-card text-center" style="border-color: var(--neon-yellow);">
-                            <div class="font-weight-bold mb-1" style="color: var(--neon-yellow); font-size: 2.5rem; font-family: var(--font-mono);" id="mk-extra-count">0</div>
-                            <div class="small font-weight-bold text-uppercase" style="color: var(--text-primary); letter-spacing: 1px;">GHOSTS IN MK</div>
+                        <div class="kpi-card" style="border-top: 3px solid var(--color-orange);">
+                            <div class="kpi-content">
+                                <div class="kpi-title">EN MOROSOS MK SIN CORTE</div>
+                                <div class="kpi-value" style="color:var(--color-orange);" id="mk-extra-count">0</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <ul class="nav nav-tabs" id="mk-subtabs">
+                <ul class="nav nav-pills-custom" id="mk-subtabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#mk-tab-faltantes">
-                            <i class="fas fa-exclamation-triangle" style="color: var(--neon-red);"></i> MISSING
-                            <span class="badge ml-2" style="background: rgba(255,0,60,0.2); color: var(--neon-red); border: 1px solid var(--neon-red);" id="badge-faltantes">0</span>
-                        </a>
+                        <a class="nav-link active" data-toggle="tab" href="#mk-tab-faltantes">Faltantes en MK <span class="badge badge-danger ml-1" id="badge-faltantes">0</span></a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#mk-tab-extra">
-                            <i class="fas fa-ghost" style="color: var(--neon-yellow);"></i> GHOSTS
-                            <span class="badge ml-2" style="background: rgba(255,234,0,0.2); color: var(--neon-yellow); border: 1px solid var(--neon-yellow);" id="badge-extra">0</span>
-                        </a>
+                        <a class="nav-link" data-toggle="tab" href="#mk-tab-extra">Extras en MK <span class="badge badge-warning ml-1" id="badge-extra">0</span></a>
                     </li>
                 </ul>
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="mk-tab-faltantes">
-                        <div class="table-responsive mt-3">
-                            <table class="table mb-0">
-                                <thead>
-                                    <tr><th>Contrato</th><th>Cliente</th><th>IP Addr</th><th>Factura</th><th>Valor</th></tr>
-                                </thead>
-                                <tbody id="tbody-mk-faltantes">
-                                    <tr><td colspan="5" class="text-center py-4 text-muted">AWAITING SCAN...</td></tr>
-                                </tbody>
+                        <div class="table-card">
+                            <table class="table">
+                                <thead><tr><th>CONTRATO</th><th>CLIENTE</th><th>IP</th><th>FACTURA</th><th>VALOR</th></tr></thead>
+                                <tbody id="tbody-mk-faltantes"><tr><td colspan="5" class="text-center py-4 text-muted">Sin datos</td></tr></tbody>
                             </table>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="mk-tab-extra">
-                        <div class="table-responsive mt-3">
-                            <table class="table mb-0">
-                                <thead>
-                                    <tr><th>IP Addr</th><th>Lista MK</th><th>Comentario</th></tr>
-                                </thead>
-                                <tbody id="tbody-mk-extra">
-                                    <tr><td colspan="3" class="text-center py-4 text-muted">AWAITING SCAN...</td></tr>
-                                </tbody>
+                        <div class="table-card">
+                            <table class="table">
+                                <thead><tr><th>IP</th><th>LISTA MK</th><th>COMENTARIO</th></tr></thead>
+                                <tbody id="tbody-mk-extra"><tr><td colspan="3" class="text-center py-4 text-muted">Sin datos</td></tr></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-            <div id="mk-sync-empty" class="text-center py-5" style="border: 1px dashed var(--border-color); border-radius: 0.5rem; background: rgba(0,0,0,0.2);">
-                <i class="fas fa-radar fa-3x mb-3" style="color: var(--neon-cyan); opacity:0.5;"></i><br>
-                <strong style="color: var(--text-muted); letter-spacing: 1px; font-family: var(--font-mono);">AWAITING TARGET SELECTION</strong>
+            <div id="mk-sync-empty" class="text-center py-5" style="border:1px dashed #262626; border-radius:12px;">
+                <span class="text-muted">Seleccione un MikroTik y haga clic en Analizar.</span>
             </div>
         </div>
 
     </div>
 </div>
 
+{{-- Modals from original logic but styled dark --}}
 {{-- Modal: Confirmar corte internet --}}
 <div class="modal fade" id="modal-confirmar-corte" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-danger">
-                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-exclamation-triangle mr-2"></i> CONFIRM EXECUTION</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <div class="modal-header" style="border-bottom:1px solid #ef4444;">
+                <h5 class="modal-title font-weight-bold text-white"><i class="fas fa-ban" style="color:#ef4444;"></i> Confirmar Corte Internet</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Targets to disable: <span id="modal-corte-count" style="color: var(--neon-red); font-size: 1.5rem; font-family: var(--font-mono); font-weight: bold;">0</span></p>
-                <div class="alert alert-warning" style="font-family: var(--font-mono); font-size: 0.85rem;">
-                    [WARNING] IPs will be moved to 'morosos' list. Network access will be dropped.
-                </div>
+                <p>Se ejecutará el corte para <strong id="modal-corte-count" style="color:#ef4444; font-size:1.2rem;">0</strong> contratos pendientes.</p>
                 <div class="form-group mt-3 mb-0">
-                    <label class="small font-weight-bold text-uppercase text-muted">EXECUTION TIMESTAMP</label>
-                    <input type="date" id="modal-fecha-corte" class="form-control" style="background: rgba(0,0,0,0.5); border: 1px solid var(--neon-red); color: var(--neon-red); border-radius: 0.25rem;">
+                    <label class="small text-muted">Fecha de corte</label>
+                    <input type="date" id="modal-fecha-corte" class="form-control" style="background:#0a0a0a; border:1px solid #262626; color:white; border-radius:8px;">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
-                <button type="button" id="btn-confirmar-corte" class="btn btn-danger">
-                    <i class="fas fa-bolt mr-1"></i> PROCEED
-                </button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-confirmar-corte" class="btn-red-glow">Ejecutar Corte</button>
             </div>
         </div>
     </div>
@@ -671,21 +679,16 @@ code {
 <div class="modal fade" id="modal-confirmar-corte-tv" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-exclamation-triangle mr-2"></i> CONFIRM EXECUTION (TV)</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <div class="modal-header" style="border-bottom:1px solid #ef4444;">
+                <h5 class="modal-title text-white font-weight-bold"><i class="fas fa-ban" style="color:#ef4444;"></i> Confirmar Corte TV</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Targets to disable: <span id="modal-corte-tv-count" style="color: var(--neon-yellow); font-size: 1.5rem; font-family: var(--font-mono); font-weight: bold;">0</span></p>
-                <div class="alert alert-warning" style="font-family: var(--font-mono); font-size: 0.85rem;">
-                    [WARNING] SmartOLT ONUs will be disabled. Signal will be dropped.
-                </div>
+                <p>Se ejecutará el corte de TV para <strong id="modal-corte-tv-count" style="color:#ef4444; font-size:1.2rem;">0</strong> contrato(s).</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
-                <button type="button" id="btn-confirmar-corte-tv" class="btn btn-warning">
-                    <i class="fas fa-bolt mr-1"></i> PROCEED
-                </button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-confirmar-corte-tv" class="btn-red-glow">Ejecutar Corte TV</button>
             </div>
         </div>
     </div>
@@ -695,19 +698,16 @@ code {
 <div class="modal fade" id="modal-habilitar" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-success">
-                <h5 class="modal-title font-weight-bold" style="font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-unlock mr-2"></i> ENABLE NETWORK</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <div class="modal-header" style="border-bottom:1px solid #10b981;">
+                <h5 class="modal-title font-weight-bold text-white"><i class="fas fa-power-off" style="color:#10b981;"></i> Habilitar Cortados</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Do you want to enable all currently offline targets in this group?</p>
-                <p class="text-muted small" style="font-family: var(--font-mono);">Targets will be removed from 'morosos' list.</p>
+                <p>¿Desea habilitar todos los contratos actualmente en estado cortado?</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">ABORT</button>
-                <button type="button" id="btn-confirmar-habilitar" class="btn btn-success">
-                    <i class="fas fa-check mr-1"></i> EXECUTE
-                </button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-confirmar-habilitar" class="btn-green-glow">Confirmar</button>
             </div>
         </div>
     </div>
@@ -718,25 +718,17 @@ code {
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title font-weight-bold" style="color: var(--neon-purple); font-family: var(--font-mono); letter-spacing: 1px;"><i class="fas fa-terminal mr-2"></i> SYSTEM LOG TRACE</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h5 class="modal-title font-weight-bold text-white">Detalle de ejecución</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="table-responsive">
+                <div class="table-card">
                     <table class="table">
                         <thead>
-                            <tr>
-                                <th>Target</th>
-                                <th>Cliente</th>
-                                <th>IP Addr</th>
-                                <th>Protocol</th>
-                                <th>Result</th>
-                                <th>Method</th>
-                                <th>Stack/Msg</th>
-                            </tr>
+                            <tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Tipo</th><th>Resultado</th><th>Método</th><th>Descripción</th></tr>
                         </thead>
                         <tbody id="log-detail-body">
-                            <tr><td colspan="7" class="text-center py-4" style="color: var(--neon-purple);"><i class="fas fa-circle-notch fa-spin mr-2"></i> DECRYPTING LOGS...</td></tr>
+                            <tr><td colspan="7" class="text-center py-4 text-muted">Cargando…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -756,108 +748,152 @@ var URLS = {
     allContracts:     '{{ route("grupos-corte.all-contracts",         ["id" => $grupo->id]) }}',
     pendingInternet:  '{{ route("grupos-corte.corte-pending-internet") }}',
     pendingTv:        '{{ route("grupos-corte.corte-pending-tv") }}',
-    blockedReasons:   '{{ route("grupos-corte.blocked-reasons",       ["id" => $grupo->id]) }}',
     history:          '{{ route("grupos-corte.corte-history",         ["id" => $grupo->id]) }}',
     historyDetail:    '{{ route("grupos-corte.corte-history-detail",  ["logId" => "LOGID_PH"]) }}',
     mkSync:           '{{ route("grupos-corte.mk-sync") }}',
     solucionarLote:   '{{ route("grupos-corte.solucionar-discrepancia-lote") }}',
-    limpiarCache:     '{{ route("grupos-corte.limpiar-cache-cortes") }}',
     ejecutarInternet: '{{ route("grupos-corte.ejecutar-corte-internet") }}',
     ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
     ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
     habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
 };
 
-function getSelectedFecha() {
-    return document.getElementById('fecha-ref').value;
+var globalContracts = [];
+var currentFilter = 'todos';
+
+function getSelectedFecha() { return document.getElementById('fecha-ref').value; }
+function fmt(n) { return (n === null || n === undefined) ? '—' : new Intl.NumberFormat('es-CO').format(n); }
+
+function getStatusBadge(estado) {
+    if(!estado) return '<span class="badge-status suspendidos">Desconocido</span>';
+    estado = estado.toLowerCase();
+    if(estado === 'cortado' || estado === 'suspendido' || estado === 'bloqueado') return '<span class="badge-status suspendidos">SUSPENDIDOS</span>';
+    if(estado === 'pagado' || estado === 'al dia' || estado === 'aldia' || estado === 'activo') return '<span class="badge-status aldia">AL DÍA</span>';
+    if(estado === 'promesa') return '<span class="badge-status promesa">PROMESA</span>';
+    if(estado === 'abierta' || estado === 'mora' || estado === 'en mora') return '<span class="badge-status mora">EN MORA</span>';
+    return '<span class="badge-status suspendidos">'+estado.toUpperCase()+'</span>';
 }
 
-function fmt(n) {
-    if (n === null || n === undefined) return '—';
-    return new Intl.NumberFormat('en-US').format(n);
+function normalizeStateForFilter(estado) {
+    if(!estado) return 'suspendidos';
+    estado = estado.toLowerCase();
+    if(estado === 'cortado' || estado === 'suspendido' || estado === 'bloqueado') return 'suspendidos';
+    if(estado === 'pagado' || estado === 'al dia' || estado === 'aldia' || estado === 'activo') return 'aldia';
+    if(estado === 'abierta' || estado === 'mora' || estado === 'en mora') return 'mora';
+    return 'otros';
 }
 
-function badgeEstado(estado) {
-    var map = {
-        'pagado':    'badge-estado-pagado',
-        'abierta':   'badge-estado-abierta',
-        'cortado':   'badge-estado-cortado',
-        'promesa':   'badge-estado-promesa',
-        'bloqueado': 'badge-estado-bloqueado',
-    };
-    var cls = map[estado] || 'badge-estado-bloqueado';
-    return '<span class="badge ' + cls + '">' + (estado || 'UNKNOWN') + '</span>';
+function renderContractsTable() {
+    var query = $('#search-contratos').val().toLowerCase();
+    var filtered = globalContracts.filter(function(c) {
+        var matchFilter = false;
+        var s = normalizeStateForFilter(c.estado_contrato);
+        if(currentFilter === 'todos') matchFilter = true;
+        else if(currentFilter === 'aldia' && s === 'aldia') matchFilter = true;
+        else if(currentFilter === 'mora' && s === 'mora') matchFilter = true;
+        else if(currentFilter === 'suspendidos' && s === 'suspendidos') matchFilter = true;
+
+        var matchSearch = true;
+        if(query) {
+            var str = (c.cliente_nombre + ' ' + c.contrato_nro + ' ' + c.ip + ' ' + c.cliente_nit).toLowerCase();
+            matchSearch = str.indexOf(query) !== -1;
+        }
+        return matchFilter && matchSearch;
+    });
+
+    var rows = '';
+    if(filtered.length === 0) {
+        rows = '<tr><td colspan="7" class="text-center py-5 text-muted">No hay contratos para mostrar</td></tr>';
+    } else {
+        filtered.forEach(function(c) {
+            rows += '<tr>' +
+                '<td><span class="client-name">'+(c.cliente_nombre||'—')+'</span><span class="client-doc">'+(c.cliente_nit||'')+'</span></td>' +
+                '<td>'+(c.contrato_nro||'—')+'</td>' +
+                '<td>'+getStatusBadge(c.estado_contrato)+'</td>' +
+                '<td><span class="ip-address">'+(c.ip||'0.0.0.0')+'</span><span class="pppoe-user">PPPoE: '+(c.pppoe_user||'N/A')+'</span><div class="olt-info">OLT: '+(c.olt_name||'N/A')+'</div></td>' +
+                '<td><span style="font-size:0.8rem;color:#a3a3a3;">'+(c.mikrotik_nombre||'—')+'</span></td>' +
+                '<td>'+(c.factura_codigo||'—')+'</td>' +
+                '<td style="color:#a3a3a3; font-size:0.8rem;">'+(c.fecha_vencimiento||'—')+'</td>' +
+            '</tr>';
+        });
+    }
+    $('#tbody-internet').html(rows);
 }
 
-/* ── KPIs ──────────────────────────────────────────────── */
+function loadAllContracts() {
+    $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5 text-muted">Cargando contratos...</td></tr>');
+    $.getJSON(URLS.allContracts)
+        .done(function(res) {
+            globalContracts = res.data || res || [];
+            
+            // Count for filters
+            var countTotal = globalContracts.length;
+            var countAlDia = 0;
+            var countMora = 0;
+            var countSuspendidos = 0;
+
+            globalContracts.forEach(function(c) {
+                var s = normalizeStateForFilter(c.estado_contrato);
+                if(s === 'aldia') countAlDia++;
+                else if(s === 'mora') countMora++;
+                else if(s === 'suspendidos') countSuspendidos++;
+            });
+
+            $('#count-todos').text(countTotal);
+            $('#count-aldia').text(countAlDia);
+            $('#count-mora').text(countMora);
+            $('#count-suspendidos').text(countSuspendidos);
+
+            // Set specific btn counts
+            $('#btn-count-cortados').text(countSuspendidos);
+
+            renderContractsTable();
+        });
+}
+
 function loadSummary() {
     $.getJSON(URLS.summary)
         .done(function(d) {
             $('#kpi-total').text(fmt(d.total_contratos));
-            $('#kpi-pagados').text(fmt(d.al_dia));
-            $('#kpi-mora').text(fmt(d.en_mora));
-            $('#kpi-cortados').text(fmt(d.ya_cortados));
+            $('#kpi-activos').text(fmt(d.al_dia)); // aprox
             $('#kpi-pendientes').text(fmt(d.pendientes_corte));
-            $('#kpi-promesas').text(fmt(d.con_promesa));
-        });
-}
-
-/* ── Internet tab ──────────────────────────────────────── */
-function loadInternet() {
-    var fecha = getSelectedFecha();
-    $('#tbody-internet').html('<tr><td colspan="9" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>');
-    $.getJSON(URLS.pendingInternet + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha)
-        .done(function(res) {
-            var rows = '';
-            var list = res.data || [];
-            $('#internet-count').text(list.length);
-            $('#badge-internet').text(list.length);
-            $('#modal-corte-count').text(list.length);
-            if (!list.length) {
-                rows = '<tr><td colspan="9" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO TARGETS FOUND. NETWORK SECURE.</td></tr>';
+            $('#kpi-cortados').text(fmt(d.ya_cortados));
+            
+            $('#kpi-pendientes-tv').text(fmt(d.pendientes_corte_tv || 0));
+            $('#kpi-cortados-tv').text(fmt(d.ya_cortados_tv || 0));
+            $('#kpi-olt').text(fmt(d.total_contratos));
+            $('#kpi-mk').text(fmt(d.total_contratos));
+            
+            // For buttons
+            $('#btn-count-pendientes').text(d.pendientes_corte);
+            if(d.pendientes_corte > 0) {
+                $('#btn-ejecutar-corte').show();
             } else {
-                list.forEach(function(c, i) {
-                    rows += '<tr>' +
-                        '<td style="color: var(--text-muted); font-family: var(--font-mono);">[' + (i+1) + ']</td>' +
-                        '<td style="color: var(--text-primary); font-family: var(--font-mono);">' + (c.contrato_nro || '—') + '</td>' +
-                        '<td>' + (c.cliente_nombre || '—') + '</td>' +
-                        '<td><code>' + (c.ip || '—') + '</code></td>' +
-                        '<td style="color: var(--neon-cyan); font-family: var(--font-mono); font-size: 0.8rem;">' + (c.mikrotik_nombre || '—') + '</td>' +
-                        '<td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);">' + (c.factura_codigo || '—') + '</td>' +
-                        '<td style="color: var(--text-primary); font-family: var(--font-mono); font-weight: bold;">$' + fmt(c.factura_total) + '</td>' +
-                        '<td style="color: var(--text-muted); font-size: 0.85rem;">' + (c.fecha_vencimiento || '—') + '</td>' +
-                        '<td>' + badgeEstado(c.estado_contrato) + '</td>' +
-                    '</tr>';
-                });
+                $('#btn-ejecutar-corte').hide();
             }
-            $('#tbody-internet').html(rows);
         });
 }
 
-/* ── TV tab ────────────────────────────────────────────── */
 function loadTv() {
     var fecha = getSelectedFecha();
-    $('#tbody-tv').html('<tr><td colspan="8" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> ESCANEANDO RED...</td></tr>');
+    $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5 text-muted">Cargando...</td></tr>');
     $.getJSON(URLS.pendingTv + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha)
         .done(function(res) {
             var rows = '';
             var list = res.data || [];
-            $('#tv-count').text(list.length);
-            $('#badge-tv').text(list.length);
             $('#modal-corte-tv-count').text(list.length);
             if (!list.length) {
-                rows = '<tr><td colspan="8" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO TARGETS FOUND. NETWORK SECURE.</td></tr>';
+                rows = '<tr><td colspan="7" class="text-center py-5 text-muted">Sin pendientes de corte TV</td></tr>';
             } else {
                 list.forEach(function(c, i) {
                     rows += '<tr>' +
-                        '<td style="color: var(--text-muted); font-family: var(--font-mono);">[' + (i+1) + ']</td>' +
-                        '<td style="color: var(--text-primary); font-family: var(--font-mono);">' + (c.contrato_nro || '—') + '</td>' +
-                        '<td>' + (c.cliente_nombre || '—') + '</td>' +
-                        '<td><code>' + (c.serial_onu || '—') + '</code></td>' +
-                        '<td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);">' + (c.factura_codigo || '—') + '</td>' +
-                        '<td style="color: var(--text-primary); font-family: var(--font-mono); font-weight: bold;">$' + fmt(c.factura_total) + '</td>' +
-                        '<td style="color: var(--text-muted); font-size: 0.85rem;">' + (c.fecha_vencimiento || '—') + '</td>' +
-                        '<td>' + badgeEstado(c.estado_contrato) + '</td>' +
+                        '<td><span class="client-name">'+(c.cliente_nombre||'—')+'</span></td>' +
+                        '<td>'+(c.contrato_nro||'—')+'</td>' +
+                        '<td><span class="ip-address">'+(c.serial_onu||'—')+'</span></td>' +
+                        '<td>'+(c.factura_codigo||'—')+'</td>' +
+                        '<td>$'+fmt(c.factura_total)+'</td>' +
+                        '<td style="color:#a3a3a3; font-size:0.8rem;">'+(c.fecha_vencimiento||'—')+'</td>' +
+                        '<td>'+getStatusBadge(c.estado_contrato)+'</td>' +
                     '</tr>';
                 });
             }
@@ -865,31 +901,30 @@ function loadTv() {
         });
 }
 
-/* ── Historial tab ─────────────────────────────────────── */
 function loadHistorial() {
-    $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-4" style="color: var(--neon-cyan);"><i class="fas fa-circle-notch fa-spin mr-2"></i> FETCHING LOGS...</td></tr>');
+    $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5 text-muted">Cargando...</td></tr>');
     $.getJSON(URLS.history)
         .done(function(data) {
             var rows = '';
             if (!data.length) {
-                rows = '<tr><td colspan="10" class="text-center py-4 text-muted" style="font-family: var(--font-mono);">NO SYSTEM LOGS FOUND</td></tr>';
+                rows = '<tr><td colspan="10" class="text-center py-5 text-muted">Sin historial</td></tr>';
             } else {
                 data.forEach(function(h) {
                     var tipoBadge = h.tipo === 'internet'
-                        ? '<span class="badge" style="background:rgba(0,240,255,0.15);color:var(--neon-cyan);border:1px solid var(--neon-cyan);">NET</span>'
-                        : '<span class="badge" style="background:rgba(255,234,0,0.15);color:var(--neon-yellow);border:1px solid var(--neon-yellow);">TV</span>';
+                        ? '<span style="color:var(--color-blue); font-weight:600; font-size:0.8rem;">INTERNET</span>'
+                        : '<span style="color:var(--color-purple); font-weight:600; font-size:0.8rem;">TV</span>';
                     var duracion = h.duracion_ms ? (h.duracion_ms / 1000).toFixed(1) + 's' : '—';
                     rows += '<tr>' +
-                        '<td style="font-family: var(--font-mono); color: var(--neon-purple);">[' + h.id + ']</td>' +
+                        '<td style="color:#a3a3a3;">#' + h.id + '</td>' +
                         '<td>' + tipoBadge + '</td>' +
-                        '<td style="font-family: var(--font-mono);">' + (h.total_procesados || 0) + '</td>' +
-                        '<td style="color: var(--neon-red); font-family: var(--font-mono); font-weight: bold;">' + (h.total_cortados || 0) + '</td>' +
-                        '<td style="font-family: var(--font-mono);">' + (h.total_omitidos || 0) + '</td>' +
-                        '<td style="color: var(--neon-orange); font-family: var(--font-mono);">' + (h.total_errores || 0) + '</td>' +
-                        '<td style="font-family: var(--font-mono);">' + duracion + '</td>' +
-                        '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">' + (h.ejecutado_por_nombre || 'SYS_CRON') + '</td>' +
-                        '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">' + (h.created_at || '—') + '</td>' +
-                        '<td><button class="btn btn-primary btn-sm btn-ver-detalle" data-id="' + h.id + '"><i class="fas fa-terminal"></i></button></td>' +
+                        '<td>' + (h.total_procesados || 0) + '</td>' +
+                        '<td style="color:var(--color-red); font-weight:bold;">' + (h.total_cortados || 0) + '</td>' +
+                        '<td>' + (h.total_omitidos || 0) + '</td>' +
+                        '<td style="color:var(--color-orange);">' + (h.total_errores || 0) + '</td>' +
+                        '<td style="color:#a3a3a3;">' + duracion + '</td>' +
+                        '<td style="color:#a3a3a3; font-size:0.75rem;">' + (h.ejecutado_por_nombre || 'CRON') + '</td>' +
+                        '<td style="color:#525252; font-size:0.75rem;">' + (h.created_at || '—') + '</td>' +
+                        '<td><button class="btn btn-sm btn-ver-detalle" data-id="' + h.id + '" style="background:#262626;color:white;border-radius:6px;"><i class="fas fa-eye"></i></button></td>' +
                     '</tr>';
                 });
             }
@@ -897,11 +932,37 @@ function loadHistorial() {
         });
 }
 
-/* ── MK Sync ───────────────────────────────────────────── */
+/* Event Listeners */
+$('.filter-pill').on('click', function() {
+    $('.filter-pill').removeClass('active');
+    $(this).addClass('active');
+    currentFilter = $(this).data('filter');
+    renderContractsTable();
+});
+
+$('#search-contratos').on('keyup', function() {
+    renderContractsTable();
+});
+
+$('#btn-apply-date').on('click', function() {
+    loadAllContracts(); loadTv(); loadSummary();
+});
+
+$('#btn-refresh').on('click', function() {
+    loadAllContracts(); loadTv(); loadSummary(); loadHistorial();
+});
+
+$('#btn-refresh-historial').on('click', loadHistorial);
+
+$('a[href="#tab-historial"]').on('shown.bs.tab', function() {
+    loadHistorial();
+});
+
+/* MK Sync */
 $('#btn-analizar-mk').on('click', function() {
     var mkId = $('#select-mikrotik').val();
-    if (!mkId) { alert('ERROR: NO ROUTER SELECTED'); return; }
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> SCANNING...');
+    if (!mkId) { alert('Seleccione un MikroTik.'); return; }
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
     $('#mk-sync-empty').addClass('d-none');
     $('#mk-sync-result').addClass('d-none');
     $.ajax({
@@ -910,7 +971,7 @@ $('#btn-analizar-mk').on('click', function() {
         data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
     }).done(function(d) {
         if (!d.disponible) {
-            $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger" style="background:rgba(255,0,60,0.1); border:1px solid var(--neon-red); color:var(--neon-red);">' + (d.error || 'UNAVAILABLE') + '</div>');
+            $('#mk-sync-empty').removeClass('d-none').html('<div class="text-danger">No disponible</div>');
             return;
         }
         var faltantes = d.inconsistencias && d.inconsistencias.cortados_sin_morosos ? d.inconsistencias.cortados_sin_morosos : [];
@@ -922,24 +983,22 @@ $('#btn-analizar-mk').on('click', function() {
         $('#badge-faltantes').text(faltantes.length);
         $('#badge-extra').text(extra.length);
 
-        // Faltantes
         var rowsF = '';
         if (!faltantes.length) {
-            rowsF = '<tr><td colspan="5" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> ALL TARGETS PRESENT IN MK.</td></tr>';
+            rowsF = '<tr><td colspan="5" class="text-center py-4 text-muted">Sin discrepancias</td></tr>';
         } else {
             faltantes.forEach(function(c) {
-                rowsF += '<tr><td style="font-family: var(--font-mono);">'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td><code>'+(c.ip||'—')+'</code></td><td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(c.factura_codigo||'—')+'</td><td style="font-family: var(--font-mono);">$'+fmt(c.factura_total)+'</td></tr>';
+                rowsF += '<tr><td>'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td><span class="ip-address">'+(c.ip||'—')+'</span></td><td>'+(c.factura_codigo||'—')+'</td><td>$'+fmt(c.factura_total)+'</td></tr>';
             });
         }
         $('#tbody-mk-faltantes').html(rowsF);
 
-        // Extra
         var rowsE = '';
         if (!extra.length) {
-            rowsE = '<tr><td colspan="3" class="text-center py-4" style="color: var(--neon-green); font-family: var(--font-mono);"><i class="fas fa-check-square mr-2"></i> NO GHOST TARGETS IN MK.</td></tr>';
+            rowsE = '<tr><td colspan="3" class="text-center py-4 text-muted">Sin extras</td></tr>';
         } else {
             extra.forEach(function(e) {
-                rowsE += '<tr><td><code>'+(e.address||'—')+'</code></td><td><span class="badge" style="background: rgba(255,234,0,0.15); border: 1px solid var(--neon-yellow); color: var(--neon-yellow);">'+(e.list||'—')+'</span></td><td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(e.comment||'—')+'</td></tr>';
+                rowsE += '<tr><td><span class="ip-address">'+(e.address||'—')+'</span></td><td><span style="color:var(--color-orange);">'+(e.list||'—')+'</span></td><td style="color:#a3a3a3;">'+(e.comment||'—')+'</td></tr>';
             });
         }
         $('#tbody-mk-extra').html(rowsE);
@@ -947,196 +1006,112 @@ $('#btn-analizar-mk').on('click', function() {
         $('#mk-sync-result').removeClass('d-none');
         $('#btn-solucionar-lote').prop('disabled', faltantes.length === 0);
     }).fail(function() {
-        $('#mk-sync-empty').removeClass('d-none').html('<div class="alert alert-danger" style="background:rgba(255,0,60,0.1); border:1px solid var(--neon-red); color:var(--neon-red);">SCAN FAILED. CHECK CONNECTION.</div>');
+        $('#mk-sync-empty').removeClass('d-none').html('<div class="text-danger">Error al analizar MikroTik.</div>');
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-radar mr-1"></i> SCAN MK');
+        $btn.prop('disabled', false).html('<i class="fas fa-search"></i> Analizar');
     });
 });
 
 $('#btn-solucionar-lote').on('click', function() {
     var mkId = $('#select-mikrotik').val();
-    if (!mkId || !confirm('SYS-WARNING: Execute AUTO-FIX adding missing targets to MK?')) return;
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> FIXING...');
+    if (!mkId || !confirm('¿Ejecutar?')) return;
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
     $.ajax({
         url: URLS.solucionarLote,
         method: 'POST',
         data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
     }).done(function(r) {
-        alert(r.message || 'SYS-MSG: FIX APPLIED');
+        alert(r.message || 'Listo');
         $('#btn-analizar-mk').trigger('click');
     }).fail(function(xhr) {
-        alert('SYS-ERR: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'UNKNOWN ERROR'));
+        alert('Error: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Error desconocido'));
     }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-wrench mr-1"></i> AUTO-FIX');
+        $btn.prop('disabled', false).html('<i class="fas fa-magic"></i> Solucionar Lote');
     });
 });
 
-/* ── Execute corte internet ────────────────────────────── */
+/* Executes */
 $('#btn-ejecutar-corte').on('click', function() {
     $('#modal-fecha-corte').val(getSelectedFecha());
+    $('#modal-corte-count').text($('#btn-count-pendientes').text());
     $('#modal-confirmar-corte').modal('show');
 });
-
 $('#btn-confirmar-corte').on('click', function() {
     $('#modal-confirmar-corte').modal('hide');
     var fecha = $('#modal-fecha-corte').val();
-
-    $('#progress-bar-wrap').fadeIn();
-    $('#progress-bar').css('width', '0%');
-    $('#progress-label').text('EXECUTING CUT ROUTINE...');
-    $('#progress-count').text('0 / ?');
-
-    var total = parseInt($('#internet-count').text()) || 0;
-    var done = 0;
-
+    
     var es = new EventSource(URLS.ejecutarStream + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha);
     es.onmessage = function(e) {
         var d = JSON.parse(e.data);
         if (d.done) {
             es.close();
-            $('#progress-bar-wrap').fadeOut();
-            alert('ROUTINE COMPLETED. SUCCESS: ' + d.cortados + ' | ERRORS: ' + d.errores);
-            loadInternet();
-            loadSummary();
-            if ($('#tab-historial-link').hasClass('active') || $('#tab-historial').hasClass('show')) loadHistorial();
+            alert('Corte completado. Cortados: ' + d.cortados + ' | Errores: ' + d.errores);
+            loadAllContracts(); loadSummary();
             return;
         }
-        done = d.progreso;
-        var pct = total > 0 ? Math.round(done / total * 100) : 0;
-        $('#progress-bar').css('width', pct + '%');
-        $('#progress-count').text(done + ' / ' + d.total + ' [' + pct + '%]');
     };
     es.onerror = function() {
         es.close();
-        $('#progress-bar-wrap').fadeOut();
-        alert('STREAM ERROR DETECTED. CHECK SYSTEM LOGS.');
-        loadHistorial();
+        alert('Error en el stream.');
     };
 });
 
-/* ── Execute corte TV ──────────────────────────────────── */
 $('#btn-ejecutar-corte-tv').on('click', function() {
     $('#modal-confirmar-corte-tv').modal('show');
 });
-
 $('#btn-confirmar-corte-tv').on('click', function() {
     $('#modal-confirmar-corte-tv').modal('hide');
-    var $btn = $('#btn-ejecutar-corte-tv').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> EXECUTING...');
     $.ajax({
-        url: URLS.ejecutarTv,
-        method: 'POST',
-        data: { _token: csrfToken, grupo_id: GRUPO_ID, fecha: getSelectedFecha() },
+        url: URLS.ejecutarTv, method: 'POST', data: { _token: csrfToken, grupo_id: GRUPO_ID, fecha: getSelectedFecha() },
     }).done(function(r) {
-        alert('ROUTINE TV COMPLETED. SUCCESS: ' + r.cortados + ' | ERRORS: ' + r.errores);
-        loadTv();
-        loadSummary();
-    }).fail(function(xhr) {
-        alert('SYS-ERR: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'UNKNOWN ERROR'));
-    }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-bolt mr-1"></i> EXECUTE CUT (TV)');
+        alert('Completado. Cortados: ' + r.cortados);
+        loadTv(); loadSummary();
     });
 });
 
-/* ── Habilitar cortados ────────────────────────────────── */
 $('#btn-habilitar-cortados').on('click', function() {
     $('#modal-habilitar').modal('show');
 });
-
 $('#btn-confirmar-habilitar').on('click', function() {
     $('#modal-habilitar').modal('hide');
-    var $btn = $('#btn-habilitar-cortados').prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin mr-1"></i> ENABLING...');
     $.ajax({
-        url: URLS.habilitarCortados,
-        method: 'POST',
-        data: { _token: csrfToken, grupo_id: GRUPO_ID },
+        url: URLS.habilitarCortados, method: 'POST', data: { _token: csrfToken, grupo_id: GRUPO_ID },
     }).done(function(r) {
-        alert('ENABLE ROUTINE FINISHED. SUCCESS: ' + r.habilitados + ' | ERRORS: ' + r.errores);
-        loadInternet();
-        loadSummary();
-    }).fail(function() {
-        alert('SYS-ERR: FAILED TO ENABLE TARGETS.');
-    }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-unlock mr-1"></i> ENABLE OFFLINE');
+        alert('Habilitados: ' + r.habilitados);
+        loadAllContracts(); loadSummary();
     });
 });
 
-/* ── Historial detail ──────────────────────────────────── */
 $(document).on('click', '.btn-ver-detalle', function() {
     var logId = $(this).data('id');
-    $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color: var(--neon-purple);"><i class="fas fa-circle-notch fa-spin mr-2"></i> DECRYPTING TRACE...</td></tr>');
+    $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr>');
     $('#modal-log-detail').modal('show');
-    $.getJSON(URLS.historyDetail.replace('LOGID_PH', logId))
-        .done(function(data) {
-            var rows = '';
-            var list = data.detalle || data || [];
-            if (!list.length) {
-                rows = '<tr><td colspan="7" class="text-center py-4 text-muted" style="font-family: var(--font-mono);">TRACE EMPTY</td></tr>';
-            } else {
-                list.forEach(function(r) {
-                    var res = r.resultado === 'cortado'
-                        ? '<span class="badge" style="background:rgba(0,255,102,0.15);color:var(--neon-green);border:1px solid var(--neon-green);">SUCCESS</span>'
-                        : (r.resultado === 'error'
-                            ? '<span class="badge" style="background:rgba(255,0,60,0.15);color:var(--neon-red);border:1px solid var(--neon-red);">ERROR</span>'
-                            : '<span class="badge" style="background:rgba(255,255,255,0.1);color:var(--text-primary);border:1px solid var(--text-muted);">'+(r.resultado||'UNKNOWN')+'</span>');
-                    rows += '<tr>' +
-                        '<td style="font-family: var(--font-mono);">['+(r.contrato_nro||r.contrato_id||'—')+']</td>' +
-                        '<td>'+(r.cliente_nombre||'—')+'</td>' +
-                        '<td><code>'+(r.ip||'—')+'</code></td>' +
-                        '<td><span class="badge" style="background:rgba(0,240,255,0.1);color:var(--neon-cyan);border:1px solid var(--neon-cyan);">'+(r.tipo||'—')+'</span></td>' +
-                        '<td>'+res+'</td>' +
-                        '<td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.85rem;">'+(r.metodo||'—')+'</td>' +
-                        '<td style="font-family: var(--font-mono); font-size: 0.85rem;">'+(r.descripcion || r.error_detalle || '—')+'</td>' +
-                    '</tr>';
-                });
-            }
-            $('#log-detail-body').html(rows);
-        });
-});
-
-/* ── Misc ──────────────────────────────────────────────── */
-$('#btn-refresh').on('click', function() {
-    var $icon = $(this).find('i');
-    $icon.addClass('fa-spin');
-    loadSummary(); loadInternet(); loadTv();
-    setTimeout(function(){ $icon.removeClass('fa-spin'); }, 1000);
-});
-
-$('#btn-apply-date').on('click', function() {
-    var $icon = $(this).find('i');
-    $icon.removeClass('fa-microchip').addClass('fa-circle-notch fa-spin');
-    loadInternet(); loadTv(); loadSummary();
-    setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-microchip'); }, 1000);
-});
-
-$('#btn-refresh-historial').on('click', function(){
-    var $icon = $(this).find('i');
-    $icon.addClass('fa-spin');
-    loadHistorial();
-    setTimeout(function(){ $icon.removeClass('fa-spin'); }, 1000);
-});
-
-$('#btn-clear-cache').on('click', function() {
-    var $icon = $(this).find('i');
-    $icon.removeClass('fa-terminal').addClass('fa-circle-notch fa-spin');
-    $.ajax({
-        url: URLS.limpiarCache,
-        method: 'POST',
-        data: { _token: csrfToken, grupo_id: GRUPO_ID },
-    }).done(function() {
-        loadSummary(); loadInternet(); loadTv();
-    }).always(function() {
-        setTimeout(function(){ $icon.removeClass('fa-circle-notch fa-spin').addClass('fa-terminal'); }, 1000);
+    $.getJSON(URLS.historyDetail.replace('LOGID_PH', logId)).done(function(data) {
+        var rows = '';
+        var list = data.detalle || data || [];
+        if (!list.length) {
+            rows = '<tr><td colspan="7" class="text-center py-4 text-muted">Sin detalle</td></tr>';
+        } else {
+            list.forEach(function(r) {
+                var res = r.resultado === 'cortado' ? '<span style="color:var(--color-green);">cortado</span>' : (r.resultado === 'error' ? '<span style="color:var(--color-red);">error</span>' : '<span>'+r.resultado+'</span>');
+                rows += '<tr>' +
+                    '<td style="color:#a3a3a3;">'+(r.contrato_nro||r.contrato_id||'—')+'</td>' +
+                    '<td>'+(r.cliente_nombre||'—')+'</td>' +
+                    '<td><span class="ip-address">'+(r.ip||'—')+'</span></td>' +
+                    '<td>'+(r.tipo||'—')+'</td>' +
+                    '<td>'+res+'</td>' +
+                    '<td style="color:#a3a3a3; font-size:0.8rem;">'+(r.metodo||'—')+'</td>' +
+                    '<td style="color:#a3a3a3; font-size:0.8rem;">'+(r.descripcion || r.error_detalle || '—')+'</td>' +
+                '</tr>';
+            });
+        }
+        $('#log-detail-body').html(rows);
     });
 });
 
-$('a[href="#tab-historial"]').on('shown.bs.tab', function() {
-    loadHistorial();
-});
-
-/* ── Init ──────────────────────────────────────────────── */
 $(document).ready(function() {
     loadSummary();
-    loadInternet();
+    loadAllContracts();
     loadTv();
 });
 </script>
