@@ -46,6 +46,12 @@ services:
       #    allá provocaría un loop de redirecciones).
       caddy.1_handle: /*
       caddy.1_handle.reverse_proxy: "${HESTIA_IP:-13.140.155.227}:80"
+
+      # 2) Atajos viejos del portal de pagos -> /software/portal-pagos.
+      #    redir corre antes que handle_path/handle en el orden default de Caddy,
+      #    así que estos dispararán incluso con el handle /* presente.
+      caddy.2_redir: /pay.php /software/portal-pagos 302
+      caddy.3_redir: /pagos.php /software/portal-pagos 302
     networks:
       - web        # alcanzable por el proxy
       - internal   # alcanza a MySQL

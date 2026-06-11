@@ -208,6 +208,13 @@ Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
 Route::get('/generacionnotacredito', 'CronController@generacionnotacredito');
 Route::get('/syncintegrapay', 'CronController@syncIntegraPay');
 Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
+
+Route::get('portal-pagos', 'PaymentPortalController@index')->name('portal-pagos.index');
+Route::post('portal-pagos/consultar', 'PaymentPortalController@consultar')->name('portal-pagos.consultar');
+Route::post('portal-pagos/hash-payu', 'PaymentPortalController@hashPayu')->name('portal-pagos.hash-payu');
+Route::get('/pay.php', fn () => redirect()->route('portal-pagos.index', [], 302));
+Route::get('/pagos.php', fn () => redirect()->route('portal-pagos.index', [], 302));
+
 /*PAYU*/
 
 Route::get('/respuestapayu', 'Controller@respuestapayu')->name('respuestapayu');
