@@ -4919,9 +4919,6 @@ class ContratosController extends Controller
                     $API->port = $mikrotik->puerto_api;
 
                     if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
-                        $API->write('/ip/firewall/address-list/print', true);
-                        $ARRAYS = $API->read();
-
                         switch ($state) {
                             case 'disabled':
                                 $API->comm("/ip/firewall/address-list/add", [
