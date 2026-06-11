@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pagos en Línea | {{ $datosEmpresa['nombre'] }}</title>
+    <link rel="shortcut icon" href="{{ $datosEmpresa['favicon'] }}" onerror="this.href='{{ asset('images/favicon2.png') }}'" />
     
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://checkout.epayco.co/checkout.js"></script>
@@ -35,7 +36,7 @@
     <nav class="fixed top-0 w-full z-50 bg-[#05071a]/80 backdrop-blur-2xl border-b border-white/[0.06]">
         <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
             <a href="/" class="flex items-center gap-3 group">
-                <img src="{{ $datosEmpresa['logo'] }}" alt="{{ $datosEmpresa['nombre'] }}" class="h-9 object-contain transition-transform group-hover:scale-105" />
+                <img src="{{ $datosEmpresa['logo'] }}" onerror="this.src='{{ asset('images/logo.png') }}'" alt="{{ $datosEmpresa['nombre'] }}" class="h-9 object-contain transition-transform group-hover:scale-105" />
             </a>
             <div class="flex items-center gap-6">
                 <a href="/" class="text-white/50 text-sm font-medium hover:text-white transition-colors">Inicio</a>
@@ -45,7 +46,7 @@
     </nav>
 
     <section class="pt-28 pb-14 text-center px-4 relative z-10">
-        <img src="{{ $datosEmpresa['logo'] }}" alt="{{ $datosEmpresa['nombre'] }}" class="h-20 mx-auto mb-6 drop-shadow-[0_0_40px_rgba(0,198,255,0.15)]" />
+        <img src="{{ $datosEmpresa['logo'] }}" onerror="this.src='{{ asset('images/logo.png') }}'" alt="{{ $datosEmpresa['nombre'] }}" class="h-20 mx-auto mb-6 drop-shadow-[0_0_40px_rgba(0,198,255,0.15)]" />
         <h1 class="text-4xl md:text-5xl font-extrabold mb-4 space-grotesk tracking-tight leading-tight">
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-[#00c6ff]">Portal de Pagos</span>
             <br />
@@ -285,7 +286,7 @@
                 moneda: '{{ $datosEmpresa["moneda"] }}',
                 empresaPrefix: '{{ $datosEmpresa["prefix"] }}',
                 empresaEmail: '{{ $datosEmpresa["email"] }}',
-                baseUrl: window.location.origin
+                baseUrl: '{{ url("/") }}'
             },
             computed: {
                 fullname() {
@@ -316,7 +317,7 @@
 
                     try {
                         const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                        const res = await fetch('/portal-pagos/consultar', {
+                        const res = await fetch(`${this.baseUrl}/portal-pagos/consultar`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -368,7 +369,7 @@
 
                             if (p.nombre === 'PayU' && p.api_key && p.merchantId) {
                                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                                const res = await fetch('/portal-pagos/hash-payu', {
+                                const res = await fetch(`${this.baseUrl}/portal-pagos/hash-payu`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
                                     body: JSON.stringify({
@@ -442,7 +443,7 @@
                     this.comboPayLoading = true;
                     try {
                         const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                        const tokenRes = await fetch(`/token-combopay?client_id=${p.client_id}&client_secret=${p.client_secret}&user=${p.user}&pass=${p.pass}`, {
+                        const tokenRes = await fetch(`${this.baseUrl}/token-combopay?client_id=${p.client_id}&client_secret=${p.client_secret}&user=${p.user}&pass=${p.pass}`, {
                             method: 'POST',
                             headers: { 'X-CSRF-TOKEN': token }
                         });
@@ -451,7 +452,7 @@
                         if (!dataToken.access_token) throw new Error();
 
                         const tipIden = (this.selectedFactura.tip_iden == 3 || this.selectedFactura.tip_iden == 4) ? 'CC' : 'NIT';
-                        const linkRes = await fetch('/combopay/payment-link', {
+                        const linkRes = await fetch(`${this.baseUrl}/combopay/payment-link`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
                             body: JSON.stringify({

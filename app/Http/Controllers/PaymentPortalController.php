@@ -20,12 +20,13 @@ class PaymentPortalController extends Controller
         $nom_empresa = $empresa->codigo ?? strtoupper(substr($empresa->nombre, 0, 3));
         $whatsapp = str_replace(['+', ' '], '', $empresa->whatsapp ?? '');
 
-        // Obtener logo
-        $logo = $empresa->logo;
-        if($logo){
-             $logoUrl = asset('images/Empresas/Empresa1/'.$logo);
-        }else{
-             $logoUrl = asset('images/logo.png');
+        // Obtener logo y favicon del sistema
+        if (function_exists('contabo_url')) {
+            $logoUrl = contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png');
+            $faviconUrl = contabo_url(env('LOGOS_FOLDER', 'logos'), 'favicon.png');
+        } else {
+            $logoUrl = $empresa->logo ? asset('images/Empresas/Empresa1/'.$empresa->logo) : asset('images/logo.png');
+            $faviconUrl = asset('images/favicon2.png');
         }
 
         $datosEmpresa = [
@@ -35,6 +36,7 @@ class PaymentPortalController extends Controller
             'email'     => $empresa->email,
             'whatsapp'  => $whatsapp,
             'logo'      => $logoUrl,
+            'favicon'   => $faviconUrl,
             'prefix'    => $nom_empresa,
             'moneda'    => $empresa->moneda ?? '$',
         ];
