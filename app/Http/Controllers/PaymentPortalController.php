@@ -42,7 +42,7 @@ class PaymentPortalController extends Controller
         return view('pagos.portal', compact('datosEmpresa'));
     }
 
-    public function consultar(Request $request)
+    public function consultarFacturas(Request $request)
     {
         $request->validate(['identificacion' => 'required|string']);
 

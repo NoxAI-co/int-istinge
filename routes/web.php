@@ -344,7 +344,7 @@ Route::get('/closeallsession', 'HomeController@peticionCloseAllSesions')->name('
 
 // Portal de pagos
 Route::get('/portal-pagos', 'PaymentPortalController@index')->name('portal-pagos.index');
-Route::post('/portal-pagos/consultar', 'PaymentPortalController@consultar')->name('portal-pagos.consultar')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+Route::post('/portal-pagos/consultar', 'PaymentPortalController@consultarFacturas')->name('portal-pagos.consultar')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 Route::post('/portal-pagos/hash-payu', 'PaymentPortalController@hashPayu')->name('portal-pagos.hashPayu')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 Route::get('/pay.php', function () { return redirect()->route('portal-pagos.index', [], 302); });
 Route::get('/pagos.php', function () { return redirect()->route('portal-pagos.index', [], 302); });
