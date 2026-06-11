@@ -1,1118 +1,835 @@
 @extends('layouts.app')
 
 @section('boton')
-<a href="{{ route('grupos-corte.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-backward"></i> Regresar</a>
-<a href="{{ route('grupos-corte.show', $grupo->id) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eye"></i> Ver Grupo</a>
+<a href="{{ route('grupos-corte.index') }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-backward"></i> Regresar</a>
+<a href="{{ route('grupos-corte.show', $grupo->id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-eye"></i> Ver Grupo</a>
+<a href="{{ route('grupos-corte.analisis-ciclo', $grupo->id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-chart-bar"></i> Ciclos</a>
+<button id="btn-refresh" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-sync-alt"></i> Actualizar</button>
 @endsection
 
 @section('styles')
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-    --bg-main: #0a0a0a;
-    --bg-card: #121212;
-    --border-color: #262626;
-    --text-main: #f5f5f5;
-    --text-muted: #a3a3a3;
-    --text-dark-muted: #525252;
-    
-    --color-blue: #3b82f6;
-    --bg-blue-dim: rgba(59, 130, 246, 0.1);
-    
-    --color-red: #ef4444;
-    --bg-red-dim: rgba(239, 68, 68, 0.1);
-    
-    --color-orange: #f97316;
-    --bg-orange-dim: rgba(249, 115, 22, 0.1);
-    
-    --color-purple: #a855f7;
-    --bg-purple-dim: rgba(168, 85, 247, 0.1);
-    
-    --color-cyan: #06b6d4;
-    --bg-cyan-dim: rgba(6, 182, 212, 0.1);
-
-    --color-green: #10b981;
-    --bg-green-dim: rgba(16, 185, 129, 0.1);
-
-    --font-family: 'Inter', sans-serif;
+/* ═══════════════════════════════════════════════════════════
+   OVERRIDE LAYOUT WHITES — scoped to .ac-dark parent
+   ═══════════════════════════════════════════════════════════ */
+.ac-dark,
+.ac-dark .content-wrapper,
+.ac-dark .main-panel,
+.ac-dark .grid-margin,
+.ac-dark .stretch-card,
+.ac-dark .card,
+.ac-dark .body-card,
+.ac-dark .body-oscuro,
+.ac-dark .body-oscuro2 {
+    background: #0d0d0d !important;
+    border-color: #1a1a1a !important;
+}
+.ac-dark #titulo,
+.ac-dark .xp7jhwk h3 {
+    color: #e5e5e5 !important;
+}
+.ac-dark .xp7jhwk {
+    border-bottom: 1px solid #1f1f1f !important;
 }
 
-body {
-    background-color: var(--bg-main) !important;
-    color: var(--text-main) !important;
-    font-family: var(--font-family);
+/* ═══════════════════════════════════════════════════════════
+   DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+.ac-view {
+    font-family: 'Inter', sans-serif;
+    color: #e5e5e5;
+    padding: 0 0.5rem;
 }
 
-.analisis-cortes-container {
-    padding: 1rem 2rem;
-}
-
-/* Page Header */
-.page-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-main);
-    margin: 0;
-}
-.page-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-}
-
-/* KPI Cards */
-.kpi-container {
+/* ── Header ─────────────────────────────────────────────── */
+.ac-header {
     display: flex;
-    gap: 1rem;
-    overflow-x: auto;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    margin-bottom: 1rem;
+    border-bottom: 1px solid #1f1f1f;
 }
-.kpi-container::-webkit-scrollbar { height: 6px; }
-.kpi-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.ac-header-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #f5f5f5;
+}
+.ac-header-sub {
+    font-size: 0.8rem;
+    color: #737373;
+    margin-top: 2px;
+}
+.ac-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.ac-date-input {
+    background: #171717 !important;
+    border: 1px solid #262626 !important;
+    color: #a3a3a3 !important;
+    border-radius: 8px !important;
+    padding: 0.35rem 0.7rem !important;
+    font-size: 0.8rem !important;
+    font-family: 'Inter', sans-serif !important;
+}
+.ac-date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+.ac-btn-sm {
+    background: #171717;
+    border: 1px solid #262626;
+    color: #a3a3a3;
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ac-btn-sm:hover { background: #262626; color: #e5e5e5; }
 
-.kpi-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.25rem;
-    min-width: 220px;
+/* ── KPI Row (matches screenshot 1) ─────────────────────── */
+.ac-kpi-row {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.25rem;
+}
+.ac-kpi-row::-webkit-scrollbar { height: 4px; }
+.ac-kpi-row::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+.ac-kpi {
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    min-width: 165px;
     flex: 1;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    transition: border-color 0.2s;
 }
-.kpi-content {
-    display: flex;
-    flex-direction: column;
-}
-.kpi-title {
-    font-size: 0.7rem;
+.ac-kpi:hover { border-color: #404040; }
+.ac-kpi-title {
+    font-size: 0.6rem;
     font-weight: 700;
-    color: var(--text-muted);
+    color: #737373;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
+    line-height: 1.3;
 }
-.kpi-value {
-    font-size: 2.2rem;
+.ac-kpi-value {
+    font-size: 2rem;
     font-weight: 700;
     line-height: 1;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
-.kpi-subtitle {
-    font-size: 0.75rem;
-    color: var(--text-dark-muted);
+.ac-kpi-sub {
+    font-size: 0.7rem;
+    color: #525252;
     font-weight: 500;
 }
-
-.kpi-icon-wrap {
-    width: 40px;
-    height: 40px;
+.ac-kpi-icon {
+    width: 36px; height: 36px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
-/* Colors for KPIs */
-.kpi-blue .kpi-value { color: var(--color-blue); }
-.kpi-blue .kpi-icon-wrap { background: var(--bg-blue-dim); color: var(--color-blue); }
-
-.kpi-red .kpi-value { color: var(--color-red); }
-.kpi-red .kpi-icon-wrap { background: var(--bg-red-dim); color: var(--color-red); }
-
-.kpi-orange .kpi-value { color: var(--color-orange); }
-.kpi-orange .kpi-icon-wrap { background: var(--bg-orange-dim); color: var(--color-orange); }
-
-.kpi-purple .kpi-value { color: var(--color-purple); }
-.kpi-purple .kpi-icon-wrap { background: var(--bg-purple-dim); color: var(--color-purple); }
-
-.kpi-cyan .kpi-value { color: var(--color-cyan); }
-.kpi-cyan .kpi-icon-wrap { background: var(--bg-cyan-dim); color: var(--color-cyan); }
-
-
-/* Tabs Navigation (Pill style) */
-.nav-pills-custom {
-    background: #141414;
-    border-radius: 12px;
-    display: inline-flex;
-    padding: 0.25rem;
+/* ── Tabs (pill style — matches screenshot 2) ────────────── */
+.ac-tabs-wrap {
     margin-bottom: 1.5rem;
-    border: 1px solid var(--border-color);
 }
-.nav-pills-custom .nav-link {
-    color: var(--text-muted);
+.ac-tabs {
+    display: inline-flex;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 4px;
+    list-style: none;
+    margin: 0;
+}
+.ac-tabs .nav-item { margin: 0; }
+.ac-tabs .nav-link {
+    background: transparent !important;
+    border: none !important;
+    color: #737373 !important;
     font-weight: 500;
     font-size: 0.85rem;
-    padding: 0.6rem 1.2rem;
+    padding: 0.55rem 1.1rem;
     border-radius: 8px;
-    transition: all 0.2s;
-}
-.nav-pills-custom .nav-link:hover {
-    color: var(--text-main);
-}
-.nav-pills-custom .nav-link.active {
-    background: #262626;
-    color: var(--text-main);
-}
-.nav-pills-custom .nav-link i {
-    margin-right: 6px;
-    font-size: 1rem;
-    color: var(--color-blue);
-}
-.nav-pills-custom .nav-link.active i {
-    color: var(--color-blue);
-}
-
-/* Sub-filters (Image 3) */
-.filters-row {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.filter-pill {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    padding: 0.35rem 0.8rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.filter-pill:hover, .filter-pill.active {
-    background: #262626;
-    color: var(--text-main);
+.ac-tabs .nav-link:hover { color: #d4d4d4 !important; }
+.ac-tabs .nav-link.active {
+    background: #262626 !important;
+    color: #f5f5f5 !important;
 }
-.filter-pill .count {
-    color: var(--text-dark-muted);
-}
-.filter-pill.active .count {
-    color: var(--text-muted);
-}
-.filter-pill .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-}
-.dot-green { background: var(--color-green); }
-.dot-orange { background: var(--color-orange); }
-.dot-grey { background: var(--text-dark-muted); }
+.ac-tabs .nav-link.active::after { display: none !important; }
 
-/* Buttons */
-.btn-green-glow {
+/* ── Filter pills (matches screenshot 3 top) ─────────────── */
+.ac-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.ac-pill {
+    background: transparent;
+    border: 1px solid #262626;
+    border-radius: 20px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #737373;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.ac-pill:hover, .ac-pill.active { background: #1f1f1f; color: #e5e5e5; border-color: #404040; }
+.ac-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #22c55e; }
+.dot-orange { background: #f97316; }
+.dot-grey { background: #525252; }
+.dot-red { background: #ef4444; }
+
+/* ── Action buttons ──────────────────────────────────────── */
+.ac-btn-green {
     background: #059669;
-    color: white;
+    color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.85rem;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
     transition: all 0.2s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
-.btn-green-glow:hover {
-    background: #10b981;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-    color: white;
-}
-
-.btn-red-glow {
+.ac-btn-green:hover { background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); color: #fff; }
+.ac-btn-red {
     background: #dc2626;
-    color: white;
+    color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.85rem;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
     transition: all 0.2s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
-.btn-red-glow:hover {
-    background: #ef4444;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
-    color: white;
-}
+.ac-btn-red:hover { background: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); color: #fff; }
 
-/* Search Bar */
-.search-container {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 0.75rem 1rem;
+/* ── Search ──────────────────────────────────────────────── */
+.ac-search {
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
     margin-bottom: 1rem;
 }
-.search-input {
+.ac-search input {
     background: transparent;
     border: none;
-    color: var(--text-main);
+    color: #e5e5e5;
     width: 100%;
     outline: none;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
 }
-.search-input::placeholder {
-    color: var(--text-dark-muted);
-}
+.ac-search input::placeholder { color: #404040; }
 
-/* Tables */
-.table-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+/* ── Table (matches screenshot 3) ────────────────────────── */
+.ac-table-wrap {
+    background: #141414;
+    border: 1px solid #1f1f1f;
     border-radius: 12px;
     overflow: hidden;
 }
-.table {
+.ac-table {
     width: 100%;
-    margin-bottom: 0;
-    color: var(--text-main);
+    border-collapse: collapse;
+    color: #e5e5e5;
+    margin: 0;
 }
-.table th {
+.ac-table thead th {
     background: transparent;
-    color: var(--text-dark-muted);
+    color: #525252;
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid #1f1f1f;
     border-top: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 1rem;
+    white-space: nowrap;
 }
-.table td {
-    padding: 1rem;
-    vertical-align: middle;
+.ac-table tbody td {
+    padding: 0.85rem 1rem;
     border-top: 1px solid #1a1a1a;
     font-size: 0.85rem;
+    vertical-align: middle;
 }
-.table tbody tr:hover {
-    background: #171717;
-}
+.ac-table tbody tr:hover { background: #1a1a1a; }
 
-.client-name {
-    font-weight: 600;
-    color: var(--text-main);
-    display: block;
-}
-.client-doc {
-    font-size: 0.75rem;
-    color: var(--text-dark-muted);
-}
-.ip-address {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-    color: var(--text-main);
-    display: block;
-}
-.pppoe-user {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-.olt-info {
-    font-size: 0.7rem;
-    color: var(--color-blue);
-    font-weight: 600;
-}
+.ac-client-name { font-weight: 600; color: #f5f5f5; display: block; }
+.ac-client-doc { font-size: 0.7rem; color: #525252; }
+.ac-ip { font-weight: 600; color: #e5e5e5; display: block; }
+.ac-pppoe { font-size: 0.7rem; color: #737373; }
+.ac-olt { font-size: 0.65rem; color: #3b82f6; font-weight: 600; }
+.ac-dim { color: #737373; font-size: 0.8rem; }
+.ac-days-red { color: #ef4444; font-weight: 700; font-size: 0.85rem; }
 
-.badge-status {
-    padding: 0.35rem 0.75rem;
+/* Badges */
+.ac-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.3rem 0.7rem;
     border-radius: 20px;
     font-size: 0.7rem;
     font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid transparent;
+    white-space: nowrap;
 }
-.badge-status::before {
-    content: '';
-    width: 6px; height: 6px; border-radius: 50%;
+.ac-badge::before { content:''; width:6px; height:6px; border-radius:50%; }
+.ac-badge-green { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+.ac-badge-green::before { background: #22c55e; }
+.ac-badge-grey { background: rgba(255,255,255,0.05); color: #a3a3a3; border: 1px solid #262626; }
+.ac-badge-grey::before { background: #525252; }
+.ac-badge-orange { background: rgba(249,115,22,0.1); color: #fb923c; border: 1px solid rgba(249,115,22,0.2); }
+.ac-badge-orange::before { background: #f97316; }
+.ac-badge-cyan { background: rgba(6,182,212,0.1); color: #22d3ee; border: 1px solid rgba(6,182,212,0.2); }
+.ac-badge-cyan::before { background: #06b6d4; }
+.ac-badge-red { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.ac-badge-red::before { background: #ef4444; }
+.ac-badge-blue { background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+.ac-badge-blue::before { background: #3b82f6; }
+
+/* ── Modals ──────────────────────────────────────────────── */
+.ac-dark .modal-content { background: #171717 !important; border: 1px solid #262626; border-radius: 12px; color: #e5e5e5; }
+.ac-dark .modal-header { border-bottom: 1px solid #262626; }
+.ac-dark .modal-footer { border-top: 1px solid #262626; }
+.ac-dark .close { color: #e5e5e5; text-shadow: none; opacity: 1; }
+.ac-dark .alert-warning { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); color: #eab308; }
+
+/* ── Empty state ─────────────────────────────────────────── */
+.ac-empty { text-align: center; padding: 3rem 1rem; color: #404040; }
+.ac-empty i { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+
+/* ── MK Sync section ─────────────────────────────────────── */
+.ac-mk-bar {
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
 }
-.badge-status.suspendidos { background: rgba(255,255,255,0.05); border-color: var(--border-color); color: var(--text-muted); }
-.badge-status.suspendidos::before { background: var(--text-dark-muted); }
+.ac-mk-bar select {
+    background: #0d0d0d !important;
+    border: 1px solid #262626 !important;
+    color: #a3a3a3 !important;
+    border-radius: 8px !important;
+}
+.ac-mk-bar label { color: #525252; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
 
-.badge-status.aldia { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: var(--color-green); }
-.badge-status.aldia::before { background: var(--color-green); }
+/* Progress */
+.ac-progress-wrap {
+    display: none;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+.ac-progress-wrap .progress { background: rgba(239,68,68,0.1); height: 8px; border-radius: 4px; }
+.ac-progress-wrap .progress-bar { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.5); }
 
-.badge-status.promesa { background: rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.2); color: var(--color-cyan); }
-.badge-status.promesa::before { background: var(--color-cyan); }
-
-.badge-status.mora { background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.2); color: var(--color-orange); }
-.badge-status.mora::before { background: var(--color-orange); }
-
-
-/* Modals */
-.modal-content { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-main); }
-.modal-header { border-bottom: 1px solid var(--border-color); }
-.modal-footer { border-top: 1px solid var(--border-color); }
-.close { color: var(--text-main); text-shadow: none; opacity: 1; }
-.close:hover { color: var(--color-red); }
+/* Responsive */
+@media (max-width: 768px) {
+    .ac-kpi-row { flex-wrap: nowrap; }
+    .ac-kpi { min-width: 160px; }
+}
 </style>
 @endsection
 
 @section('content')
-<div class="container-fluid analisis-cortes-container">
-    
+<div class="ac-dark">
+<div class="ac-view">
+
     {{-- Header --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="ac-header">
         <div>
-            <h1 class="page-title">Análisis de Cortes: {{ $grupo->nombre }}</h1>
-            <div class="page-subtitle mt-1">Corte: {{ $grupo->fecha_corte }} | Suspensión: {{ $grupo->fecha_suspension }}</div>
+            <div class="ac-header-title">Análisis de Cortes — {{ $grupo->nombre }}</div>
+            <div class="ac-header-sub">Corte día {{ $grupo->fecha_corte }} · Suspensión día {{ $grupo->fecha_suspension }}</div>
         </div>
-        <div>
-            <input type="date" id="fecha-ref" class="form-control form-control-sm d-inline-block w-auto mr-2" style="background:#121212; border:1px solid #262626; color:#a3a3a3; border-radius:8px;" value="{{ date('Y-m-d') }}">
-            <button id="btn-apply-date" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;"><i class="fas fa-sync-alt"></i></button>
+        <div class="ac-header-right">
+            <input type="date" id="fecha-ref" class="ac-date-input" value="{{ date('Y-m-d') }}">
+            <button id="btn-apply-date" class="ac-btn-sm"><i class="fas fa-sync-alt"></i></button>
+            <button id="btn-clear-cache" class="ac-btn-sm"><i class="fas fa-eraser"></i> Caché</button>
         </div>
     </div>
 
-    {{-- KPIs (Image 1 replica) --}}
-    <div class="kpi-container" id="kpi-row">
-        <div class="kpi-card kpi-blue">
-            <div class="kpi-content">
-                <div class="kpi-title">TOTAL CONTRATOS</div>
-                <div class="kpi-value" id="kpi-total">0</div>
-                <div class="kpi-subtitle"><span id="kpi-activos">0</span> activos</div>
+    {{-- KPI Cards --}}
+    <div class="ac-kpi-row" id="kpi-row">
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Total Contratos</div>
+                <div class="ac-kpi-value" style="color:#e5e5e5;" id="kpi-total">0</div>
+                <div class="ac-kpi-sub"><span id="kpi-activos">0</span> activos</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-user-friends"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(99,102,241,0.1);color:#818cf8;"><i class="fas fa-user-friends"></i></div>
         </div>
-        <div class="kpi-card kpi-red">
-            <div class="kpi-content">
-                <div class="kpi-title">PENDIENTES INTERNET</div>
-                <div class="kpi-value" id="kpi-pendientes">0</div>
-                <div class="kpi-subtitle">por cortar ahora</div>
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Pendientes<br>Internet</div>
+                <div class="ac-kpi-value" style="color:#ef4444;" id="kpi-pend-inet">0</div>
+                <div class="ac-kpi-sub">por cortar ahora</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-wifi"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(239,68,68,0.1);color:#f87171;"><i class="fas fa-wifi"></i></div>
         </div>
-        <div class="kpi-card kpi-orange">
-            <div class="kpi-content">
-                <div class="kpi-title">CORTADOS INTERNET</div>
-                <div class="kpi-value" id="kpi-cortados">0</div>
-                <div class="kpi-subtitle">state=disabled</div>
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Cortados<br>Internet</div>
+                <div class="ac-kpi-value" style="color:#f97316;" id="kpi-cut-inet">0</div>
+                <div class="ac-kpi-sub">state=disabled</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-ban"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(249,115,22,0.1);color:#fb923c;"><i class="fas fa-ban"></i></div>
         </div>
-        <div class="kpi-card kpi-purple">
-            <div class="kpi-content">
-                <div class="kpi-title">PENDIENTES TV</div>
-                <div class="kpi-value" id="kpi-pendientes-tv">0</div>
-                <div class="kpi-subtitle">prorroga: 0d</div>
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Pendientes<br>TV</div>
+                <div class="ac-kpi-value" style="color:#a855f7;" id="kpi-pend-tv">0</div>
+                <div class="ac-kpi-sub">prorroga: <span id="kpi-prorroga">0</span>d</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-tv"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(168,85,247,0.1);color:#c084fc;"><i class="fas fa-tv"></i></div>
         </div>
-        <div class="kpi-card kpi-purple">
-            <div class="kpi-content">
-                <div class="kpi-title">CORTADOS TV</div>
-                <div class="kpi-value" id="kpi-cortados-tv">0</div>
-                <div class="kpi-subtitle">state_olt_catv=0</div>
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Cortados<br>TV</div>
+                <div class="ac-kpi-value" style="color:#a855f7;" id="kpi-cut-tv">0</div>
+                <div class="ac-kpi-sub">state_olt_catv=0</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-eye-slash"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(168,85,247,0.1);color:#c084fc;"><i class="fas fa-eye-slash"></i></div>
         </div>
-        <div class="kpi-card kpi-cyan">
-            <div class="kpi-content">
-                <div class="kpi-title">CON OLT</div>
-                <div class="kpi-value" id="kpi-olt">0</div>
-                <div class="kpi-subtitle"><span id="kpi-mk">0</span> con MikroTik</div>
+        <div class="ac-kpi">
+            <div>
+                <div class="ac-kpi-title">Con OLT</div>
+                <div class="ac-kpi-value" style="color:#06b6d4;" id="kpi-olt">0</div>
+                <div class="ac-kpi-sub"><span id="kpi-mk">0</span> con MikroTik</div>
             </div>
-            <div class="kpi-icon-wrap"><i class="fas fa-network-wired"></i></div>
+            <div class="ac-kpi-icon" style="background:rgba(6,182,212,0.1);color:#22d3ee;"><i class="fas fa-network-wired"></i></div>
         </div>
     </div>
 
-    {{-- Tabs (Image 2 replica) --}}
-    <ul class="nav nav-pills-custom" id="main-tabs" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" id="tab-contratos-link" data-toggle="tab" href="#tab-contratos">
-                <i class="fas fa-wifi"></i> Internet
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="tab-tv-link" data-toggle="tab" href="#tab-tv">
-                <i class="fas fa-tv" style="color:var(--color-purple);"></i> Televisión
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial">
-                <i class="fas fa-history" style="color:var(--text-muted);"></i> Historial
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="tab-mk-link" data-toggle="tab" href="#tab-mk">
-                <i class="fas fa-server" style="color:var(--color-cyan);"></i> Sync MK
-            </a>
-        </li>
-    </ul>
+    {{-- Progress --}}
+    <div class="ac-progress-wrap" id="progress-bar-wrap">
+        <div class="d-flex justify-content-between mb-2" style="font-size:0.8rem;">
+            <span id="progress-label" style="color:#ef4444;font-weight:600;">Ejecutando corte...</span>
+            <span id="progress-count" style="color:#737373;">0 / 0</span>
+        </div>
+        <div class="progress"><div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div></div>
+    </div>
+
+    {{-- Tabs --}}
+    <div class="ac-tabs-wrap">
+        <ul class="ac-tabs nav" id="main-tabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-internet"><i class="fas fa-wifi" style="color:#3b82f6;"></i> Internet</a></li>
+            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-tv"><i class="fas fa-tv" style="color:#a855f7;"></i> Televisión</a></li>
+            <li class="nav-item"><a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial"><i class="fas fa-clock" style="color:#737373;"></i> Historial</a></li>
+            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-mk"><i class="fas fa-server" style="color:#06b6d4;"></i> Sync MK</a></li>
+        </ul>
+    </div>
 
     <div class="tab-content" id="main-tab-content">
-        {{-- TAB CONTRATOS (Image 3 replica) --}}
-        <div class="tab-pane fade show active" id="tab-contratos" role="tabpanel">
-            
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="filters-row mb-0">
-                    <div class="filter-pill active" data-filter="todos">
-                        Todos <span class="count" id="count-todos">0</span>
-                    </div>
-                    <div class="filter-pill" data-filter="aldia">
-                        <div class="dot dot-green"></div> Al día <span class="count" id="count-aldia">0</span>
-                    </div>
-                    <div class="filter-pill" data-filter="mora">
-                        <div class="dot dot-orange"></div> En mora <span class="count" id="count-mora">0</span>
-                    </div>
-                    <div class="filter-pill" data-filter="suspendidos">
-                        <div class="dot dot-grey"></div> Suspendidos <span class="count" id="count-suspendidos">0</span>
-                    </div>
+
+        {{-- ── TAB INTERNET ──────────────────────────────────── --}}
+        <div class="tab-pane fade show active" id="tab-internet" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:0.75rem;">
+                <div class="ac-filters">
+                    <div class="ac-pill active" data-filter="todos">Todos <span id="f-todos" style="margin-left:2px;">0</span></div>
+                    <div class="ac-pill" data-filter="aldia"><span class="dot dot-green"></span> Al día <span id="f-aldia">0</span></div>
+                    <div class="ac-pill" data-filter="mora"><span class="dot dot-orange"></span> Fact. antigua <span id="f-antigua">0</span></div>
+                    <div class="ac-pill" data-filter="suspendidos"><span class="dot dot-grey"></span> Suspendidos <span id="f-susp">0</span></div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button id="btn-habilitar-cortados" class="btn-green-glow">
-                        <i class="fas fa-power-off"></i> Habilitar grupo cortado (<span id="btn-count-cortados">0</span>)
-                    </button>
-                    <button id="btn-ejecutar-corte" class="btn-red-glow" style="display:none;">
-                        <i class="fas fa-ban"></i> Ejecutar Corte Internet (<span id="btn-count-pendientes">0</span>)
-                    </button>
+                <div class="d-flex" style="gap:0.5rem;">
+                    <button id="btn-habilitar-cortados" class="ac-btn-green"><i class="fas fa-power-off"></i> Habilitar grupo cortado (<span id="btn-count-cortados">0</span>)</button>
+                    <button id="btn-ejecutar-corte" class="ac-btn-red" style="display:none;"><i class="fas fa-ban"></i> Ejecutar Corte (<span id="btn-count-pend">0</span>)</button>
                 </div>
             </div>
 
-            <div class="search-container">
-                <input type="text" class="search-input" id="search-contratos" placeholder="Buscar cliente, NIT, contrato, IP, usuario PPPoE...">
-            </div>
+            <div class="ac-search"><input type="text" id="search-contratos" placeholder="Buscar cliente, NIT, contrato, IP, usuario PPPoE..."></div>
 
-            <div class="table-card">
-                <table class="table" id="tabla-internet">
-                    <thead>
-                        <tr>
-                            <th>CLIENTE</th>
-                            <th>CONTRATO</th>
-                            <th>ESTADO</th>
-                            <th>IP / ACCESO</th>
-                            <th>MIKROTIK</th>
-                            <th>ÚLT. FACTURA</th>
-                            <th>VENCIMIENTO</th>
-                        </tr>
-                    </thead>
+            <div class="ac-table-wrap">
+                <table class="ac-table" id="tabla-internet">
+                    <thead><tr>
+                        <th>Cliente</th><th>Contrato</th><th>Estado</th><th>IP / Acceso</th><th>MikroTik</th><th>Últ. Factura</th><th>Días Vencida</th>
+                    </tr></thead>
                     <tbody id="tbody-internet">
-                        <tr><td colspan="7" class="text-center py-5 text-muted">Cargando contratos...</td></tr>
+                        <tr><td colspan="7" class="text-center py-5" style="color:#404040;">Cargando contratos...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        {{-- TAB TV --}}
+        {{-- ── TAB TV ────────────────────────────────────────── --}}
         <div class="tab-pane fade" id="tab-tv" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="m-0 text-white font-weight-bold">Contratos TV Pendientes</h5>
-                <button id="btn-ejecutar-corte-tv" class="btn-red-glow">
-                    <i class="fas fa-ban"></i> Ejecutar Corte TV
-                </button>
+                <span style="font-weight:600;color:#a855f7;">Pendientes de Corte TV</span>
+                <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
             </div>
-            <div class="table-card">
-                <table class="table" id="tabla-tv">
-                    <thead>
-                        <tr>
-                            <th>CLIENTE</th>
-                            <th>CONTRATO</th>
-                            <th>SERIAL ONU</th>
-                            <th>FACTURA</th>
-                            <th>VALOR</th>
-                            <th>VENCIMIENTO</th>
-                            <th>ESTADO</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-tv">
-                        <tr><td colspan="7" class="text-center py-5 text-muted">Cargando...</td></tr>
-                    </tbody>
+            <div class="ac-table-wrap">
+                <table class="ac-table" id="tabla-tv">
+                    <thead><tr><th>Cliente</th><th>Contrato</th><th>Serial ONU</th><th>Factura</th><th>Valor</th><th>Vencimiento</th><th>Estado</th></tr></thead>
+                    <tbody id="tbody-tv"><tr><td colspan="7" class="text-center py-5" style="color:#404040;">Cargando...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
-        {{-- TAB HISTORIAL --}}
+        {{-- ── TAB HISTORIAL ─────────────────────────────────── --}}
         <div class="tab-pane fade" id="tab-historial" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="m-0 text-white font-weight-bold">Historial de Ejecución</h5>
-                <button id="btn-refresh-historial" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;">
-                    <i class="fas fa-sync-alt"></i> Actualizar
-                </button>
+                <span style="font-weight:600;color:#e5e5e5;">Historial de Ejecución</span>
+                <button id="btn-refresh-historial" class="ac-btn-sm"><i class="fas fa-sync-alt"></i> Actualizar</button>
             </div>
-            <div class="table-card">
-                <table class="table" id="tabla-historial">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>TIPO</th>
-                            <th>PROCESADOS</th>
-                            <th>CORTADOS</th>
-                            <th>OMITIDOS</th>
-                            <th>ERRORES</th>
-                            <th>DURACIÓN</th>
-                            <th>EJECUTADO POR</th>
-                            <th>FECHA</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-historial">
-                        <tr><td colspan="10" class="text-center py-5 text-muted">Cargando...</td></tr>
-                    </tbody>
+            <div class="ac-table-wrap">
+                <table class="ac-table" id="tabla-historial">
+                    <thead><tr><th>ID</th><th>Tipo</th><th>Procesados</th><th>Cortados</th><th>Omitidos</th><th>Errores</th><th>Duración</th><th>Ejecutó</th><th>Fecha</th><th></th></tr></thead>
+                    <tbody id="tbody-historial"><tr><td colspan="10" class="text-center py-5" style="color:#404040;">Cargando...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
-        {{-- TAB MK SYNC --}}
+        {{-- ── TAB MK SYNC ───────────────────────────────────── --}}
         <div class="tab-pane fade" id="tab-mk" role="tabpanel">
-            <div class="d-flex align-items-end gap-3 mb-4" style="background:#121212; border:1px solid #262626; padding:1.5rem; border-radius:12px;">
-                <div style="min-width: 300px;">
-                    <label class="small font-weight-bold text-muted mb-2">Seleccionar MikroTik</label>
-                    <select id="select-mikrotik" class="form-control" style="background:#0a0a0a; border:1px solid #262626; color:white; border-radius:8px;">
+            <div class="ac-mk-bar">
+                <div style="min-width:280px;">
+                    <label class="d-block mb-1">Router MikroTik</label>
+                    <select id="select-mikrotik" class="form-control form-control-sm">
                         <option value="">— Seleccione —</option>
                         @foreach($mikrotiks as $mk)
                         <option value="{{ $mk->id }}">{{ $mk->nombre }} ({{ $mk->ip }})</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <button id="btn-analizar-mk" class="btn btn-primary" style="background:#3b82f6; border:none; border-radius:8px;">
-                        <i class="fas fa-search"></i> Analizar
-                    </button>
-                </div>
-                <div class="ml-auto">
-                    <button id="btn-solucionar-lote" class="btn btn-warning" style="border-radius:8px;" disabled>
-                        <i class="fas fa-magic"></i> Solucionar Lote
-                    </button>
-                </div>
+                <button id="btn-analizar-mk" class="ac-btn-sm" style="background:#3b82f6;color:#fff;border-color:#3b82f6;"><i class="fas fa-search"></i> Analizar</button>
+                <div style="margin-left:auto;"><button id="btn-solucionar-lote" class="ac-btn-sm" disabled><i class="fas fa-magic"></i> Solucionar Lote</button></div>
             </div>
 
             <div id="mk-sync-result" class="d-none">
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="kpi-card" style="border-top: 3px solid var(--color-green);">
-                            <div class="kpi-content">
-                                <div class="kpi-title">MOROSOS OK</div>
-                                <div class="kpi-value" style="color:var(--color-green);" id="mk-ok-count">0</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="kpi-card" style="border-top: 3px solid var(--color-red);">
-                            <div class="kpi-content">
-                                <div class="kpi-title">CORTADOS SIN MOROSOS MK</div>
-                                <div class="kpi-value" style="color:var(--color-red);" id="mk-faltantes-count">0</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="kpi-card" style="border-top: 3px solid var(--color-orange);">
-                            <div class="kpi-content">
-                                <div class="kpi-title">EN MOROSOS MK SIN CORTE</div>
-                                <div class="kpi-value" style="color:var(--color-orange);" id="mk-extra-count">0</div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="row mb-3">
+                    <div class="col-md-4"><div class="ac-kpi"><div><div class="ac-kpi-title">Morosos OK</div><div class="ac-kpi-value" style="color:#22c55e;" id="mk-ok-count">0</div></div></div></div>
+                    <div class="col-md-4"><div class="ac-kpi"><div><div class="ac-kpi-title">Cortados sin morosos MK</div><div class="ac-kpi-value" style="color:#ef4444;" id="mk-faltantes-count">0</div></div></div></div>
+                    <div class="col-md-4"><div class="ac-kpi"><div><div class="ac-kpi-title">En morosos MK sin corte</div><div class="ac-kpi-value" style="color:#f97316;" id="mk-extra-count">0</div></div></div></div>
                 </div>
-
-                <ul class="nav nav-pills-custom" id="mk-subtabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#mk-tab-faltantes">Faltantes en MK <span class="badge badge-danger ml-1" id="badge-faltantes">0</span></a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#mk-tab-extra">Extras en MK <span class="badge badge-warning ml-1" id="badge-extra">0</span></a>
-                    </li>
+                <ul class="ac-tabs nav mb-3" id="mk-subtabs">
+                    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#mk-tab-faltantes">Faltantes <span class="badge badge-danger ml-1" id="badge-faltantes">0</span></a></li>
+                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#mk-tab-extra">Extras <span class="badge badge-warning ml-1" id="badge-extra">0</span></a></li>
                 </ul>
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="mk-tab-faltantes">
-                        <div class="table-card">
-                            <table class="table">
-                                <thead><tr><th>CONTRATO</th><th>CLIENTE</th><th>IP</th><th>FACTURA</th><th>VALOR</th></tr></thead>
-                                <tbody id="tbody-mk-faltantes"><tr><td colspan="5" class="text-center py-4 text-muted">Sin datos</td></tr></tbody>
-                            </table>
-                        </div>
+                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Factura</th><th>Valor</th></tr></thead><tbody id="tbody-mk-faltantes"><tr><td colspan="5" class="text-center py-4" style="color:#404040;">Sin datos</td></tr></tbody></table></div>
                     </div>
                     <div class="tab-pane fade" id="mk-tab-extra">
-                        <div class="table-card">
-                            <table class="table">
-                                <thead><tr><th>IP</th><th>LISTA MK</th><th>COMENTARIO</th></tr></thead>
-                                <tbody id="tbody-mk-extra"><tr><td colspan="3" class="text-center py-4 text-muted">Sin datos</td></tr></tbody>
-                            </table>
-                        </div>
+                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>IP</th><th>Lista MK</th><th>Comentario</th></tr></thead><tbody id="tbody-mk-extra"><tr><td colspan="3" class="text-center py-4" style="color:#404040;">Sin datos</td></tr></tbody></table></div>
                     </div>
                 </div>
             </div>
-            <div id="mk-sync-empty" class="text-center py-5" style="border:1px dashed #262626; border-radius:12px;">
-                <span class="text-muted">Seleccione un MikroTik y haga clic en Analizar.</span>
-            </div>
+            <div id="mk-sync-empty" class="ac-empty"><i class="fas fa-server"></i>Seleccione un MikroTik y haga clic en Analizar.</div>
         </div>
 
-    </div>
-</div>
+    </div>{{-- /tab-content --}}
+</div>{{-- /ac-view --}}
+</div>{{-- /ac-dark --}}
 
-{{-- Modals from original logic but styled dark --}}
-{{-- Modal: Confirmar corte internet --}}
-<div class="modal fade" id="modal-confirmar-corte" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="border-bottom:1px solid #ef4444;">
-                <h5 class="modal-title font-weight-bold text-white"><i class="fas fa-ban" style="color:#ef4444;"></i> Confirmar Corte Internet</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Se ejecutará el corte para <strong id="modal-corte-count" style="color:#ef4444; font-size:1.2rem;">0</strong> contratos pendientes.</p>
-                <div class="form-group mt-3 mb-0">
-                    <label class="small text-muted">Fecha de corte</label>
-                    <input type="date" id="modal-fecha-corte" class="form-control" style="background:#0a0a0a; border:1px solid #262626; color:white; border-radius:8px;">
-                </div>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-corte" class="btn-red-glow">Ejecutar Corte</button>
-            </div>
-        </div>
-    </div>
-</div>
+{{-- Modals --}}
+<div class="ac-dark">
+<div class="modal fade" id="modal-confirmar-corte" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" style="color:#ef4444;font-weight:700;"><i class="fas fa-ban mr-2"></i>Confirmar Corte Internet</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body"><p>Se ejecutará el corte para <strong id="modal-corte-count" style="color:#ef4444;font-size:1.3rem;">0</strong> contratos pendientes.</p><div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-1"></i> IPs serán movidas a la lista <code style="color:#eab308;">morosos</code> en MikroTik.</div><div class="form-group mt-3 mb-0"><label class="small" style="color:#737373;">Fecha de corte</label><input type="date" id="modal-fecha-corte" class="ac-date-input w-100"></div></div>
+    <div class="modal-footer"><button type="button" class="ac-btn-sm" data-dismiss="modal">Cancelar</button><button type="button" id="btn-confirmar-corte" class="ac-btn-red">Ejecutar Corte</button></div>
+</div></div></div>
 
-{{-- Modal: Confirmar corte TV --}}
-<div class="modal fade" id="modal-confirmar-corte-tv" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="border-bottom:1px solid #ef4444;">
-                <h5 class="modal-title text-white font-weight-bold"><i class="fas fa-ban" style="color:#ef4444;"></i> Confirmar Corte TV</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Se ejecutará el corte de TV para <strong id="modal-corte-tv-count" style="color:#ef4444; font-size:1.2rem;">0</strong> contrato(s).</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-corte-tv" class="btn-red-glow">Ejecutar Corte TV</button>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="modal fade" id="modal-confirmar-corte-tv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" style="color:#a855f7;font-weight:700;"><i class="fas fa-tv mr-2"></i>Confirmar Corte TV</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body"><p>Se ejecutará el corte de TV para <strong id="modal-corte-tv-count" style="color:#a855f7;font-size:1.3rem;">0</strong> contrato(s).</p><div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-1"></i> ONUs serán deshabilitadas en SmartOLT.</div></div>
+    <div class="modal-footer"><button type="button" class="ac-btn-sm" data-dismiss="modal">Cancelar</button><button type="button" id="btn-confirmar-corte-tv" class="ac-btn-red">Ejecutar Corte TV</button></div>
+</div></div></div>
 
-{{-- Modal: Habilitar cortados --}}
-<div class="modal fade" id="modal-habilitar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="border-bottom:1px solid #10b981;">
-                <h5 class="modal-title font-weight-bold text-white"><i class="fas fa-power-off" style="color:#10b981;"></i> Habilitar Cortados</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>¿Desea habilitar todos los contratos actualmente en estado cortado?</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-sm" style="background:#262626; color:white; border-radius:8px;" data-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirmar-habilitar" class="btn-green-glow">Confirmar</button>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="modal fade" id="modal-habilitar" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" style="color:#22c55e;font-weight:700;"><i class="fas fa-power-off mr-2"></i>Habilitar Cortados</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body"><p>¿Habilitar todos los contratos cortados de este grupo?</p></div>
+    <div class="modal-footer"><button type="button" class="ac-btn-sm" data-dismiss="modal">Cancelar</button><button type="button" id="btn-confirmar-habilitar" class="ac-btn-green">Confirmar</button></div>
+</div></div></div>
 
-{{-- Modal: Detalle historial --}}
-<div class="modal fade" id="modal-log-detail" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title font-weight-bold text-white">Detalle de ejecución</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="table-card">
-                    <table class="table">
-                        <thead>
-                            <tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Tipo</th><th>Resultado</th><th>Método</th><th>Descripción</th></tr>
-                        </thead>
-                        <tbody id="log-detail-body">
-                            <tr><td colspan="7" class="text-center py-4 text-muted">Cargando…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="modal fade" id="modal-log-detail" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" style="font-weight:700;">Detalle de ejecución</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body"><div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Tipo</th><th>Resultado</th><th>Método</th><th>Descripción</th></tr></thead><tbody id="log-detail-body"><tr><td colspan="7" class="text-center py-4" style="color:#404040;">Cargando…</td></tr></tbody></table></div></div>
+</div></div></div>
 </div>
 
 @endsection
 
 @section('scripts')
 <script>
-var GRUPO_ID = {{ $grupo->id }};
-var csrfToken = '{{ csrf_token() }}';
-var URLS = {
-    summary:          '{{ route("grupos-corte.corte-summary",         ["id" => $grupo->id]) }}',
-    allContracts:     '{{ route("grupos-corte.all-contracts",         ["id" => $grupo->id]) }}',
-    pendingInternet:  '{{ route("grupos-corte.corte-pending-internet") }}',
-    pendingTv:        '{{ route("grupos-corte.corte-pending-tv") }}',
-    history:          '{{ route("grupos-corte.corte-history",         ["id" => $grupo->id]) }}',
-    historyDetail:    '{{ route("grupos-corte.corte-history-detail",  ["logId" => "LOGID_PH"]) }}',
-    mkSync:           '{{ route("grupos-corte.mk-sync") }}',
-    solucionarLote:   '{{ route("grupos-corte.solucionar-discrepancia-lote") }}',
-    ejecutarInternet: '{{ route("grupos-corte.ejecutar-corte-internet") }}',
-    ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
-    ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
-    habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
-};
+(function(){
+    // Apply dark class to layout wrappers
+    var cw = document.querySelector('.content-wrapper');
+    if(cw) cw.classList.add('ac-dark');
+    var mp = document.querySelector('.main-panel');
+    if(mp) mp.classList.add('ac-dark');
+    var sc = document.querySelector('.stretch-card');
+    if(sc) sc.classList.add('ac-dark');
 
-var globalContracts = [];
-var currentFilter = 'todos';
+    var GRUPO_ID = {{ $grupo->id }};
+    var csrfToken = '{{ csrf_token() }}';
+    var URLS = {
+        summary:          '{{ route("grupos-corte.corte-summary",         ["id" => $grupo->id]) }}',
+        allContracts:     '{{ route("grupos-corte.all-contracts",         ["id" => $grupo->id]) }}',
+        pendingTv:        '{{ route("grupos-corte.corte-pending-tv") }}',
+        history:          '{{ route("grupos-corte.corte-history",         ["id" => $grupo->id]) }}',
+        historyDetail:    '{{ route("grupos-corte.corte-history-detail",  ["logId" => "LOGID_PH"]) }}',
+        mkSync:           '{{ route("grupos-corte.mk-sync") }}',
+        solucionarLote:   '{{ route("grupos-corte.solucionar-discrepancia-lote") }}',
+        limpiarCache:     '{{ route("grupos-corte.limpiar-cache-cortes") }}',
+        ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
+        ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
+        habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
+    };
 
-function getSelectedFecha() { return document.getElementById('fecha-ref').value; }
-function fmt(n) { return (n === null || n === undefined) ? '—' : new Intl.NumberFormat('es-CO').format(n); }
+    var allContracts = [];
+    var currentFilter = 'todos';
 
-function getStatusBadge(estado) {
-    if(!estado) return '<span class="badge-status suspendidos">Desconocido</span>';
-    estado = estado.toLowerCase();
-    if(estado === 'cortado' || estado === 'suspendido' || estado === 'bloqueado') return '<span class="badge-status suspendidos">SUSPENDIDOS</span>';
-    if(estado === 'pagado' || estado === 'al dia' || estado === 'aldia' || estado === 'activo') return '<span class="badge-status aldia">AL DÍA</span>';
-    if(estado === 'promesa') return '<span class="badge-status promesa">PROMESA</span>';
-    if(estado === 'abierta' || estado === 'mora' || estado === 'en mora') return '<span class="badge-status mora">EN MORA</span>';
-    return '<span class="badge-status suspendidos">'+estado.toUpperCase()+'</span>';
-}
+    function gf() { return document.getElementById('fecha-ref').value; }
+    function fmt(n) { return (n==null||n==undefined)?'—':new Intl.NumberFormat('es-CO').format(n); }
 
-function normalizeStateForFilter(estado) {
-    if(!estado) return 'suspendidos';
-    estado = estado.toLowerCase();
-    if(estado === 'cortado' || estado === 'suspendido' || estado === 'bloqueado') return 'suspendidos';
-    if(estado === 'pagado' || estado === 'al dia' || estado === 'aldia' || estado === 'activo') return 'aldia';
-    if(estado === 'abierta' || estado === 'mora' || estado === 'en mora') return 'mora';
-    return 'otros';
-}
+    function badge(estado) {
+        if(!estado) return '<span class="ac-badge ac-badge-grey">—</span>';
+        var m = {
+            'activo_ok':'ac-badge-green', 'pendiente_corte':'ac-badge-red',
+            'factura_antigua_vencida':'ac-badge-orange', 'ya_cortado':'ac-badge-grey',
+            'bloqueado_promesa':'ac-badge-cyan', 'bloqueado_no_suspension':'ac-badge-blue',
+            'bloqueado_sin_mk':'ac-badge-orange', 'bloqueado_sin_ip':'ac-badge-orange',
+        };
+        var labels = {
+            'activo_ok':'AL DÍA', 'pendiente_corte':'PEND. CORTE',
+            'factura_antigua_vencida':'FACT. ANTIGUA', 'ya_cortado':'SUSPENDIDOS',
+            'bloqueado_promesa':'PROMESA', 'bloqueado_no_suspension':'NO SUSP.',
+            'bloqueado_sin_mk':'SIN MK', 'bloqueado_sin_ip':'SIN IP',
+        };
+        var cls = m[estado] || 'ac-badge-grey';
+        var lbl = labels[estado] || estado.toUpperCase();
+        return '<span class="ac-badge '+cls+'">'+lbl+'</span>';
+    }
 
-function renderContractsTable() {
-    var query = $('#search-contratos').val().toLowerCase();
-    var filtered = globalContracts.filter(function(c) {
-        var matchFilter = false;
-        var s = normalizeStateForFilter(c.estado_contrato);
-        if(currentFilter === 'todos') matchFilter = true;
-        else if(currentFilter === 'aldia' && s === 'aldia') matchFilter = true;
-        else if(currentFilter === 'mora' && s === 'mora') matchFilter = true;
-        else if(currentFilter === 'suspendidos' && s === 'suspendidos') matchFilter = true;
+    function filterGroup(estado) {
+        if(!estado) return 'suspendidos';
+        if(estado==='activo_ok') return 'aldia';
+        if(estado==='factura_antigua_vencida') return 'mora';
+        if(estado==='ya_cortado') return 'suspendidos';
+        return 'otros'; // pendiente_corte, bloqueado_* go to 'otros' but shown in 'todos'
+    }
 
-        var matchSearch = true;
-        if(query) {
-            var str = (c.cliente_nombre + ' ' + c.contrato_nro + ' ' + c.ip + ' ' + c.cliente_nit).toLowerCase();
-            matchSearch = str.indexOf(query) !== -1;
+    function renderTable() {
+        var q = ($('#search-contratos').val()||'').toLowerCase();
+        var filtered = allContracts.filter(function(c) {
+            var g = filterGroup(c.estado_internet);
+            var fOk = currentFilter==='todos' || g===currentFilter;
+            var sOk = true;
+            if(q) {
+                var s = ((c.cliente_nombre||'')+ ' '+(c.cliente_nit||'')+' '+(c.contrato_nro||'')+' '+(c.ip||'')+' '+(c.usuario||'')).toLowerCase();
+                sOk = s.indexOf(q) !== -1;
+            }
+            return fOk && sOk;
+        });
+
+        if(!filtered.length) {
+            $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;">No hay contratos para mostrar</td></tr>');
+            return;
         }
-        return matchFilter && matchSearch;
-    });
-
-    var rows = '';
-    if(filtered.length === 0) {
-        rows = '<tr><td colspan="7" class="text-center py-5 text-muted">No hay contratos para mostrar</td></tr>';
-    } else {
-        filtered.forEach(function(c) {
-            rows += '<tr>' +
-                '<td><span class="client-name">'+(c.cliente_nombre||'—')+'</span><span class="client-doc">'+(c.cliente_nit||'')+'</span></td>' +
-                '<td>'+(c.contrato_nro||'—')+'</td>' +
-                '<td>'+getStatusBadge(c.estado_contrato)+'</td>' +
-                '<td><span class="ip-address">'+(c.ip||'0.0.0.0')+'</span><span class="pppoe-user">PPPoE: '+(c.pppoe_user||'N/A')+'</span><div class="olt-info">OLT: '+(c.olt_name||'N/A')+'</div></td>' +
-                '<td><span style="font-size:0.8rem;color:#a3a3a3;">'+(c.mikrotik_nombre||'—')+'</span></td>' +
-                '<td>'+(c.factura_codigo||'—')+'</td>' +
-                '<td style="color:#a3a3a3; font-size:0.8rem;">'+(c.fecha_vencimiento||'—')+'</td>' +
+        var h='';
+        filtered.forEach(function(c){
+            var dias = c.dias_vencida > 0 ? '<span class="ac-days-red">'+c.dias_vencida+'d</span>' : '<span class="ac-dim">—</span>';
+            h += '<tr>'+
+                '<td><span class="ac-client-name">'+(c.cliente_nombre||'—')+'</span><span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
+                '<td>'+(c.contrato_nro||'—')+'</td>'+
+                '<td>'+badge(c.estado_internet)+'</td>'+
+                '<td><span class="ac-ip">'+(c.ip||'0.0.0.0')+'</span><span class="ac-pppoe">PPPoE: '+(c.usuario||'N/A')+'</span>'+(c.olt_sn_mac?'<div class="ac-olt">OLT: '+c.olt_sn_mac+'</div>':'')+'</td>'+
+                '<td class="ac-dim">'+(c.mikrotik_nombre||'—')+'</td>'+
+                '<td class="ac-dim">'+(c.ultima_vencimiento||'—')+'</td>'+
+                '<td>'+dias+'</td>'+
             '</tr>';
         });
+        $('#tbody-internet').html(h);
     }
-    $('#tbody-internet').html(rows);
-}
 
-function loadAllContracts() {
-    $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5 text-muted">Cargando contratos...</td></tr>');
-    $.getJSON(URLS.allContracts)
-        .done(function(res) {
-            globalContracts = res.data || res || [];
-            
-            // Count for filters
-            var countTotal = globalContracts.length;
-            var countAlDia = 0;
-            var countMora = 0;
-            var countSuspendidos = 0;
+    function loadAll() {
+        $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando contratos...</td></tr>');
+        $.getJSON(URLS.allContracts).done(function(res) {
+            allContracts = res.contratos || [];
+            var stats = res.stats_internet || {};
 
-            globalContracts.forEach(function(c) {
-                var s = normalizeStateForFilter(c.estado_contrato);
-                if(s === 'aldia') countAlDia++;
-                else if(s === 'mora') countMora++;
-                else if(s === 'suspendidos') countSuspendidos++;
-            });
+            var total = allContracts.length;
+            var aldia = stats.activo_ok || 0;
+            var antigua = stats.factura_antigua_vencida || 0;
+            var susp = stats.ya_cortado || 0;
 
-            $('#count-todos').text(countTotal);
-            $('#count-aldia').text(countAlDia);
-            $('#count-mora').text(countMora);
-            $('#count-suspendidos').text(countSuspendidos);
+            $('#f-todos').text(total);
+            $('#f-aldia').text(aldia);
+            $('#f-antigua').text(antigua);
+            $('#f-susp').text(susp);
+            $('#btn-count-cortados').text(susp);
+            $('#btn-count-pend').text(stats.pendiente_corte || 0);
 
-            // Set specific btn counts
-            $('#btn-count-cortados').text(countSuspendidos);
+            if((stats.pendiente_corte||0) > 0) $('#btn-ejecutar-corte').show(); else $('#btn-ejecutar-corte').hide();
 
-            renderContractsTable();
-        });
-}
+            renderTable();
+        }).fail(function(){ $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#ef4444;">Error al cargar contratos</td></tr>'); });
+    }
 
-function loadSummary() {
-    $.getJSON(URLS.summary)
-        .done(function(d) {
+    function loadSummary() {
+        $.getJSON(URLS.summary).done(function(d) {
             $('#kpi-total').text(fmt(d.total_contratos));
-            $('#kpi-activos').text(fmt(d.al_dia)); // aprox
-            $('#kpi-pendientes').text(fmt(d.pendientes_corte));
-            $('#kpi-cortados').text(fmt(d.ya_cortados));
-            
-            $('#kpi-pendientes-tv').text(fmt(d.pendientes_corte_tv || 0));
-            $('#kpi-cortados-tv').text(fmt(d.ya_cortados_tv || 0));
-            $('#kpi-olt').text(fmt(d.total_contratos));
-            $('#kpi-mk').text(fmt(d.total_contratos));
-            
-            // For buttons
-            $('#btn-count-pendientes').text(d.pendientes_corte);
-            if(d.pendientes_corte > 0) {
-                $('#btn-ejecutar-corte').show();
-            } else {
-                $('#btn-ejecutar-corte').hide();
-            }
+            $('#kpi-activos').text(fmt(d.total_activos));
+            $('#kpi-pend-inet').text(fmt(d.pendientes_internet));
+            $('#kpi-cut-inet').text(fmt(d.total_cortados_internet));
+            $('#kpi-pend-tv').text(fmt(d.pendientes_tv));
+            $('#kpi-cut-tv').text(fmt(d.total_cortados_tv));
+            $('#kpi-olt').text(fmt(d.total_con_olt));
+            $('#kpi-mk').text(fmt(d.total_con_mikrotik));
+            $('#kpi-prorroga').text(d.prorroga_tv || 0);
+            $('#modal-corte-count').text(d.pendientes_internet);
         });
-}
+    }
 
-function loadTv() {
-    var fecha = getSelectedFecha();
-    $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5 text-muted">Cargando...</td></tr>');
-    $.getJSON(URLS.pendingTv + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha)
-        .done(function(res) {
-            var rows = '';
-            var list = res.data || [];
-            $('#modal-corte-tv-count').text(list.length);
-            if (!list.length) {
-                rows = '<tr><td colspan="7" class="text-center py-5 text-muted">Sin pendientes de corte TV</td></tr>';
-            } else {
-                list.forEach(function(c, i) {
-                    rows += '<tr>' +
-                        '<td><span class="client-name">'+(c.cliente_nombre||'—')+'</span></td>' +
-                        '<td>'+(c.contrato_nro||'—')+'</td>' +
-                        '<td><span class="ip-address">'+(c.serial_onu||'—')+'</span></td>' +
-                        '<td>'+(c.factura_codigo||'—')+'</td>' +
-                        '<td>$'+fmt(c.factura_total)+'</td>' +
-                        '<td style="color:#a3a3a3; font-size:0.8rem;">'+(c.fecha_vencimiento||'—')+'</td>' +
-                        '<td>'+getStatusBadge(c.estado_contrato)+'</td>' +
-                    '</tr>';
-                });
-            }
-            $('#tbody-tv').html(rows);
+    function loadTv() {
+        var f = gf();
+        $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
+        $.getJSON(URLS.pendingTv+'?grupo_id='+GRUPO_ID+'&fecha='+f).done(function(res){
+            var list=res.data||[]; $('#modal-corte-tv-count').text(list.length);
+            if(!list.length){ $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#22c55e;"><i class="fas fa-check-circle mr-2"></i>Sin pendientes de corte TV</td></tr>'); return; }
+            var h='';
+            list.forEach(function(c){ h+='<tr><td><span class="ac-client-name">'+(c.cliente_nombre||'—')+'</span></td><td>'+(c.contrato_nro||'—')+'</td><td style="color:#06b6d4;">'+(c.serial_onu||'—')+'</td><td class="ac-dim">'+(c.factura_codigo||'—')+'</td><td style="font-weight:600;">$'+fmt(c.factura_total)+'</td><td class="ac-dim">'+(c.fecha_vencimiento||'—')+'</td><td>'+badge(c.estado_contrato==='cortado'?'ya_cortado':'pendiente_corte')+'</td></tr>'; });
+            $('#tbody-tv').html(h);
         });
-}
+    }
 
-function loadHistorial() {
-    $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5 text-muted">Cargando...</td></tr>');
-    $.getJSON(URLS.history)
-        .done(function(data) {
-            var rows = '';
-            if (!data.length) {
-                rows = '<tr><td colspan="10" class="text-center py-5 text-muted">Sin historial</td></tr>';
-            } else {
-                data.forEach(function(h) {
-                    var tipoBadge = h.tipo === 'internet'
-                        ? '<span style="color:var(--color-blue); font-weight:600; font-size:0.8rem;">INTERNET</span>'
-                        : '<span style="color:var(--color-purple); font-weight:600; font-size:0.8rem;">TV</span>';
-                    var duracion = h.duracion_ms ? (h.duracion_ms / 1000).toFixed(1) + 's' : '—';
-                    rows += '<tr>' +
-                        '<td style="color:#a3a3a3;">#' + h.id + '</td>' +
-                        '<td>' + tipoBadge + '</td>' +
-                        '<td>' + (h.total_procesados || 0) + '</td>' +
-                        '<td style="color:var(--color-red); font-weight:bold;">' + (h.total_cortados || 0) + '</td>' +
-                        '<td>' + (h.total_omitidos || 0) + '</td>' +
-                        '<td style="color:var(--color-orange);">' + (h.total_errores || 0) + '</td>' +
-                        '<td style="color:#a3a3a3;">' + duracion + '</td>' +
-                        '<td style="color:#a3a3a3; font-size:0.75rem;">' + (h.ejecutado_por_nombre || 'CRON') + '</td>' +
-                        '<td style="color:#525252; font-size:0.75rem;">' + (h.created_at || '—') + '</td>' +
-                        '<td><button class="btn btn-sm btn-ver-detalle" data-id="' + h.id + '" style="background:#262626;color:white;border-radius:6px;"><i class="fas fa-eye"></i></button></td>' +
-                    '</tr>';
-                });
-            }
-            $('#tbody-historial').html(rows);
+    function loadHist() {
+        $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
+        $.getJSON(URLS.history).done(function(res){
+            var data = res.logs || res || [];
+            if(!data.length){ $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#404040;">Sin historial</td></tr>'); return; }
+            var h='';
+            data.forEach(function(r){
+                var tip = r.tipo==='internet'?'<span class="ac-badge ac-badge-blue">NET</span>':'<span class="ac-badge ac-badge-cyan">TV</span>';
+                var dur = r.duracion_ms?(r.duracion_ms/1000).toFixed(1)+'s':'—';
+                h+='<tr><td class="ac-dim">#'+r.id+'</td><td>'+tip+'</td><td>'+(r.total_procesados||0)+'</td><td style="color:#ef4444;font-weight:700;">'+(r.total_cortados||0)+'</td><td>'+(r.total_omitidos||0)+'</td><td style="color:#f97316;">'+(r.total_errores||0)+'</td><td class="ac-dim">'+dur+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.ejecutado_por_nombre||'CRON')+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.created_at||'—')+'</td><td><button class="ac-btn-sm btn-ver-detalle" data-id="'+r.id+'"><i class="fas fa-eye"></i></button></td></tr>';
+            });
+            $('#tbody-historial').html(h);
         });
-}
+    }
 
-/* Event Listeners */
-$('.filter-pill').on('click', function() {
-    $('.filter-pill').removeClass('active');
-    $(this).addClass('active');
-    currentFilter = $(this).data('filter');
-    renderContractsTable();
-});
+    /* Filters */
+    $(document).on('click','.ac-pill',function(){ $('.ac-pill').removeClass('active'); $(this).addClass('active'); currentFilter=$(this).data('filter'); renderTable(); });
+    $('#search-contratos').on('keyup', renderTable);
 
-$('#search-contratos').on('keyup', function() {
-    renderContractsTable();
-});
+    /* Refresh */
+    $('#btn-apply-date, #btn-refresh').on('click',function(){ loadAll(); loadTv(); loadSummary(); });
+    $('#btn-refresh-historial').on('click', loadHist);
+    $('a[href="#tab-historial"]').on('shown.bs.tab', loadHist);
+    $('#btn-clear-cache').on('click',function(){ $.ajax({url:URLS.limpiarCache,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}}).done(function(){loadAll();loadTv();loadSummary();}); });
 
-$('#btn-apply-date').on('click', function() {
-    loadAllContracts(); loadTv(); loadSummary();
-});
+    /* MK Sync */
+    $('#btn-analizar-mk').on('click',function(){
+        var mkId=$('#select-mikrotik').val(); if(!mkId){alert('Seleccione un MikroTik.');return;}
+        var $b=$(this).prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $('#mk-sync-empty').addClass('d-none'); $('#mk-sync-result').addClass('d-none');
+        $.ajax({url:URLS.mkSync,method:'POST',data:{_token:csrfToken,mikrotik_id:mkId,grupo_id:GRUPO_ID}}).done(function(d){
+            if(!d.disponible){ $('#mk-sync-empty').removeClass('d-none').html('<div style="color:#ef4444;padding:1rem;">'+(d.error||'No disponible')+'</div>'); return; }
+            var f=d.inconsistencias&&d.inconsistencias.cortados_sin_morosos?d.inconsistencias.cortados_sin_morosos:[];
+            var e=d.inconsistencias&&d.inconsistencias.morosos_sin_corte?d.inconsistencias.morosos_sin_corte:[];
+            $('#mk-ok-count').text(d.resumen?(d.resumen.en_morosos_ok||0):0); $('#mk-faltantes-count').text(f.length); $('#mk-extra-count').text(e.length);
+            $('#badge-faltantes').text(f.length); $('#badge-extra').text(e.length);
+            var rf=''; if(!f.length){rf='<tr><td colspan="5" class="text-center py-4" style="color:#22c55e;">Sin discrepancias</td></tr>';}else{f.forEach(function(c){rf+='<tr><td>'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td class="ac-ip">'+(c.ip||'—')+'</td><td class="ac-dim">'+(c.factura_codigo||'—')+'</td><td>$'+fmt(c.factura_total)+'</td></tr>';});}
+            $('#tbody-mk-faltantes').html(rf);
+            var re=''; if(!e.length){re='<tr><td colspan="3" class="text-center py-4" style="color:#22c55e;">Sin extras</td></tr>';}else{e.forEach(function(x){re+='<tr><td class="ac-ip">'+(x.address||'—')+'</td><td style="color:#f97316;">'+(x.list||'—')+'</td><td class="ac-dim">'+(x.comment||'—')+'</td></tr>';});}
+            $('#tbody-mk-extra').html(re);
+            $('#mk-sync-result').removeClass('d-none'); $('#btn-solucionar-lote').prop('disabled',f.length===0);
+        }).fail(function(){$('#mk-sync-empty').removeClass('d-none').html('<div style="color:#ef4444;padding:1rem;">Error al analizar.</div>');}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-search"></i> Analizar');});
+    });
+    $('#btn-solucionar-lote').on('click',function(){
+        var mkId=$('#select-mikrotik').val(); if(!mkId||!confirm('¿Ejecutar?'))return;
+        var $b=$(this).prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({url:URLS.solucionarLote,method:'POST',data:{_token:csrfToken,mikrotik_id:mkId,grupo_id:GRUPO_ID}}).done(function(r){alert(r.message||'Listo');$('#btn-analizar-mk').trigger('click');}).fail(function(x){alert('Error: '+(x.responseJSON&&x.responseJSON.message?x.responseJSON.message:'Desconocido'));}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-magic"></i> Solucionar Lote');});
+    });
 
-$('#btn-refresh').on('click', function() {
-    loadAllContracts(); loadTv(); loadSummary(); loadHistorial();
-});
+    /* Corte Internet */
+    $('#btn-ejecutar-corte').on('click',function(){ $('#modal-fecha-corte').val(gf()); $('#modal-confirmar-corte').modal('show'); });
+    $('#btn-confirmar-corte').on('click',function(){
+        $('#modal-confirmar-corte').modal('hide');
+        var f=$('#modal-fecha-corte').val();
+        $('#progress-bar-wrap').fadeIn(); $('#progress-bar').css('width','0%'); $('#progress-label').text('Ejecutando corte...'); $('#progress-count').text('0 / ?');
+        var total=parseInt($('#btn-count-pend').text())||0;
+        var es=new EventSource(URLS.ejecutarStream+'?grupo_id='+GRUPO_ID+'&fecha='+f);
+        es.onmessage=function(e){var d=JSON.parse(e.data);if(d.done){es.close();$('#progress-bar-wrap').fadeOut();alert('Corte completado. Cortados: '+d.cortados+' | Errores: '+d.errores);loadAll();loadSummary();return;}var pct=total>0?Math.round(d.progreso/total*100):0;$('#progress-bar').css('width',pct+'%');$('#progress-count').text(d.progreso+' / '+d.total);};
+        es.onerror=function(){es.close();$('#progress-bar-wrap').fadeOut();alert('Error en el stream.');};
+    });
 
-$('#btn-refresh-historial').on('click', loadHistorial);
+    /* Corte TV */
+    $('#btn-ejecutar-corte-tv').on('click',function(){ $('#modal-confirmar-corte-tv').modal('show'); });
+    $('#btn-confirmar-corte-tv').on('click',function(){
+        $('#modal-confirmar-corte-tv').modal('hide');
+        var $b=$('#btn-ejecutar-corte-tv').prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({url:URLS.ejecutarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}}).done(function(r){alert('Completado. Cortados: '+r.cortados);loadTv();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-ban"></i> Ejecutar Corte TV');});
+    });
 
-$('a[href="#tab-historial"]').on('shown.bs.tab', function() {
-    loadHistorial();
-});
+    /* Habilitar */
+    $('#btn-habilitar-cortados').on('click',function(){ $('#modal-habilitar').modal('show'); });
+    $('#btn-confirmar-habilitar').on('click',function(){
+        $('#modal-habilitar').modal('hide');
+        var $b=$('#btn-habilitar-cortados').prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({url:URLS.habilitarCortados,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}}).done(function(r){alert('Habilitados: '+r.habilitados+' | Errores: '+r.errores);loadAll();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-power-off"></i> Habilitar grupo cortado (<span id="btn-count-cortados">0</span>)');});
+    });
 
-/* MK Sync */
-$('#btn-analizar-mk').on('click', function() {
-    var mkId = $('#select-mikrotik').val();
-    if (!mkId) { alert('Seleccione un MikroTik.'); return; }
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-    $('#mk-sync-empty').addClass('d-none');
-    $('#mk-sync-result').addClass('d-none');
-    $.ajax({
-        url: URLS.mkSync,
-        method: 'POST',
-        data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
-    }).done(function(d) {
-        if (!d.disponible) {
-            $('#mk-sync-empty').removeClass('d-none').html('<div class="text-danger">No disponible</div>');
-            return;
-        }
-        var faltantes = d.inconsistencias && d.inconsistencias.cortados_sin_morosos ? d.inconsistencias.cortados_sin_morosos : [];
-        var extra     = d.inconsistencias && d.inconsistencias.morosos_sin_corte    ? d.inconsistencias.morosos_sin_corte    : [];
-
-        $('#mk-ok-count').text(d.resumen ? (d.resumen.en_morosos_ok || 0) : 0);
-        $('#mk-faltantes-count').text(faltantes.length);
-        $('#mk-extra-count').text(extra.length);
-        $('#badge-faltantes').text(faltantes.length);
-        $('#badge-extra').text(extra.length);
-
-        var rowsF = '';
-        if (!faltantes.length) {
-            rowsF = '<tr><td colspan="5" class="text-center py-4 text-muted">Sin discrepancias</td></tr>';
-        } else {
-            faltantes.forEach(function(c) {
-                rowsF += '<tr><td>'+(c.nro||c.id)+'</td><td>'+(c.cliente_nombre||'—')+'</td><td><span class="ip-address">'+(c.ip||'—')+'</span></td><td>'+(c.factura_codigo||'—')+'</td><td>$'+fmt(c.factura_total)+'</td></tr>';
+    /* Historial detail */
+    $(document).on('click','.btn-ver-detalle',function(){
+        var logId=$(this).data('id');
+        $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#404040;">Cargando…</td></tr>');
+        $('#modal-log-detail').modal('show');
+        $.getJSON(URLS.historyDetail.replace('LOGID_PH',logId)).done(function(data){
+            var list=data.detalle||data||[]; if(!list.length){$('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#404040;">Sin detalle</td></tr>');return;}
+            var h='';
+            list.forEach(function(r){
+                var res=r.resultado==='cortado'?'<span class="ac-badge ac-badge-green">OK</span>':(r.resultado==='error'?'<span class="ac-badge ac-badge-red">ERROR</span>':'<span class="ac-badge ac-badge-grey">'+(r.resultado||'—')+'</span>');
+                h+='<tr><td>'+(r.contrato_nro||r.contrato_id||'—')+'</td><td>'+(r.cliente_nombre||'—')+'</td><td class="ac-ip">'+(r.ip||'—')+'</td><td>'+(r.tipo||'—')+'</td><td>'+res+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.metodo||'—')+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.descripcion||r.error_detalle||'—')+'</td></tr>';
             });
-        }
-        $('#tbody-mk-faltantes').html(rowsF);
-
-        var rowsE = '';
-        if (!extra.length) {
-            rowsE = '<tr><td colspan="3" class="text-center py-4 text-muted">Sin extras</td></tr>';
-        } else {
-            extra.forEach(function(e) {
-                rowsE += '<tr><td><span class="ip-address">'+(e.address||'—')+'</span></td><td><span style="color:var(--color-orange);">'+(e.list||'—')+'</span></td><td style="color:#a3a3a3;">'+(e.comment||'—')+'</td></tr>';
-            });
-        }
-        $('#tbody-mk-extra').html(rowsE);
-
-        $('#mk-sync-result').removeClass('d-none');
-        $('#btn-solucionar-lote').prop('disabled', faltantes.length === 0);
-    }).fail(function() {
-        $('#mk-sync-empty').removeClass('d-none').html('<div class="text-danger">Error al analizar MikroTik.</div>');
-    }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-search"></i> Analizar');
+            $('#log-detail-body').html(h);
+        });
     });
-});
 
-$('#btn-solucionar-lote').on('click', function() {
-    var mkId = $('#select-mikrotik').val();
-    if (!mkId || !confirm('¿Ejecutar?')) return;
-    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-    $.ajax({
-        url: URLS.solucionarLote,
-        method: 'POST',
-        data: { _token: csrfToken, mikrotik_id: mkId, grupo_id: GRUPO_ID },
-    }).done(function(r) {
-        alert(r.message || 'Listo');
-        $('#btn-analizar-mk').trigger('click');
-    }).fail(function(xhr) {
-        alert('Error: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Error desconocido'));
-    }).always(function() {
-        $btn.prop('disabled', false).html('<i class="fas fa-magic"></i> Solucionar Lote');
-    });
-});
-
-/* Executes */
-$('#btn-ejecutar-corte').on('click', function() {
-    $('#modal-fecha-corte').val(getSelectedFecha());
-    $('#modal-corte-count').text($('#btn-count-pendientes').text());
-    $('#modal-confirmar-corte').modal('show');
-});
-$('#btn-confirmar-corte').on('click', function() {
-    $('#modal-confirmar-corte').modal('hide');
-    var fecha = $('#modal-fecha-corte').val();
-    
-    var es = new EventSource(URLS.ejecutarStream + '?grupo_id=' + GRUPO_ID + '&fecha=' + fecha);
-    es.onmessage = function(e) {
-        var d = JSON.parse(e.data);
-        if (d.done) {
-            es.close();
-            alert('Corte completado. Cortados: ' + d.cortados + ' | Errores: ' + d.errores);
-            loadAllContracts(); loadSummary();
-            return;
-        }
-    };
-    es.onerror = function() {
-        es.close();
-        alert('Error en el stream.');
-    };
-});
-
-$('#btn-ejecutar-corte-tv').on('click', function() {
-    $('#modal-confirmar-corte-tv').modal('show');
-});
-$('#btn-confirmar-corte-tv').on('click', function() {
-    $('#modal-confirmar-corte-tv').modal('hide');
-    $.ajax({
-        url: URLS.ejecutarTv, method: 'POST', data: { _token: csrfToken, grupo_id: GRUPO_ID, fecha: getSelectedFecha() },
-    }).done(function(r) {
-        alert('Completado. Cortados: ' + r.cortados);
-        loadTv(); loadSummary();
-    });
-});
-
-$('#btn-habilitar-cortados').on('click', function() {
-    $('#modal-habilitar').modal('show');
-});
-$('#btn-confirmar-habilitar').on('click', function() {
-    $('#modal-habilitar').modal('hide');
-    $.ajax({
-        url: URLS.habilitarCortados, method: 'POST', data: { _token: csrfToken, grupo_id: GRUPO_ID },
-    }).done(function(r) {
-        alert('Habilitados: ' + r.habilitados);
-        loadAllContracts(); loadSummary();
-    });
-});
-
-$(document).on('click', '.btn-ver-detalle', function() {
-    var logId = $(this).data('id');
-    $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr>');
-    $('#modal-log-detail').modal('show');
-    $.getJSON(URLS.historyDetail.replace('LOGID_PH', logId)).done(function(data) {
-        var rows = '';
-        var list = data.detalle || data || [];
-        if (!list.length) {
-            rows = '<tr><td colspan="7" class="text-center py-4 text-muted">Sin detalle</td></tr>';
-        } else {
-            list.forEach(function(r) {
-                var res = r.resultado === 'cortado' ? '<span style="color:var(--color-green);">cortado</span>' : (r.resultado === 'error' ? '<span style="color:var(--color-red);">error</span>' : '<span>'+r.resultado+'</span>');
-                rows += '<tr>' +
-                    '<td style="color:#a3a3a3;">'+(r.contrato_nro||r.contrato_id||'—')+'</td>' +
-                    '<td>'+(r.cliente_nombre||'—')+'</td>' +
-                    '<td><span class="ip-address">'+(r.ip||'—')+'</span></td>' +
-                    '<td>'+(r.tipo||'—')+'</td>' +
-                    '<td>'+res+'</td>' +
-                    '<td style="color:#a3a3a3; font-size:0.8rem;">'+(r.metodo||'—')+'</td>' +
-                    '<td style="color:#a3a3a3; font-size:0.8rem;">'+(r.descripcion || r.error_detalle || '—')+'</td>' +
-                '</tr>';
-            });
-        }
-        $('#log-detail-body').html(rows);
-    });
-});
-
-$(document).ready(function() {
-    loadSummary();
-    loadAllContracts();
-    loadTv();
-});
+    /* Init */
+    $(document).ready(function(){ loadSummary(); loadAll(); loadTv(); });
+})();
 </script>
 @endsection
