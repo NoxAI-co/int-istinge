@@ -83,28 +83,41 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
 
         // Cortar servicios de televisión con facturas vencidas. Cada 15 min.
-        $schedule->call($this->cronLogueado('CortarTelevision', [CronController::class, 'cortarTelevision']))
+        // Estos 5 jobs usan instance methods que internamente referencian $this
+        // (helpers, $this->dianLog, etc). Los llamamos vía app() para que el
+        // container instancie el controller correctamente, en vez de pasar
+        // [Class::class, 'method'] (que PHP trataría como static call y volaría
+        // con "Using $this when not in object context").
+        $schedule->call($this->cronLogueado('CortarTelevision', function () {
+            return app(CronController::class)->cortarTelevision();
+        }))
             ->name('cron-cortar-television')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Envío de facturas por WhatsApp. Cada 15 min.
-        $schedule->call($this->cronLogueado('EnvioFacturaWpp', [CronController::class, 'envioFacturaWpp']))
+        $schedule->call($this->cronLogueado('EnvioFacturaWpp', function () {
+            return app(CronController::class)->envioFacturaWpp();
+        }))
             ->name('cron-envio-factura-wpp')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Sincronización con IntegraPay. Cada 15 min.
-        $schedule->call($this->cronLogueado('SyncIntegraPay', [CronController::class, 'syncIntegraPay']))
+        $schedule->call($this->cronLogueado('SyncIntegraPay', function () {
+            return app(CronController::class)->syncIntegraPay();
+        }))
             ->name('cron-sync-integrapay')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
         // Emisión de facturas electrónicas DIAN. Cada 15 min.
-        $schedule->call($this->cronLogueado('EmisionFacturaDian', [CronDianController::class, 'ejecutar']))
+        $schedule->call($this->cronLogueado('EmisionFacturaDian', function () {
+            return app(CronDianController::class)->ejecutar();
+        }))
             ->name('cron-emision-factura-dian')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
@@ -112,7 +125,9 @@ class Kernel extends ConsoleKernel
 
         // Sincronización de logs WhatsApp Meta — versión controller (replica /sync-whatsapp-meta-logs).
         // Convive con el command whatsapp:sync-meta-logs que usa otro code path (WhatsAppMessageSyncService).
-        $schedule->call($this->cronLogueado('SyncWhatsAppMetaLogsCtrl', [CronController::class, 'syncWhatsAppMetaLogs']))
+        $schedule->call($this->cronLogueado('SyncWhatsAppMetaLogsCtrl', function () {
+            return app(CronController::class)->syncWhatsAppMetaLogs();
+        }))
             ->name('cron-sync-whatsapp-meta-logs-ctrl')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')

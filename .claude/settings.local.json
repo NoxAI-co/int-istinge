@@ -61,7 +61,9 @@
       "Bash(grep -n 'fillable\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/Ingreso.php)",
       "Bash(grep -n 'fillable\\\\|protected $table\\\\|class Ingreso' /Users/juanmanuel/Documents/istinge/int-istinge/app/Model/Ingresos/Ingreso.php)",
       "Bash(grep -n 'Request $request\\\\|Illuminate\\\\\\\\Http\\\\\\\\Request' /Users/juanmanuel/Documents/istinge/int-istinge/app/Http/Controllers/Controller.php)",
-      "Bash(grep -n 'function estado\\\\|function factura\\\\|function created_at\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/CRM.php)"
+      "Bash(grep -n 'function estado\\\\|function factura\\\\|function created_at\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/CRM.php)",
+      "Bash(grep -n 'auth\\(\\\\|request\\(\\\\|Auth::\\\\|session\\(\\\\|$request\\\\|->user\\(')",
+      "Bash(grep -n '\\\\$this')"
     ]
   }
 }
