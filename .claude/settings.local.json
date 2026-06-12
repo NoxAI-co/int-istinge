@@ -76,7 +76,10 @@
       "Bash(git log *)",
       "Bash(php -l app/Http/Controllers/Controller.php)",
       "Bash(python3 -m json.tool .claude/settings.local.json)",
-      "Bash(git -c core.editor=true rebase --continue)"
+      "Bash(git -c core.editor=true rebase --continue)",
+      "Bash(git commit -m 'feat: detectar IPs ocupadas en todas las fuentes del Mikrotik \\(queues, secrets PPPoE, leases DHCP y ARP\\) en el modal de IPs disponibles *)",
+      "Bash(node --check public/js/function.js)",
+      "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)"
     ]
   }
 }
