@@ -1887,20 +1887,32 @@ class Controller extends BaseController
             $API->port = $mikrotikObj->puerto_api;
 
             if ($API->connect($mikrotikObj->ip, $mikrotikObj->usuario, $mikrotikObj->clave)) {
-                // Solo se usa el target de cada queue: pedir únicamente ese campo
-                // reduce la respuesta del router y evita sanitizar nombres/comentarios
-                // con codificaciones raras (el target siempre es IP/máscara en ASCII).
-                $API->write('/queue/simple/getall', false);
-                $API->write('=.proplist=target');
-                $READ = $API->read(false);
-                $ARRAY = $API->parseResponse($READ);
-                $API->disconnect();
+                // Una IP puede estar ocupada en varios lugares del router, no solo en
+                // las queues: secrets PPPoE (sin queue si el cliente está desconectado),
+                // leases DHCP y ARP (equipos con IP fija puesta a mano, sin registro en
+                // el software ni queue). Se consultan todas las fuentes pidiendo solo el
+                // campo de la IP (proplist) para que la respuesta sea liviana y en ASCII.
+                $fuentes = [
+                    ['/queue/simple/getall', 'target'],
+                    ['/ppp/secret/getall', 'remote-address'],
+                    ['/ip/dhcp-server/lease/getall', 'address'],
+                    ['/ip/arp/getall', 'address'],
+                ];
 
-                foreach ($ARRAY as $item) {
-                    if (!empty($item['target'])) {
-                        $sanitizedArray[] = ['target' => $item['target']];
+                foreach ($fuentes as $fuente) {
+                    list($comando, $campo) = $fuente;
+                    $API->write($comando, false);
+                    $API->write('=.proplist=' . $campo);
+                    $items = $API->parseResponse($API->read(false));
+
+                    foreach ($items as $item) {
+                        if (!empty($item[$campo])) {
+                            $sanitizedArray[] = ['target' => $item[$campo]];
+                        }
                     }
                 }
+
+                $API->disconnect();
             }
         }
 
