@@ -8,7 +8,6 @@
 <p>Medios de pago Nequi: 3206909290 Cuenta de ahorros Bancolombia 42081411021 CC 1001912928 Ximena Herrera representante legal. Adjunte su pago para reactivar su membresía</p>
 	    </div>
 	@else
-	    @if($contrato->cs_status==1)
 	        <form action="{{ route('contratos.state',$contrato->id) }}" method="post" class="delete_form" style="margin:0;display: inline-block;" id="cambiar-state{{$contrato->id}}">
 		       @csrf
 		    </form>
@@ -51,7 +50,6 @@
 	                </div>
 	            </div>
 	        </div>
-	    @endif
 	@endif
 @endsection
 
