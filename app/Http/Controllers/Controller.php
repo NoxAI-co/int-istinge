@@ -1869,10 +1869,24 @@ class Controller extends BaseController
             ->select('ip', 'state')
             ->orderBy('ip', 'asc');
 
-        // Filtrar por prefijo del segmento mostrado en el modal (ej: "10.1.101").
-        // Backward-compatible: si el caller no manda ?prefijo=, devolvemos todo.
+        // Filtrar al rango real de la subred del modal. El JS manda ?red=<ip/cidr>
+        // (ej: 10.30.84.1/22): con redes que abarcan varios /24, filtrar por los
+        // tres primeros octetos (?prefijo=) dejaba fuera los contratos de los demás
+        // /24 y esas IPs se ofrecían como disponibles. ?prefijo= se mantiene como
+        // fallback para JS cacheado; sin parámetros se devuelve todo.
+        $red = request()->query('red');
         $prefijo = request()->query('prefijo');
-        if ($prefijo) {
+        if ($red && strpos($red, '/') !== false) {
+            list($base, $cidr) = explode('/', $red, 2);
+            $baseLong = ip2long(trim($base));
+            $cidr = (int) $cidr;
+            if ($baseLong !== false && $cidr >= 1 && $cidr <= 32) {
+                $mascara = (~0 << (32 - $cidr)) & 0xFFFFFFFF;
+                $inicio = $baseLong & $mascara;
+                $fin = $inicio | (~$mascara & 0xFFFFFFFF);
+                $ipsQuery->whereRaw('INET_ATON(ip) BETWEEN ? AND ?', [sprintf('%u', $inicio), sprintf('%u', $fin)]);
+            }
+        } elseif ($prefijo) {
             $ipsQuery->where('ip', 'like', $prefijo.'.%');
         }
         $ips = $ipsQuery->get();

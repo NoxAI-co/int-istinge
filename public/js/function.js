@@ -5374,7 +5374,9 @@ $('#searchIP').click(function () {
     let basePath = inSoftware ? '/software' : '';
     let urlSubnet = basePath + '/api/getSubnetting/' + prefijo['0'] + '/' + prefijo['1'];
     let prefijo3 = prefijo['0'].split('.').slice(0, 3).join('.');
-    let urlIps = basePath + '/api/getIps/' + mk + '?prefijo=' + encodeURIComponent(prefijo3);
+    // Se manda la red completa (?red=ip/cidr) para que el backend filtre por el
+    // rango real de la subred; ?prefijo= queda como fallback de backend viejo.
+    let urlIps = basePath + '/api/getIps/' + mk + '?prefijo=' + encodeURIComponent(prefijo3) + '&red=' + encodeURIComponent($("#local_address").val());
     let csrf = $('meta[name="csrf-token"]').attr('content');
 
     $.ajax({
@@ -5415,17 +5417,13 @@ $('#searchIP').click(function () {
                     // mal configuradas). Antes el .split() explotaba la callback y
                     // dejaba el loader pegado en silencio.
                     if (!data.mikrotik[i] || !data.mikrotik[i].target) continue;
-                    var target = data.mikrotik[i].target.split('/');
-                    var ip_mk_a = target[0].split('.');
-                    var ip_so_a = prefijo[0].split('.');
-                    if (ip_mk_a.length < 3 || ip_so_a.length < 3) continue;
-                    var ip_mk = ip_mk_a[0] + '.' + ip_mk_a[1] + '.' + ip_mk_a[2];
-                    var ip_so = ip_so_a[0] + '.' + ip_so_a[1] + '.' + ip_so_a[2];
-                    if (ip_mk == ip_so) {
-                        var ip = target[0].replace(/\./g, '');
-                        if (document.getElementById(ip)) {
-                            $("#" + ip).remove();
-                        }
+                    // Sin comparar los 3 primeros octetos contra local_address:
+                    // en redes que abarcan varios /24 (ej. /22) esa comparación
+                    // dejaba sin tachar todo lo que no fuera el primer /24.
+                    // getElementById ya limita el efecto a las IPs pintadas.
+                    var ip = data.mikrotik[i].target.split('/')[0].replace(/\./g, '');
+                    if (document.getElementById(ip)) {
+                        $("#" + ip).remove();
                     }
                 }
             }
@@ -5494,10 +5492,11 @@ $('#searchIP2').click(function () {
                 $('#row_ip').append(div);
             }
 
+            var red = encodeURIComponent($("#local_address_new").val());
             if (window.location.pathname.split("/")[1] === "software") {
-                var url = `/software/api/getIps/${mk}`;
+                var url = `/software/api/getIps/${mk}?red=${red}`;
             } else {
-                var url = `/api/getIps/${mk}`;
+                var url = `/api/getIps/${mk}?red=${red}`;
             }
 
             $.ajax({
@@ -5507,10 +5506,24 @@ $('#searchIP2').click(function () {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function (data) {
-                    if (data) {
-                        for (i = 0; i < data.length; i++) {
-                            let ip = data[i].ip.replace(/\./g, '');
-                            $("#" + ip).remove();
+                    // La respuesta es {software, mikrotik}; el manejo anterior la
+                    // recorría como array plano y no tachaba ninguna IP ocupada.
+                    if (data && data.software) {
+                        for (var j = 0; j < data.software.length; j++) {
+                            if (!data.software[j] || !data.software[j].ip) continue;
+                            var ip = data.software[j].ip.replace(/\./g, '');
+                            if (document.getElementById(ip)) {
+                                $("#" + ip).remove();
+                            }
+                        }
+                    }
+                    if (data && data.mikrotik) {
+                        for (var j = 0; j < data.mikrotik.length; j++) {
+                            if (!data.mikrotik[j] || !data.mikrotik[j].target) continue;
+                            var ip = data.mikrotik[j].target.split('/')[0].replace(/\./g, '');
+                            if (document.getElementById(ip)) {
+                                $("#" + ip).remove();
+                            }
                         }
                     }
                 }
