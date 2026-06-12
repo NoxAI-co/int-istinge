@@ -1861,12 +1861,17 @@ class Controller extends BaseController
     }
 
     public function getIps($mikrotik){
+        // Se incluye cualquier contrato no retirado que retenga una IP (activos,
+        // suspendidos, cortados) para que no se ofrezca como disponible.
+        $ipsQuery = Contrato::where('status', '!=', 0)
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '')
+            ->select('ip', 'state')
+            ->orderBy('ip', 'asc');
+
         // Filtrar por prefijo del segmento mostrado en el modal (ej: "10.1.101").
-        // Sin esto traíamos TODAS las IPs activas de la flota para que el JS
-        // tachara las del segmento visible — desperdicio de red y memoria.
         // Backward-compatible: si el caller no manda ?prefijo=, devolvemos todo.
         $prefijo = request()->query('prefijo');
-        $ipsQuery = Contrato::where('status', 1)->select('ip', 'state')->orderBy('ip', 'asc');
         if ($prefijo) {
             $ipsQuery->where('ip', 'like', $prefijo.'.%');
         }
@@ -1876,52 +1881,25 @@ class Controller extends BaseController
         $sanitizedArray = [];
 
         if ($mikrotikObj) {
-            // Obtener la empresa desde la mikrotik
-            $empresaId = $mikrotikObj->empresa ?? null;
-
-            if ($empresaId) {
-                // Verificar si la empresa tiene consultas_mk = 0
-                $empresa = Empresa::find($empresaId);
-                $consultasMk = $empresa ? $empresa->consultas_mk : 1;
-
-                // Si consultas_mk == 0, retornar array vacío para mikrotik
-                if ($consultasMk == 0) {
-                    return response()->json(['software' => $ips, 'mikrotik' => []]);
-                }
-            }
-
-            // Si consultas_mk == 1, hacer consulta a Mikrotik (comportamiento original)
+            // Este endpoint siempre consulta el Mikrotik, aun con consultas_mk = 0:
+            // sin las queues del router se ofrecen IPs ya asignadas y se generan duplicados.
             $API = new RouterosAPI();
             $API->port = $mikrotikObj->puerto_api;
 
             if ($API->connect($mikrotikObj->ip, $mikrotikObj->usuario, $mikrotikObj->clave)) {
-                $API->write("/queue/simple/getall");
+                // Solo se usa el target de cada queue: pedir únicamente ese campo
+                // reduce la respuesta del router y evita sanitizar nombres/comentarios
+                // con codificaciones raras (el target siempre es IP/máscara en ASCII).
+                $API->write('/queue/simple/getall', false);
+                $API->write('=.proplist=target');
                 $READ = $API->read(false);
                 $ARRAY = $API->parseResponse($READ);
                 $API->disconnect();
 
-                // mb_list_encodings() devuelve ~70 encodings; antes lo llamábamos
-                // dentro del loop (N veces por queue). Lo izamos una sola vez.
-                $encodings = mb_list_encodings();
-
                 foreach ($ARRAY as $item) {
-                    $sanitizedItem = [];
-
-                    foreach ($item as $key => $value) {
-                        // Verificar si $value es una cadena antes de intentar convertirla
-                        if (is_string($value)) {
-                            $encoding = mb_detect_encoding($value, $encodings, true);
-                            if ($encoding) {
-                                $sanitizedItem[$key] = mb_convert_encoding($value, "UTF-8", $encoding);
-                            } else {
-                                $sanitizedItem[$key] = iconv('UTF-8', 'UTF-8//IGNORE', $value);
-                            }
-                        } else {
-                            $sanitizedItem[$key] = $value;
-                        }
+                    if (!empty($item['target'])) {
+                        $sanitizedArray[] = ['target' => $item['target']];
                     }
-
-                    $sanitizedArray[] = $sanitizedItem;
                 }
             }
         }
