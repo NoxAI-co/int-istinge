@@ -796,6 +796,74 @@ class OltController extends Controller
         return $results;
     }
 
+    /**
+     * Deshabilitar CATV en múltiples ONUs en lote usando el endpoint bulk de SmartOLT.
+     * Máximo 50 seriales por llamada. Éxito: $results[$sn] es string; error: es string de error.
+     *
+     * @param array $serialNumbers Array de serial numbers de ONUs
+     * @param int|null $empresaId ID de la empresa (null = auto-detectar)
+     * @return array Resultados por cada serial: ['SN1' => 'ONU SN CATV disabled', ...]
+     */
+    public function bulkDisableCatv(array $serialNumbers, $empresaId = null)
+    {
+        if (empty($serialNumbers)) {
+            return [];
+        }
+
+        $empresa = $empresaId
+            ? Empresa::Find($empresaId)
+            : (!Auth::user() ? Empresa::Find(1) : Empresa::Find(Auth::user()->empresa));
+
+        $results = [];
+        $chunks = array_chunk($serialNumbers, 50);
+
+        foreach ($chunks as $index => $chunk) {
+            if ($index > 0) {
+                usleep(rand(200000, 500000));
+            }
+
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL            => $empresa->adminOLT . '/api/onu/bulk_disable_catv',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT        => 60,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'POST',
+                CURLOPT_POSTFIELDS     => array(
+                    'onus_external_ids' => implode(',', $chunk)
+                ),
+                CURLOPT_HTTPHEADER => array(
+                    'X-Token: ' . $empresa->smartOLT
+                ),
+            ));
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $response = json_decode($response, true);
+            curl_close($curl);
+
+            \Log::info('[SmartOLT] bulk_disable_catv chunk ' . ($index + 1) . '/' . count($chunks) .
+                ' (' . count($chunk) . ' ONUs) — HTTP ' . $httpCode, [
+                'serials'         => $chunk,
+                'response_status' => $response['status'] ?? null,
+            ]);
+
+            if (isset($response['status']) && $response['status'] === true && isset($response['response']) && is_array($response['response'])) {
+                $results = array_merge($results, $response['response']);
+            } else {
+                foreach ($chunk as $sn) {
+                    $results[$sn] = $response['error'] ?? 'bulk_disable_catv failed (HTTP ' . $httpCode . ')';
+                }
+            }
+        }
+
+        return $results;
+    }
+
     public function deleteOnu($sn)
     {
         $empresa = Empresa::Find(Auth::user()->empresa);

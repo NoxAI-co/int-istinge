@@ -1384,7 +1384,7 @@ class CronController extends Controller
 
 
     public static function CortarFacturas(){
-        // return "";
+        return "";
         $i=0;
         $fecha = date('Y-m-d');
 
@@ -1875,6 +1875,7 @@ class CronController extends Controller
     }
 
     public function cortarTelevision(){
+        @set_time_limit(0); // Las llamadas bulk a SmartOLT pueden superar el límite PHP por defecto
         $i=0;
         $fecha = date('Y-m-d');
         $empresa = Empresa::find(1);
@@ -1940,10 +1941,12 @@ class CronController extends Controller
             ->get();
 
             if($contactos){
-                $i=0;
+                // Fase 1: recorrer contactos, aplicar validaciones y recolectar SNs a deshabilitar
+                // SN → ['contrato_id' => int, 'empresa' => int]
+                $toDisable = [];
+
                 foreach ($contactos as $contacto) {
 
-                    //** Desarrollo nuevo:
                     //** Analizar la cantidad de facturas abiertas del contrato y el grupo de corte
                     $contacto->updated_at = now();
                     $contacto->save();
@@ -1960,7 +1963,6 @@ class CronController extends Controller
                         $contrato = Contrato::Find($contacto->contrato_id);
                         $cantFacturasVencidas = $contrato->cantidadFacturasVencidas();
                     }
-                    //** Fin desarrollo nuevo
 
                     $factura = Factura::find($contacto->factura);
 
@@ -1972,7 +1974,6 @@ class CronController extends Controller
                         }
                     }
 
-                    //ESto es lo que hay que refactorizar.
                     $facturaContratos = DB::table('facturas_contratos')
                     ->where('factura_id',$factura->id)->pluck('contrato_nro');
 
@@ -2002,62 +2003,57 @@ class CronController extends Controller
 
                     if($factura->id == $ultimaFacturaRegistrada && $cantFacturasVencidas >= $cant_fac_grupo_corte){
 
-                    //1. debemos primero mirar si los contrsatos existen en la tabla detalle, si no hacemos el proceso antiguo
-                    $contratos = Contrato::whereIn('nro',$facturaContratos)->get();
-                    if(!$contratos){
-                        if($factura->contrato_id != null){
-                            $contratos = Contrato::where('id',$factura->contrato_id)->get();
-                        }else{
-                            $contratos = Contrato::where('id',$contacto->idcontrato)->get();
+                        $contratos = Contrato::whereIn('nro',$facturaContratos)->get();
+                        if(!$contratos){
+                            if($factura->contrato_id != null){
+                                $contratos = Contrato::where('id',$factura->contrato_id)->get();
+                            }else{
+                                $contratos = Contrato::where('id',$contacto->idcontrato)->get();
+                            }
+                        }
+
+                        $promesaExtendida = DB::table('promesa_pago')->where('factura', $factura->id)->where('vencimiento', '>=', $fecha)->count();
+                        if($promesaExtendida > 0){
+                            continue;
+                        }
+
+                        foreach($contratos as $contrato){
+                            if($contrato->olt_sn_mac != null && !isset($toDisable[$contrato->olt_sn_mac])){
+                                $toDisable[$contrato->olt_sn_mac] = [
+                                    'contrato_id' => $contrato->id,
+                                    'empresa'     => (int) $contrato->empresa,
+                                ];
+                            }
                         }
                     }
+                }
 
-                    $promesaExtendida = DB::table('promesa_pago')->where('factura', $factura->id)->where('vencimiento', '>=', $fecha)->count();
-                    if($promesaExtendida > 0){
-                        continue;
-                    }
+                // Fase 2: una sola llamada bulk + actualización de estado
+                if (!empty($toDisable)) {
+                    $oltController = app('App\Http\Controllers\OltController');
+                    $bulkResults = $oltController->bulkDisableCatv(array_keys($toDisable), $empresa->id);
+                    \Log::info('[CRON cortarTelevision] Bulk disable CATV ejecutado', [
+                        'total_serials' => count($toDisable),
+                        'results_count' => count($bulkResults),
+                    ]);
 
-                    //2. Debemos recorrer el o los contratos para que haga el disabled.
-                        foreach($contratos as $contrato){
-
-                                if($contrato->olt_sn_mac != null){
-                                    $curl = curl_init();
-
-                                curl_setopt_array($curl, array(
-                                CURLOPT_URL => $empresa->adminOLT.'/api/onu/disable_catv/'.$contrato->olt_sn_mac,
-                                CURLOPT_RETURNTRANSFER => true,
-                                CURLOPT_ENCODING => '',
-                                CURLOPT_MAXREDIRS => 10,
-                                CURLOPT_TIMEOUT => 0,
-                                CURLOPT_FOLLOWLOCATION => true,
-                                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                CURLOPT_CUSTOMREQUEST => 'POST',
-                                CURLOPT_HTTPHEADER => array(
-                                    'X-token: '.$empresa->smartOLT
-                                ),
-                                ));
-
-                                $response = curl_exec($curl);
-                                $response = json_decode($response);
-
-                                curl_close($curl);
-
-                                if(isset($response->status) && $response->status == true){
-                                    $contrato->state_olt_catv = false;
-                                    $contrato->save();
-
-                                    $descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte facturas (TV)<br>';
-                                    $movimiento = new MovimientoLOG();
-                                    $movimiento->contrato    = $contrato->id;
-                                    $movimiento->modulo      = 5;
-                                    $movimiento->descripcion = $descripcion;
-                                    $movimiento->created_by  = 1;
-                                    $movimiento->empresa     = $contrato->empresa;
-                                    $movimiento->save();
-
-                                }
-
-                            }
+                    foreach ($toDisable as $sn => $row) {
+                        $ok = isset($bulkResults[$sn]) && is_string($bulkResults[$sn]);
+                        if ($ok) {
+                            Contrato::where('id', $row['contrato_id'])->update(['state_olt_catv' => false]);
+                            $movimiento = new MovimientoLOG();
+                            $movimiento->contrato    = $row['contrato_id'];
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>Cambio de Status</b> de habilitado a deshabilitado por cronjob de corte facturas (TV)<br>';
+                            $movimiento->created_by  = 1;
+                            $movimiento->empresa     = $row['empresa'];
+                            $movimiento->save();
+                        } else {
+                            \Log::warning('[cortartelevision] Falló disable CATV', [
+                                'contrato' => $row['contrato_id'],
+                                'sn'       => $sn,
+                                'response' => $bulkResults[$sn] ?? null,
+                            ]);
                         }
                     }
                 }

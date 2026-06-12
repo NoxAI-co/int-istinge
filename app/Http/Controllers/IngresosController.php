@@ -500,6 +500,11 @@ class IngresosController extends Controller
                 //Validaciones
                 if(is_array($request->factura_pendiente)){
 
+                    $esMetodoPagoOnePay = DB::table('metodos_pago')
+                        ->where('id', (int) $request->metodo_pago)
+                        ->whereRaw("UPPER(metodo) LIKE '%ONEPAY%' OR UPPER(metodo) LIKE '%INTEGRAPAY%'")
+                        ->exists();
+
                     foreach ($request->factura_pendiente as $key => $factura_id) {
 
                         $montoPago = $this->precision($request->precio[$key]);
@@ -890,7 +895,7 @@ class IngresosController extends Controller
 
                             // Eliminar factura en OnePay si existe ya que se está registrando pago por la plataforma.
                             // Diferido a terminating() para no bloquear la respuesta con la llamada HTTP externa.
-                            if ($factura->onepay_invoice_id) {
+                            if ($factura->onepay_invoice_id && !$esMetodoPagoOnePay) {
                                 $facturaIdBG = $factura->id;
                                 $empresaIdBG = $empresa->id;
                                 app()->terminating(function () use ($facturaIdBG, $empresaIdBG) {
