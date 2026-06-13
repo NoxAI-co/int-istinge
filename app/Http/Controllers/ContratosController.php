@@ -234,7 +234,9 @@ class ContratosController extends Controller
             ->where('contracts.status', '!=', 0);
 
         //Buscamos los contratos con server configuration + los que no tienen conf pero son de tv.
-        if ($user->servidores->count() > 0) {
+        //Si se está filtrando por un cliente específico, no aplicamos la restricción de servidores
+        //para que el listado refleje todos los contratos visibles en el perfil del cliente.
+        if ($user->servidores->count() > 0 && !$request->cliente_id) {
             $servers = $user->servidores->pluck('id')->toArray();
 
             $contratos->where(function ($query) use ($servers) {
@@ -535,7 +537,9 @@ class ContratosController extends Controller
             $contratos->where('contracts.plan_id', $nodo[1]);
         }
 
-        if (Auth::user()->empresa()->oficina) {
+        //Misma lógica que con servidores: al filtrar por un cliente, se muestran todos sus contratos
+        //sin importar la oficina del usuario, para mantener consistencia con el perfil del cliente.
+        if (Auth::user()->empresa()->oficina && !$request->cliente_id) {
             if ($user->oficina) {
                 $contratos->where('contracts.oficina', $user->oficina);
             }

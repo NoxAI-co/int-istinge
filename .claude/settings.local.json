@@ -64,6 +64,7 @@
       "Bash(grep -n 'function estado\\\\|function factura\\\\|function created_at\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/CRM.php)",
       "Bash(grep -n 'auth\\(\\\\|request\\(\\\\|Auth::\\\\|session\\(\\\\|$request\\\\|->user\\(')",
       "Bash(grep -n '\\\\$this')",
+<<<<<<< HEAD
       "Bash(CLIENT=_test_tmp DOMAIN=acme.com.co ASSET_URL=https://acme.com.co/software docker compose -f docker-compose.client.yml config)",
       "Bash(git commit -m 'feat: enrutar la raíz del dominio a Hestia y mantener /software en la app vía Caddy *)",
       "Read(//home/juan-manuel/.ssh/**)",
@@ -80,6 +81,9 @@
       "Bash(git commit -m 'feat: detectar IPs ocupadas en todas las fuentes del Mikrotik \\(queues, secrets PPPoE, leases DHCP y ARP\\) en el modal de IPs disponibles *)",
       "Bash(node --check public/js/function.js)",
       "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)"
+=======
+      "Bash(git log *)"
+>>>>>>> cbb3b0cd (fix: disable server and office filtering in ContratosController when a specific client is requested and add git log command to local settings)
     ]
   }
 }
