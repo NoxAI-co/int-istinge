@@ -5659,11 +5659,17 @@ class CronController extends Controller
                 // El MetaWhatsAppService devuelve la respuesta de la API de Meta dentro de una llave 'data'
                 $metaData = $responseData['data'] ?? $responseData;
 
-                if (isset($metaData['messaging_product']) && $metaData['messaging_product'] === 'whatsapp') {
-                    if (isset($metaData['messages']) && count($metaData['messages']) > 0) {
-                        // Asumimos 'success' si Meta devuelve message_id
-                         $status = 'success';
-                    }
+                // Primero: si el HTTP fue exitoso (Meta aceptó la petición), marcar como éxito.
+                // Esto cubre casos donde el timeout ocurre después de que Meta recibió el mensaje
+                // pero antes de que nosotros recibamos la respuesta.
+                $httpSuccess = ($responseData['success'] ?? false) === true;
+                $metaSuccess = isset($metaData['messaging_product'])
+                    && $metaData['messaging_product'] === 'whatsapp'
+                    && isset($metaData['messages'])
+                    && count($metaData['messages']) > 0;
+
+                if ($httpSuccess || $metaSuccess) {
+                    $status = 'success';
                 }
 
                 // Construir el mensaje completo procesado para registro

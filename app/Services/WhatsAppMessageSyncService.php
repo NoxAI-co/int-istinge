@@ -237,21 +237,24 @@ class WhatsAppMessageSyncService
                 }
             }
         } elseif ($status === 'failed') {
-            // Incrementar contador si falla por "Message undeliverable" y se recibe por primera vez
-            if ($created && $errorMessage && stripos($errorMessage, 'Message undeliverable') !== false) {
-                if ($incomingInvoiceId) {
-                    DB::table('factura')->where('id', $incomingInvoiceId)->increment('cont_message_undeliverable');
-                }
-                if ($incomingPaymentId) {
-                    DB::table('ingresos')->where('id', $incomingPaymentId)->increment('cont_message_undeliverable');
-                }
-            }
+            $isUndeliverable = $errorMessage && stripos($errorMessage, 'Message undeliverable') !== false;
 
-            // Marcar como no entregado (whatsapp = 0) solo si NO es el error de healthy ecosystem
-            $isHealthyEcosystemError = $errorMessage && 
-                stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;
-            
-            if (!$isHealthyEcosystemError) {
+            // Solo incrementar y permitir reintento para números verdaderamente inválidos
+            if ($isUndeliverable) {
+                // Incrementar contador (solo si es la primera vez que vemos este log)
+                if ($created) {
+                    if ($incomingInvoiceId) {
+                        DB::table('factura')->where('id', $incomingInvoiceId)->increment('cont_message_undeliverable');
+                    }
+                    if ($incomingPaymentId) {
+                        DB::table('ingresos')->where('id', $incomingPaymentId)->increment('cont_message_undeliverable');
+                    }
+                }
+
+                // Resetear whatsapp=0 SOLO para "Message undeliverable" (número inválido):
+                // el cron reintentará hasta cont_message_undeliverable=3 y luego se detiene.
+                // Para otros tipos de fallo (transitorios, rate-limit, healthy ecosystem)
+                // NO reseteamos para evitar bucles de reenvío cuando el mensaje sí llegó.
                 if ($incomingInvoiceId) {
                     $factura = Factura::find($incomingInvoiceId);
                     if ($factura && $factura->whatsapp != 0) {
@@ -272,6 +275,8 @@ class WhatsAppMessageSyncService
                     }
                 }
             }
+            // Para failed con otros errores (transitorio, spam, healthy ecosystem, etc.):
+            // no tocar whatsapp ni cont_message_undeliverable para evitar reenvíos.
         }
 
         return compact('created', 'updated', 'facturasActualizadas', 'ingresosActualizados');

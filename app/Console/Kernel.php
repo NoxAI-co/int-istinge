@@ -35,8 +35,9 @@ class Kernel extends ConsoleKernel
         // Actualizar status de WhatsApp cada 15 minutos
         $schedule->command('whatsapp:update-status')->everyFifteenMinutes();
 
-        // Sincronizar logs de WhatsApp Meta (whatsapp_messages -> log_meta) cada 15 minutos para el día actual
-        $schedule->command('whatsapp:sync-meta-logs')->everyFifteenMinutes();
+        // NOTA: whatsapp:sync-meta-logs fue eliminado del scheduler porque el mismo trabajo
+        // lo realiza cron-sync-whatsapp-meta-logs-ctrl (CronController::syncWhatsAppMetaLogs).
+        // Tener ambos activos duplicaba la ejecución y aumentaba el riesgo de resetear whatsapp=0.
 
         // ──────────────────────────────────────────────────────────────────
         // Cron de facturación (antes eran rutas /cortarfacturas, /generarfactura,
@@ -124,7 +125,7 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
 
         // Sincronización de logs WhatsApp Meta — versión controller (replica /sync-whatsapp-meta-logs).
-        // Convive con el command whatsapp:sync-meta-logs que usa otro code path (WhatsAppMessageSyncService).
+        // El command whatsapp:sync-meta-logs fue desactivado del scheduler para evitar doble ejecución.
         $schedule->call($this->cronLogueado('SyncWhatsAppMetaLogsCtrl', function () {
             return app(CronController::class)->syncWhatsAppMetaLogs();
         }))
