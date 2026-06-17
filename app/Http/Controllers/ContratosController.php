@@ -955,6 +955,24 @@ class ContratosController extends Controller
             $ip_autorizada = 0;
             //$API->debug = true;
 
+            Log::info('[ContratosController::store] MikroTik encontrado — iniciando flujo de registro', [
+                'mikrotik_id'     => $mikrotik->id,
+                'mikrotik_nombre' => $mikrotik->nombre,
+                'mikrotik_ip'     => $mikrotik->ip,
+                'puerto_api'      => $mikrotik->puerto_api,
+                'usuario_mk'      => $mikrotik->usuario,
+                'plan_id'         => $plan->id ?? null,
+                'plan_nombre'     => $plan->name ?? null,
+                'conexion'        => $request->conexion,
+                'simple_queue'    => $request->simple_queue,
+                'ip_solicitada'   => $request->ip,
+                'usuario_pppoe'   => $request->usuario,
+                'mac_address'     => $request->mac_address,
+                'empresa'         => Auth::user()->empresa,
+                'operador'        => Auth::user()->id,
+                'consultas_mk'    => $empresa->consultas_mk ?? null,
+            ]);
+
             $nro = Numeracion::where('empresa', 1)->first();
 
 
@@ -989,7 +1007,19 @@ class ContratosController extends Controller
 
             if($empresa->consultas_mk == 1){
 
+                Log::info('[ContratosController::store] Intentando conexión a MikroTik API', [
+                    'mikrotik_ip'   => $mikrotik->ip,
+                    'puerto_api'    => $mikrotik->puerto_api,
+                    'usuario_mk'    => $mikrotik->usuario,
+                    'nro_contrato'  => $nro_contrato ?? null,
+                ]);
+
                 if ($API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave)) {
+
+                    Log::info('[ContratosController::store] Conexión a MikroTik establecida correctamente', [
+                        'mikrotik_ip'  => $mikrotik->ip,
+                        'nro_contrato' => $nro_contrato ?? null,
+                    ]);
 
                     $rate_limit = '';
                     $priority        = (isset($plan->prioridad) && !empty($plan->prioridad)) ? $plan->prioridad : 8;
@@ -1018,6 +1048,17 @@ class ContratosController extends Controller
                         $rate_limit .= ' ' . $limit_at;
                     }
 
+                    Log::info('[ContratosController::store] Parámetros de ancho de banda calculados', [
+                        'nro_contrato'    => $nro_contrato ?? null,
+                        'max_limit'       => $max_limit,
+                        'rate_limit'      => $rate_limit,
+                        'burst_limit'     => $burst_limit,
+                        'burst_threshold' => $burst_threshold,
+                        'burst_time'      => $burst_time,
+                        'limit_at'        => $limit_at,
+                        'priority'        => $priority,
+                    ]);
+
                     /*PPPOE*/
                     if ($request->conexion == 1) {
 
@@ -1043,7 +1084,18 @@ class ContratosController extends Controller
                             }
                         }
 
+                        Log::info('[ContratosController::store][PPPoE] Enviando /ppp/secret/add a MikroTik', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'data'         => $data,
+                        ]);
+
                         $error = $API->comm("/ppp/secret/add", $data);
+
+                        Log::info('[ContratosController::store][PPPoE] Respuesta de /ppp/secret/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $error,
+                            'es_error'     => (is_array($error) && isset($error[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
 
                         $registro = true;
                         $getall = $API->comm(
@@ -1052,15 +1104,40 @@ class ContratosController extends Controller
                                 "?local-address" => $request->ip
                             )
                         );
+
+                        Log::info('[ContratosController::store][PPPoE] Verificación /ppp/secret/getall', [
+                            'nro_contrato'    => $nro_contrato ?? null,
+                            'ip_buscada'      => $request->ip,
+                            'secretos_found'  => count($getall ?: []),
+                            'getall'          => $getall,
+                            'registro'        => $registro,
+                        ]);
                     }
 
                     /*DHCP*/
                     if ($request->conexion == 2) {
+                        Log::info('[ContratosController::store][DHCP] Iniciando registro DHCP', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'simple_queue' => $request->simple_queue,
+                            'dhcp_server'  => $plan->dhcp_server ?? null,
+                            'ip'           => $request->ip,
+                            'mac_address'  => $request->mac_address,
+                        ]);
+
                         if ($plan->dhcp_server) {
                             if ($request->simple_queue == 'dinamica') {
+                                Log::info('[ContratosController::store][DHCP-dinamica] Configurando dhcp-server y lease', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'dhcp_server'  => $plan->dhcp_server,
+                                    'parenta'      => $plan->parenta,
+                                    'address'      => $request->ip,
+                                    'mac-address'  => $request->mac_address,
+                                    'rate_limit'   => $rate_limit,
+                                ]);
+
                                 $API->comm("/ip/dhcp-server/set\n=name=" . $plan->dhcp_server . "\n=address-pool=static-only\n=parent-queue=" . $plan->parenta);
 
-                                $API->comm(
+                                $leaseAddResult = $API->comm(
                                     "/ip/dhcp-server/lease/add",
                                     array(
                                         "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1071,14 +1148,34 @@ class ContratosController extends Controller
                                     )
                                 );
 
+                                Log::info('[ContratosController::store][DHCP-dinamica] Respuesta lease/add', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'respuesta'    => $leaseAddResult,
+                                    'es_error'     => (is_array($leaseAddResult) && isset($leaseAddResult[0]['!trap'])) ? 'SI' : 'NO',
+                                ]);
+
                                 $name = $API->comm(
                                     "/ip/dhcp-server/lease/getall",
                                     array(
                                         "?comment" => $this->normaliza($servicio) . '-' . $nro_contrato
                                     )
                                 );
+
+                                Log::info('[ContratosController::store][DHCP-dinamica] Verificación lease/getall', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'leases_found' => count($name ?: []),
+                                    'resultado'    => $name,
+                                ]);
+
                             } elseif ($request->simple_queue == 'estatica') {
-                                $API->comm(
+                                Log::info('[ContratosController::store][DHCP-estatica] Agregando lease estática', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'dhcp_server'  => $plan->dhcp_server,
+                                    'address'      => $request->ip,
+                                    'mac-address'  => $request->mac_address,
+                                ]);
+
+                                $leaseAddResult = $API->comm(
                                     "/ip/dhcp-server/lease/add",
                                     array(
                                         "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
@@ -1088,6 +1185,12 @@ class ContratosController extends Controller
                                     )
                                 );
 
+                                Log::info('[ContratosController::store][DHCP-estatica] Respuesta lease/add', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'respuesta'    => $leaseAddResult,
+                                    'es_error'     => (is_array($leaseAddResult) && isset($leaseAddResult[0]['!trap'])) ? 'SI' : 'NO',
+                                ]);
+
                                 $name = $API->comm(
                                     "/ip/dhcp-server/lease/getall",
                                     array(
@@ -1095,35 +1198,70 @@ class ContratosController extends Controller
                                     )
                                 );
 
+                                Log::info('[ContratosController::store][DHCP-estatica] Verificación lease/getall', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'leases_found' => count($name ?: []),
+                                    'resultado'    => $name,
+                                ]);
+
                                 if ($name) {
                                     $registro = true;
-                                    
+
                                     // Limpieza preventiva por nombre
                                     $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                                    Log::info('[ContratosController::store][DHCP-estatica] Queues existentes antes de limpiar', [
+                                        'nro_contrato'   => $nro_contrato ?? null,
+                                        'queues_found'   => count($existe_queue ?: []),
+                                        'queues'         => $existe_queue,
+                                    ]);
                                     if (count($existe_queue) > 0) {
                                         foreach ($existe_queue as $q) {
                                             $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
                                         }
+                                        Log::info('[ContratosController::store][DHCP-estatica] Queues existentes eliminadas', [
+                                            'nro_contrato' => $nro_contrato ?? null,
+                                            'eliminadas'   => count($existe_queue),
+                                        ]);
                                     }
 
-                                    $result = $API->comm(
-                                        "/queue/simple/add",
-                                        array(
-                                            "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
-                                            "target"          => $request->ip,
-                                            "max-limit"       => $plan->upload . '/' . $plan->download,
-                                            "burst-limit"     => $burst_limit,
-                                            "burst-threshold" => $burst_threshold,
-                                            "burst-time"      => $burst_time,
-                                            "priority"        => $priority,
-                                            "limit-at"        => $limit_at
-                                        )
+                                    $queueData = array(
+                                        "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
+                                        "target"          => $request->ip,
+                                        "max-limit"       => $plan->upload . '/' . $plan->download,
+                                        "burst-limit"     => $burst_limit,
+                                        "burst-threshold" => $burst_threshold,
+                                        "burst-time"      => $burst_time,
+                                        "priority"        => $priority,
+                                        "limit-at"        => $limit_at
                                     );
-                                    Log::info($result);
+
+                                    Log::info('[ContratosController::store][DHCP-estatica] Enviando /queue/simple/add', [
+                                        'nro_contrato' => $nro_contrato ?? null,
+                                        'queue_data'   => $queueData,
+                                    ]);
+
+                                    $result = $API->comm("/queue/simple/add", $queueData);
+
+                                    Log::info('[ContratosController::store][DHCP-estatica] Respuesta /queue/simple/add', [
+                                        'nro_contrato' => $nro_contrato ?? null,
+                                        'respuesta'    => $result,
+                                        'es_error'     => (is_array($result) && isset($result[0]['!trap'])) ? 'SI' : 'NO',
+                                        'registro'     => $registro,
+                                    ]);
+                                } else {
+                                    Log::warning('[ContratosController::store][DHCP-estatica] No se encontró lease después de crearla — registro NO marcado', [
+                                        'nro_contrato' => $nro_contrato ?? null,
+                                        'ip'           => $request->ip,
+                                    ]);
                                 }
                             }
                         } else {
                             $mensaje = 'NO SE HA PODIDO CREAR EL CONTRATO DE SERVICIOS, NO EXISTE UN SERVIDOR DHCP DEFINIDO PARA EL PLAN ' . $plan->name;
+                            Log::error('[ContratosController::store][DHCP] Sin dhcp_server en el plan — abortando', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'plan_id'      => $plan->id ?? null,
+                                'plan_nombre'  => $plan->name ?? null,
+                            ]);
                             return redirect('empresa/contratos')->with('danger', $mensaje);
                         }
                     }
@@ -1131,20 +1269,39 @@ class ContratosController extends Controller
                     /*IP ESTÁTICA*/
                     if ($request->conexion == 3) {
 
+                        Log::info('[ContratosController::store][IP-Estatica] Iniciando registro IP Estática', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'ip'           => $request->ip,
+                            'ip_new'       => $request->ip_new,
+                            'interfaz'     => $request->interfaz,
+                            'amarre_mac'   => $mikrotik->amarre_mac,
+                            'mac_address'  => $request->mac_address,
+                        ]);
+
                         if ($mikrotik->amarre_mac == 1) {
                             $request->validate([
                                 'mac_address' => 'required'
                             ]);
 
-                            $API->comm(
-                                "/ip/arp/add",
-                                array(
-                                    "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
-                                    "address"     => $request->ip,
-                                    "interface"   => $request->interfaz,
-                                    "mac-address" => $request->mac_address
-                                )
+                            $arpData = array(
+                                "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
+                                "address"     => $request->ip,
+                                "interface"   => $request->interfaz,
+                                "mac-address" => $request->mac_address
                             );
+
+                            Log::info('[ContratosController::store][IP-Estatica] Enviando /ip/arp/add (amarre MAC)', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'arp_data'     => $arpData,
+                            ]);
+
+                            $arpResult = $API->comm("/ip/arp/add", $arpData);
+
+                            Log::info('[ContratosController::store][IP-Estatica] Respuesta /ip/arp/add', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'respuesta'    => $arpResult,
+                                'es_error'     => (is_array($arpResult) && isset($arpResult[0]['!trap'])) ? 'SI' : 'NO',
+                            ]);
                         }
 
                         if (!empty($plan->queue_type_subida) && !empty($plan->queue_type_bajada)) {
@@ -1157,28 +1314,45 @@ class ContratosController extends Controller
 
                         // Limpieza preventiva por nombre
                         $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                        Log::info('[ContratosController::store][IP-Estatica] Queues existentes antes de limpiar', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'queues_found' => count($existe_queue ?: []),
+                            'queues'       => $existe_queue,
+                        ]);
                         if (count($existe_queue) > 0) {
                             foreach ($existe_queue as $q) {
                                 $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
                             }
+                            Log::info('[ContratosController::store][IP-Estatica] Queues existentes eliminadas', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'eliminadas'   => count($existe_queue),
+                            ]);
                         }
 
-                        $result = $API->comm(
-                            "/queue/simple/add",
-                            array(
-                                "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
-                                "target"          => $request->ip,
-                                "max-limit"       => $plan->upload . '/' . $plan->download,
-                                "burst-limit"     => $burst_limit,
-                                "burst-threshold" => $burst_threshold,
-                                "burst-time"      => $burst_time,
-                                "priority"        => $priority,
-                                "limit-at"        => $limit_at,
-                                // "queue"           => $plan->queue_type_subida.'/'.$plan->queue_type_bajada
-                                "queue"           => $queue
-                            )
+                        $queueData = array(
+                            "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
+                            "target"          => $request->ip,
+                            "max-limit"       => $plan->upload . '/' . $plan->download,
+                            "burst-limit"     => $burst_limit,
+                            "burst-threshold" => $burst_threshold,
+                            "burst-time"      => $burst_time,
+                            "priority"        => $priority,
+                            "limit-at"        => $limit_at,
+                            "queue"           => $queue
                         );
-                        Log::info($result);
+
+                        Log::info('[ContratosController::store][IP-Estatica] Enviando /queue/simple/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'queue_data'   => $queueData,
+                        ]);
+
+                        $result = $API->comm("/queue/simple/add", $queueData);
+
+                        Log::info('[ContratosController::store][IP-Estatica] Respuesta /queue/simple/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $result,
+                            'es_error'     => (is_array($result) && isset($result[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
 
                         $name = $API->comm(
                             "/queue/simple/getall",
@@ -1187,21 +1361,43 @@ class ContratosController extends Controller
                             )
                         );
 
+                        Log::info('[ContratosController::store][IP-Estatica] Verificación /queue/simple/getall', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'ip_buscada'   => $request->ip,
+                            'queues_found' => count($name ?: []),
+                            'resultado'    => $name,
+                        ]);
+
                         if ($name) {
                             $registro = true;
+                            Log::info('[ContratosController::store][IP-Estatica] Queue confirmada — registro=true', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                            ]);
+                        } else {
+                            Log::warning('[ContratosController::store][IP-Estatica] Queue NO encontrada tras crearla — registro=false', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'ip'           => $request->ip,
+                            ]);
                         }
 
                         if ($request->ip_new) {
+                            Log::info('[ContratosController::store][IP-Estatica] Procesando ip_new', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'ip_new'       => $request->ip_new,
+                            ]);
+
                             if ($mikrotik->amarre_mac == 1) {
-                                $API->comm(
-                                    "/ip/arp/add",
-                                    array(
-                                        "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
-                                        "address"     => $request->ip_new,
-                                        "interface"   => $request->interfaz,
-                                        "mac-address" => $request->mac_address
-                                    )
+                                $arpDataNew = array(
+                                    "comment"     => $this->normaliza($servicio) . '-' . $nro_contrato,
+                                    "address"     => $request->ip_new,
+                                    "interface"   => $request->interfaz,
+                                    "mac-address" => $request->mac_address
                                 );
+                                Log::info('[ContratosController::store][IP-Estatica] /ip/arp/add para ip_new', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'arp_data'     => $arpDataNew,
+                                ]);
+                                $API->comm("/ip/arp/add", $arpDataNew);
                             }
 
                             // Limpieza preventiva por nombre
@@ -1212,53 +1408,7 @@ class ContratosController extends Controller
                                 }
                             }
 
-                            $result = $API->comm(
-                                "/queue/simple/add",
-                                array(
-                                    "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
-                                    "target"          => $request->ip,
-                                    "max-limit"       => $plan->upload . '/' . $plan->download,
-                                    "burst-limit"     => $burst_limit,
-                                    "burst-threshold" => $burst_threshold,
-                                    "burst-time"      => $burst_time,
-                                    "priority"        => $priority,
-                                    "limit-at"        => $limit_at
-                                )
-                            );
-                            Log::info($result);
-                        }
-                    }
-
-                    /*VLAN*/
-                    if ($request->conexion == 4) {
-                        $API->comm(
-                            "/interface/vlan/add",
-                            array(
-                                "name"        => $request->name_vlan,
-                                "vlan-id"     => $request->id_vlan,
-                                "interface"   => $request->interfaz
-                            )
-                        );
-
-                        // Limpieza preventiva por nombre
-                        $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
-                        if (count($existe_queue) > 0) {
-                            foreach ($existe_queue as $q) {
-                                $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
-                            }
-                        }
-
-                        $API->comm(
-                            "/ip/address/add",
-                            array(
-                                "address"     => $request->local_address,
-                                "interface"   => $request->name_vlan
-                            )
-                        );
-
-                        $result = $API->comm(
-                            "/queue/simple/add",
-                            array(
+                            $queueDataNew = array(
                                 "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
                                 "target"          => $request->ip,
                                 "max-limit"       => $plan->upload . '/' . $plan->download,
@@ -1267,19 +1417,121 @@ class ContratosController extends Controller
                                 "burst-time"      => $burst_time,
                                 "priority"        => $priority,
                                 "limit-at"        => $limit_at
+                            );
+
+                            Log::info('[ContratosController::store][IP-Estatica] /queue/simple/add para ip_new', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'queue_data'   => $queueDataNew,
+                            ]);
+
+                            $result = $API->comm("/queue/simple/add", $queueDataNew);
+
+                            Log::info('[ContratosController::store][IP-Estatica] Respuesta /queue/simple/add ip_new', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'respuesta'    => $result,
+                                'es_error'     => (is_array($result) && isset($result[0]['!trap'])) ? 'SI' : 'NO',
+                            ]);
+                        }
+                    }
+
+                    /*VLAN*/
+                    if ($request->conexion == 4) {
+                        Log::info('[ContratosController::store][VLAN] Iniciando registro VLAN', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'name_vlan'    => $request->name_vlan,
+                            'id_vlan'      => $request->id_vlan,
+                            'interfaz'     => $request->interfaz,
+                            'local_address'=> $request->local_address,
+                            'ip'           => $request->ip,
+                        ]);
+
+                        $vlanResult = $API->comm(
+                            "/interface/vlan/add",
+                            array(
+                                "name"        => $request->name_vlan,
+                                "vlan-id"     => $request->id_vlan,
+                                "interface"   => $request->interfaz
                             )
                         );
-                        Log::info($result);
+
+                        Log::info('[ContratosController::store][VLAN] Respuesta /interface/vlan/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $vlanResult,
+                            'es_error'     => (is_array($vlanResult) && isset($vlanResult[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
+
+                        // Limpieza preventiva por nombre
+                        $existe_queue = $API->comm("/queue/simple/getall", array("?name" => $this->normaliza($servicio) . '-' . $nro_contrato));
+                        Log::info('[ContratosController::store][VLAN] Queues existentes antes de limpiar', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'queues_found' => count($existe_queue ?: []),
+                        ]);
+                        if (count($existe_queue) > 0) {
+                            foreach ($existe_queue as $q) {
+                                $API->comm("/queue/simple/remove", array(".id" => $q['.id']));
+                            }
+                        }
+
+                        $ipAddressResult = $API->comm(
+                            "/ip/address/add",
+                            array(
+                                "address"     => $request->local_address,
+                                "interface"   => $request->name_vlan
+                            )
+                        );
+
+                        Log::info('[ContratosController::store][VLAN] Respuesta /ip/address/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $ipAddressResult,
+                            'es_error'     => (is_array($ipAddressResult) && isset($ipAddressResult[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
+
+                        $queueDataVlan = array(
+                            "name"            => $this->normaliza($servicio) . '-' . $nro_contrato,
+                            "target"          => $request->ip,
+                            "max-limit"       => $plan->upload . '/' . $plan->download,
+                            "burst-limit"     => $burst_limit,
+                            "burst-threshold" => $burst_threshold,
+                            "burst-time"      => $burst_time,
+                            "priority"        => $priority,
+                            "limit-at"        => $limit_at
+                        );
+
+                        Log::info('[ContratosController::store][VLAN] Enviando /queue/simple/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'queue_data'   => $queueDataVlan,
+                        ]);
+
+                        $result = $API->comm("/queue/simple/add", $queueDataVlan);
+
+                        Log::info('[ContratosController::store][VLAN] Respuesta /queue/simple/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $result,
+                            'es_error'     => (is_array($result) && isset($result[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
                     }
 
                     if ($mikrotik->regla_ips_autorizadas == 1) {
-                        $API->comm("/ip/firewall/address-list/add\n=list=ips_autorizadas\n=address=" . $request->ip);
+                        Log::info('[ContratosController::store] Agregando IP a ips_autorizadas (firewall)', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'ip'           => $request->ip,
+                        ]);
+                        $firewallResult = $API->comm("/ip/firewall/address-list/add\n=list=ips_autorizadas\n=address=" . $request->ip);
+                        Log::info('[ContratosController::store] Respuesta firewall/address-list/add', [
+                            'nro_contrato' => $nro_contrato ?? null,
+                            'respuesta'    => $firewallResult,
+                            'es_error'     => (is_array($firewallResult) && isset($firewallResult[0]['!trap'])) ? 'SI' : 'NO',
+                        ]);
                         $ip_autorizada = 1;
                     }
 
                     /*ACTIVE CONNECTION*/
                     if (isset($empresa->activeconn_secret) && $empresa->activeconn_secret == 1) {
                         if ($request->conexion == 1 && $request->usuario != null) {
+                            Log::info('[ContratosController::store][PPPoE] Habilitando secret via activeconn', [
+                                'nro_contrato' => $nro_contrato ?? null,
+                                'usuario'      => $request->usuario,
+                            ]);
                             $API->write('/ppp/secret/print', false);
                             $API->write('?name=' . $request->usuario, true);
                             $ARRAYS = $API->read();
@@ -1287,14 +1539,43 @@ class ContratosController extends Controller
                                 $API->write('/ppp/secret/enable', false);
                                 $API->write('=numbers=' . $ARRAYS[0]['.id'], true);
                                 $API->read();
+                                Log::info('[ContratosController::store][PPPoE] Secret habilitado correctamente', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'secret_id'    => $ARRAYS[0]['.id'] ?? null,
+                                ]);
+                            } else {
+                                Log::warning('[ContratosController::store][PPPoE] Secret no encontrado al intentar habilitar', [
+                                    'nro_contrato' => $nro_contrato ?? null,
+                                    'usuario'      => $request->usuario,
+                                ]);
                             }
                         }
-                    } 
+                    }
 
                     $API->disconnect();
 
-                }else {
+                    Log::info('[ContratosController::store] Desconectado de MikroTik — resumen del registro', [
+                        'nro_contrato'  => $nro_contrato ?? null,
+                        'mikrotik_ip'   => $mikrotik->ip,
+                        'registro'      => $registro,
+                        'ip_autorizada' => $ip_autorizada,
+                        'conexion_tipo' => $request->conexion,
+                        'simple_queue'  => $request->simple_queue,
+                    ]);
+
+                } else {
                     $mensaje = 'La conexión a la mikrotik ' . $mikrotik->nombre . ' no se pudo establecer';
+                    Log::error('[ContratosController::store] Fallo de conexión a MikroTik API', [
+                        'mikrotik_id'   => $mikrotik->id,
+                        'mikrotik_nombre'=> $mikrotik->nombre,
+                        'mikrotik_ip'   => $mikrotik->ip,
+                        'puerto_api'    => $mikrotik->puerto_api,
+                        'usuario_mk'    => $mikrotik->usuario,
+                        'nro_contrato'  => $nro_contrato ?? null,
+                        'plan_id'       => $plan->id ?? null,
+                        'ip'            => $request->ip,
+                        'conexion_tipo' => $request->conexion,
+                    ]);
                     return redirect('empresa/contratos')->with('danger', $mensaje);
                 }
             }
@@ -1503,7 +1784,28 @@ class ContratosController extends Controller
             } else {
                 $contrato->pago_emitir = 0;
             }
+
+            Log::info('[ContratosController::store] Guardando contrato en BD', [
+                'nro_contrato'             => $nro_contrato ?? null,
+                'client_id'                => $request->client_id,
+                'server_configuration_id'  => $request->server_configuration_id,
+                'plan_id'                  => $request->plan_id,
+                'conexion'                 => $request->conexion,
+                'simple_queue'             => $request->simple_queue,
+                'ip'                       => $request->ip,
+                'usuario_pppoe'            => $request->usuario,
+                'registro_mk'              => $registro,
+            ]);
+
             $contrato->save();
+
+            Log::info('[ContratosController::store] Contrato guardado en BD exitosamente', [
+                'contrato_id'   => $contrato->id,
+                'nro_contrato'  => $contrato->nro,
+                'registro_mk'   => $registro,
+                'empresa'       => $contrato->empresa,
+                'operador'      => Auth::user()->id,
+            ]);
 
             $nro->contrato = $nro_contrato + 1;
             $nro->save();
@@ -1513,6 +1815,10 @@ class ContratosController extends Controller
                 try {
                     $this->createFacturaProrrateo($contrato);
                 } catch (\Exception $e) {
+                    Log::error('[ContratosController::store] Error generando factura de prorrateo', [
+                        'contrato_id' => $contrato->id,
+                        'error'       => $e->getMessage(),
+                    ]);
                     return redirect('empresa/contratos/' . $contrato->id)->with('danger', 'CONTRATO CREADO PERO NO SE PUDO GENERAR LA FACTURA: ' . $e->getMessage());
                 }
             }
@@ -1522,6 +1828,13 @@ class ContratosController extends Controller
             } else {
                 $mensaje = 'SE HA CREADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS';
             }
+
+            Log::info('[ContratosController::store] Proceso completado', [
+                'contrato_id'  => $contrato->id,
+                'nro_contrato' => $contrato->nro,
+                'registro_mk'  => $registro,
+                'mensaje_final'=> $mensaje,
+            ]);
 
             return redirect('empresa/contratos/' . $contrato->id)->with('success', $mensaje);
 
