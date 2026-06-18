@@ -8,15 +8,18 @@
 # - Opcionalmente limpia config cache y reinicia el contenedor de cada cliente.
 #
 # Uso:
-#   ./fix-btw-env.sh                 # solo edita los .env (dry-run de reinicio)
-#   ./fix-btw-env.sh --restart       # además limpia config y reinicia contenedores
+#   ./fix-btw-env.sh                 # solo edita los .env
+#   ./fix-btw-env.sh --recreate      # además recrea los contenedores (SKIP_BUILD=1 ./deploy.sh)
+#
+# IMPORTANTE: el .env se inyecta al contenedor con `env_file:` (solo al CREARSE
+# el contenedor). `docker compose restart` NO recarga env_file: hay que RECREAR
+# el contenedor (`up --force-recreate`), que es justo lo que hace deploy.sh.
 #
 set -euo pipefail
 
 # ── Rutas ──────────────────────────────────────────────────────────────────
 BASE_DIR="/opt/integra/int-istinge"
 CLIENTS_DIR="${BASE_DIR}/clientes"
-COMPOSE_FILE="${BASE_DIR}/docker-compose.client.yml"
 
 # ── Valores canónicos BTW ──────────────────────────────────────────────────
 BTW_TEST_MODE="0"
@@ -24,8 +27,8 @@ BTW_TEST_CREDENTIAL="dRhYZzSovk1dv0eTgj8w2VCySgkmogoKMApJbrS79e6851d9"
 BTW_URL_TEST="https://btw.gestorudesarrollo.com"
 BTW_URL_PROD="https://btw.gestorudesarrollo.com"
 
-RESTART=0
-[ "${1:-}" = "--restart" ] && RESTART=1
+RECREATE=0
+[ "${1:-}" = "--recreate" ] && RECREATE=1
 
 TS="$(date +%Y%m%d-%H%M%S)"
 
@@ -71,18 +74,19 @@ for dir in "$CLIENTS_DIR"/*/; do
 
   editados=$((editados+1))
   echo "  [$cliente] .env actualizado (respaldo: .env.bak-${TS})"
-
-  if [ "$RESTART" -eq 1 ]; then
-    svc="${cliente}-app"
-    echo "      -> config:clear + restart ($svc)"
-    docker compose -f "$COMPOSE_FILE" exec -T "$svc" php artisan config:clear || \
-      echo "      (aviso: no se pudo limpiar config en $svc)"
-    docker compose -f "$COMPOSE_FILE" restart "$svc" || \
-      echo "      (aviso: no se pudo reiniciar $svc)"
-  fi
 done
 
 echo ""
 echo "==> Resumen: $total clientes | $editados editados | $sin_env sin .env"
-[ "$RESTART" -eq 0 ] && echo "==> No se reiniciaron contenedores. Corre con --restart para aplicar config:clear + restart."
 echo "==> Respaldos creados con sufijo .bak-${TS}"
+
+if [ "$RECREATE" -eq 1 ]; then
+  echo ""
+  echo "==> Recreando contenedores (SKIP_BUILD=1 ./deploy.sh) para que tomen el env_file..."
+  SKIP_BUILD=1 "${BASE_DIR}/deploy.sh"
+else
+  echo "==> Los .env quedaron editados pero los contenedores SIGUEN con el entorno viejo."
+  echo "    Para aplicarlo recrea los contenedores (NO basta 'restart'):"
+  echo "        SKIP_BUILD=1 ./deploy.sh            # toda la flota"
+  echo "        SKIP_BUILD=1 ./deploy.sh <cliente>  # uno puntual"
+fi
