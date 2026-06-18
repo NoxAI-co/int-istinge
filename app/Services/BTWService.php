@@ -15,8 +15,22 @@ class BTWService
 
     public function __construct()
     {
-        $this->baseUri = env("BTW_TEST_MODE") == 1 ? env('BTW_URL_TEST') : env('BTW_URL_PROD');
-        $this->secretKey =  env("BTW_TEST_CREDENTIAL");
+        // IMPORTANTE: leemos con getenv() primero. Dentro del contenedor el .env
+        // NO existe; las variables llegan como entorno de Docker (env_file). El PHP
+        // CLI (cron vía `schedule:run`) no puebla $_ENV/$_SERVER, así que el env()
+        // de Laravel devuelve null y se generaba "cURL error 3" (URL vacía) solo en
+        // el cron, no en web. getenv() ve el entorno real en ambos SAPI; env() queda
+        // como respaldo para entornos no-Docker (local con .env).
+        $testMode = getenv('BTW_TEST_MODE');
+        if ($testMode === false) {
+            $testMode = env('BTW_TEST_MODE');
+        }
+
+        $urlTest = getenv('BTW_URL_TEST') ?: env('BTW_URL_TEST');
+        $urlProd = getenv('BTW_URL_PROD') ?: env('BTW_URL_PROD');
+
+        $this->baseUri = ((int) $testMode === 1) ? $urlTest : $urlProd;
+        $this->secretKey = getenv('BTW_TEST_CREDENTIAL') ?: env('BTW_TEST_CREDENTIAL');
         $this->options = [
             'timeout' => 90,
             'connect_timeout' => 90,
