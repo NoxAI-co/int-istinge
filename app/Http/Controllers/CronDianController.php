@@ -538,6 +538,12 @@ class CronDianController extends Controller
         foreach ($facturas as $index => $factura) {
             $tiempoInicio = microtime(true);
 
+            // ── Throttle entre facturas: evita saturar/bloquear el servidor BTW
+            //     al enviar el lote en ráfaga (no aplica a la primera). ──
+            if ($index > 0) {
+                usleep(500000); // 0.5s
+            }
+
             // ── 5a: Verificar anti-duplicado por código ──
             $duplicado = Factura::where('codigo', $factura->codigo)
                 ->where('emitida', 1)
@@ -654,12 +660,16 @@ class CronDianController extends Controller
             $cufe = null;
             $mensajeDetalle = '';
 
+            $fueErrorConexion = false;
             for ($intento = 1; $intento <= 2; $intento++) {
                 $intentos = $intento;
 
                 if ($intento === 2) {
-                    $this->dianLog->info("Reintentando factura id={$factura->id} (intento 2) en 3s...");
-                    sleep(3);
+                    // Backoff: si el primer intento falló por conexión, esperar más
+                    // para dar tiempo a que BTW se recupere de la saturación.
+                    $espera = $fueErrorConexion ? 8 : 3;
+                    $this->dianLog->info("Reintentando factura id={$factura->id} (intento 2) en {$espera}s...");
+                    sleep($espera);
                 }
 
                 try {
@@ -672,6 +682,7 @@ class CronDianController extends Controller
                         break;
                     } else {
                         $mensajeDetalle = $resultado['mensaje'] ?? 'Error desconocido en BTW';
+                        $fueErrorConexion = !empty($resultado['esErrorConexion']);
                     }
                 } catch (\Throwable $e) {
                     $mensajeDetalle = 'Exception: ' . $e->getMessage();
@@ -938,12 +949,15 @@ class CronDianController extends Controller
 
             // Error genérico o error retornado por BTW como 'error'
             $mensajeError = 'Error desconocido';
-            if (isset($response->status) && $response->status == 'error') {
+            if (isset($response->esErrorConexion) && $response->esErrorConexion) {
+                // No es un rechazo DIAN: es un fallo de red/TLS/timeout al conectar con BTW.
+                $mensajeError = 'Error de conexión con BTW: ' . ($response->errorReal ?? 'sin detalle');
+            } elseif (isset($response->status) && $response->status == 'error') {
                 $mensajeError = $response->message ?? 'Error retornado por BTW sin mensaje';
             } elseif (isset($response->success) && $response->success == false) {
                 $mensajeError = $response->message ?? 'Error success=false en BTW';
             } elseif (isset($response->errorMessage)) {
-                $mensajeError = $response->errorMessage;
+                $mensajeError = $response->errorMessage . (isset($response->errorReal) ? ': ' . $response->errorReal : '');
             } elseif (isset($response->statusCode)) {
                 $mensajeError = "Error HTTP " . $response->statusCode . (isset($response->th['message']) ? ": " . $response->th['message'] : "");
             }
@@ -960,7 +974,11 @@ class CronDianController extends Controller
                 // Silenciar error de guardado
             }
 
-            return ['success' => false, 'mensaje' => $mensajeError];
+            return [
+                'success'         => false,
+                'mensaje'         => $mensajeError,
+                'esErrorConexion' => isset($response->esErrorConexion) ? (bool) $response->esErrorConexion : false,
+            ];
         });
     }
 

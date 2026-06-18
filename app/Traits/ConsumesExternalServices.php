@@ -43,14 +43,30 @@ trait ConsumesExternalServices
 
         } catch (\Throwable $th) {
             $body = null;
-            if ($th instanceof RequestException && $th->hasResponse()) {
+            $tieneRespuesta = $th instanceof RequestException && $th->hasResponse();
+            if ($tieneRespuesta) {
                 $body = json_decode($th->getResponse()->getBody()->getContents(), true);
             }
 
+            // Distinguir error de conexión (sin respuesta HTTP) de un rechazo del servidor.
+            // Sin respuesta => problema de red/TLS/timeout, NO un rechazo DIAN.
+            $esErrorConexion = !$tieneRespuesta;
+
+            Log::error('ConsumesExternalServices error', [
+                'url'              => $requestUrl,
+                'exceptionClass'  => get_class($th),
+                'code'            => $th->getCode(),
+                'message'         => $th->getMessage(),
+                'esErrorConexion' => $esErrorConexion,
+                'body'            => $body,
+            ]);
+
             return [
-                'statusCode' => $th->getCode() ?: 400,
-                'errorMessage' => "Error al realizar la petición",
-                'th' => $body,
+                'statusCode'      => $th->getCode() ?: 400,
+                'errorMessage'    => "Error al realizar la petición",
+                'esErrorConexion' => $esErrorConexion,
+                'errorReal'       => $th->getMessage(),
+                'th'              => $body,
             ];
         }
     }
