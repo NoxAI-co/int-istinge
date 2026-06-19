@@ -1616,6 +1616,7 @@ class GruposCorteController extends Controller
 
     public function analisisCortes(int $id)
     {
+        $this->getAllPermissions(Auth::user()->id);
         $empresa = Auth::user()->empresa;
         $grupo   = GrupoCorte::where('empresa', $empresa)->findOrFail($id);
         $grupos  = GrupoCorte::where('empresa', $empresa)->orderBy('nombre')->get(['id', 'nombre', 'status']);

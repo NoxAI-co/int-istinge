@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
 @section('boton')
-<a href="{{ route('grupos-corte.index') }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-backward"></i> Regresar</a>
-<a href="{{ route('grupos-corte.show', $grupo->id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-eye"></i> Ver Grupo</a>
-<a href="{{ route('grupos-corte.analisis-ciclo', $grupo->id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-chart-bar"></i> Ciclos</a>
-<button id="btn-refresh" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:8px;"><i class="fas fa-sync-alt"></i> Actualizar</button>
+<a href="{{ route('grupos-corte.index') }}" class="btn btn-sm" style="background:#fff;color:#374151;border:1px solid #dee2e6;border-radius:8px;"><i class="fas fa-backward"></i> Regresar</a>
+<a href="{{ route('grupos-corte.show', $grupo->id) }}" class="btn btn-sm" style="background:#fff;color:#374151;border:1px solid #dee2e6;border-radius:8px;"><i class="fas fa-eye"></i> Ver Grupo</a>
+<a href="{{ route('grupos-corte.analisis-ciclo', $grupo->id) }}" class="btn btn-sm" style="background:#fff;color:#374151;border:1px solid #dee2e6;border-radius:8px;"><i class="fas fa-chart-bar"></i> Ciclos</a>
+<button id="btn-refresh" class="btn btn-sm" style="background:#fff;color:#374151;border:1px solid #dee2e6;border-radius:8px;"><i class="fas fa-sync-alt"></i> Actualizar</button>
 @endsection
 
 @section('style')
@@ -22,15 +22,15 @@
 .ac-dark .body-card,
 .ac-dark .body-oscuro,
 .ac-dark .body-oscuro2 {
-    background: #0d0d0d !important;
-    border-color: #1a1a1a !important;
+    background: #f4f5f7 !important;
+    border-color: #f1f3f5 !important;
 }
 .ac-dark #titulo,
 .ac-dark .xp7jhwk h3 {
-    color: #e5e5e5 !important;
+    color: #1f2937 !important;
 }
 .ac-dark .xp7jhwk {
-    border-bottom: 1px solid #1f1f1f !important;
+    border-bottom: 1px solid #e5e7eb !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@
    ═══════════════════════════════════════════════════════════ */
 .ac-view {
     font-family: 'Inter', sans-serif;
-    color: #e5e5e5;
+    color: #1f2937;
     padding: 0 0.5rem;
 }
 
@@ -49,16 +49,16 @@
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #1f1f1f;
+    border-bottom: 1px solid #e5e7eb;
 }
 .ac-header-title {
     font-size: 1.15rem;
     font-weight: 600;
-    color: #f5f5f5;
+    color: #111827;
 }
 .ac-header-sub {
     font-size: 0.8rem;
-    color: #737373;
+    color: #6b7280;
     margin-top: 2px;
 }
 .ac-header-right {
@@ -67,26 +67,26 @@
     gap: 0.5rem;
 }
 .ac-date-input {
-    background: #171717 !important;
-    border: 1px solid #262626 !important;
-    color: #a3a3a3 !important;
+    background: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+    color: #6b7280 !important;
     border-radius: 8px !important;
     padding: 0.35rem 0.7rem !important;
     font-size: 0.8rem !important;
     font-family: 'Inter', sans-serif !important;
 }
-.ac-date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+.ac-date-input::-webkit-calendar-picker-indicator { filter: invert(0); }
 .ac-btn-sm {
-    background: #171717;
-    border: 1px solid #262626;
-    color: #a3a3a3;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    color: #6b7280;
     border-radius: 8px;
     padding: 0.4rem 0.75rem;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.15s;
 }
-.ac-btn-sm:hover { background: #262626; color: #e5e5e5; }
+.ac-btn-sm:hover { background: #dee2e6; color: #1f2937; }
 
 /* ── KPI Row (matches screenshot 1) ─────────────────────── */
 .ac-kpi-row {
@@ -97,10 +97,10 @@
     padding-bottom: 0.25rem;
 }
 .ac-kpi-row::-webkit-scrollbar { height: 4px; }
-.ac-kpi-row::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+.ac-kpi-row::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 4px; }
 .ac-kpi {
-    background: #141414;
-    border: 1px solid #262626;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 14px;
     padding: 1.1rem 1.25rem;
     min-width: 165px;
@@ -108,13 +108,14 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04);
 }
-.ac-kpi:hover { border-color: #404040; }
+.ac-kpi:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(16,24,40,0.08); }
 .ac-kpi-title {
     font-size: 0.6rem;
     font-weight: 700;
-    color: #737373;
+    color: #6b7280;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
@@ -128,7 +129,7 @@
 }
 .ac-kpi-sub {
     font-size: 0.7rem;
-    color: #525252;
+    color: #9ca3af;
     font-weight: 500;
 }
 .ac-kpi-icon {
@@ -147,8 +148,8 @@
 }
 .ac-tabs {
     display: inline-flex;
-    background: #141414;
-    border: 1px solid #262626;
+    background: #f1f3f5;
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 4px;
     list-style: none;
@@ -158,7 +159,7 @@
 .ac-tabs .nav-link {
     background: transparent !important;
     border: none !important;
-    color: #737373 !important;
+    color: #6b7280 !important;
     font-weight: 500;
     font-size: 0.85rem;
     padding: 0.55rem 1.1rem;
@@ -168,10 +169,11 @@
     align-items: center;
     gap: 6px;
 }
-.ac-tabs .nav-link:hover { color: #d4d4d4 !important; }
+.ac-tabs .nav-link:hover { color: #374151 !important; }
 .ac-tabs .nav-link.active {
-    background: #262626 !important;
-    color: #f5f5f5 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .ac-tabs .nav-link.active::after { display: none !important; }
 
@@ -184,12 +186,12 @@
 }
 .ac-pill {
     background: transparent;
-    border: 1px solid #262626;
+    border: 1px solid #dee2e6;
     border-radius: 20px;
     padding: 0.3rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #737373;
+    color: #6b7280;
     cursor: pointer;
     transition: all 0.15s;
     display: flex;
@@ -197,11 +199,11 @@
     gap: 5px;
     white-space: nowrap;
 }
-.ac-pill:hover, .ac-pill.active { background: #1f1f1f; color: #e5e5e5; border-color: #404040; }
+.ac-pill:hover, .ac-pill.active { background: #e5e7eb; color: #1f2937; border-color: #adb5bd; }
 .ac-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .dot-green { background: #22c55e; }
 .dot-orange { background: #f97316; }
-.dot-grey { background: #525252; }
+.dot-grey { background: #9ca3af; }
 .dot-red { background: #ef4444; }
 
 /* ── Action buttons ──────────────────────────────────────── */
@@ -240,8 +242,8 @@
 
 /* ── Search ──────────────────────────────────────────────── */
 .ac-search {
-    background: #141414;
-    border: 1px solid #262626;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 10px;
     padding: 0.7rem 1rem;
     margin-bottom: 1rem;
@@ -249,53 +251,54 @@
 .ac-search input {
     background: transparent;
     border: none;
-    color: #e5e5e5;
+    color: #1f2937;
     width: 100%;
     outline: none;
     font-size: 0.85rem;
     font-family: 'Inter', sans-serif;
 }
-.ac-search input::placeholder { color: #404040; }
+.ac-search input::placeholder { color: #adb5bd; }
 
 /* ── Table (matches screenshot 3) ────────────────────────── */
 .ac-table-wrap {
-    background: #141414;
-    border: 1px solid #1f1f1f;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.05);
 }
 .ac-table {
     width: 100%;
     border-collapse: collapse;
-    color: #e5e5e5;
+    color: #1f2937;
     margin: 0;
 }
 .ac-table thead th {
     background: transparent;
-    color: #525252;
+    color: #9ca3af;
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding: 0.9rem 1rem;
-    border-bottom: 1px solid #1f1f1f;
+    border-bottom: 1px solid #e5e7eb;
     border-top: none;
     white-space: nowrap;
 }
 .ac-table tbody td {
     padding: 0.85rem 1rem;
-    border-top: 1px solid #1a1a1a;
+    border-top: 1px solid #f1f3f5;
     font-size: 0.85rem;
     vertical-align: middle;
 }
-.ac-table tbody tr:hover { background: #1a1a1a; }
+.ac-table tbody tr:hover { background: #f1f3f5; }
 
-.ac-client-name { font-weight: 600; color: #f5f5f5; display: block; }
-.ac-client-doc { font-size: 0.7rem; color: #525252; }
-.ac-ip { font-weight: 600; color: #e5e5e5; display: block; }
-.ac-pppoe { font-size: 0.7rem; color: #737373; }
+.ac-client-name { font-weight: 600; color: #111827; display: block; }
+.ac-client-doc { font-size: 0.7rem; color: #9ca3af; }
+.ac-ip { font-weight: 600; color: #1f2937; display: block; }
+.ac-pppoe { font-size: 0.7rem; color: #6b7280; }
 .ac-olt { font-size: 0.65rem; color: #3b82f6; font-weight: 600; }
-.ac-dim { color: #737373; font-size: 0.8rem; }
+.ac-dim { color: #6b7280; font-size: 0.8rem; }
 .ac-days-red { color: #ef4444; font-weight: 700; font-size: 0.85rem; }
 
 /* Badges */
@@ -312,8 +315,8 @@
 .ac-badge::before { content:''; width:6px; height:6px; border-radius:50%; }
 .ac-badge-green { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
 .ac-badge-green::before { background: #22c55e; }
-.ac-badge-grey { background: rgba(255,255,255,0.05); color: #a3a3a3; border: 1px solid #262626; }
-.ac-badge-grey::before { background: #525252; }
+.ac-badge-grey { background: #f1f3f5; color: #6b7280; border: 1px solid #dee2e6; }
+.ac-badge-grey::before { background: #9ca3af; }
 .ac-badge-orange { background: rgba(249,115,22,0.1); color: #fb923c; border: 1px solid rgba(249,115,22,0.2); }
 .ac-badge-orange::before { background: #f97316; }
 .ac-badge-cyan { background: rgba(6,182,212,0.1); color: #22d3ee; border: 1px solid rgba(6,182,212,0.2); }
@@ -324,20 +327,20 @@
 .ac-badge-blue::before { background: #3b82f6; }
 
 /* ── Modals ──────────────────────────────────────────────── */
-.ac-dark .modal-content { background: #171717 !important; border: 1px solid #262626; border-radius: 12px; color: #e5e5e5; }
-.ac-dark .modal-header { border-bottom: 1px solid #262626; }
-.ac-dark .modal-footer { border-top: 1px solid #262626; }
-.ac-dark .close { color: #e5e5e5; text-shadow: none; opacity: 1; }
+.ac-dark .modal-content { background: #ffffff !important; border: 1px solid #dee2e6; border-radius: 12px; color: #1f2937; }
+.ac-dark .modal-header { border-bottom: 1px solid #dee2e6; }
+.ac-dark .modal-footer { border-top: 1px solid #dee2e6; }
+.ac-dark .close { color: #1f2937; text-shadow: none; opacity: 1; }
 .ac-dark .alert-warning { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); color: #eab308; }
 
 /* ── Empty state ─────────────────────────────────────────── */
-.ac-empty { text-align: center; padding: 3rem 1rem; color: #404040; }
+.ac-empty { text-align: center; padding: 3rem 1rem; color: #adb5bd; }
 .ac-empty i { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
 
 /* ── MK Sync section ─────────────────────────────────────── */
 .ac-mk-bar {
-    background: #141414;
-    border: 1px solid #262626;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 12px;
     padding: 1.25rem;
     display: flex;
@@ -347,18 +350,18 @@
     flex-wrap: wrap;
 }
 .ac-mk-bar select {
-    background: #0d0d0d !important;
-    border: 1px solid #262626 !important;
-    color: #a3a3a3 !important;
+    background: #f4f5f7 !important;
+    border: 1px solid #dee2e6 !important;
+    color: #6b7280 !important;
     border-radius: 8px !important;
 }
-.ac-mk-bar label { color: #525252; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+.ac-mk-bar label { color: #9ca3af; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
 
 /* Progress */
 .ac-progress-wrap {
     display: none;
-    background: #141414;
-    border: 1px solid #262626;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 12px;
     padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
@@ -396,7 +399,7 @@
         <div class="ac-kpi">
             <div>
                 <div class="ac-kpi-title">Total Contratos</div>
-                <div class="ac-kpi-value" style="color:#e5e5e5;" id="kpi-total">0</div>
+                <div class="ac-kpi-value" style="color:#1f2937;" id="kpi-total">0</div>
                 <div class="ac-kpi-sub"><span id="kpi-activos">0</span> activos</div>
             </div>
             <div class="ac-kpi-icon" style="background:rgba(99,102,241,0.1);color:#818cf8;"><i class="fas fa-user-friends"></i></div>
@@ -447,7 +450,7 @@
     <div class="ac-progress-wrap" id="progress-bar-wrap">
         <div class="d-flex justify-content-between mb-2" style="font-size:0.8rem;">
             <span id="progress-label" style="color:#ef4444;font-weight:600;">Ejecutando corte...</span>
-            <span id="progress-count" style="color:#737373;">0 / 0</span>
+            <span id="progress-count" style="color:#6b7280;">0 / 0</span>
         </div>
         <div class="progress"><div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div></div>
     </div>
@@ -457,7 +460,7 @@
         <ul class="ac-tabs nav" id="main-tabs" role="tablist">
             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-internet"><i class="fas fa-wifi" style="color:#3b82f6;"></i> Internet</a></li>
             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-tv"><i class="fas fa-tv" style="color:#a855f7;"></i> Televisión</a></li>
-            <li class="nav-item"><a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial"><i class="fas fa-clock" style="color:#737373;"></i> Historial</a></li>
+            <li class="nav-item"><a class="nav-link" id="tab-historial-link" data-toggle="tab" href="#tab-historial"><i class="fas fa-clock" style="color:#6b7280;"></i> Historial</a></li>
             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-mk"><i class="fas fa-server" style="color:#06b6d4;"></i> Sync MK</a></li>
         </ul>
     </div>
@@ -487,7 +490,7 @@
                         <th>Cliente</th><th>Contrato</th><th>Estado</th><th>IP / Acceso</th><th>MikroTik</th><th>Últ. Factura</th><th>Días Vencida</th>
                     </tr></thead>
                     <tbody id="tbody-internet">
-                        <tr><td colspan="7" class="text-center py-5" style="color:#404040;">Cargando contratos...</td></tr>
+                        <tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;">Cargando contratos...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -502,7 +505,7 @@
             <div class="ac-table-wrap">
                 <table class="ac-table" id="tabla-tv">
                     <thead><tr><th>Cliente</th><th>Contrato</th><th>Serial ONU</th><th>Factura</th><th>Valor</th><th>Vencimiento</th><th>Estado</th></tr></thead>
-                    <tbody id="tbody-tv"><tr><td colspan="7" class="text-center py-5" style="color:#404040;">Cargando...</td></tr></tbody>
+                    <tbody id="tbody-tv"><tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;">Cargando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -510,13 +513,13 @@
         {{-- ── TAB HISTORIAL ─────────────────────────────────── --}}
         <div class="tab-pane fade" id="tab-historial" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <span style="font-weight:600;color:#e5e5e5;">Historial de Ejecución</span>
+                <span style="font-weight:600;color:#1f2937;">Historial de Ejecución</span>
                 <button id="btn-refresh-historial" class="ac-btn-sm"><i class="fas fa-sync-alt"></i> Actualizar</button>
             </div>
             <div class="ac-table-wrap">
                 <table class="ac-table" id="tabla-historial">
                     <thead><tr><th>ID</th><th>Tipo</th><th>Procesados</th><th>Cortados</th><th>Omitidos</th><th>Errores</th><th>Duración</th><th>Ejecutó</th><th>Fecha</th><th></th></tr></thead>
-                    <tbody id="tbody-historial"><tr><td colspan="10" class="text-center py-5" style="color:#404040;">Cargando...</td></tr></tbody>
+                    <tbody id="tbody-historial"><tr><td colspan="10" class="text-center py-5" style="color:#adb5bd;">Cargando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -549,10 +552,10 @@
                 </ul>
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="mk-tab-faltantes">
-                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Factura</th><th>Valor</th></tr></thead><tbody id="tbody-mk-faltantes"><tr><td colspan="5" class="text-center py-4" style="color:#404040;">Sin datos</td></tr></tbody></table></div>
+                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Factura</th><th>Valor</th></tr></thead><tbody id="tbody-mk-faltantes"><tr><td colspan="5" class="text-center py-4" style="color:#adb5bd;">Sin datos</td></tr></tbody></table></div>
                     </div>
                     <div class="tab-pane fade" id="mk-tab-extra">
-                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>IP</th><th>Lista MK</th><th>Comentario</th></tr></thead><tbody id="tbody-mk-extra"><tr><td colspan="3" class="text-center py-4" style="color:#404040;">Sin datos</td></tr></tbody></table></div>
+                        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>IP</th><th>Lista MK</th><th>Comentario</th></tr></thead><tbody id="tbody-mk-extra"><tr><td colspan="3" class="text-center py-4" style="color:#adb5bd;">Sin datos</td></tr></tbody></table></div>
                     </div>
                 </div>
             </div>
@@ -567,7 +570,7 @@
 <div class="ac-dark">
 <div class="modal fade" id="modal-confirmar-corte" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" style="color:#ef4444;font-weight:700;"><i class="fas fa-ban mr-2"></i>Confirmar Corte Internet</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
-    <div class="modal-body"><p>Se ejecutará el corte para <strong id="modal-corte-count" style="color:#ef4444;font-size:1.3rem;">0</strong> contratos pendientes.</p><div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-1"></i> IPs serán movidas a la lista <code style="color:#eab308;">morosos</code> en MikroTik.</div><div class="form-group mt-3 mb-0"><label class="small" style="color:#737373;">Fecha de corte</label><input type="date" id="modal-fecha-corte" class="ac-date-input w-100"></div></div>
+    <div class="modal-body"><p>Se ejecutará el corte para <strong id="modal-corte-count" style="color:#ef4444;font-size:1.3rem;">0</strong> contratos pendientes.</p><div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-1"></i> IPs serán movidas a la lista <code style="color:#eab308;">morosos</code> en MikroTik.</div><div class="form-group mt-3 mb-0"><label class="small" style="color:#6b7280;">Fecha de corte</label><input type="date" id="modal-fecha-corte" class="ac-date-input w-100"></div></div>
     <div class="modal-footer"><button type="button" class="ac-btn-sm" data-dismiss="modal">Cancelar</button><button type="button" id="btn-confirmar-corte" class="ac-btn-red">Ejecutar Corte</button></div>
 </div></div></div>
 
@@ -585,7 +588,7 @@
 
 <div class="modal fade" id="modal-log-detail" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" style="font-weight:700;">Detalle de ejecución</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
-    <div class="modal-body"><div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Tipo</th><th>Resultado</th><th>Método</th><th>Descripción</th></tr></thead><tbody id="log-detail-body"><tr><td colspan="7" class="text-center py-4" style="color:#404040;">Cargando…</td></tr></tbody></table></div></div>
+    <div class="modal-body"><div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>Tipo</th><th>Resultado</th><th>Método</th><th>Descripción</th></tr></thead><tbody id="log-detail-body"><tr><td colspan="7" class="text-center py-4" style="color:#adb5bd;">Cargando…</td></tr></tbody></table></div></div>
 </div></div></div>
 </div>
 
@@ -665,7 +668,7 @@
         });
 
         if(!filtered.length) {
-            $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;">No hay contratos para mostrar</td></tr>');
+            $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;">No hay contratos para mostrar</td></tr>');
             return;
         }
         var h='';
@@ -685,7 +688,7 @@
     }
 
     function loadAll() {
-        $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando contratos...</td></tr>');
+        $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando contratos...</td></tr>');
         $.getJSON(URLS.allContracts).done(function(res) {
             allContracts = res.contratos || [];
             var stats = res.stats_internet || {};
@@ -725,7 +728,7 @@
 
     function loadTv() {
         var f = gf();
-        $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
+        $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
         $.getJSON(URLS.pendingTv+'?grupo_id='+GRUPO_ID+'&fecha='+f).done(function(res){
             var list=res.data||[]; $('#modal-corte-tv-count').text(list.length);
             if(!list.length){ $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#22c55e;"><i class="fas fa-check-circle mr-2"></i>Sin pendientes de corte TV</td></tr>'); return; }
@@ -736,10 +739,10 @@
     }
 
     function loadHist() {
-        $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#404040;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
+        $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
         $.getJSON(URLS.history).done(function(res){
             var data = res.logs || res || [];
-            if(!data.length){ $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#404040;">Sin historial</td></tr>'); return; }
+            if(!data.length){ $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#adb5bd;">Sin historial</td></tr>'); return; }
             var h='';
             data.forEach(function(r){
                 var tip = r.tipo==='internet'?'<span class="ac-badge ac-badge-blue">NET</span>':'<span class="ac-badge ac-badge-cyan">TV</span>';
@@ -815,10 +818,10 @@
     /* Historial detail */
     $(document).on('click','.btn-ver-detalle',function(){
         var logId=$(this).data('id');
-        $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#404040;">Cargando…</td></tr>');
+        $('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#adb5bd;">Cargando…</td></tr>');
         $('#modal-log-detail').modal('show');
         $.getJSON(URLS.historyDetail.replace('LOGID_PH',logId)).done(function(data){
-            var list=data.detalle||data||[]; if(!list.length){$('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#404040;">Sin detalle</td></tr>');return;}
+            var list=data.detalle||data||[]; if(!list.length){$('#log-detail-body').html('<tr><td colspan="7" class="text-center py-4" style="color:#adb5bd;">Sin detalle</td></tr>');return;}
             var h='';
             list.forEach(function(r){
                 var res=r.resultado==='cortado'?'<span class="ac-badge ac-badge-green">OK</span>':(r.resultado==='error'?'<span class="ac-badge ac-badge-red">ERROR</span>':'<span class="ac-badge ac-badge-grey">'+(r.resultado||'—')+'</span>');
