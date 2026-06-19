@@ -340,6 +340,21 @@
 .ac-empty { text-align: center; padding: 3rem 1rem; color: #adb5bd; }
 .ac-empty i { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
 
+/* ── Panel motivos de no-corte (bloqueados) ──────────────── */
+.ac-blocked { background:#fff; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:1rem; box-shadow:0 1px 3px rgba(16,24,40,0.05); overflow:hidden; }
+.ac-blocked-head { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.1rem; cursor:pointer; font-size:0.85rem; color:#374151; gap:0.75rem; }
+.ac-blocked-head:hover { background:#f8f9fa; }
+.ac-blocked-head #blocked-total { color:#dc2626; font-weight:700; }
+.ac-blocked-body { border-top:1px solid #f1f3f5; }
+.ac-reason { border-bottom:1px solid #f1f3f5; }
+.ac-reason:last-child { border-bottom:none; }
+.ac-reason-head { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 1.1rem; cursor:pointer; font-size:0.82rem; font-weight:600; color:#374151; gap:0.75rem; }
+.ac-reason-head:hover { background:#f8f9fa; }
+.ac-reason-count { background:#f1f3f5; border:1px solid #dee2e6; color:#374151; border-radius:20px; padding:0.1rem 0.6rem; font-size:0.72rem; font-weight:700; }
+.ac-reason-detail table { width:100%; font-size:0.78rem; background:#fafbfc; }
+.ac-reason-detail th { padding:0.45rem 1.1rem; color:#9ca3af; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.5px; text-align:left; border-top:1px solid #f1f3f5; border-bottom:1px solid #f1f3f5; }
+.ac-reason-detail td { padding:0.45rem 1.1rem; border-bottom:1px solid #f1f3f5; }
+
 /* ── MK Sync section ─────────────────────────────────────── */
 .ac-mk-bar {
     background: #ffffff;
@@ -487,6 +502,15 @@
                 </div>
             </div>
 
+            {{-- Panel: por qué NO se cortaron (motivos de validación del cron) --}}
+            <div class="ac-blocked" id="blocked-panel" style="display:none;">
+                <div class="ac-blocked-head" id="blocked-toggle">
+                    <span><i class="fas fa-shield-alt" style="color:#3b82f6;margin-right:6px;"></i><b>¿Por qué no se cortaron?</b> <span id="blocked-total">0</span> contratos con factura vencida no se cortarán por los siguientes motivos</span>
+                    <i class="fas fa-chevron-down" id="blocked-chevron"></i>
+                </div>
+                <div class="ac-blocked-body" id="blocked-body" style="display:none;"></div>
+            </div>
+
             <div class="ac-search"><input type="text" id="search-contratos" placeholder="Buscar cliente, NIT, contrato, IP, usuario PPPoE..."></div>
 
             <div class="ac-table-wrap">
@@ -626,6 +650,7 @@
         habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
         clienteShow:      '{{ route("contactos.show",  ["contacto" => "CID_PH"]) }}',
         contratoShow:     '{{ route("contratos.show",  ["contrato" => "CID_PH"]) }}',
+        blockedReasons:   '{{ route("grupos-corte.blocked-reasons", ["id" => $grupo->id]) }}',
     };
 
     var allContracts = [];
@@ -749,6 +774,48 @@
         });
     }
 
+    var blockedLoaded = false;
+    function loadBlocked(force) {
+        if(blockedLoaded && !force) return;
+        blockedLoaded = true;
+        $.getJSON(URLS.blockedReasons).done(function(d){
+            var razones = d.razones || {}, detalle = d.detalle || {};
+            var bloq = 0; for(var k in razones){ bloq += (razones[k]||0); }
+            $('#blocked-total').text(bloq);
+            if(bloq <= 0){ $('#blocked-panel').hide(); return; }
+            $('#blocked-panel').show();
+
+            var meta = {
+                promesa_pago:  {lbl:'Promesa de pago vigente',                 icon:'fa-shield-alt', col:'#0891b2'},
+                ya_suspendido: {lbl:'Fecha de suspensión personalizada activa', icon:'fa-clock',      col:'#d97706'},
+                no_suspension: {lbl:'Período de no suspensión',                 icon:'fa-ban',        col:'#7c3aed'},
+                sin_mikrotik:  {lbl:'Sin MikroTik / OLT asignado',             icon:'fa-server',     col:'#ea580c'},
+                sin_ip:        {lbl:'Sin IP válida configurada',                icon:'fa-globe',      col:'#dc2626'},
+            };
+            var order = ['promesa_pago','ya_suspendido','no_suspension','sin_mikrotik','sin_ip'];
+            var h = '';
+            order.forEach(function(key){
+                var count = razones[key] || 0;
+                if(count <= 0) return;
+                var m = meta[key] || {lbl:key, icon:'fa-exclamation-triangle', col:'#6b7280'};
+                var rows = detalle[key] || [];
+                var det = '';
+                rows.forEach(function(r){
+                    var nombre = (r.cliente_nombre||'—');
+                    var cli = r.cliente_id ? '<a href="'+URLS.clienteShow.replace('CID_PH', r.cliente_id)+'" target="_blank" class="ac-link">'+nombre+'</a>' : nombre;
+                    var ctr = r.contrato_id ? '<a href="'+URLS.contratoShow.replace('CID_PH', r.contrato_id)+'" target="_blank" class="ac-link">'+(r.nro||'—')+'</a>' : (r.nro||'—');
+                    var dias = (r.dias_vencida>0) ? (r.dias_vencida+'d') : '—';
+                    det += '<tr><td>'+cli+'<div style="color:#9ca3af;font-size:0.7rem;">'+(r.cliente_nit||'')+'</div></td><td>'+ctr+'</td><td style="text-align:right;color:#dc2626;font-weight:700;">'+dias+'</td></tr>';
+                });
+                h += '<div class="ac-reason">'+
+                       '<div class="ac-reason-head" data-reason="'+key+'"><span><i class="fas '+m.icon+'" style="color:'+m.col+';margin-right:8px;"></i>'+m.lbl+'</span><span class="ac-reason-count">'+count+'</span></div>'+
+                       '<div class="ac-reason-detail" id="rdet-'+key+'" style="display:none;"><table><thead><tr><th>Cliente</th><th>Contrato</th><th style="text-align:right;">Días vencida</th></tr></thead><tbody>'+det+'</tbody></table></div>'+
+                     '</div>';
+            });
+            $('#blocked-body').html(h);
+        }).fail(function(){ blockedLoaded=false; });
+    }
+
     function loadTv() {
         var f = gf();
         $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
@@ -789,13 +856,17 @@
         $('html,body').animate({scrollTop: $('#tab-internet').offset().top - 90}, 250);
     }
     $('#kpi-card-pend').on('click', function(){ aplicarFiltro('pendientes'); });
+
+    // Panel "¿Por qué no se cortaron?" — toggles
+    $(document).on('click','#blocked-toggle',function(){ $('#blocked-body').slideToggle(150); $('#blocked-chevron').toggleClass('fa-chevron-down fa-chevron-up'); });
+    $(document).on('click','.ac-reason-head',function(){ $('#rdet-'+$(this).data('reason')).slideToggle(120); });
     $('#search-contratos').on('keyup', renderTable);
 
     /* Refresh */
-    $('#btn-apply-date, #btn-refresh').on('click',function(){ loadAll(); loadTv(); loadSummary(); });
+    $('#btn-apply-date, #btn-refresh').on('click',function(){ loadAll(); loadTv(); loadSummary(); loadBlocked(true); });
     $('#btn-refresh-historial').on('click', loadHist);
     $('a[href="#tab-historial"]').on('shown.bs.tab', loadHist);
-    $('#btn-clear-cache').on('click',function(){ $.ajax({url:URLS.limpiarCache,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}}).done(function(){loadAll();loadTv();loadSummary();}); });
+    $('#btn-clear-cache').on('click',function(){ $.ajax({url:URLS.limpiarCache,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}}).done(function(){loadAll();loadTv();loadSummary();loadBlocked(true);}); });
 
     /* MK Sync */
     $('#btn-analizar-mk').on('click',function(){
@@ -866,7 +937,7 @@
     });
 
     /* Init */
-    $(document).ready(function(){ loadSummary(); loadAll(); loadTv(); });
+    $(document).ready(function(){ loadSummary(); loadAll(); loadTv(); loadBlocked(); });
 })();
 </script>
 @endsection

@@ -267,7 +267,7 @@ class CortesAnalyzer
                     'cs.fecha_suspension', 'cs.tipo_nosuspension',
                     'cs.fecha_desde_nosuspension', 'cs.fecha_hasta_nosuspension',
                     'cs.server_configuration_id', 'cs.olt_sn_mac', 'cs.serial_onu',
-                    'contactos.nombre as cliente_nombre', 'contactos.nit as cliente_nit',
+                    'contactos.id as cliente_id', 'contactos.nombre as cliente_nombre', 'contactos.nit as cliente_nit',
                     'f.id as factura_id', 'f.vencimiento',
                     DB::raw('DATEDIFF(NOW(), f.vencimiento) as dias_vencida')
                 )
