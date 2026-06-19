@@ -408,7 +408,7 @@ class CortesAnalyzer
 
             $statsInternet = ['activo_ok'=>0,'pendiente_corte'=>0,'factura_antigua_vencida'=>0,
                 'bloqueado_promesa'=>0,'bloqueado_no_suspension'=>0,'bloqueado_sin_mk'=>0,
-                'bloqueado_sin_ip'=>0,'ya_cortado'=>0];
+                'bloqueado_sin_ip'=>0,'bloqueado_suspension'=>0,'ya_cortado'=>0];
             $statsTv = ['sin_tv'=>0,'tv_ok'=>0,'pendiente_corte_tv'=>0,'bloqueado_tv_promesa'=>0,'ya_cortado_tv'=>0];
 
             $result = [];
@@ -439,6 +439,10 @@ class CortesAnalyzer
                     $estadoInternet = 'bloqueado_sin_mk';
                 } elseif (! $c->ip || ! filter_var($c->ip, FILTER_VALIDATE_IP)) {
                     $estadoInternet = 'bloqueado_sin_ip';
+                } elseif ($c->fecha_suspension) {
+                    // El cron (getPendingInternetCuts) excluye contratos con fecha_suspension != null,
+                    // así que NO son "pendiente_corte": tienen una suspensión programada/manual.
+                    $estadoInternet = 'bloqueado_suspension';
                 } else {
                     $estadoInternet = 'pendiente_corte';
                 }

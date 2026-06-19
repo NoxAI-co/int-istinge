@@ -293,6 +293,9 @@
 }
 .ac-table tbody tr:hover { background: #f1f3f5; }
 
+.ac-link { text-decoration: none; }
+.ac-link:hover .ac-client-name, .ac-link:hover { color: #2563eb !important; text-decoration: underline; }
+.ac-link { color: #2563eb; }
 .ac-client-name { font-weight: 600; color: #111827; display: block; }
 .ac-client-doc { font-size: 0.7rem; color: #9ca3af; }
 .ac-ip { font-weight: 600; color: #1f2937; display: block; }
@@ -404,11 +407,11 @@
             </div>
             <div class="ac-kpi-icon" style="background:rgba(99,102,241,0.1);color:#818cf8;"><i class="fas fa-user-friends"></i></div>
         </div>
-        <div class="ac-kpi">
+        <div class="ac-kpi" id="kpi-card-pend" style="cursor:pointer;" title="Ver contratos por cortar">
             <div>
                 <div class="ac-kpi-title">Pendientes<br>Internet</div>
                 <div class="ac-kpi-value" style="color:#ef4444;" id="kpi-pend-inet">0</div>
-                <div class="ac-kpi-sub">por cortar ahora</div>
+                <div class="ac-kpi-sub">por cortar ahora <i class="fas fa-filter" style="font-size:0.6rem;opacity:0.6;"></i></div>
             </div>
             <div class="ac-kpi-icon" style="background:rgba(239,68,68,0.1);color:#f87171;"><i class="fas fa-wifi"></i></div>
         </div>
@@ -472,8 +475,10 @@
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:0.75rem;">
                 <div class="ac-filters">
                     <div class="ac-pill active" data-filter="todos">Todos <span id="f-todos" style="margin-left:2px;">0</span></div>
+                    <div class="ac-pill" data-filter="pendientes"><span class="dot dot-red"></span> Por cortar <span id="f-pend">0</span></div>
                     <div class="ac-pill" data-filter="aldia"><span class="dot dot-green"></span> Al día <span id="f-aldia">0</span></div>
                     <div class="ac-pill" data-filter="mora"><span class="dot dot-orange"></span> Fact. antigua <span id="f-antigua">0</span></div>
+                    <div class="ac-pill" data-filter="bloqueados"><span class="dot dot-blue" style="background:#3b82f6;"></span> Bloqueados <span id="f-bloq">0</span></div>
                     <div class="ac-pill" data-filter="suspendidos"><span class="dot dot-grey"></span> Suspendidos <span id="f-susp">0</span></div>
                 </div>
                 <div class="d-flex" style="gap:0.5rem;">
@@ -619,6 +624,8 @@
         ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
         ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
         habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
+        clienteShow:      '{{ route("contactos.show",  ["contacto" => "CID_PH"]) }}',
+        contratoShow:     '{{ route("contratos.show",  ["contrato" => "CID_PH"]) }}',
     };
 
     var allContracts = [];
@@ -634,12 +641,14 @@
             'factura_antigua_vencida':'ac-badge-orange', 'ya_cortado':'ac-badge-grey',
             'bloqueado_promesa':'ac-badge-cyan', 'bloqueado_no_suspension':'ac-badge-blue',
             'bloqueado_sin_mk':'ac-badge-orange', 'bloqueado_sin_ip':'ac-badge-orange',
+            'bloqueado_suspension':'ac-badge-blue',
         };
         var labels = {
             'activo_ok':'AL DÍA', 'pendiente_corte':'PEND. CORTE',
             'factura_antigua_vencida':'FACT. ANTIGUA', 'ya_cortado':'SUSPENDIDOS',
             'bloqueado_promesa':'PROMESA', 'bloqueado_no_suspension':'NO SUSP.',
             'bloqueado_sin_mk':'SIN MK', 'bloqueado_sin_ip':'SIN IP',
+            'bloqueado_suspension':'SUSP. PROGRAMADA',
         };
         var cls = m[estado] || 'ac-badge-grey';
         var lbl = labels[estado] || estado.toUpperCase();
@@ -651,7 +660,9 @@
         if(estado==='activo_ok') return 'aldia';
         if(estado==='factura_antigua_vencida') return 'mora';
         if(estado==='ya_cortado') return 'suspendidos';
-        return 'otros'; // pendiente_corte, bloqueado_* go to 'otros' but shown in 'todos'
+        if(estado==='pendiente_corte') return 'pendientes';
+        if(estado && estado.indexOf('bloqueado_')===0) return 'bloqueados';
+        return 'otros';
     }
 
     function renderTable() {
@@ -674,9 +685,16 @@
         var h='';
         filtered.forEach(function(c){
             var dias = c.dias_vencida > 0 ? '<span class="ac-days-red">'+c.dias_vencida+'d</span>' : '<span class="ac-dim">—</span>';
+            var nombre = (c.cliente_nombre||'—');
+            var cliCell = c.cliente_id
+                ? '<a href="'+URLS.clienteShow.replace('CID_PH', c.cliente_id)+'" target="_blank" class="ac-link"><span class="ac-client-name">'+nombre+'</span></a>'
+                : '<span class="ac-client-name">'+nombre+'</span>';
+            var ctrCell = c.contrato_id
+                ? '<a href="'+URLS.contratoShow.replace('CID_PH', c.contrato_id)+'" target="_blank" class="ac-link">'+(c.contrato_nro||'—')+'</a>'
+                : (c.contrato_nro||'—');
             h += '<tr>'+
-                '<td><span class="ac-client-name">'+(c.cliente_nombre||'—')+'</span><span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
-                '<td>'+(c.contrato_nro||'—')+'</td>'+
+                '<td>'+cliCell+'<span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
+                '<td>'+ctrCell+'</td>'+
                 '<td>'+badge(c.estado_internet)+'</td>'+
                 '<td><span class="ac-ip">'+(c.ip||'0.0.0.0')+'</span><span class="ac-pppoe">PPPoE: '+(c.usuario||'N/A')+'</span>'+(c.olt_sn_mac?'<div class="ac-olt">OLT: '+c.olt_sn_mac+'</div>':'')+'</td>'+
                 '<td class="ac-dim">'+(c.mikrotik_nombre||'—')+'</td>'+
@@ -697,13 +715,18 @@
             var aldia = stats.activo_ok || 0;
             var antigua = stats.factura_antigua_vencida || 0;
             var susp = stats.ya_cortado || 0;
+            var pend = stats.pendiente_corte || 0;
+            var bloq = (stats.bloqueado_promesa||0)+(stats.bloqueado_no_suspension||0)
+                     +(stats.bloqueado_sin_mk||0)+(stats.bloqueado_sin_ip||0)+(stats.bloqueado_suspension||0);
 
             $('#f-todos').text(total);
+            $('#f-pend').text(pend);
             $('#f-aldia').text(aldia);
             $('#f-antigua').text(antigua);
+            $('#f-bloq').text(bloq);
             $('#f-susp').text(susp);
             $('#btn-count-cortados').text(susp);
-            $('#btn-count-pend').text(stats.pendiente_corte || 0);
+            $('#btn-count-pend').text(pend);
 
             if((stats.pendiente_corte||0) > 0) $('#btn-ejecutar-corte').show(); else $('#btn-ejecutar-corte').hide();
 
@@ -755,6 +778,17 @@
 
     /* Filters */
     $(document).on('click','.ac-pill',function(){ $('.ac-pill').removeClass('active'); $(this).addClass('active'); currentFilter=$(this).data('filter'); renderTable(); });
+
+    // KPI "Pendientes Internet" → ir al tab Internet y filtrar "Por cortar"
+    function aplicarFiltro(filtro){
+        $('#main-tabs a[href="#tab-internet"]').tab('show');
+        $('.ac-pill').removeClass('active');
+        $('.ac-pill[data-filter="'+filtro+'"]').addClass('active');
+        currentFilter = filtro;
+        renderTable();
+        $('html,body').animate({scrollTop: $('#tab-internet').offset().top - 90}, 250);
+    }
+    $('#kpi-card-pend').on('click', function(){ aplicarFiltro('pendientes'); });
     $('#search-contratos').on('keyup', renderTable);
 
     /* Refresh */
