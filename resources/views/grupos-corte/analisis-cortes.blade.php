@@ -612,6 +612,49 @@
     <div class="modal-footer"><button type="button" class="ac-btn-sm" data-dismiss="modal">Cancelar</button><button type="button" id="btn-confirmar-corte-tv" class="ac-btn-red">Ejecutar Corte TV</button></div>
 </div></div></div>
 
+<div class="modal fade" id="modal-sincronizar-tv" tabindex="-1" data-backdrop="static"><div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#a855f7,#6366f1);border:none;">
+        <h5 class="modal-title" style="color:#fff;font-weight:700;"><i class="fas fa-sync-alt mr-2"></i>Sincronizar Corte TV</h5>
+        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;text-shadow:none;">&times;</button>
+    </div>
+    {{-- Paso 1: confirmación --}}
+    <div class="modal-body" id="sync-step-confirm">
+        <p style="margin-bottom:.75rem;">Se re-enviará a <strong>SmartOLT</strong> el corte de TV (deshabilitar CATV) de todos los contratos del grupo que ya están marcados como <strong style="color:#a855f7;">cortados</strong>.</p>
+        <div class="alert" style="background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;border-radius:10px;font-size:.85rem;">
+            <i class="fas fa-info-circle mr-1"></i> Sirve para corregir cortes que quedaron marcados localmente pero no se aplicaron en SmartOLT. La operación es segura y repetible.
+        </div>
+    </div>
+    {{-- Paso 2: cargando --}}
+    <div class="modal-body text-center py-5 d-none" id="sync-step-loading">
+        <div class="spinner-border" role="status" style="color:#a855f7;width:3rem;height:3rem;"></div>
+        <p class="mt-3 mb-0" style="color:#6b7280;font-weight:600;">Sincronizando con SmartOLT…</p>
+        <p class="mb-0" style="color:#adb5bd;font-size:.8rem;">Esto puede tardar unos segundos.</p>
+    </div>
+    {{-- Paso 3: resultado --}}
+    <div class="modal-body d-none" id="sync-step-result">
+        <div id="sync-result-banner" class="text-center mb-3"></div>
+        <div class="row text-center" style="margin:0 -6px;">
+            <div class="col px-2"><div style="background:#f9fafb;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#1f2937;" id="sync-r-total">0</div>
+                <div style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;">Procesados</div>
+            </div></div>
+            <div class="col px-2"><div style="background:#ecfdf5;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#16a34a;" id="sync-r-cortados">0</div>
+                <div style="font-size:.7rem;color:#16a34a;text-transform:uppercase;letter-spacing:.03em;">Cortados OK</div>
+            </div></div>
+            <div class="col px-2"><div style="background:#fef2f2;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#dc2626;" id="sync-r-errores">0</div>
+                <div style="font-size:.7rem;color:#dc2626;text-transform:uppercase;letter-spacing:.03em;">Errores</div>
+            </div></div>
+        </div>
+        <p class="text-center mt-3 mb-0 d-none" id="sync-r-sinonu" style="font-size:.8rem;color:#9ca3af;"></p>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="ac-btn-sm" data-dismiss="modal" id="sync-btn-cancelar">Cancelar</button>
+        <button type="button" id="btn-confirmar-sincronizar-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;"><i class="fas fa-sync-alt mr-1"></i> Sincronizar ahora</button>
+    </div>
+</div></div></div>
+
 <div class="modal fade" id="modal-habilitar" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" style="color:#22c55e;font-weight:700;"><i class="fas fa-power-off mr-2"></i>Habilitar Cortados</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
     <div class="modal-body"><p>¿Habilitar todos los contratos cortados de este grupo?</p></div>
@@ -918,14 +961,44 @@
         $.ajax({url:URLS.ejecutarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}}).done(function(r){alert('Completado. Cortados: '+r.cortados);loadTv();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-ban"></i> Ejecutar Corte TV');});
     });
 
-    /* Sincronizar Corte TV — re-envía el disable_catv a SmartOLT para todos los morosos del grupo */
+    /* Sincronizar Corte TV — re-envía el disable_catv a SmartOLT para todos los marcados como cortados */
+    function syncShowStep(step){
+        $('#sync-step-confirm,#sync-step-loading,#sync-step-result').addClass('d-none');
+        $('#sync-step-'+step).removeClass('d-none');
+    }
     $('#btn-sincronizar-corte-tv').on('click',function(){
-        if(!confirm('Se re-enviará el corte de TV a SmartOLT para todos los contratos morosos del grupo. ¿Continuar?')) return;
-        var $b=$(this).prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i> Sincronizando...');
-        $.ajax({url:URLS.sincronizarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}})
-            .done(function(r){ alert('Sincronización completada.\nProcesados: '+(r.total||0)+'\nCortados en SmartOLT: '+(r.cortados||0)+'\nErrores: '+(r.errores||0)); loadTv(); loadSummary(); loadHist(); })
-            .fail(function(x){ alert('Error al sincronizar: '+((x.responseJSON&&x.responseJSON.error)||'fallo en el servidor')); })
-            .always(function(){ $b.prop('disabled',false).html('<i class="fas fa-sync-alt"></i> Sincronizar Corte TV'); });
+        syncShowStep('confirm');
+        $('#btn-confirmar-sincronizar-tv').removeClass('d-none').prop('disabled',false);
+        $('#sync-btn-cancelar').text('Cancelar');
+        $('#modal-sincronizar-tv').modal('show');
+    });
+    $('#btn-confirmar-sincronizar-tv').on('click',function(){
+        syncShowStep('loading');
+        $(this).addClass('d-none');
+        $('#sync-btn-cancelar').prop('disabled',true);
+        $.ajax({url:URLS.sincronizarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}})
+            .done(function(r){
+                var errores=r.errores||0, cortados=r.cortados||0, total=r.total||0, sinOnu=r.sin_onu||0;
+                $('#sync-r-total').text(total);
+                $('#sync-r-cortados').text(cortados);
+                $('#sync-r-errores').text(errores);
+                var banner = errores>0
+                    ? '<div style="color:#dc2626;font-weight:700;font-size:1.05rem;"><i class="fas fa-exclamation-triangle mr-1"></i> Completado con errores</div><div style="font-size:.8rem;color:#9ca3af;">Si todos fallan, revisa el token/IP de SmartOLT (HTTP 403).</div>'
+                    : '<div style="color:#16a34a;font-weight:700;font-size:1.05rem;"><i class="fas fa-check-circle mr-1"></i> Sincronización completada</div>';
+                $('#sync-result-banner').html(banner);
+                if(sinOnu>0){ $('#sync-r-sinonu').removeClass('d-none').html('<i class="fas fa-info-circle mr-1"></i> '+sinOnu+' contrato(s) marcados como cortados no tienen ONU asignada y no se enviaron a SmartOLT.'); }
+                else { $('#sync-r-sinonu').addClass('d-none'); }
+                syncShowStep('result');
+                $('#sync-btn-cancelar').text('Cerrar').prop('disabled',false);
+                loadTv(); loadSummary(); loadHist();
+            })
+            .fail(function(x){
+                $('#sync-result-banner').html('<div style="color:#dc2626;font-weight:700;"><i class="fas fa-times-circle mr-1"></i> '+((x.responseJSON&&x.responseJSON.error)||'Error al sincronizar con el servidor')+'</div>');
+                $('#sync-r-total,#sync-r-cortados,#sync-r-errores').text('—');
+                $('#sync-r-sinonu').addClass('d-none');
+                syncShowStep('result');
+                $('#sync-btn-cancelar').text('Cerrar').prop('disabled',false);
+            });
     });
 
     /* Habilitar */

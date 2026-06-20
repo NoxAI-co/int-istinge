@@ -2034,11 +2034,12 @@ class GruposCorteController extends Controller
     }
 
     /**
-     * Sincronizar corte de TV: re-envía a SmartOLT el disable_catv de TODOS los
-     * contratos morosos del grupo (sin importar el estado local state_olt_catv).
-     * Útil cuando un corte previo no llegó a SmartOLT (p.ej. HTTP 403) pero quedó
-     * marcado como cortado localmente. Ejecución manual. Operación idempotente:
-     * deshabilitar una CATV ya deshabilitada en SmartOLT es inofensivo.
+     * Sincronizar corte de TV: reconcilia el estado local → SmartOLT. Re-envía el
+     * disable_catv a SmartOLT de TODOS los contratos del grupo ya marcados como
+     * cortados (state_olt_catv = 0) que tienen ONU. Útil cuando un corte previo no
+     * llegó a SmartOLT (p.ej. HTTP 403) pero quedó marcado como cortado localmente.
+     * Ejecución manual e idempotente: deshabilitar una CATV ya deshabilitada en
+     * SmartOLT es inofensivo.
      */
     public function sincronizarCorteTv(Request $request)
     {
@@ -2054,10 +2055,15 @@ class GruposCorteController extends Controller
         }
 
         $userId   = Auth::id();
-        $fecha    = $request->input('fecha', now()->format('Y-m-d'));
         $inicio   = microtime(true);
         $analyzer = new CortesAnalyzer;
-        $aSincronizar = $analyzer->getTvCutsToSync($grupoId, $fecha);
+        $aSincronizar = $analyzer->getTvCutsToSync($grupoId);
+
+        // Total marcados como cortados (incluye los sin ONU, que no se pueden enviar
+        // a SmartOLT) — para explicar la diferencia con "Cortados TV" del resumen.
+        $marcadosCortados = (int) DB::table('contracts')
+            ->where('grupo_corte', $grupoId)->where('status', 1)
+            ->where('state_olt_catv', 0)->count();
 
         // Mapa SN => contrato (una entrada por SN). bulkDisableCatv usa olt_sn_mac
         // como identificador externo en SmartOLT, igual que el cron cortarTelevision.
@@ -2084,17 +2090,6 @@ class GruposCorteController extends Controller
                 $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
                 if ($ok) {
                     $totalCortados++;
-                    // Asegurar estado local coherente con SmartOLT
-                    if ($row->state_olt_catv) {
-                        Contrato::where('id', $row->contrato_id)->update(['state_olt_catv' => false]);
-                    }
-                    $movimiento = new \App\MovimientoLOG();
-                    $movimiento->contrato    = $row->contrato_id;
-                    $movimiento->modulo      = 5;
-                    $movimiento->descripcion = '<i class="fas fa-sync text-success"></i> <b>Sincronización de corte TV</b>: CATV deshabilitada en SmartOLT (re-envío manual)<br>';
-                    $movimiento->created_by  = $userId;
-                    $movimiento->empresa     = $empresa;
-                    $movimiento->save();
                 } else {
                     $totalErrores++;
                     \Log::warning('[sincronizarCorteTv] Falló disable CATV', [
@@ -2116,6 +2111,8 @@ class GruposCorteController extends Controller
         return response()->json([
             'ok' => true, 'log_id' => $logId,
             'cortados' => $totalCortados, 'errores' => $totalErrores, 'total' => $totalProcesados,
+            'marcados_cortados' => $marcadosCortados,
+            'sin_onu' => max(0, $marcadosCortados - $totalProcesados),
         ]);
     }
 
