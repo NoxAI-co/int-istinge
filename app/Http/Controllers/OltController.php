@@ -859,8 +859,15 @@ class OltController extends Controller
                 foreach ($response['response'] as $sn => $msg) {
                     $results[$sn] = ['success' => true, 'message' => is_string($msg) ? $msg : 'CATV disabled'];
                 }
+                // SNs que SmartOLT NO devolvió en la respuesta (aunque el chunk fue HTTP 200):
+                // normalmente la ONU no tiene CATV provisionada o el serial no existe en SmartOLT.
+                foreach ($chunk as $sn) {
+                    if (! isset($results[$sn])) {
+                        $results[$sn] = ['success' => false, 'error' => 'SmartOLT no procesó este SN (CATV no provisionada o ONU no encontrada)'];
+                    }
+                }
             } else {
-                // Falla el chunk (p.ej. HTTP 403 por token/IP no autorizada en SmartOLT):
+                // Falla el chunk completo (p.ej. HTTP 403 por token/IP no autorizada en SmartOLT):
                 // marcar como NO exitoso para que el corte no se registre como aplicado.
                 foreach ($chunk as $sn) {
                     $results[$sn] = ['success' => false, 'error' => $response['error'] ?? ('bulk_disable_catv failed (HTTP ' . $httpCode . ')')];

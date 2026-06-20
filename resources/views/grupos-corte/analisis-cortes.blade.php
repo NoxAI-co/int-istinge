@@ -1084,12 +1084,20 @@
                 $('#sync-r-total').text(total);
                 $('#sync-r-cortados').text(cortados);
                 $('#sync-r-errores').text(errores);
-                var banner = errores>0
-                    ? '<div style="color:#dc2626;font-weight:700;font-size:1.05rem;"><i class="fas fa-exclamation-triangle mr-1"></i> Completado con errores</div><div style="font-size:.8rem;color:#9ca3af;">Si todos fallan, revisa el token/IP de SmartOLT (HTTP 403).</div>'
-                    : '<div style="color:#16a34a;font-weight:700;font-size:1.05rem;"><i class="fas fa-check-circle mr-1"></i> Sincronización completada</div>';
+                var banner;
+                if(errores===0){
+                    banner = '<div style="color:#16a34a;font-weight:700;font-size:1.05rem;"><i class="fas fa-check-circle mr-1"></i> Sincronización completada</div>';
+                } else if(cortados===0){
+                    // Todas fallaron → muy probable token/IP de SmartOLT (HTTP 403)
+                    banner = '<div style="color:#dc2626;font-weight:700;font-size:1.05rem;"><i class="fas fa-exclamation-triangle mr-1"></i> Todas fallaron</div><div style="font-size:.8rem;color:#9ca3af;">SmartOLT rechazó todo: revisa el token de API y la IP autorizada (HTTP 403).</div>';
+                } else {
+                    // Parcial → SmartOLT respondió OK pero omitió algunas ONUs (sin CATV / SN no encontrado)
+                    banner = '<div style="color:#d97706;font-weight:700;font-size:1.05rem;"><i class="fas fa-check-circle mr-1"></i> Completado ('+errores+' sin procesar)</div><div style="font-size:.8rem;color:#9ca3af;">SmartOLT no procesó '+errores+' ONU(s): normalmente no tienen CATV provisionada o el serial no existe en SmartOLT.</div>';
+                }
                 $('#sync-result-banner').html(banner);
-                if(sinOnu>0){ $('#sync-r-sinonu').removeClass('d-none').html('<i class="fas fa-info-circle mr-1"></i> '+sinOnu+' contrato(s) marcados como cortados no tienen ONU asignada y no se enviaron a SmartOLT.'); }
-                else { $('#sync-r-sinonu').addClass('d-none'); }
+                var notas = '<i class="fas fa-tv mr-1"></i> El corte de TV deshabilita solo la señal de televisión (CATV) de la ONU; <b>el internet no se ve afectado</b>, por eso la ONU sigue en línea en SmartOLT.';
+                if(sinOnu>0){ notas += '<br><i class="fas fa-info-circle mr-1"></i> '+sinOnu+' contrato(s) marcados como cortados no tienen ONU asignada y no se enviaron a SmartOLT.'; }
+                $('#sync-r-sinonu').removeClass('d-none').html(notas);
                 syncShowStep('result');
                 $('#sync-btn-cancelar').text('Cerrar').prop('disabled',false);
                 loadAll(); loadTv(); loadSummary(); loadHist();

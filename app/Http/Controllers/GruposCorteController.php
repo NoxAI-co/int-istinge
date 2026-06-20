@@ -2090,6 +2090,14 @@ class GruposCorteController extends Controller
                 $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
                 if ($ok) {
                     $totalCortados++;
+                    // Traza por contrato (visible en el log del cliente)
+                    $movimiento = new \App\MovimientoLOG();
+                    $movimiento->contrato    = $row->contrato_id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = '<i class="fas fa-sync text-success"></i> <b>Sincronización de corte TV</b>: CATV deshabilitada en SmartOLT (SN: ' . $sn . ')<br>';
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresa;
+                    $movimiento->save();
                 } else {
                     $totalErrores++;
                     \Log::warning('[sincronizarCorteTv] Falló disable CATV', [
