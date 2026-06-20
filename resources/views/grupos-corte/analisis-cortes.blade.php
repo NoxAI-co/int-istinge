@@ -328,6 +328,8 @@
 .ac-badge-red::before { background: #ef4444; }
 .ac-badge-blue { background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
 .ac-badge-blue::before { background: #3b82f6; }
+.ac-badge-purple { background: rgba(168,85,247,0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.2); }
+.ac-badge-purple::before { background: #a855f7; }
 
 /* ── Modals ──────────────────────────────────────────────── */
 .ac-dark .modal-content { background: #ffffff !important; border: 1px solid #dee2e6; border-radius: 12px; color: #1f2937; }
@@ -446,7 +448,7 @@
             </div>
             <div class="ac-kpi-icon" style="background:rgba(168,85,247,0.1);color:#c084fc;"><i class="fas fa-tv"></i></div>
         </div>
-        <div class="ac-kpi">
+        <div class="ac-kpi" id="kpi-card-cut-tv" style="cursor:pointer;" title="Ver contratos cortados de TV">
             <div>
                 <div class="ac-kpi-title">Cortados<br>TV</div>
                 <div class="ac-kpi-value" style="color:#a855f7;" id="kpi-cut-tv">0</div>
@@ -527,17 +529,27 @@
 
         {{-- ── TAB TV ────────────────────────────────────────── --}}
         <div class="tab-pane fade" id="tab-tv" role="tabpanel">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span style="font-weight:600;color:#a855f7;">Pendientes de Corte TV</span>
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:0.75rem;">
+                <div class="ac-filters">
+                    <div class="ac-pill active" data-tvfilter="todos">Todos <span id="ftv-todos" style="margin-left:2px;">0</span></div>
+                    <div class="ac-pill" data-tvfilter="pendientes"><span class="dot dot-red"></span> Por cortar <span id="ftv-pend">0</span></div>
+                    <div class="ac-pill" data-tvfilter="aldia"><span class="dot dot-green"></span> Al día <span id="ftv-aldia">0</span></div>
+                    <div class="ac-pill" data-tvfilter="cortados"><span class="dot dot-grey" style="background:#a855f7;"></span> Cortados <span id="ftv-cort">0</span></div>
+                    <div class="ac-pill" data-tvfilter="bloqueados"><span class="dot dot-blue" style="background:#06b6d4;"></span> Bloqueados <span id="ftv-bloq">0</span></div>
+                    <div class="ac-pill" data-tvfilter="sintv"><span class="dot dot-grey"></span> Sin TV <span id="ftv-sintv">0</span></div>
+                </div>
                 <div class="d-flex" style="gap:8px;">
-                    <button id="btn-sincronizar-corte-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;" title="Re-envía a SmartOLT el corte de TV de todos los morosos del grupo (corrige cortes que no llegaron a SmartOLT)"><i class="fas fa-sync-alt"></i> Sincronizar Corte TV</button>
+                    <button id="btn-sincronizar-corte-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;" title="Re-envía a SmartOLT el corte de TV de todos los contratos marcados como cortados (corrige cortes que no llegaron a SmartOLT)"><i class="fas fa-sync-alt"></i> Sincronizar Corte TV</button>
                     <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
                 </div>
             </div>
+
+            <div class="ac-search"><input type="text" id="search-tv" placeholder="Buscar cliente, NIT, contrato, serial ONU..."></div>
+
             <div class="ac-table-wrap">
                 <table class="ac-table" id="tabla-tv">
-                    <thead><tr><th>Cliente</th><th>Contrato</th><th>Serial ONU</th><th>Factura</th><th>Valor</th><th>Vencimiento</th><th>Estado</th></tr></thead>
-                    <tbody id="tbody-tv"><tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;">Cargando...</td></tr></tbody>
+                    <thead><tr><th>Cliente</th><th>Contrato</th><th>Serial ONU</th><th>Estado TV</th><th>Últ. Factura</th><th>Días Vencida</th></tr></thead>
+                    <tbody id="tbody-tv"><tr><td colspan="6" class="text-center py-5" style="color:#adb5bd;">Cargando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -702,6 +714,71 @@
 
     var allContracts = [];
     var currentFilter = 'todos';
+    var currentTvFilter = 'todos';
+
+    function badgeTv(estado) {
+        var m = {
+            'tv_ok':'ac-badge-green', 'pendiente_corte_tv':'ac-badge-red',
+            'ya_cortado_tv':'ac-badge-purple', 'bloqueado_tv_promesa':'ac-badge-cyan',
+            'sin_tv':'ac-badge-grey',
+        };
+        var labels = {
+            'tv_ok':'AL DÍA', 'pendiente_corte_tv':'PEND. CORTE',
+            'ya_cortado_tv':'CORTADO', 'bloqueado_tv_promesa':'PROMESA',
+            'sin_tv':'SIN TV',
+        };
+        var cls = m[estado] || 'ac-badge-grey';
+        var lbl = labels[estado] || (estado||'').toUpperCase();
+        return '<span class="ac-badge '+cls+'">'+lbl+'</span>';
+    }
+
+    function tvFilterGroup(estado) {
+        if(estado==='tv_ok') return 'aldia';
+        if(estado==='pendiente_corte_tv') return 'pendientes';
+        if(estado==='ya_cortado_tv') return 'cortados';
+        if(estado==='bloqueado_tv_promesa') return 'bloqueados';
+        if(estado==='sin_tv') return 'sintv';
+        return 'otros';
+    }
+
+    function renderTvTable() {
+        var q = ($('#search-tv').val()||'').toLowerCase();
+        var filtered = allContracts.filter(function(c) {
+            var g = tvFilterGroup(c.estado_tv);
+            var fOk = currentTvFilter==='todos' || g===currentTvFilter;
+            var sOk = true;
+            if(q) {
+                var s = ((c.cliente_nombre||'')+' '+(c.cliente_nit||'')+' '+(c.contrato_nro||'')+' '+(c.serial_onu||'')+' '+(c.olt_sn_mac||'')).toLowerCase();
+                sOk = s.indexOf(q) !== -1;
+            }
+            return fOk && sOk;
+        });
+        if(!filtered.length) {
+            $('#tbody-tv').html('<tr><td colspan="6" class="text-center py-5" style="color:#adb5bd;">No hay contratos para mostrar</td></tr>');
+            return;
+        }
+        var h='';
+        filtered.forEach(function(c){
+            var dias = c.dias_vencida > 0 ? '<span class="ac-days-red">'+c.dias_vencida+'d</span>' : '<span class="ac-dim">—</span>';
+            var nombre = (c.cliente_nombre||'—');
+            var cliCell = c.cliente_id
+                ? '<a href="'+URLS.clienteShow.replace('CID_PH', c.cliente_id)+'" target="_blank" class="ac-link"><span class="ac-client-name">'+nombre+'</span></a>'
+                : '<span class="ac-client-name">'+nombre+'</span>';
+            var ctrCell = c.contrato_id
+                ? '<a href="'+URLS.contratoShow.replace('CID_PH', c.contrato_id)+'" target="_blank" class="ac-link">'+(c.contrato_nro||'—')+'</a>'
+                : (c.contrato_nro||'—');
+            var serial = c.serial_onu || c.olt_sn_mac || '—';
+            h += '<tr>'+
+                '<td>'+cliCell+'<span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
+                '<td>'+ctrCell+'</td>'+
+                '<td style="color:#06b6d4;">'+serial+'</td>'+
+                '<td>'+badgeTv(c.estado_tv)+'</td>'+
+                '<td class="ac-dim">'+(c.ultima_vencimiento||'—')+'</td>'+
+                '<td>'+dias+'</td>'+
+            '</tr>';
+        });
+        $('#tbody-tv').html(h);
+    }
 
     function gf() { return document.getElementById('fecha-ref').value; }
     function fmt(n) { return (n==null||n==undefined)?'—':new Intl.NumberFormat('es-CO').format(n); }
@@ -802,8 +879,21 @@
 
             if((stats.pendiente_corte||0) > 0) $('#btn-ejecutar-corte').show(); else $('#btn-ejecutar-corte').hide();
 
+            // ── Estadísticas y tabla de TV (mismos datos /all-contracts) ──
+            var st = res.stats_tv || {};
+            $('#ftv-todos').text(total);
+            $('#ftv-pend').text(st.pendiente_corte_tv || 0);
+            $('#ftv-aldia').text(st.tv_ok || 0);
+            $('#ftv-cort').text(st.ya_cortado_tv || 0);
+            $('#ftv-bloq').text(st.bloqueado_tv_promesa || 0);
+            $('#ftv-sintv').text(st.sin_tv || 0);
+
             renderTable();
-        }).fail(function(){ $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#ef4444;">Error al cargar contratos</td></tr>'); });
+            renderTvTable();
+        }).fail(function(){
+            $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#ef4444;">Error al cargar contratos</td></tr>');
+            $('#tbody-tv').html('<tr><td colspan="6" class="text-center py-5" style="color:#ef4444;">Error al cargar contratos</td></tr>');
+        });
     }
 
     function loadSummary() {
@@ -864,14 +954,11 @@
     }
 
     function loadTv() {
+        // Solo actualiza el contador de pendientes del modal "Ejecutar Corte TV".
+        // La tabla de TV se renderiza desde allContracts en renderTvTable().
         var f = gf();
-        $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</td></tr>');
         $.getJSON(URLS.pendingTv+'?grupo_id='+GRUPO_ID+'&fecha='+f).done(function(res){
             var list=res.data||[]; $('#modal-corte-tv-count').text(list.length);
-            if(!list.length){ $('#tbody-tv').html('<tr><td colspan="7" class="text-center py-5" style="color:#22c55e;"><i class="fas fa-check-circle mr-2"></i>Sin pendientes de corte TV</td></tr>'); return; }
-            var h='';
-            list.forEach(function(c){ h+='<tr><td><span class="ac-client-name">'+(c.cliente_nombre||'—')+'</span></td><td>'+(c.contrato_nro||'—')+'</td><td style="color:#06b6d4;">'+(c.serial_onu||'—')+'</td><td class="ac-dim">'+(c.factura_codigo||'—')+'</td><td style="font-weight:600;">$'+fmt(c.factura_total)+'</td><td class="ac-dim">'+(c.fecha_vencimiento||'—')+'</td><td>'+badge(c.estado_contrato==='cortado'?'ya_cortado':'pendiente_corte')+'</td></tr>'; });
-            $('#tbody-tv').html(h);
         });
     }
 
@@ -892,19 +979,34 @@
         });
     }
 
-    /* Filters */
-    $(document).on('click','.ac-pill',function(){ $('.ac-pill').removeClass('active'); $(this).addClass('active'); currentFilter=$(this).data('filter'); renderTable(); });
+    /* Filters — Internet (chips dentro de #tab-internet) */
+    $(document).on('click','#tab-internet .ac-pill',function(){ $('#tab-internet .ac-pill').removeClass('active'); $(this).addClass('active'); currentFilter=$(this).data('filter'); renderTable(); });
+
+    /* Filters — TV (chips dentro de #tab-tv) */
+    $(document).on('click','#tab-tv .ac-pill',function(){ $('#tab-tv .ac-pill').removeClass('active'); $(this).addClass('active'); currentTvFilter=$(this).data('tvfilter'); renderTvTable(); });
+    $('#search-tv').on('keyup', renderTvTable);
 
     // KPI "Pendientes Internet" → ir al tab Internet y filtrar "Por cortar"
     function aplicarFiltro(filtro){
         $('#main-tabs a[href="#tab-internet"]').tab('show');
-        $('.ac-pill').removeClass('active');
-        $('.ac-pill[data-filter="'+filtro+'"]').addClass('active');
+        $('#tab-internet .ac-pill').removeClass('active');
+        $('#tab-internet .ac-pill[data-filter="'+filtro+'"]').addClass('active');
         currentFilter = filtro;
         renderTable();
         $('html,body').animate({scrollTop: $('#tab-internet').offset().top - 90}, 250);
     }
     $('#kpi-card-pend').on('click', function(){ aplicarFiltro('pendientes'); });
+
+    // KPI "Cortados TV" → ir al tab TV y filtrar "Cortados"
+    function aplicarFiltroTv(filtro){
+        $('#main-tabs a[href="#tab-tv"]').tab('show');
+        $('#tab-tv .ac-pill').removeClass('active');
+        $('#tab-tv .ac-pill[data-tvfilter="'+filtro+'"]').addClass('active');
+        currentTvFilter = filtro;
+        renderTvTable();
+        $('html,body').animate({scrollTop: $('#tab-tv').offset().top - 90}, 250);
+    }
+    $('#kpi-card-cut-tv').on('click', function(){ aplicarFiltroTv('cortados'); });
 
     // Panel "¿Por qué no se cortaron?" — toggles
     $(document).on('click','#blocked-toggle',function(){ $('#blocked-body').slideToggle(150); $('#blocked-chevron').toggleClass('fa-chevron-down fa-chevron-up'); });
@@ -958,7 +1060,7 @@
     $('#btn-confirmar-corte-tv').on('click',function(){
         $('#modal-confirmar-corte-tv').modal('hide');
         var $b=$('#btn-ejecutar-corte-tv').prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
-        $.ajax({url:URLS.ejecutarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}}).done(function(r){alert('Completado. Cortados: '+r.cortados);loadTv();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-ban"></i> Ejecutar Corte TV');});
+        $.ajax({url:URLS.ejecutarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}}).done(function(r){alert('Completado. Cortados: '+r.cortados);loadAll();loadTv();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-ban"></i> Ejecutar Corte TV');});
     });
 
     /* Sincronizar Corte TV — re-envía el disable_catv a SmartOLT para todos los marcados como cortados */
@@ -990,7 +1092,7 @@
                 else { $('#sync-r-sinonu').addClass('d-none'); }
                 syncShowStep('result');
                 $('#sync-btn-cancelar').text('Cerrar').prop('disabled',false);
-                loadTv(); loadSummary(); loadHist();
+                loadAll(); loadTv(); loadSummary(); loadHist();
             })
             .fail(function(x){
                 $('#sync-result-banner').html('<div style="color:#dc2626;font-weight:700;"><i class="fas fa-times-circle mr-1"></i> '+((x.responseJSON&&x.responseJSON.error)||'Error al sincronizar con el servidor')+'</div>');
