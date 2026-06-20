@@ -28,6 +28,13 @@
         <input name="contrato_id" type="hidden" value="{{ $contrato ? $contrato->id : '' }}">
         @csrf
 
+        {{-- Botón sutil para ir directo al recuadro de firma (solo en móvil) --}}
+        <div class="d-md-none" style="position: sticky; top: 10px; z-index: 1000; text-align: center; margin-bottom: 12px;">
+            <button type="button" id="btn-ir-firma" aria-label="Ir a firmar el contrato" style="background: rgba(40,167,69,0.10); color: #1e7e34; border: 1px solid rgba(40,167,69,0.35); border-radius: 999px; padding: 8px 18px; font-size: 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,0.08); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); cursor: pointer;">
+                <i class="fas fa-pen-nib" style="margin-right:6px;"></i> Firmar contrato
+            </button>
+        </div>
+
         {{-- Imprime o debuggea las variables --}}
 
              <div>
@@ -128,6 +135,20 @@
                 //document.getElementById("submitcheck").click();
             }
         });
+
+        // Botón "Firmar contrato": desliza suavemente hasta el recuadro de firma y lo resalta
+        (function () {
+            var irFirma = document.getElementById("btn-ir-firma");
+            if (!irFirma) return;
+            irFirma.addEventListener("click", function () {
+                var pad = document.getElementById("signature-pad");
+                if (!pad) return;
+                pad.scrollIntoView({ behavior: "smooth", block: "center" });
+                pad.style.transition = "box-shadow .3s ease";
+                pad.style.boxShadow = "0 0 0 3px rgba(40,167,69,0.55)";
+                setTimeout(function () { pad.style.boxShadow = ""; }, 1600);
+            });
+        })();
     </script>
     @else
     <center>
