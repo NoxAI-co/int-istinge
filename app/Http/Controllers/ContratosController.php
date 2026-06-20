@@ -3454,11 +3454,17 @@ class ContratosController extends Controller
 
         $empresa = Auth::user()->empresa();
         $old_state = $contrato->state;
-        
+
         // 1. Determinar el nuevo estado objetivo
         // 1. Determinar el nuevo estado objetivo
         $new_state = ($old_state == 'enabled') ? 'disabled' : 'enabled';
-        
+
+        // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+        // el contrato no puede deshabilitarse por ningún lado.
+        if ($new_state == 'disabled' && $contrato->noAplicaSuspension()) {
+            return back()->with('danger', 'El contrato Nro. ' . $contrato->nro . ' no se puede deshabilitar: su grupo de corte tiene "Suspender al tener = No aplica".');
+        }
+
         $mikrotik_failed = false;
         $olt_executed = false;
         $descripcion = "";
@@ -3702,6 +3708,12 @@ class ContratosController extends Controller
         $this->getAllPermissions(Auth::user()->id);
         $contrato = Contrato::find($id);
         $empresa = Empresa::Find($contrato->empresa);
+
+        // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+        // no se puede deshabilitar (cortar) el CATV. Se permite habilitar.
+        if ($contrato->state_olt_catv == true && $contrato->noAplicaSuspension()) {
+            return back()->with('danger', 'El contrato Nro. ' . $contrato->nro . ' no se puede cortar (TV): su grupo de corte tiene "Suspender al tener = No aplica".');
+        }
 
         if ($contrato->state_olt_catv == true) {
             $contrato->state_olt_catv = false;
@@ -5220,6 +5232,13 @@ class ContratosController extends Controller
                 continue;
             }
 
+            // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+            // se omite la deshabilitación de este contrato.
+            if ($state == 'disabled' && $contrato->noAplicaSuspension()) {
+                $fail++;
+                continue;
+            }
+
             $mikrotik_ok = false;
             $olt_ok = false;
 
@@ -5472,6 +5491,13 @@ class ContratosController extends Controller
 
         for ($i = 0; $i < count($contratos); $i++) {
             $contrato = Contrato::find($contratos[$i]);
+
+            // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+            // se omite el corte (disabled) del CATV de este contrato.
+            if ($state == 'disabled' && $contrato && $contrato->noAplicaSuspension()) {
+                $fail++;
+                continue;
+            }
 
             if ($contrato && $contrato->olt_sn_mac && $empresa->adminOLT != null) {
                 $curl = curl_init();

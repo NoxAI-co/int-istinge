@@ -1736,6 +1736,12 @@ class GruposCorteController extends Controller
             $agregados = 0;
             foreach ($cortadosSinMorosos as $contrato) {
                 if (! $contrato->ip) continue;
+                // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+                // no se agrega a morosos (no se suspende por ningún lado).
+                $contratoModel = \App\Contrato::find($contrato->id);
+                if ($contratoModel && $contratoModel->noAplicaSuspension()) {
+                    continue;
+                }
                 $API->comm('/ip/firewall/address-list/add', [
                     'address' => $contrato->ip,
                     'list'    => 'morosos',

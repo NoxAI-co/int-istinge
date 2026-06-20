@@ -209,6 +209,20 @@ class Contrato extends Model
         return GrupoCorte::find($this->grupo_corte);
     }
 
+    /**
+     * ¿El grupo de corte asociado tiene "Suspender al tener = No aplica"?
+     * (nro_factura_vencida no es > 0). Si lo tiene, el contrato NO debe suspenderse
+     * por ningún lado (cron, manual, lote, CATV, morosos). Mismo criterio que el cron
+     * (que sólo procesa grupos con nro_factura_vencida > 0).
+     */
+    public function noAplicaSuspension(){
+        if(!$this->grupo_corte){
+            return false;
+        }
+        $grupo = GrupoCorte::find($this->grupo_corte);
+        return $grupo && !((int) $grupo->nro_factura_vencida > 0);
+    }
+
     public function plug($class=false){
         if($this->ip){
             $ping = Ping::where('ip', $this->ip)->first();

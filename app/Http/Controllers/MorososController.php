@@ -248,7 +248,13 @@ class MorososController extends Controller
         if (!$contrato) {
             return response()->json(['success' => false, 'message' => 'Contrato no encontrado']);
         }
-        
+
+        // Guard: si el grupo de corte tiene "Suspender al tener = No aplica",
+        // no se agrega a morosos (no se suspende por ningún lado).
+        if ($contrato->noAplicaSuspension()) {
+            return response()->json(['success' => false, 'message' => 'El contrato Nro. ' . $contrato->nro . ' no se puede suspender: su grupo de corte tiene "Suspender al tener = No aplica".']);
+        }
+
         // Lógica solicitada: comment = servicio
         $servicio = $contrato->plan()->name;
 
