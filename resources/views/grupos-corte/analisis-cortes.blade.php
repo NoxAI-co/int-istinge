@@ -529,7 +529,10 @@
         <div class="tab-pane fade" id="tab-tv" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <span style="font-weight:600;color:#a855f7;">Pendientes de Corte TV</span>
-                <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
+                <div class="d-flex" style="gap:8px;">
+                    <button id="btn-sincronizar-corte-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;" title="Re-envía a SmartOLT el corte de TV de todos los morosos del grupo (corrige cortes que no llegaron a SmartOLT)"><i class="fas fa-sync-alt"></i> Sincronizar Corte TV</button>
+                    <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
+                </div>
             </div>
             <div class="ac-table-wrap">
                 <table class="ac-table" id="tabla-tv">
@@ -647,6 +650,7 @@
         limpiarCache:     '{{ route("grupos-corte.limpiar-cache-cortes") }}',
         ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
         ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
+        sincronizarTv:    '{{ route("grupos-corte.sincronizar-corte-tv") }}',
         habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
         clienteShow:      '{{ route("contactos.show",  ["contacto" => "CID_PH"]) }}',
         contratoShow:     '{{ route("contratos.show",  ["contrato" => "CID_PH"]) }}',
@@ -840,6 +844,8 @@
                 h+='<tr><td class="ac-dim">#'+r.id+'</td><td>'+tip+'</td><td>'+(r.total_procesados||0)+'</td><td style="color:#ef4444;font-weight:700;">'+(r.total_cortados||0)+'</td><td>'+(r.total_omitidos||0)+'</td><td style="color:#f97316;">'+(r.total_errores||0)+'</td><td class="ac-dim">'+dur+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.ejecutado_por_nombre||'CRON')+'</td><td class="ac-dim" style="font-size:0.75rem;">'+(r.created_at||'—')+'</td><td><button class="ac-btn-sm btn-ver-detalle" data-id="'+r.id+'"><i class="fas fa-eye"></i></button></td></tr>';
             });
             $('#tbody-historial').html(h);
+        }).fail(function(){
+            $('#tbody-historial').html('<tr><td colspan="10" class="text-center py-5" style="color:#ef4444;"><i class="fas fa-exclamation-triangle mr-2"></i>No se pudo cargar el historial.</td></tr>');
         });
     }
 
@@ -910,6 +916,16 @@
         $('#modal-confirmar-corte-tv').modal('hide');
         var $b=$('#btn-ejecutar-corte-tv').prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
         $.ajax({url:URLS.ejecutarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}}).done(function(r){alert('Completado. Cortados: '+r.cortados);loadTv();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-ban"></i> Ejecutar Corte TV');});
+    });
+
+    /* Sincronizar Corte TV — re-envía el disable_catv a SmartOLT para todos los morosos del grupo */
+    $('#btn-sincronizar-corte-tv').on('click',function(){
+        if(!confirm('Se re-enviará el corte de TV a SmartOLT para todos los contratos morosos del grupo. ¿Continuar?')) return;
+        var $b=$(this).prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i> Sincronizando...');
+        $.ajax({url:URLS.sincronizarTv,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,fecha:gf()}})
+            .done(function(r){ alert('Sincronización completada.\nProcesados: '+(r.total||0)+'\nCortados en SmartOLT: '+(r.cortados||0)+'\nErrores: '+(r.errores||0)); loadTv(); loadSummary(); loadHist(); })
+            .fail(function(x){ alert('Error al sincronizar: '+((x.responseJSON&&x.responseJSON.error)||'fallo en el servidor')); })
+            .always(function(){ $b.prop('disabled',false).html('<i class="fas fa-sync-alt"></i> Sincronizar Corte TV'); });
     });
 
     /* Habilitar */

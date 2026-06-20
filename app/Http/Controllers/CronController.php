@@ -2038,7 +2038,7 @@ class CronController extends Controller
                     ]);
 
                     foreach ($toDisable as $sn => $row) {
-                        $ok = isset($bulkResults[$sn]) && is_string($bulkResults[$sn]);
+                        $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
                         if ($ok) {
                             Contrato::where('id', $row['contrato_id'])->update(['state_olt_catv' => false]);
                             $movimiento = new MovimientoLOG();
@@ -2052,7 +2052,7 @@ class CronController extends Controller
                             \Log::warning('[cortartelevision] Falló disable CATV', [
                                 'contrato' => $row['contrato_id'],
                                 'sn'       => $sn,
-                                'response' => $bulkResults[$sn] ?? null,
+                                'response' => $bulkResults[$sn]['error'] ?? ($bulkResults[$sn] ?? null),
                             ]);
                         }
                     }

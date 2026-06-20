@@ -713,12 +713,15 @@ class OltController extends Controller
                 'response_status' => $response['status'] ?? null,
             ]);
 
-            if (isset($response['response']) && is_array($response['response'])) {
-                $results = array_merge($results, $response['response']);
+            if (isset($response['status']) && $response['status'] === true && isset($response['response']) && is_array($response['response'])) {
+                foreach ($response['response'] as $sn => $msg) {
+                    $results[$sn] = ['success' => true, 'message' => is_string($msg) ? $msg : 'ONU disabled'];
+                }
             } else {
-                // Si falla el chunk, marcar todos los seriales como error
+                // Falla el chunk (p.ej. HTTP 403 por token/IP no autorizada en SmartOLT):
+                // marcar como NO exitoso para que el corte no se registre como aplicado.
                 foreach ($chunk as $sn) {
-                    $results[$sn] = $response['error'] ?? 'bulk_disable failed (HTTP ' . $httpCode . ')';
+                    $results[$sn] = ['success' => false, 'error' => $response['error'] ?? ('bulk_disable failed (HTTP ' . $httpCode . ')')];
                 }
             }
         }
@@ -853,10 +856,14 @@ class OltController extends Controller
             ]);
 
             if (isset($response['status']) && $response['status'] === true && isset($response['response']) && is_array($response['response'])) {
-                $results = array_merge($results, $response['response']);
+                foreach ($response['response'] as $sn => $msg) {
+                    $results[$sn] = ['success' => true, 'message' => is_string($msg) ? $msg : 'CATV disabled'];
+                }
             } else {
+                // Falla el chunk (p.ej. HTTP 403 por token/IP no autorizada en SmartOLT):
+                // marcar como NO exitoso para que el corte no se registre como aplicado.
                 foreach ($chunk as $sn) {
-                    $results[$sn] = $response['error'] ?? 'bulk_disable_catv failed (HTTP ' . $httpCode . ')';
+                    $results[$sn] = ['success' => false, 'error' => $response['error'] ?? ('bulk_disable_catv failed (HTTP ' . $httpCode . ')')];
                 }
             }
         }

@@ -219,6 +219,62 @@ class CortesAnalyzer
         });
     }
 
+    /**
+     * Contratos que DEBERÍAN tener la TV cortada según el criterio de morosidad,
+     * SIN filtrar por el estado local state_olt_catv. Sirve para "Sincronizar
+     * corte de TV": re-empujar el disable_catv a SmartOLT cuando un corte previo
+     * no llegó (p.ej. HTTP 403) pero localmente quedó marcado como cortado.
+     * No se cachea: se ejecuta manualmente y necesita datos frescos.
+     */
+    public function getTvCutsToSync(int $grupoCorteId, ?string $fecha = null): \Illuminate\Support\Collection
+    {
+        $fecha       = $fecha ?? now()->format('Y-m-d');
+        $grupo       = GrupoCorte::find($grupoCorteId);
+        $prorroga    = (int) ($grupo->prorroga_tv ?? 0);
+        $fechaLimite = Carbon::parse($fecha)->subDays($prorroga)->format('Y-m-d');
+
+        return DB::table('contracts as cs')
+            ->join('contactos', 'contactos.id', '=', 'cs.client_id')
+            ->join('facturas_contratos as fcs', 'fcs.contrato_nro', '=', 'cs.nro')
+            ->join('factura as f', 'f.id', '=', 'fcs.factura_id')
+            ->leftJoin('promesa_pago as pp', function ($join) use ($fecha) {
+                $join->on('pp.factura', '=', 'f.id')->where('pp.vencimiento', '>=', $fecha);
+            })
+            ->select(
+                'cs.id as contrato_id', 'cs.nro as contrato_nro',
+                'cs.olt_sn_mac', 'cs.serial_onu', 'cs.state_olt_catv',
+                'cs.fecha_suspension',
+                'contactos.id as cliente_id', 'contactos.nombre as cliente_nombre',
+                'contactos.nit as cliente_nit',
+                'f.id as factura_id', 'f.vencimiento',
+                DB::raw('DATEDIFF(NOW(), f.vencimiento) as dias_vencida')
+            )
+            ->where('f.estatus', 1)->whereIn('f.tipo', [1, 2])
+            ->where('contactos.status', 1)->where('cs.status', 1)
+            ->where('cs.grupo_corte', $grupoCorteId)
+            ->whereNull('cs.fecha_suspension')
+            // NOTA: a diferencia de getPendingTvCuts, NO se filtra por cs.state_olt_catv.
+            ->whereNotNull('cs.olt_sn_mac')
+            ->whereDate('f.vencimiento', '<=', $fechaLimite)
+            ->whereNull('pp.id')
+            ->whereIn('f.id', function ($sub) {
+                $sub->selectRaw('MAX(f2.id)')->from('factura as f2')
+                    ->join('facturas_contratos as fcs2', 'fcs2.factura_id', '=', 'f2.id')
+                    ->whereColumn('fcs2.contrato_nro', 'cs.nro')
+                    ->where('f2.estatus', 1)->whereIn('f2.tipo', [1, 2])
+                    ->whereDate('f2.vencimiento', '<=', now())
+                    ->groupBy('fcs2.contrato_nro');
+            })
+            ->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))->from('factura as f_newer')
+                    ->join('facturas_contratos as fcs_newer', 'fcs_newer.factura_id', '=', 'f_newer.id')
+                    ->whereColumn('fcs_newer.contrato_nro', 'cs.nro')
+                    ->whereIn('f_newer.tipo', [1, 2])->where('f_newer.estatus', 0)
+                    ->whereColumn('f_newer.vencimiento', '>', 'f.vencimiento');
+            })
+            ->orderBy('f.vencimiento', 'asc')->get();
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     //  Ya cortados
     // ──────────────────────────────────────────────────────────────────────────
@@ -579,7 +635,7 @@ class CortesAnalyzer
         return Cache::remember("cortes_analyzer_history_{$grupoCorteId}_{$limit}", self::TTL_HISTORY, function () use ($grupoCorteId, $limit) {
             $logs = DB::table('cron_cortes_logs')
                 ->leftJoin('usuarios', 'usuarios.id', '=', 'cron_cortes_logs.ejecutado_por')
-                ->select('cron_cortes_logs.*', DB::raw("IFNULL(usuarios.nombre, 'CRON') as ejecutado_por_nombre"))
+                ->select('cron_cortes_logs.*', DB::raw("IFNULL(usuarios.nombres, 'CRON') as ejecutado_por_nombre"))
                 ->where('cron_cortes_logs.grupo_corte_id', $grupoCorteId)
                 ->orderByDesc('cron_cortes_logs.created_at')->limit($limit)->get();
 

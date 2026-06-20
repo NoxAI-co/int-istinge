@@ -2033,6 +2033,92 @@ class GruposCorteController extends Controller
         ]);
     }
 
+    /**
+     * Sincronizar corte de TV: re-envía a SmartOLT el disable_catv de TODOS los
+     * contratos morosos del grupo (sin importar el estado local state_olt_catv).
+     * Útil cuando un corte previo no llegó a SmartOLT (p.ej. HTTP 403) pero quedó
+     * marcado como cortado localmente. Ejecución manual. Operación idempotente:
+     * deshabilitar una CATV ya deshabilitada en SmartOLT es inofensivo.
+     */
+    public function sincronizarCorteTv(Request $request)
+    {
+        set_time_limit(0);
+        $request->validate(['grupo_id' => 'required|integer']);
+        $empresa    = Auth::user()->empresa;
+        $grupoId    = (int) $request->grupo_id;
+        $empresaObj = Empresa::find($empresa);
+        GrupoCorte::where('empresa', $empresa)->findOrFail($grupoId);
+
+        if (empty($empresaObj->smartOLT)) {
+            return response()->json(['error' => 'SmartOLT no está configurado para esta empresa.'], 422);
+        }
+
+        $userId   = Auth::id();
+        $fecha    = $request->input('fecha', now()->format('Y-m-d'));
+        $inicio   = microtime(true);
+        $analyzer = new CortesAnalyzer;
+        $aSincronizar = $analyzer->getTvCutsToSync($grupoId, $fecha);
+
+        // Mapa SN => contrato (una entrada por SN). bulkDisableCatv usa olt_sn_mac
+        // como identificador externo en SmartOLT, igual que el cron cortarTelevision.
+        $toDisable = [];
+        foreach ($aSincronizar as $row) {
+            if (! empty($row->olt_sn_mac) && ! isset($toDisable[$row->olt_sn_mac])) {
+                $toDisable[$row->olt_sn_mac] = $row;
+            }
+        }
+
+        $logId = DB::table('cron_cortes_logs')->insertGetId([
+            'tipo' => 'tv', 'empresa' => $empresa, 'grupo_corte_id' => $grupoId,
+            'ejecutado_por' => $userId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $totalProcesados = count($toDisable);
+        $totalCortados = 0; $totalErrores = 0;
+
+        if (! empty($toDisable)) {
+            $oltController = app('App\Http\Controllers\OltController');
+            $bulkResults = $oltController->bulkDisableCatv(array_keys($toDisable), $empresaObj->id);
+
+            foreach ($toDisable as $sn => $row) {
+                $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
+                if ($ok) {
+                    $totalCortados++;
+                    // Asegurar estado local coherente con SmartOLT
+                    if ($row->state_olt_catv) {
+                        Contrato::where('id', $row->contrato_id)->update(['state_olt_catv' => false]);
+                    }
+                    $movimiento = new \App\MovimientoLOG();
+                    $movimiento->contrato    = $row->contrato_id;
+                    $movimiento->modulo      = 5;
+                    $movimiento->descripcion = '<i class="fas fa-sync text-success"></i> <b>Sincronización de corte TV</b>: CATV deshabilitada en SmartOLT (re-envío manual)<br>';
+                    $movimiento->created_by  = $userId;
+                    $movimiento->empresa     = $empresa;
+                    $movimiento->save();
+                } else {
+                    $totalErrores++;
+                    \Log::warning('[sincronizarCorteTv] Falló disable CATV', [
+                        'contrato' => $row->contrato_id,
+                        'sn'       => $sn,
+                        'response' => $bulkResults[$sn]['error'] ?? ($bulkResults[$sn] ?? null),
+                    ]);
+                }
+            }
+        }
+
+        $duracion = (int) round((microtime(true) - $inicio) * 1000);
+        DB::table('cron_cortes_logs')->where('id', $logId)->update([
+            'total_procesados' => $totalProcesados, 'total_cortados' => $totalCortados,
+            'total_errores' => $totalErrores, 'duracion_ms' => $duracion, 'updated_at' => now(),
+        ]);
+        $analyzer->clearCache($grupoId);
+
+        return response()->json([
+            'ok' => true, 'log_id' => $logId,
+            'cortados' => $totalCortados, 'errores' => $totalErrores, 'total' => $totalProcesados,
+        ]);
+    }
+
     public function habilitarCortadosInternet(Request $request)
     {
         set_time_limit(0);

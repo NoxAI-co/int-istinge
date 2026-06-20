@@ -1952,6 +1952,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('/api/limpiar-cache-cortes', 'GruposCorteController@limpiarCacheCortes')->name('grupos-corte.limpiar-cache-cortes');
 		Route::post('/api/ejecutar-corte-internet', 'GruposCorteController@ejecutarCorteInternet')->name('grupos-corte.ejecutar-corte-internet');
 		Route::post('/api/ejecutar-corte-tv', 'GruposCorteController@ejecutarCorteTv')->name('grupos-corte.ejecutar-corte-tv');
+		Route::post('/api/sincronizar-corte-tv', 'GruposCorteController@sincronizarCorteTv')->name('grupos-corte.sincronizar-corte-tv');
 		Route::post('/api/habilitar-cortados-internet', 'GruposCorteController@habilitarCortadosInternet')->name('grupos-corte.habilitar-cortados-internet');
 	});
 
