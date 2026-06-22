@@ -90,6 +90,8 @@ class WhatsappMetaLogController extends Controller
                 // Si hay menos de 5 registros locales, sincronizar
                 if ($countLocal < 5) {
                     $instance = Instance::where('company_id', $empresaId)
+                        ->where('activo', 1)
+                        ->where('meta', 0)
                         ->whereNotNull('phone_number_id')
                         ->first();
 

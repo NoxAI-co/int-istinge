@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Instance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -69,6 +70,12 @@ class InstancesController extends Controller
                 ], 400);
             }
 
+            // Solo se permite UNA instancia activa por empresa (la que usa todo el
+            // sistema para Meta). Si ya hay una activa, la nueva nace inactiva para
+            // no interrumpir el envío actual; el operador la activa cuando quiera.
+            $yaHayActiva = Instance::where('company_id', Auth::user()->empresa)
+                ->where('meta', 0)->where('activo', 1)->exists();
+
             // Crear la instancia en la base de datos DIRECTAMENTE (Sin VibioCRM)
             // Usamos phone_number_id como identificador único (uuid/api_key) para consistencia
             $instance = Instance::create([
@@ -79,7 +86,7 @@ class InstancesController extends Controller
                 'status' => 'PAIRED', // Meta Direct se asume "conectado" si tiene las credenciales
                 'type' => 1, // 1 = Meta Direct
                 'meta' => 0, // 0 = Usamos integración directa (sin Wapi middleware)
-                'activo' => 1,
+                'activo' => $yaHayActiva ? 0 : 1,
                 'phone_number_id' => $request->phone_number_id,
                 'waba_id' => $request->waba_id,
                 'access_token' => $request->access_token,
@@ -199,6 +206,58 @@ class InstancesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar la instancia: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Habilita o deshabilita una instancia Meta. Solo puede haber UNA activa por
+     * empresa: al activar una, las demás quedan inactivas. Todo el sistema usa la
+     * instancia activa para sus consultas/envíos de Meta (filtran where activo=1).
+     */
+    public function toggle($id)
+    {
+        try {
+            $empresaId = Auth::user()->empresa;
+
+            $instance = Instance::where('id', $id)
+                ->where('company_id', $empresaId)
+                ->where('meta', 0)
+                ->first();
+
+            if (!$instance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Instancia no encontrada'
+                ], 404);
+            }
+
+            $activar = ! $instance->activo;
+
+            DB::transaction(function () use ($instance, $empresaId, $activar) {
+                if ($activar) {
+                    // Exclusividad: desactivar el resto de instancias Meta de la empresa.
+                    Instance::where('company_id', $empresaId)
+                        ->where('meta', 0)
+                        ->where('id', '!=', $instance->id)
+                        ->update(['activo' => 0]);
+                }
+                $instance->activo = $activar ? 1 : 0;
+                $instance->save();
+            });
+
+            return response()->json([
+                'success' => true,
+                'activo'  => (bool) $instance->activo,
+                'message' => $activar
+                    ? 'Instancia habilitada. El sistema usará esta instancia para WhatsApp Meta.'
+                    : 'Instancia deshabilitada.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado de instancia WhatsApp Meta: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el estado de la instancia: ' . $e->getMessage()
             ], 500);
         }
     }

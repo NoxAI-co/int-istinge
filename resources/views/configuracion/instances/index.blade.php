@@ -34,6 +34,10 @@
                 @endif
             </div>
 
+            <div class="alert alert-info" style="border-left:4px solid #17a2b8;">
+                <i class="fas fa-info-circle mr-1"></i> Solo puede haber <strong>una instancia habilitada</strong> a la vez. Todo el sistema (facturación, recordatorios, chat, crons) usa la instancia habilitada para las consultas y envíos de WhatsApp Meta. Al habilitar una, la otra se deshabilita automáticamente.
+            </div>
+
             <table class="table table-striped table-hover" id="tablaInstancias">
                 <thead class="thead-dark">
                     <tr>
@@ -58,9 +62,16 @@
                                 </span>
                             </td>
                             <td>
-                                <span class="badge badge-{{ $instance->activo ? 'success' : 'secondary' }}">
-                                    {{ $instance->activo ? 'Sí' : 'No' }}
-                                </span>
+                                @if(!auth()->user()->modo_lectura())
+                                    <div class="custom-control custom-switch d-inline-block align-middle">
+                                        <input type="checkbox" class="custom-control-input toggle-instancia" id="switchInstancia{{ $instance->id }}" data-id="{{ $instance->id }}" {{ $instance->activo ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="switchInstancia{{ $instance->id }}">
+                                            <span class="badge badge-{{ $instance->activo ? 'success' : 'secondary' }}">{{ $instance->activo ? 'Habilitada' : 'Deshabilitada' }}</span>
+                                        </label>
+                                    </div>
+                                @else
+                                    <span class="badge badge-{{ $instance->activo ? 'success' : 'secondary' }}">{{ $instance->activo ? 'Habilitada' : 'Deshabilitada' }}</span>
+                                @endif
                             </td>
                             <td>{{ $instance->created_at ? $instance->created_at->format('d/m/Y H:i') : '-' }}</td>
                             <td>
@@ -317,6 +328,46 @@
                 },
                 complete: function() {
                     $('#btnActualizarInstancia').prop('disabled', false).html('<i class="fas fa-save"></i> Actualizar');
+                }
+            });
+        });
+
+        // Habilitar / deshabilitar instancia (exclusividad: solo una activa)
+        $(document).on('change', '.toggle-instancia', function() {
+            var $sw = $(this);
+            var id = $sw.data('id');
+            $sw.prop('disabled', true);
+
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/empresa/configuracion/instances/' + id + '/toggle';
+            } else {
+                var url = '/empresa/configuracion/instances/' + id + '/toggle';
+            }
+
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: { _token: $('input[name="_token"]').val() },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Listo',
+                            text: response.message,
+                            type: 'success',
+                            showConfirmButton: false,
+                            timer: 1800
+                        }).then(function() {
+                            location.reload();
+                        });
+                    } else {
+                        $sw.prop('checked', !$sw.prop('checked')).prop('disabled', false);
+                        Swal.fire({ title: 'Error', text: response.message, type: 'error', confirmButtonText: 'Aceptar' });
+                    }
+                },
+                error: function(xhr) {
+                    $sw.prop('checked', !$sw.prop('checked')).prop('disabled', false);
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error al cambiar el estado de la instancia';
+                    Swal.fire({ title: 'Error', text: msg, type: 'error', confirmButtonText: 'Aceptar' });
                 }
             });
         });

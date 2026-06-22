@@ -1501,6 +1501,7 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 
 		//INSTANCIAS WHATSAPP META
 		Route::resource('instances', 'InstancesController')->only(['index', 'store', 'update', 'destroy']);
+		Route::post('instances/{id}/toggle', 'InstancesController@toggle')->name('instances.toggle');
 
 		//INTEGRACION PASARELAS DE PAGO
 		Route::group(['prefix' => 'integracion-pasarelas'], function () {

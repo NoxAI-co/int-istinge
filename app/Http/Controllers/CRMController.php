@@ -323,6 +323,8 @@ class CRMController extends Controller
         $this->getAllPermissions(auth()->user()->id);
         $instance = Instance::where('company_id', auth()->user()->empresa)
             ->where('type', 1)
+            ->where('meta', 0)
+            ->where('activo', 1)
             ->first();
         if (!$instance) {
             return view('crm.whatsapp')->with(compact('instance'));
