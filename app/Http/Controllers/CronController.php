@@ -4815,40 +4815,31 @@ class CronController extends Controller
         // $logs = MovimientoLOG::where('modulo',5)->where('descripcion','LIKE','%de habilitado a deshabilitado%')->where('created_at','>','2025-08-16')->pluck('contrato');
         // $contratos = Contrato::whereIn('id',$logs)->where('state','disabled')->get();
 
-        //Habilitando contratos masivamente segun unas especificaciones
+        //Habilitando contratos masivamente segun unas especificaciones (en LOTE)
         $empresa = Empresa::find(1);
-        foreach($contratos as $contrato){
-            if($contrato->state_olt_catv == 0){
+        if (! $empresa || empty($empresa->adminOLT)) {
+            return "smartolt no configurado";
+        }
 
-                //Este es el de habilitacion de CATV
-                /* * * API CATV * * */
-                if($contrato->olt_sn_mac && $empresa->adminOLT != null){
+        // Mapa SN => [contratos] para habilitar CATV en lote (respeta reglas SmartOLT).
+        $snMap = [];
+        foreach ($contratos as $contrato) {
+            if ($contrato->state_olt_catv == 0 && $contrato->olt_sn_mac) {
+                $snMap[$contrato->olt_sn_mac][] = $contrato;
+            }
+        }
 
-                    $curl = curl_init();
-                    curl_setopt_array($curl, array(
-                        CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_ENCODING => '',
-                        CURLOPT_MAXREDIRS => 10,
-                        CURLOPT_TIMEOUT => 0,
-                        CURLOPT_FOLLOWLOCATION => true,
-                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                        CURLOPT_CUSTOMREQUEST => 'POST',
-                        CURLOPT_HTTPHEADER => array(
-                            'X-token: '.$empresa->smartOLT
-                        ),
-                        ));
+        if (! empty($snMap)) {
+            $oltController = app('App\Http\Controllers\OltController');
+            $bulkResults = $oltController->bulkEnableCatv(array_keys($snMap), $empresa->id);
 
-                    $response = curl_exec($curl);
-                    $response = json_decode($response);
-
-                    if(isset($response->status) && $response->status == true){
-
+            foreach ($snMap as $sn => $modelos) {
+                if (isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false)) {
+                    foreach ($modelos as $contrato) {
                         $contrato->state_olt_catv = 1;
                         $contrato->save();
                     }
                 }
-
             }
         }
 
@@ -6365,6 +6356,36 @@ class CronController extends Controller
         ->orderBy('updated_at', 'asc')
         ->get();
 
+        $empresa = Empresa::find(1);
+
+        // ── Pre-pase: juntar TODOS los SN de OLT a habilitar y hacerlo en LOTE
+        //    (bulk_enable_catv) en vez de un enable_catv por ONU → respeta SmartOLT
+        //    y evita el bloqueo de IP. enable_catv es idempotente. ──
+        $bulkResults = [];
+        if ($empresa && $empresa->adminOLT != null) {
+            $serials = [];
+            foreach ($ingresos as $ingreso) {
+                $facturas = IngresosFactura::where('ingreso', $ingreso->id)->get()->pluck('factura');
+                if ($facturas->count() == 0) {
+                    continue;
+                }
+                $contratoNros = Factura::leftJoin('facturas_contratos as fc', 'fc.factura_id', 'factura.id')
+                    ->whereIn('fc.factura_id', $facturas)
+                    ->where('factura.estatus', 0)
+                    ->pluck('fc.contrato_nro')->unique()->values();
+                foreach ($contratoNros as $nro) {
+                    $c = Contrato::where('nro', $nro)->first();
+                    if ($c && $c->olt_sn_mac) {
+                        $serials[] = $c->olt_sn_mac;
+                    }
+                }
+            }
+            if (! empty($serials)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $bulkResults = $oltController->bulkEnableCatv(array_values(array_unique($serials)), $empresa->id);
+            }
+        }
+
         //obtenemos los contratos o el contrato que la factura tiene
         foreach($ingresos as $ingreso){
 
@@ -6386,31 +6407,14 @@ class CronController extends Controller
 
                         $contrato = Contrato::where('nro',$contrato)->first();
 
-                        //Este es el de habilitacion de CATV
+                        //Este es el de habilitacion de CATV (resuelto en LOTE arriba)
                         /* * * API CATV * * */
-                        $empresa = Empresa::find(1);
                         if($contrato->olt_sn_mac && $empresa->adminOLT != null){
 
-                            $curl = curl_init();
-                            curl_setopt_array($curl, array(
-                                CURLOPT_URL => $empresa->adminOLT.'/api/onu/enable_catv/'.$contrato->olt_sn_mac,
-                                CURLOPT_RETURNTRANSFER => true,
-                                CURLOPT_ENCODING => '',
-                                CURLOPT_MAXREDIRS => 10,
-                                CURLOPT_TIMEOUT => 0,
-                                CURLOPT_FOLLOWLOCATION => true,
-                                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                                CURLOPT_CUSTOMREQUEST => 'POST',
-                                CURLOPT_HTTPHEADER => array(
-                                    'X-token: '.$empresa->smartOLT
-                                ),
-                                ));
+                            $sn = $contrato->olt_sn_mac;
+                            $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
 
-                            $response = curl_exec($curl);
-                            $response = json_decode($response);
-
-                            if(isset($response->status) && $response->status == true){
-
+                            if($ok){
                                 $ingreso->revalidacion_enable_tv = 1;
                                 $ingreso->save();
 

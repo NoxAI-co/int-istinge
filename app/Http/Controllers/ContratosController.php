@@ -3305,6 +3305,28 @@ class ContratosController extends Controller
         $eliminados = 0;
         $omitidos = 0;
 
+        // ── Pre-pase: deshabilitar CATV en LOTE (bulk_disable_catv) de los contratos
+        //    que SÍ se van a eliminar (sin facturas) y tienen CATV activo. Evita un
+        //    disable_catv por ONU dentro del loop (que podía bloquear la IP). ──
+        $catvBulkResults = [];
+        if ($empresa && $empresa->adminOLT != null) {
+            $snDisable = [];
+            foreach ($ids as $id) {
+                $c = Contrato::find($id);
+                if (! $c || empty($c->olt_sn_mac) || $c->state_olt_catv != 1) {
+                    continue;
+                }
+                $tieneFact = DB::table('facturas_contratos')->where('contrato_nro', $c->nro)->exists();
+                if (! $tieneFact) {
+                    $snDisable[] = $c->olt_sn_mac;
+                }
+            }
+            if (! empty($snDisable)) {
+                $oltController = app('App\Http\Controllers\OltController');
+                $catvBulkResults = $oltController->bulkDisableCatv(array_values(array_unique($snDisable)), $empresa->id);
+            }
+        }
+
         foreach ($ids as $id) {
             $contrato = Contrato::find($id);
             if ($contrato) {
@@ -3380,28 +3402,9 @@ class ContratosController extends Controller
                     }
                 }
 
-                // Deshabilitar CATV si es necesario
-                if ($contrato->olt_sn_mac && $empresa->adminOLT != null && $contrato->state_olt_catv == 1) {
-                    try {
-                        $curl = curl_init();
-                        curl_setopt_array($curl, array(
-                            CURLOPT_URL => $empresa->adminOLT . '/api/onu/disable_catv/' . $contrato->olt_sn_mac,
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_ENCODING => '',
-                            CURLOPT_MAXREDIRS => 10,
-                            CURLOPT_TIMEOUT => 0,
-                            CURLOPT_FOLLOWLOCATION => true,
-                            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                            CURLOPT_CUSTOMREQUEST => 'POST',
-                            CURLOPT_HTTPHEADER => array('X-token: ' . $empresa->smartOLT),
-                        ));
-                        curl_exec($curl);
-                        curl_close($curl);
-                    } catch (\Exception $e) {
-                        // Continuar...
-                    }
-                }
-                
+                // CATV ya se deshabilitó en LOTE (pre-pase con bulk_disable_catv arriba).
+
+
                 // Borrar archivos adjuntos en Contabo si existen
                 $contabo = app(ContaboS3Service::class);
                 if ($contrato->adjunto_a && $contabo->exists('documentos', $contrato->adjunto_a)) { $contabo->delete('documentos', $contrato->adjunto_a); }
@@ -5482,65 +5485,38 @@ class ContratosController extends Controller
         $contratos = explode(",", $contratos);
         $empresa = Auth::user()->empresa();
 
-        for ($i = 0; $i < count($contratos); $i++) {
-            $contrato = Contrato::find($contratos[$i]);
+        // NOTA: el guard "Suspender al tener = No aplica" NO se aplica aquí: es una
+        // acción manual en lote del operador (corte/habilitar TV desde la tabla).
 
-            // NOTA: el guard "Suspender al tener = No aplica" NO se aplica aquí: es una
-            // acción manual en lote del operador (corte TV desde la tabla de contratos).
-            // El guard solo protege el corte automático (cron / análisis de cortes).
+        // Cargar contratos con SN de OLT y construir mapa SN => [contratos]
+        $snMap = [];          // sn => array de modelos Contrato
+        foreach ($contratos as $cid) {
+            $contrato = Contrato::find($cid);
+            if (! $contrato || empty($contrato->olt_sn_mac) || $empresa->adminOLT == null) {
+                $fail++;
+                continue;
+            }
+            $snMap[$contrato->olt_sn_mac][] = $contrato;
+        }
 
-            if ($contrato && $contrato->olt_sn_mac && $empresa->adminOLT != null) {
-                $curl = curl_init();
+        if (! empty($snMap)) {
+            // UNA operación en LOTE (bulk_enable_catv / bulk_disable_catv) — respeta
+            // las reglas de SmartOLT y evita el bloqueo de IP por peticiones individuales.
+            $oltController = app('App\Http\Controllers\OltController');
+            $bulkResults = $state === 'disabled'
+                ? $oltController->bulkDisableCatv(array_keys($snMap), $empresa->id)
+                : $oltController->bulkEnableCatv(array_keys($snMap), $empresa->id);
 
-                if ($state == 'enabled') {
-                    curl_setopt_array($curl, array(
-                        CURLOPT_URL => $empresa->adminOLT . '/api/onu/enable_catv/' . $contrato->olt_sn_mac,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_ENCODING => '',
-                        CURLOPT_MAXREDIRS => 10,
-                        CURLOPT_TIMEOUT => 0,
-                        CURLOPT_FOLLOWLOCATION => true,
-                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                        CURLOPT_CUSTOMREQUEST => 'POST',
-                        CURLOPT_HTTPHEADER => array(
-                            'X-token: ' . $empresa->smartOLT
-                        ),
-                    ));
-                } else if ($state == 'disabled') {
-                    curl_setopt_array($curl, array(
-                        CURLOPT_URL => $empresa->adminOLT . '/api/onu/disable_catv/' . $contrato->olt_sn_mac,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_ENCODING => '',
-                        CURLOPT_MAXREDIRS => 10,
-                        CURLOPT_TIMEOUT => 0,
-                        CURLOPT_FOLLOWLOCATION => true,
-                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                        CURLOPT_CUSTOMREQUEST => 'POST',
-                        CURLOPT_HTTPHEADER => array(
-                            'X-token: ' . $empresa->smartOLT
-                        ),
-                    ));
-                }
-
-                $response = curl_exec($curl);
-                $response = json_decode($response);
-
-                if (isset($response->status) && $response->status == true) {
-                    if ($state == 'disabled') {
-                        $contrato->state_olt_catv = 0;
+            foreach ($snMap as $sn => $modelos) {
+                $ok = isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false);
+                foreach ($modelos as $contrato) {
+                    if ($ok) {
+                        $contrato->state_olt_catv = ($state === 'disabled') ? 0 : 1;
+                        $contrato->save();
+                        $succ++;
                     } else {
-                        $contrato->state_olt_catv = 1;
+                        $fail++;
                     }
-                    $contrato->save();
-                    $succ++;
-                } else {
-                    $fail++;
-                }
-
-                curl_close($curl);
-            } else {
-                if (!$contrato || !$contrato->olt_sn_mac || $empresa->adminOLT == null) {
-                    $fail++;
                 }
             }
         }
