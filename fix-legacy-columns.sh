@@ -171,6 +171,41 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla/columna factura.estatus)"
   fi
+
+  # --- 7) empresa: flags de configuración (análisis de ciclo) ---------------
+  #  El panel grupos-corte/analisis-ciclo lee y togglea estos flags sobre la
+  #  tabla `empresa` (GruposCorteController::updateEmpresaConfig). En BDs legacy
+  #  faltaban -> al guardar daba 1054 Unknown column y el front mostraba
+  #  "Error desconocido". Se agregan como TINYINT(1) NOT NULL DEFAULT 0
+  #  (apagado = comportamiento actual, ya que la columna ausente se leía null/falsy).
+  if table_exists "$DB" "empresa"; then
+    for COL in factura_auto aplicar_saldofavor cron_fact_abiertas factura_contrato_off contrato_factura_pro prorrateo; do
+      if column_exists "$DB" "empresa" "$COL"; then
+        echo "    [empresa.${COL}] ya existe, salto"
+      else
+        dm "$DB" -e "ALTER TABLE empresa ADD COLUMN ${COL} TINYINT(1) NOT NULL DEFAULT 0;"
+        echo "    [empresa.${COL}] agregada (TINYINT(1) DEFAULT 0)"
+      fi
+    done
+  else
+    echo "    (sin tabla empresa)"
+  fi
+
+  # --- 8) etiqueta_id en tablas que lo referencian --------------------------
+  #  El módulo de etiquetas filtra/asigna por `etiqueta_id` (FK lógica a
+  #  etiquetas.id). En BDs legacy faltaba en algunas tablas -> 1054 Unknown
+  #  column 'etiqueta_id' (p.ej. listado de contactos). Se agrega nullable.
+  #  Sin FK constraint para no exigir tipos exactos entre BDs.
+  for TBL in contactos contracts crm radicados factura_proveedores; do
+    if ! table_exists "$DB" "$TBL"; then
+      echo "    (sin tabla ${TBL}, salto etiqueta_id)"
+    elif column_exists "$DB" "$TBL" "etiqueta_id"; then
+      echo "    [${TBL}.etiqueta_id] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE ${TBL} ADD COLUMN etiqueta_id BIGINT UNSIGNED NULL DEFAULT NULL;"
+      echo "    [${TBL}.etiqueta_id] agregada (BIGINT UNSIGNED NULL)"
+    fi
+  done
 done
 
 echo "==> Listo."

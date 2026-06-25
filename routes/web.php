@@ -1955,6 +1955,8 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 		Route::post('/api/ejecutar-corte-tv', 'GruposCorteController@ejecutarCorteTv')->name('grupos-corte.ejecutar-corte-tv');
 		Route::post('/api/sincronizar-corte-tv', 'GruposCorteController@sincronizarCorteTv')->name('grupos-corte.sincronizar-corte-tv');
 		Route::get('/api/revalidar-tv-al-dia-stream', 'GruposCorteController@revalidarTvAlDiaStream')->name('grupos-corte.revalidar-tv-al-dia-stream');
+		Route::get('/api/discrepancias-tv', 'GruposCorteController@discrepanciasTv')->name('grupos-corte.discrepancias-tv');
+		Route::post('/api/corregir-discrepancias-tv', 'GruposCorteController@corregirDiscrepanciasTv')->name('grupos-corte.corregir-discrepancias-tv');
 		Route::post('/api/habilitar-cortados-internet', 'GruposCorteController@habilitarCortadosInternet')->name('grupos-corte.habilitar-cortados-internet');
 	});
 
@@ -2159,5 +2161,6 @@ Route::patch('/caja-naps/{id}', 'CajaNapController@update')->name('caja.naps.upd
 Route::delete('/caja-naps/{id}', 'CajaNapController@destroy')->name('caja.naps.destroy');
 Route::get('/caja-naps/{id}/puertos-disponibles/{contratoId?}', 'CajaNapController@getPuertosDisponibles')->name('caja.naps.puertos.disponibles');
 
-// Ruta para abrir facturas que están cerradas pero no tienen pagos asociados
-Route::get('/abrirfacturascerradasmal', 'FacturasController@abrirFacturasCerradasMal');
+// Ruta para revalidar facturas cerradas que no tienen pagos asociados (reabrirlas)
+Route::get('/abrirfacturascerradasmal', 'FacturasController@abrirFacturasCerradasMal')
+    ->middleware('auth')->name('facturas.revalidar-cerradas');

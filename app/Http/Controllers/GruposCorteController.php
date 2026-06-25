@@ -2380,4 +2380,121 @@ class GruposCorteController extends Controller
             'X-Accel-Buffering' => 'no',
         ]);
     }
+
+    /**
+     * Discrepancias TV: contratos HABILITADOS en el sistema (state_olt_catv=1) cuyo
+     * CATV está DESHABILITADO en SmartOLT. Usa el endpoint MASIVO (1 llamada cacheada,
+     * get_all_onus_statuses) — respeta las reglas de SmartOLT (no polling por ONU).
+     */
+    public function discrepanciasTv(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $empresaId = Auth::user()->empresa;
+        $empresa   = Auth::user()->empresa();
+
+        if (empty($empresa->smartOLT) || empty($empresa->adminOLT)) {
+            return response()->json(['error' => 'SmartOLT no configurado'], 422);
+        }
+
+        $grupoId = $request->filled('grupo_id') ? (int) $request->grupo_id : null;
+
+        $oltController = app('App\Http\Controllers\OltController');
+        $all = $oltController->getAllOnusStatus($empresaId);
+
+        $q = DB::table('contracts as c')
+            ->leftJoin('contactos as ct', 'ct.id', '=', 'c.client_id')
+            ->where('c.empresa', $empresaId)
+            ->where('c.state_olt_catv', 1)
+            ->whereNotNull('c.olt_sn_mac')
+            ->where('c.olt_sn_mac', '<>', '');
+        if ($grupoId) {
+            $q->where('c.grupo_corte', $grupoId);
+        }
+        $contratos = $q->select(
+            'c.id', 'c.nro', 'c.olt_sn_mac', 'c.ip',
+            DB::raw("TRIM(CONCAT(COALESCE(ct.nombre,''),' ',COALESCE(ct.apellido1,''),' ',COALESCE(ct.apellido2,''))) as cliente"),
+            'ct.nit as documento'
+        )->get();
+
+        $disc = [];
+        $sinCatv = 0;
+        $noEn = 0;
+
+        foreach ($contratos as $c) {
+            $onu = $all[$c->olt_sn_mac] ?? null;
+            if ($onu === null) {
+                $noEn++;
+                continue;
+            }
+            $catv = $oltController->catvEnabledFromOnu($onu);
+            if ($catv === null) {
+                $sinCatv++;
+                continue;
+            }
+            if ($catv === false) {
+                $disc[] = [
+                    'contrato_id' => $c->id,
+                    'nro'         => $c->nro,
+                    'sn'          => $c->olt_sn_mac,
+                    'ip'          => $c->ip,
+                    'cliente'     => trim($c->cliente) ?: 'Sin nombre',
+                    'documento'   => $c->documento,
+                ];
+            }
+        }
+
+        return response()->json([
+            'discrepancias'                => $disc,
+            'total'                        => count($disc),
+            'revisados'                    => $contratos->count(),
+            'no_en_smartolt'               => $noEn,
+            'sin_dato_catv'                => $sinCatv,
+            'catv_no_disponible_en_masivo' => ($contratos->count() > 0 && $sinCatv === $contratos->count()),
+        ]);
+    }
+
+    /**
+     * Corrige discrepancias TV: habilita CATV en SmartOLT en LOTE (bulk_enable_catv)
+     * para los SN indicados (los que están habilitados en el sistema pero apagados en
+     * SmartOLT). El estado en el sistema ya es 1, así que solo se empuja a SmartOLT.
+     */
+    public function corregirDiscrepanciasTv(Request $request)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $request->validate(['sns' => 'required|array', 'sns.*' => 'string']);
+
+        $empresa = Auth::user()->empresa();
+        if (empty($empresa->smartOLT) || empty($empresa->adminOLT)) {
+            return response()->json(['error' => 'SmartOLT no configurado'], 422);
+        }
+
+        $sns = array_values(array_unique(array_filter($request->sns)));
+        if (empty($sns)) {
+            return response()->json(['success' => true, 'correctos' => 0, 'fallidos' => 0]);
+        }
+
+        $oltController = app('App\Http\Controllers\OltController');
+        $bulkResults = $oltController->bulkEnableCatv($sns, $empresa->id);
+
+        $correctos = 0;
+        $fallidos = 0;
+        foreach ($sns as $sn) {
+            if (isset($bulkResults[$sn]) && ($bulkResults[$sn]['success'] ?? false)) {
+                $correctos++;
+                // Asegurar estado en el sistema (idempotente)
+                Contrato::where('empresa', $empresa->id)
+                    ->where('olt_sn_mac', $sn)
+                    ->update(['state_olt_catv' => 1]);
+            } else {
+                $fallidos++;
+            }
+        }
+
+        // Invalida el estado masivo cacheado para que un nuevo chequeo lo refleje.
+        \Illuminate\Support\Facades\Cache::forget('smartolt_all_onus_status_' . $empresa->id);
+
+        return response()->json(['success' => true, 'correctos' => $correctos, 'fallidos' => $fallidos]);
+    }
 }

@@ -2912,15 +2912,22 @@ class IngresosController extends Controller
             $ingreso->save();
 
             if ($ingreso->tipo==1) {
-                $items=ingresosFactura::where('ingreso',$ingreso->id)->get();
-                foreach ($items as $item) {
-                    $factura= $item->factura();
-                    if ($this->precision($factura->porpagar())<=0) {
-                        $factura->estatus=0;
-                    }else{
-                        $factura->estatus=1;
+                // Recalcular el estatus de toda factura afectada por este recibo,
+                // ya sea por pago directo (ingresos_factura) o por aplicación de
+                // saldo a favor / anticipo (puc_movimiento tipo_comprobante=3).
+                // Se usa la invariante centralizada estatus<=>porpagar para evitar
+                // que una factura quede "cerrada" sin pago real tras la anulación.
+                $facturaIds = IngresosFactura::where('ingreso',$ingreso->id)->pluck('factura')->all();
+                $anticipoIds = PucMovimiento::where('recibocaja_id',$ingreso->id)
+                    ->where('tipo_comprobante',3)
+                    ->pluck('documento_id')->all();
+                $facturaIds = array_unique(array_filter(array_merge($facturaIds, $anticipoIds)));
+
+                foreach ($facturaIds as $facturaId) {
+                    $factura = Factura::find($facturaId);
+                    if ($factura) {
+                        $factura->revalidarEstatus();
                     }
-                    $factura->save();
                 }
             }
 

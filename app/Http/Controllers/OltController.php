@@ -950,6 +950,92 @@ class OltController extends Controller
         return $results;
     }
 
+    /**
+     * Estado de TODAS las ONUs en UNA sola llamada (endpoint masivo de SmartOLT),
+     * cacheado ~6 min. Forma recomendada por SmartOLT (no consultar ONU por ONU).
+     * Devuelve mapa [SN => datos_onu].
+     */
+    public function getAllOnusStatus($empresaId = null)
+    {
+        $empresa = $empresaId
+            ? Empresa::Find($empresaId)
+            : (!Auth::user() ? Empresa::Find(1) : Empresa::Find(Auth::user()->empresa));
+
+        if (! $empresa || empty($empresa->adminOLT)) {
+            return [];
+        }
+
+        $cacheKey = 'smartolt_all_onus_status_' . $empresa->id;
+
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 360, function () use ($empresa) {
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL            => $empresa->adminOLT . '/api/onu/get_all_onus_statuses',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT        => 60,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_HTTPHEADER     => array('X-Token: ' . $empresa->smartOLT),
+            ));
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $response = json_decode($response, true);
+            curl_close($curl);
+
+            \Log::info('[SmartOLT] get_all_onus_statuses — HTTP ' . $httpCode, [
+                'status' => $response['status'] ?? null,
+                'count'  => is_array($response['response'] ?? null) ? count($response['response']) : 0,
+            ]);
+
+            $resp = $response['response'] ?? null;
+            if (! is_array($resp)) {
+                return [];
+            }
+
+            $map = [];
+            foreach ($resp as $key => $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                $sn = $item['sn']
+                    ?? $item['unique_external_id']
+                    ?? $item['external_id']
+                    ?? (is_string($key) ? $key : null);
+                if ($sn !== null && $sn !== '') {
+                    $map[(string) $sn] = $item;
+                }
+            }
+
+            return $map;
+        });
+    }
+
+    /**
+     * Interpreta el estado de CATV de una fila de ONU. true/false, o null si no viene.
+     */
+    public function catvEnabledFromOnu(array $onu)
+    {
+        $catv = $onu['catv'] ?? $onu['catv_status'] ?? $onu['catv_state'] ?? $onu['catv_port'] ?? null;
+        if ($catv === null) {
+            return null;
+        }
+        if (is_bool($catv)) {
+            return $catv;
+        }
+        if (is_int($catv) || is_numeric($catv)) {
+            return (int) $catv === 1;
+        }
+        if (is_string($catv)) {
+            return in_array(strtolower(trim($catv)), array('enabled', 'active', 'on', '1', 'true', 'yes'), true);
+        }
+
+        return null;
+    }
+
     public function deleteOnu($sn)
     {
         $empresa = Empresa::Find(Auth::user()->empresa);

@@ -9104,53 +9104,96 @@ class FacturasController extends Controller{
     /**
      * Reabre las facturas que están en estado cerrado (0) pero que no tienen un pago asociado
      */
+    /**
+     * Revalida facturas marcadas como Cerradas (estatus 0, o 3 legacy) que en
+     * realidad NO están pagadas y las reabre (estatus 1).
+     *
+     * Caso típico: a un cliente le ingresaron un pago que generó saldo a favor,
+     * luego se anuló ese pago y la factura quedó "cerrada pero sin pago".
+     * La invariante del sistema es: estatus=0 (Cerrada) <=> porpagar()<=0.
+     * Aquí solo REABRIMOS (nunca cerramos) las que violan la invariante.
+     *
+     * URL:  /software/empresa/facturas/abrirfacturascerradasmal   (o /abrirfacturascerradasmal)
+     * Parámetros opcionales (query string):
+     *   - dry_run=1      -> solo reporta, no modifica nada
+     *   - fecha_inicio   -> YYYY-MM-DD (default: 1 de enero del año actual)
+     *   - debug_codigo   -> diagnóstico de una sola factura por código o nro
+     */
     public function abrirFacturasCerradasMal()
     {
-        // ======================= DEBUG TEMPORAL =======================
+        $empresa = Auth::user()->empresa;
+
+        // --- Diagnóstico de una sola factura --------------------------------
         $debugCodigo = request('debug_codigo');
         if ($debugCodigo) {
-            $f = \App\Model\Ingresos\Factura::where('codigo', $debugCodigo)->orWhere('nro', $debugCodigo)->first();
+            $f = Factura::where('empresa', $empresa)
+                ->where(function ($q) use ($debugCodigo) {
+                    $q->where('codigo', $debugCodigo)->orWhere('nro', $debugCodigo);
+                })->first();
             return response()->json([
-                'id' => $f->id ?? null,
-                'estatus_db' => $f->estatus ?? null,
-                'fecha_db' => $f->fecha ?? null,
-                'pagado_calc' => $f ? $f->pagado() : null,
-                'notas_calc' => $f ? $f->notas_credito()->count() : null,
+                'id'             => $f->id ?? null,
+                'estatus_db'     => $f->estatus ?? null,
+                'fecha_db'       => $f->fecha ?? null,
+                'total_calc'     => $f ? $f->total()->total : null,
+                'pagado_calc'    => $f ? $f->pagado() : null,
+                'porpagar_calc'  => $f ? $f->porpagar() : null,
                 'estatus_method' => $f ? $f->estatus() : null,
-                'total_calc' => $f ? $f->total()->total : null
             ]);
         }
-        // ==============================================================
 
-        // Se obtiene la fecha de inicio desde el request o por defecto el 1 de enero del año actual
+        $dryRun      = (bool) request('dry_run', 0);
         $fechaInicio = request('fecha_inicio', date('Y') . '-01-01');
 
-        // facturas que no están abiertas (1) ni anuladas (2) desde la fecha indicada
-        // ya que vimos en debug que la BD a veces guarda '3' para ciertas facturas cerradas
-        $facturasCerradas = \App\Model\Ingresos\Factura::whereNotIn('estatus', [1, 2])
+        // Facturas de venta (tipo 1,2) marcadas como cerradas/legacy (no abiertas, no anuladas)
+        $facturasCerradas = Factura::where('empresa', $empresa)
+            ->whereIn('tipo', [1, 2])
+            ->whereNotIn('estatus', [1, 2])
             ->where('fecha', '>=', $fechaInicio)
             ->get();
-        
-        $abiertas = 0;
+
+        $reabiertas    = 0;
         $idsReabiertas = [];
 
         foreach ($facturasCerradas as $factura) {
-            // Verificamos si no tiene pago asociado y si el método estatus dice 'Cerrada' (para mayor seguridad)
-            if ((float)$factura->pagado() == 0 && $factura->estatus() === 'Cerrada') {
-                // actualizamos a estado 1 (abierta)
-                $factura->estatus = 1;
-                $factura->save();
-                $abiertas++;
-                $idsReabiertas[] = $factura->id; // la guardamos para reporte
+            // Inconsistente si está cerrada pero todavía tiene saldo por pagar.
+            if (Funcion::precision($factura->porpagar()) > 0) {
+                $idsReabiertas[] = [
+                    'id'       => $factura->id,
+                    'codigo'   => $factura->codigo,
+                    'total'    => $factura->total()->total,
+                    'pagado'   => $factura->pagado(),
+                    'porpagar' => $factura->porpagar(),
+                    'estatus_anterior' => $factura->estatus,
+                ];
+
+                if (!$dryRun) {
+                    $factura->estatus = 1;
+                    $factura->observaciones = $factura->observaciones
+                        . ' | Reabierta por revalidación (cerrada sin pago) el ' . date('d-m-Y g:i:s A');
+                    $factura->save();
+
+                    $movimiento = new MovimientoLOG();
+                    $movimiento->contrato    = $factura->id;
+                    $movimiento->modulo      = 8;
+                    $movimiento->descripcion = '<i class="fas fa-folder-open text-warning"></i> <b>Revalidación:</b> factura reabierta por estar cerrada sin pago (saldo por pagar: $' . number_format($factura->porpagar(), 0, ',', '.') . ')<br>';
+                    $movimiento->created_by  = Auth::user()->id ?? 1;
+                    $movimiento->empresa     = $factura->empresa;
+                    $movimiento->save();
+                }
+
+                $reabiertas++;
             }
         }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Proceso completado.',
-            'filtro_fecha_inicio' => $fechaInicio,
-            'facturas_reabiertas_cantidad' => $abiertas,
-            'facturas_reabiertas_ids' => $idsReabiertas
+            'success'                       => true,
+            'message'                       => $dryRun ? 'Simulación (dry_run): no se modificó nada.' : 'Proceso completado.',
+            'dry_run'                       => $dryRun,
+            'empresa'                       => $empresa,
+            'filtro_fecha_inicio'           => $fechaInicio,
+            'facturas_revisadas'            => $facturasCerradas->count(),
+            'facturas_reabiertas_cantidad'  => $reabiertas,
+            'facturas_reabiertas'           => $idsReabiertas,
         ]);
     }
 }

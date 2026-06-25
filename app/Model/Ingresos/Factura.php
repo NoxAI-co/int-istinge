@@ -694,6 +694,33 @@ class Factura extends Model
         return NotaCreditoFactura::where('factura',$this->id)->sum('pago');
     }
 
+    /**
+     * Revalida y corrige el estatus de la factura según su saldo real.
+     * Invariante del sistema:  estatus=0 (Cerrada)  <=>  porpagar()<=0.
+     * Si queda saldo por pagar (porpagar>0) la factura NO puede estar cerrada.
+     * Nunca toca facturas anuladas (estatus=2).
+     *
+     * @param  bool $soloReabrir  Si es true solo reabre (0/3 -> 1) y nunca cierra.
+     * @return bool  true si cambió el estatus.
+     */
+    public function revalidarEstatus($soloReabrir = false){
+        if ($this->estatus == 2) {
+            return false; // anuladas no se tocan
+        }
+        $debeCerrar = Funcion::precision($this->porpagar()) <= 0;
+        $nuevo = $debeCerrar ? 0 : 1;
+
+        if ($soloReabrir && $nuevo == 0) {
+            return false; // en modo "solo reabrir" no cerramos nada
+        }
+        if ((int)$this->estatus !== $nuevo) {
+            $this->estatus = $nuevo;
+            $this->save();
+            return true;
+        }
+        return false;
+    }
+
     //Obtenemos el valor pagado de la factura en la devolucion(nota credito), ya que se puede abonar y hacer varios pagos en diferentes notas creditos
     public function devolucionPagado()
     {

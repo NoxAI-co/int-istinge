@@ -539,6 +539,7 @@
                     <div class="ac-pill" data-tvfilter="sintv"><span class="dot dot-grey"></span> Sin TV <span id="ftv-sintv">0</span></div>
                 </div>
                 <div class="d-flex" style="gap:8px;">
+                    <button id="btn-discrepancias-tv" class="ac-btn-sm" style="background:#f59e0b;color:#fff;border-color:#f59e0b;" title="Detecta contratos habilitados en el sistema pero con CATV deshabilitado en SmartOLT (1 sola consulta masiva, respeta el rate limit)"><i class="fas fa-search"></i> Discrepancias TV</button>
                     <button id="btn-revalidar-tv" class="ac-btn-green" style="display:none;"><i class="fas fa-sync-alt"></i> Revalidar habilitados (<span id="btn-count-revalidar">0</span>)</button>
                     <button id="btn-sincronizar-corte-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;" title="Re-envía a SmartOLT el corte de TV de todos los contratos marcados como cortados (corrige cortes que no llegaron a SmartOLT)"><i class="fas fa-sync-alt"></i> Sincronizar Corte TV</button>
                     <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
@@ -761,6 +762,21 @@
 </div></div></div>
 </div>
 
+<div class="modal fade" id="modal-discrepancias-tv" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" style="font-weight:700;"><i class="fas fa-search text-warning mr-1"></i> Discrepancias TV (habilitado en sistema / CATV apagado en SmartOLT)</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body">
+        <p style="font-size:.8rem;color:#6b7280;">Detectado con UNA sola consulta masiva a SmartOLT (cacheada ~6 min). Estos contratos deberían tener CATV activo pero SmartOLT lo reporta apagado.</p>
+        <div id="discrep-tv-summary" style="font-size:.85rem;margin-bottom:8px;"></div>
+        <div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>Contrato</th><th>Cliente</th><th>IP</th><th>SN ONU</th></tr></thead>
+            <tbody id="discrep-tv-body"><tr><td colspan="4" class="text-center py-4" style="color:#adb5bd;">Cargando…</td></tr></tbody>
+        </table></div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="ac-btn-sm" data-dismiss="modal">Cerrar</button>
+        <button type="button" id="btn-corregir-discrep-tv" class="ac-btn-green" style="display:none;"><i class="fas fa-magic mr-1"></i> Corregir todas (<span id="discrep-corregir-count">0</span>)</button>
+    </div>
+</div></div></div>
+
 @endsection
 
 @section('scripts')
@@ -789,6 +805,8 @@
         ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
         sincronizarTv:    '{{ route("grupos-corte.sincronizar-corte-tv") }}',
         revalidarTv:      '{{ route("grupos-corte.revalidar-tv-al-dia-stream") }}',
+        discrepanciasTv:  '{{ route("grupos-corte.discrepancias-tv") }}',
+        corregirDiscrepanciasTv: '{{ route("grupos-corte.corregir-discrepancias-tv") }}',
         habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
         clienteShow:      '{{ route("contactos.show",  ["contacto" => "CID_PH"]) }}',
         contratoShow:     '{{ route("contratos.show",  ["contrato" => "CID_PH"]) }}',
@@ -1223,6 +1241,74 @@
             });
             $('#log-detail-body').html(h);
         });
+    });
+
+    /* Discrepancias TV (sistema habilitado vs CATV apagado en SmartOLT) */
+    var discrepSns = [];
+    function cargarDiscrepanciasTv(){
+        discrepSns = [];
+        $('#btn-corregir-discrep-tv').hide();
+        $('#discrep-tv-summary').html('');
+        $('#discrep-tv-body').html('<tr><td colspan="4" class="text-center py-4" style="color:#adb5bd;"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando SmartOLT (masivo)…</td></tr>');
+
+        return $.get(URLS.discrepanciasTv, { grupo_id: GRUPO_ID })
+            .done(function(d){
+                if(d && d.catv_no_disponible_en_masivo){
+                    $('#discrep-tv-summary').html('<span style="color:#ef4444;">El estado masivo de SmartOLT no incluye el dato de CATV para estas ONUs; no se puede calcular la discrepancia por esta vía.</span>');
+                    $('#discrep-tv-body').html('<tr><td colspan="4" class="text-center py-4" style="color:#adb5bd;">Sin datos de CATV en la respuesta masiva.</td></tr>');
+                    return;
+                }
+                var disc = (d && d.discrepancias) ? d.discrepancias : [];
+                discrepSns = disc.map(function(c){ return c.sn; }).filter(Boolean);
+                $('#discrep-tv-summary').html('<b>'+ disc.length +'</b> discrepancia(s) · revisados: '+ (d.revisados||0) +' · no en SmartOLT: '+ (d.no_en_smartolt||0));
+                if(disc.length === 0){
+                    $('#discrep-tv-body').html('<tr><td colspan="4" class="text-center py-4" style="color:#22c55e;"><i class="fas fa-check-circle mr-1"></i> Sin discrepancias: todo lo habilitado en el sistema está activo en SmartOLT.</td></tr>');
+                    return;
+                }
+                var rows = '';
+                disc.forEach(function(c){
+                    var cUrl = URLS.contratoShow.replace('CID_PH', c.contrato_id);
+                    rows += '<tr>'+
+                        '<td><a class="ac-link" href="'+cUrl+'" target="_blank">#'+ c.nro +'</a></td>'+
+                        '<td>'+ (c.cliente||'—') + (c.documento ? '<div style="font-size:.7rem;color:#9ca3af;">'+c.documento+'</div>' : '') +'</td>'+
+                        '<td>'+ (c.ip||'—') +'</td>'+
+                        '<td style="font-family:monospace;font-size:.78rem;">'+ (c.sn||'—') +'</td>'+
+                    '</tr>';
+                });
+                $('#discrep-tv-body').html(rows);
+                $('#discrep-corregir-count').text(discrepSns.length);
+                $('#btn-corregir-discrep-tv').show();
+            })
+            .fail(function(xhr){
+                var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Error al consultar discrepancias.';
+                $('#discrep-tv-summary').html('<span style="color:#ef4444;">'+ msg +'</span>');
+                $('#discrep-tv-body').html('<tr><td colspan="4" class="text-center py-4" style="color:#ef4444;">'+ msg +'</td></tr>');
+            });
+    }
+
+    $('#btn-discrepancias-tv').on('click', function(){
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $('#modal-discrepancias-tv').modal('show');
+        cargarDiscrepanciasTv().always(function(){ $btn.prop('disabled', false); });
+    });
+
+    /* Corregir todas las discrepancias (bulk_enable_catv) */
+    $('#btn-corregir-discrep-tv').on('click', function(){
+        if(!discrepSns.length) return;
+        if(!confirm('Se habilitará CATV en SmartOLT (en lote) para '+discrepSns.length+' ONU(s). ¿Continuar?')) return;
+        var $b = $(this);
+        $b.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Corrigiendo…');
+        $.ajax({ url: URLS.corregirDiscrepanciasTv, method: 'POST', data: { _token: csrfToken, sns: discrepSns } })
+            .done(function(r){
+                alert('Corrección completada. Correctos: '+(r.correctos||0)+' | Fallidos: '+(r.fallidos||0));
+                cargarDiscrepanciasTv(); // re-chequear (caché ya invalidada en backend)
+                loadTv(); loadSummary();
+            })
+            .fail(function(xhr){
+                alert((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Error al corregir.');
+            })
+            .always(function(){ $b.prop('disabled', false).html('<i class="fas fa-magic mr-1"></i> Corregir todas (<span id="discrep-corregir-count">'+discrepSns.length+'</span>)'); });
     });
 
     /* Revalidar TV */
