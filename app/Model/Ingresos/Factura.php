@@ -38,6 +38,18 @@ class Factura extends Model
 
     protected $table = "factura";
     protected $primaryKey = 'id';
+
+    /**
+     * Valores por defecto del modelo.
+     * estatus = 1 (Abierta) para que toda factura nazca pendiente sin depender
+     * del default heredado de la columna en BD (que en BDs legacy quedó en 3,
+     * estado inválido que oculta la factura del portal de pagos).
+     * Estados válidos: 0=Cerrada, 1=Abierta, 2=Anulada.
+     *
+     * @var array
+     */
+    protected $attributes = ['estatus' => 1];
+
     /**
      * The attributes that are mass assignable.
      *

@@ -131,6 +131,33 @@ for DB in "${DBS[@]}"; do
     "
     echo "    [cron_cortes_detalle] creada"
   fi
+
+  # --- 6) factura.estatus: default 1 + normalizar estados inválidos ----------
+  #  Estados válidos: 0=Cerrada, 1=Abierta(pendiente), 2=Anulada.
+  #  En BDs legacy la columna tenía DEFAULT 3 y el cron de facturación crea
+  #  facturas SIN asignar estatus -> quedaban en 3 (inválido) y el portal de
+  #  pagos (filtra estatus=1) no las mostraba. Se corrige el default y se
+  #  reabren las facturas de venta (tipo 1,2) que quedaron en un estado inválido.
+  if table_exists "$DB" "factura" && column_exists "$DB" "factura" "estatus"; then
+    DEF="$(dm -N -B -e "SELECT COLUMN_DEFAULT FROM information_schema.columns WHERE table_schema='$DB' AND table_name='factura' AND column_name='estatus';")"
+    if [ "$DEF" = "1" ]; then
+      echo "    [factura.estatus] default ya es 1, salto ALTER"
+    else
+      TYPE="$(column_type "$DB" "factura" "estatus")"
+      dm "$DB" -e "ALTER TABLE factura MODIFY estatus ${TYPE} NOT NULL DEFAULT 1;"
+      echo "    [factura.estatus] default ajustado a 1 (antes: ${DEF:-NULL})"
+    fi
+
+    INVAL="$(dm -N -B -e "SELECT COUNT(*) FROM factura WHERE estatus NOT IN (0,1,2) AND tipo IN (1,2);" "$DB")"
+    if [ "${INVAL:-0}" -gt 0 ]; then
+      dm "$DB" -e "UPDATE factura SET estatus=1 WHERE estatus NOT IN (0,1,2) AND tipo IN (1,2);"
+      echo "    [factura.estatus] ${INVAL} factura(s) con estado inválido reabiertas (estatus=1)"
+    else
+      echo "    [factura.estatus] sin facturas en estado inválido, salto UPDATE"
+    fi
+  else
+    echo "    (sin tabla/columna factura.estatus)"
+  fi
 done
 
 echo "==> Listo."
