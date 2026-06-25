@@ -539,6 +539,7 @@
                     <div class="ac-pill" data-tvfilter="sintv"><span class="dot dot-grey"></span> Sin TV <span id="ftv-sintv">0</span></div>
                 </div>
                 <div class="d-flex" style="gap:8px;">
+                    <button id="btn-revalidar-tv" class="ac-btn-green" style="display:none;"><i class="fas fa-sync-alt"></i> Revalidar habilitados (<span id="btn-count-revalidar">0</span>)</button>
                     <button id="btn-sincronizar-corte-tv" class="ac-btn-sm" style="background:#a855f7;color:#fff;border-color:#a855f7;" title="Re-envía a SmartOLT el corte de TV de todos los contratos marcados como cortados (corrige cortes que no llegaron a SmartOLT)"><i class="fas fa-sync-alt"></i> Sincronizar Corte TV</button>
                     <button id="btn-ejecutar-corte-tv" class="ac-btn-red"><i class="fas fa-ban"></i> Ejecutar Corte TV</button>
                 </div>
@@ -667,6 +668,87 @@
     </div>
 </div></div></div>
 
+<div class="modal fade" id="modal-revalidar-tv" tabindex="-1" data-backdrop="static"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#059669,#10b981);border:none;">
+        <h5 class="modal-title" style="color:#fff;font-weight:700;"><i class="fas fa-sync-alt mr-2"></i>Revalidar Habilitados en TV</h5>
+        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;text-shadow:none;">&times;</button>
+    </div>
+    
+    {{-- Paso 1: Confirmación --}}
+    <div class="modal-body" id="reval-step-confirm">
+        <p>Se consultará el estado en <strong>SmartOLT</strong> de cada uno de los contratos de televisión activos y al día. Si alguno se encuentra deshabilitado físicamente en la OLT, la plataforma lo <strong>habilitará de nuevo</strong> automáticamente para asegurar la consistencia.</p>
+        <div class="alert" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:10px;font-size:.85rem;">
+            <i class="fas fa-info-circle mr-1"></i> Se revalidarán <strong id="reval-confirm-count">0</strong> contratos. Esta operación respeta el límite de consultas de SmartOLT.
+        </div>
+    </div>
+    
+    {{-- Paso 2: Streaming --}}
+    <div class="modal-body d-none" id="reval-step-streaming">
+        {{-- Progress bar --}}
+        <div class="mb-3">
+            <div class="d-flex justify-content-between text-[10px] font-bold text-muted-foreground mb-1.5 uppercase tracking-widest" style="font-size: 0.75rem; font-weight: 700; color: #6b7280;">
+                <span>Progreso</span><span id="reval-pct">0%</span>
+            </div>
+            <div class="progress" style="height: 10px; background-color: #f1f3f5; border-radius: 6px; margin-bottom: 0.5rem;">
+                <div id="reval-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%; border-radius: 6px;"></div>
+            </div>
+        </div>
+
+        {{-- Processing indicator --}}
+        <div id="reval-processing-lbl" class="flex items-center gap-2 text-xs text-muted-foreground mb-2" style="font-size: 0.8rem; color: #4b5563; margin-bottom: 0.75rem;">
+            <i class="fas fa-spinner fa-spin text-success mr-1"></i>
+            <span>Verificando: <span id="reval-current-name" style="font-weight: 600; color: #111827;">...</span></span>
+        </div>
+
+        {{-- Results table --}}
+        <div class="ac-table-wrap" style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <table class="ac-table" style="margin: 0; font-size: 0.8rem;">
+                <thead style="position: sticky; top: 0; bg-color: #fff; z-index: 10;">
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <th style="padding: 6px 10px;">#</th>
+                        <th style="padding: 6px 10px;">Cliente</th>
+                        <th style="padding: 6px 10px;">Resultado</th>
+                        <th style="padding: 6px 10px;">Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="reval-tbody-results">
+                    <tr><td colspan="4" class="text-center py-4" style="color: #9ca3af;">Esperando inicio...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{-- Paso 3: Resumen --}}
+    <div class="modal-body d-none" id="reval-step-done">
+        <div class="text-center mb-3">
+            <div style="color:#10b981;font-weight:700;font-size:1.1rem;"><i class="fas fa-check-circle mr-1"></i> Revalidación completada</div>
+        </div>
+        <div class="row text-center" style="margin:0 -6px;">
+            <div class="col px-2"><div style="background:#f9fafb;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#1f2937;" id="reval-r-total">0</div>
+                <div style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;">Total</div>
+            </div></div>
+            <div class="col px-2"><div style="background:#e0f2fe;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#0369a1;" id="reval-r-ok">0</div>
+                <div style="font-size:.7rem;color:#0369a1;text-transform:uppercase;letter-spacing:.03em;">Ya Activo</div>
+            </div></div>
+            <div class="col px-2"><div style="background:#ecfdf5;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#16a34a;" id="reval-r-corregidos">0</div>
+                <div style="font-size:.7rem;color:#16a34a;text-transform:uppercase;letter-spacing:.03em;">Corregidos</div>
+            </div></div>
+            <div class="col px-2"><div style="background:#fef2f2;border-radius:10px;padding:.75rem .25rem;">
+                <div style="font-size:1.6rem;font-weight:800;color:#dc2626;" id="reval-r-errores">0</div>
+                <div style="font-size:.7rem;color:#dc2626;text-transform:uppercase;letter-spacing:.03em;">Errores</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="ac-btn-sm" data-dismiss="modal" id="reval-btn-cancelar">Cancelar</button>
+        <button type="button" id="btn-confirmar-revalidar-tv" class="ac-btn-green"><i class="fas fa-sync-alt mr-1"></i> Iniciar Revalidación</button>
+    </div>
+</div></div></div>
+
 <div class="modal fade" id="modal-habilitar" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" style="color:#22c55e;font-weight:700;"><i class="fas fa-power-off mr-2"></i>Habilitar Cortados</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
     <div class="modal-body"><p>¿Habilitar todos los contratos cortados de este grupo?</p></div>
@@ -706,6 +788,7 @@
         ejecutarStream:   '{{ route("grupos-corte.ejecutar-corte-internet-stream") }}',
         ejecutarTv:       '{{ route("grupos-corte.ejecutar-corte-tv") }}',
         sincronizarTv:    '{{ route("grupos-corte.sincronizar-corte-tv") }}',
+        revalidarTv:      '{{ route("grupos-corte.revalidar-tv-al-dia-stream") }}',
         habilitarCortados:'{{ route("grupos-corte.habilitar-cortados-internet") }}',
         clienteShow:      '{{ route("contactos.show",  ["contacto" => "CID_PH"]) }}',
         contratoShow:     '{{ route("contratos.show",  ["contrato" => "CID_PH"]) }}',
@@ -753,6 +836,13 @@
             }
             return fOk && sOk;
         });
+        if(currentTvFilter === 'aldia' && filtered.length > 0) {
+            $('#btn-revalidar-tv').show();
+            $('#btn-count-revalidar').text(filtered.length);
+        } else {
+            $('#btn-revalidar-tv').hide();
+        }
+
         if(!filtered.length) {
             $('#tbody-tv').html('<tr><td colspan="6" class="text-center py-5" style="color:#adb5bd;">No hay contratos para mostrar</td></tr>');
             return;
@@ -1133,6 +1223,101 @@
             });
             $('#log-detail-body').html(h);
         });
+    });
+
+    /* Revalidar TV */
+    $('#btn-revalidar-tv').on('click', function(){
+        var count = parseInt($('#btn-count-revalidar').text()) || 0;
+        $('#reval-confirm-count').text(count);
+        $('#reval-step-confirm').removeClass('d-none');
+        $('#reval-step-streaming, #reval-step-done').addClass('d-none');
+        $('#btn-confirmar-revalidar-tv').removeClass('d-none').prop('disabled', false);
+        $('#reval-btn-cancelar').text('Cancelar').prop('disabled', false);
+        $('#modal-revalidar-tv').modal('show');
+    });
+
+    $('#btn-confirmar-revalidar-tv').on('click', function(){
+        $('#reval-step-confirm').addClass('d-none');
+        $('#reval-step-streaming').removeClass('d-none');
+        $(this).addClass('d-none');
+        $('#reval-btn-cancelar').prop('disabled', true);
+        
+        $('#reval-progress-bar').css('width', '0%');
+        $('#reval-pct').text('0%');
+        $('#reval-tbody-results').html('<tr><td colspan="4" class="text-center py-4" style="color: #9ca3af;"><i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...</td></tr>');
+        $('#reval-processing-lbl').show();
+
+        var es = new EventSource(URLS.revalidarTv + '?grupo_id=' + GRUPO_ID);
+        var total = 0;
+        
+        es.onmessage = function(e){
+            var d = JSON.parse(e.data);
+            if(d.type === 'init') {
+                total = d.total || 1;
+                $('#reval-r-total').text(total);
+                $('#reval-tbody-results').html('');
+            }
+            else if(d.type === 'processing') {
+                $('#reval-current-name').text(d.cliente_nombre || d.contrato_nro || '...');
+            }
+            else if(d.type === 'result') {
+                var pct = total > 0 ? Math.round(d.idx / total * 100) : 0;
+                $('#reval-progress-bar').css('width', pct + '%');
+                $('#reval-pct').text(pct + '%');
+                
+                var badgeClass = 'ac-badge-grey';
+                var badgeText = 'YA ACTIVO';
+                var rowBg = '';
+                if(d.resultado === 'ok') {
+                    badgeClass = 'ac-badge-blue';
+                    badgeText = 'YA ACTIVO';
+                } else if(d.resultado === 'corregido') {
+                    badgeClass = 'ac-badge-green';
+                    badgeText = 'CORREGIDO';
+                    rowBg = 'style="background:rgba(34,197,94,0.05);"';
+                } else if(d.resultado === 'error') {
+                    badgeClass = 'ac-badge-red';
+                    badgeText = 'ERROR';
+                    rowBg = 'style="background:rgba(239,68,68,0.05);"';
+                }
+                
+                var desc = d.error ? ('<span style="color:#ef4444;">' + d.error + '</span>') : (d.descripcion || '—');
+                
+                var rowHtml = '<tr ' + rowBg + ' class="animate-in fade-in duration-200">'+
+                    '<td style="padding: 6px 10px;" class="ac-dim">' + d.idx + '</td>'+
+                    '<td style="padding: 6px 10px;"><b>' + (d.cliente_nombre || '—') + '</b><div style="font-size:0.7rem;color:#9ca3af;">' + (d.contrato_nro || '') + '</div></td>'+
+                    '<td style="padding: 6px 10px;"><span class="ac-badge ' + badgeClass + '">' + badgeText + '</span></td>'+
+                    '<td style="padding: 6px 10px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + (d.error || d.descripcion || '') + '">' + desc + '</td>'+
+                '</tr>';
+                
+                $('#reval-tbody-results').append(rowHtml);
+                
+                // Scroll container to bottom
+                var container = $('#reval-tbody-results').closest('div');
+                container.scrollTop(container[0].scrollHeight);
+            }
+            else if(d.type === 'done') {
+                es.close();
+                $('#reval-processing-lbl').hide();
+                $('#reval-r-ok').text(d.revalidados || 0);
+                $('#reval-r-corregidos').text(d.corregidos || 0);
+                $('#reval-r-errores').text(d.errores || 0);
+                
+                $('#reval-step-streaming').addClass('d-none');
+                $('#reval-step-done').removeClass('d-none');
+                $('#reval-btn-cancelar').text('Cerrar').prop('disabled', false);
+                
+                // reload main tables/counts
+                loadAll(); loadTv(); loadSummary();
+            }
+        };
+        
+        es.onerror = function(){
+            es.close();
+            $('#reval-processing-lbl').hide();
+            alert('Error en conexión streaming SSE de revalidación.');
+            $('#reval-btn-cancelar').text('Cerrar').prop('disabled', false);
+        };
     });
 
     /* Init */

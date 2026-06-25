@@ -2192,4 +2192,256 @@ class GruposCorteController extends Controller
             'total'      => $cortados->count(),
         ]);
     }
+
+    /**
+     * Revalida los contratos de televisión (CATV) que están "Al día" (tv_ok) en el OLT.
+     * Consulta el estado en SmartOLT y si está deshabilitado, lo re-habilita de forma
+     * secuencial emitiendo eventos SSE para que el frontend muestre progreso real.
+     */
+    public function revalidarTvAlDiaStream(Request $request)
+    {
+        $empresaId = Auth::user()->empresa;
+        $grupoId   = (int) $request->input('grupo_id', 0);
+
+        if (! $grupoId) {
+            abort(422, 'grupo_id requerido');
+        }
+
+        $grupo   = GrupoCorte::where('empresa', $empresaId)->findOrFail($grupoId);
+        $empresa = Empresa::findOrFail($empresaId);
+        $userId  = Auth::id();
+
+        // Obtener todos los contratos y filtrar los que están "Al día" (tv_ok) con SN/MAC de OLT.
+        $analyzer     = new CortesAnalyzer;
+        $allContracts = $analyzer->getAllContractsForCutView($grupoId);
+        $contratos    = collect($allContracts['contratos'] ?? [])->filter(function ($c) {
+            return $c['estado_tv'] === 'tv_ok' && (! empty($c['olt_sn_mac']) || ! empty($c['serial_onu']));
+        })->values();
+
+        $total = $contratos->count();
+
+        $logId = DB::table('cron_cortes_logs')->insertGetId([
+            'tipo'             => 'tv',
+            'empresa'          => $empresaId,
+            'grupo_corte_id'   => $grupoId,
+            'total_procesados' => $total,
+            'ejecutado_por'    => $userId,
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        return response()->stream(function () use (
+            $contratos, $logId, $grupoId, $empresaId, $userId,
+            $grupo, $empresa, $total
+        ) {
+            @ini_set('output_buffering', 'off');
+            @ini_set('zlib.output_compression', false);
+            while (ob_get_level()) { ob_end_clean(); }
+
+            $sseEvent = function (array $data) {
+                echo 'data: ' . json_encode($data) . "\n\n";
+                if (ob_get_level()) ob_flush();
+                flush();
+            };
+
+            $sseEvent(['type' => 'init', 'total' => $total, 'log_id' => $logId, 'grupo' => $grupo->nombre]);
+
+            $revalidados = 0; $corregidos = 0; $errores = 0;
+            $detalles = [];
+            $idx = 0;
+
+            foreach ($contratos as $row) {
+                $idx++;
+                $resultado = 'ok'; // 'ok' = ya activo en OLT, 'corregido' = se activó, 'error' = fallo
+                $descripcion = '';
+                $errorDetalle = null;
+
+                // Rate limiting: sleep 150ms before checking to respect API limits
+                if ($idx > 1) {
+                    usleep(150000);
+                }
+
+                $sseEvent([
+                    'type' => 'processing',
+                    'idx' => $idx,
+                    'total' => $total,
+                    'contrato_nro' => $row['contrato_nro'],
+                    'cliente_nombre' => $row['cliente_nombre'] ?? ''
+                ]);
+
+                try {
+                    $sn = ! empty($row['olt_sn_mac']) ? $row['olt_sn_mac'] : $row['serial_onu'];
+                    $contrato = Contrato::find($row['contrato_id']);
+
+                    if (! $contrato) {
+                        $resultado = 'error';
+                        $errorDetalle = 'Contrato no encontrado';
+                        $errores++;
+                        goto streamRegistrar;
+                    }
+
+                    if (empty($empresa->smartOLT) || empty($empresa->adminOLT)) {
+                        $resultado = 'error';
+                        $errorDetalle = 'SmartOLT no configurado para esta empresa.';
+                        $errores++;
+                        goto streamRegistrar;
+                    }
+
+                    // 1. Consultar estado en SmartOLT
+                    $curl = curl_init();
+                    curl_setopt_array($curl, array(
+                        CURLOPT_URL => $empresa->adminOLT . '/api/onu/get_onu_status/' . $sn,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_ENCODING => '',
+                        CURLOPT_MAXREDIRS => 10,
+                        CURLOPT_TIMEOUT => 20,
+                        CURLOPT_FOLLOWLOCATION => true,
+                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                        CURLOPT_CUSTOMREQUEST => 'GET',
+                        CURLOPT_HTTPHEADER => array(
+                            'X-Token: ' . $empresa->smartOLT
+                        ),
+                    ));
+                    $curlRes = curl_exec($curl);
+                    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                    curl_close($curl);
+
+                    $status = json_decode($curlRes, true);
+                    $catvStatus = 'unknown';
+
+                    if (isset($status['status']) && $status['status'] === true && isset($status['response'])) {
+                        $resp = $status['response'];
+                        $catvStatus = isset($resp['catv']) ? $resp['catv'] : (isset($resp['catv_status']) ? $resp['catv_status'] : (isset($resp['catv_state']) ? $resp['catv_state'] : (isset($resp['catv_port']) ? $resp['catv_port'] : 'unknown')));
+                    }
+
+                    $isCatvEnabled = false;
+                    if (is_string($catvStatus)) {
+                        $catvStatusLower = strtolower($catvStatus);
+                        if ($catvStatusLower === 'enabled' || $catvStatusLower === 'active' || $catvStatusLower === 'on') {
+                            $isCatvEnabled = true;
+                        }
+                    } elseif (is_bool($catvStatus)) {
+                        $isCatvEnabled = $catvStatus;
+                    } elseif (is_int($catvStatus) || is_numeric($catvStatus)) {
+                        $isCatvEnabled = ((int)$catvStatus === 1);
+                    }
+
+                    if ($isCatvEnabled) {
+                        $resultado = 'ok';
+                        $descripcion = 'CATV ya está activo en SmartOLT.';
+                        $revalidados++;
+                    } else {
+                        // 2. Si no está activo, activarlo
+                        $curl = curl_init();
+                        curl_setopt_array($curl, array(
+                            CURLOPT_URL => $empresa->adminOLT . '/api/onu/enable_catv/' . $sn,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_ENCODING => '',
+                            CURLOPT_MAXREDIRS => 10,
+                            CURLOPT_TIMEOUT => 20,
+                            CURLOPT_FOLLOWLOCATION => true,
+                            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                            CURLOPT_CUSTOMREQUEST => 'POST',
+                            CURLOPT_HTTPHEADER => array(
+                                'X-Token: ' . $empresa->smartOLT
+                            ),
+                        ));
+                        $curlEnableRes = curl_exec($curl);
+                        $httpCodeEnable = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                        curl_close($curl);
+
+                        $enableRes = json_decode($curlEnableRes, true);
+                        $ok = isset($enableRes['status']) && $enableRes['status'] === true;
+
+                        if ($ok) {
+                            $resultado = 'corregido';
+                            $descripcion = 'CATV estaba deshabilitado en SmartOLT y fue habilitado.';
+                            $corregidos++;
+
+                            $movimiento = new \App\MovimientoLOG();
+                            $movimiento->contrato    = $contrato->id;
+                            $movimiento->modulo      = 5;
+                            $movimiento->descripcion = '<i class="fas fa-check text-success"></i> <b>[Revalidación Lote] CATV Habilitado en OLT</b> por discrepancia detectada (SN: '.$sn.')';
+                            $movimiento->created_by  = $userId;
+                            $movimiento->empresa     = $empresaId;
+                            $movimiento->save();
+                        } else {
+                            $resultado = 'error';
+                            $errorDetalle = isset($enableRes['error']) ? $enableRes['error'] : 'SmartOLT falló al intentar habilitar CATV (HTTP ' . $httpCodeEnable . ').';
+                            $errores++;
+                        }
+                    }
+
+                } catch (\Throwable $e) {
+                    $resultado = 'error';
+                    $errorDetalle = $e->getMessage();
+                    $errores++;
+                }
+
+                streamRegistrar:
+                $detalles[] = [
+                    'log_id'         => $logId,
+                    'contrato_id'    => $row['contrato_id'],
+                    'factura_id'     => $row['factura_id'] ?? null,
+                    'cliente_id'     => $row['cliente_id'] ?? null,
+                    'grupo_corte_id' => $grupoId,
+                    'tipo'           => 'tv',
+                    'resultado'      => $resultado,
+                    'metodo'         => 'smartolt',
+                    'descripcion'    => $descripcion ?: ($errorDetalle ?? ''),
+                    'ip'             => $row['ip'] ?? null,
+                    'serial_onu'     => $sn,
+                    'mikrotik_id'    => null,
+                    'error_detalle'  => $errorDetalle,
+                    'created_at'     => now(),
+                ];
+
+                $sseEvent([
+                    'type' => 'result',
+                    'idx' => $idx,
+                    'total' => $total,
+                    'contrato_id' => $row['contrato_id'],
+                    'contrato_nro' => $row['contrato_nro'],
+                    'cliente_nombre' => $row['cliente_nombre'] ?? '',
+                    'ip' => $row['ip'] ?? null,
+                    'resultado' => $resultado,
+                    'metodo' => 'smartolt',
+                    'descripcion' => $descripcion ?: '',
+                    'error' => $errorDetalle,
+                    'revalidados' => $revalidados,
+                    'corregidos' => $corregidos,
+                    'errores' => $errores
+                ]);
+            }
+
+            foreach (array_chunk($detalles, 100) as $chunk) {
+                DB::table('cron_cortes_detalle')->insert($chunk);
+            }
+
+            DB::table('cron_cortes_logs')->where('id', $logId)->update([
+                'total_cortados' => $corregidos, // Guardamos los corregidos/habilitados en total_cortados
+                'total_omitidos' => $revalidados, // Guardamos los ya activos/omitidos en total_omitidos
+                'total_errores'  => $errores,
+                'duracion_ms'    => 0,
+                'updated_at'     => now(),
+            ]);
+
+            // Limpiar caché
+            (new CortesAnalyzer)->clearCache($grupoId);
+
+            $sseEvent([
+                'type' => 'done',
+                'log_id' => $logId,
+                'revalidados' => $revalidados,
+                'corregidos' => $corregidos,
+                'errores' => $errores,
+                'total' => $total
+            ]);
+
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
 }
