@@ -2200,6 +2200,12 @@ class GruposCorteController extends Controller
      */
     public function revalidarTvAlDiaStream(Request $request)
     {
+        // Sin límite de tiempo: el stream consulta SmartOLT por cada contrato (curl
+        // 20s + 150ms entre cada uno); con varios TV se superaba max_execution_time
+        // y PHP moría a mitad → el EventSource caía con "Error en conexión SSE".
+        set_time_limit(0);
+        ignore_user_abort(true);
+
         $empresaId = Auth::user()->empresa;
         $grupoId   = (int) $request->input('grupo_id', 0);
 
@@ -2234,6 +2240,7 @@ class GruposCorteController extends Controller
             $contratos, $logId, $grupoId, $empresaId, $userId,
             $grupo, $empresa, $total
         ) {
+            @set_time_limit(0);
             @ini_set('output_buffering', 'off');
             @ini_set('zlib.output_compression', false);
             while (ob_get_level()) { ob_end_clean(); }
