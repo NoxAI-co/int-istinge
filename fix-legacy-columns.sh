@@ -79,7 +79,20 @@ for DB in "${DBS[@]}"; do
 
   # --- 4) cron_cortes_logs --------------------------------------------------
   if table_exists "$DB" "cron_cortes_logs"; then
-    echo "    [cron_cortes_logs] ya existe, salto"
+    # Tabla creada por una versión anterior podía no tener updated_at/created_at;
+    # el código las escribe (insertGetId/update) → 1054 Unknown column. Añadir si faltan.
+    if column_exists "$DB" "cron_cortes_logs" "created_at"; then
+      echo "    [cron_cortes_logs.created_at] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE cron_cortes_logs ADD COLUMN created_at TIMESTAMP NULL;"
+      echo "    [cron_cortes_logs.created_at] agregada"
+    fi
+    if column_exists "$DB" "cron_cortes_logs" "updated_at"; then
+      echo "    [cron_cortes_logs.updated_at] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE cron_cortes_logs ADD COLUMN updated_at TIMESTAMP NULL;"
+      echo "    [cron_cortes_logs.updated_at] agregada"
+    fi
   else
     dm "$DB" -e "
       CREATE TABLE cron_cortes_logs (
