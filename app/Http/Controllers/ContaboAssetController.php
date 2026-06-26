@@ -54,11 +54,18 @@ class ContaboAssetController extends Controller
     private function resolve(ContaboS3Service $s3, string $folder, string $filename): string
     {
         try {
-            if ($s3->exists($folder, $filename)) {
-                $url = $s3->signedUrl($folder, $filename);
-                $ttl = max(1, (int) config('contabo.url_ttl', 60) - 5);
-                Cache::put(self::cacheKey($folder, $filename), $url, now()->addMinutes($ttl));
-                return $url;
+            // Probamos el nombre exacto primero y, si no existe, variantes con
+            // extensión equivalente (jpg ↔ jpeg ↔ jpe, en minúscula/mayúscula).
+            // Hay registros legacy donde la extensión guardada en BD no coincide
+            // con la del objeto real en Contabo (p. ej. doc_*.jpeg en BD pero
+            // doc_*.jpg en storage).
+            foreach ($this->candidateFilenames($filename) as $candidate) {
+                if ($s3->exists($folder, $candidate)) {
+                    $url = $s3->signedUrl($folder, $candidate);
+                    $ttl = max(1, (int) config('contabo.url_ttl', 60) - 5);
+                    Cache::put(self::cacheKey($folder, $filename), $url, now()->addMinutes($ttl));
+                    return $url;
+                }
             }
         } catch (\Throwable $e) {
             \Log::warning('Contabo asset resolve falló: '.$e->getMessage(), ['folder' => $folder, 'filename' => $filename]);
@@ -66,6 +73,44 @@ class ContaboAssetController extends Controller
 
         Cache::put(self::cacheKey($folder, $filename), self::MISSING_SENTINEL, now()->addMinutes(2));
         return self::MISSING_SENTINEL;
+    }
+
+    /**
+     * Devuelve el nombre solicitado seguido de variantes con extensión
+     * equivalente. Tolera el desfase legacy entre la extensión guardada en la
+     * BD y la del objeto realmente subido a Contabo, sin necesidad de migrar
+     * datos. El nombre exacto siempre va primero para no penalizar el caso sano.
+     */
+    private function candidateFilenames(string $filename): array
+    {
+        $dot = strrpos($filename, '.');
+        if ($dot === false) {
+            return [$filename];
+        }
+
+        $base = substr($filename, 0, $dot);
+        $ext  = strtolower(substr($filename, $dot + 1));
+
+        // Familias de extensiones intercambiables.
+        $familias = [
+            ['jpg', 'jpeg', 'jpe'],
+        ];
+
+        $exts = [$ext];
+        foreach ($familias as $familia) {
+            if (in_array($ext, $familia, true)) {
+                $exts = array_merge($exts, $familia);
+                break;
+            }
+        }
+
+        $candidates = [$filename]; // nombre exacto primero
+        foreach (array_unique($exts) as $e) {
+            $candidates[] = $base.'.'.$e;
+            $candidates[] = $base.'.'.strtoupper($e);
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     private function transparentPng(): Response
