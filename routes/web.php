@@ -2164,3 +2164,7 @@ Route::get('/caja-naps/{id}/puertos-disponibles/{contratoId?}', 'CajaNapControll
 // Ruta para revalidar facturas cerradas que no tienen pagos asociados (reabrirlas)
 Route::get('/abrirfacturascerradasmal', 'FacturasController@abrirFacturasCerradasMal')
     ->middleware('auth')->name('facturas.revalidar-cerradas');
+
+// Ruta para cerrar las facturas cuyo total es $0 (deben figurar como Cerradas)
+Route::get('/cerrarfacturastotalcero', 'FacturasController@cerrarFacturasTotalCero')
+    ->middleware('auth')->name('facturas.cerrar-total-cero');

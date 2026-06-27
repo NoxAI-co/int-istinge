@@ -9196,4 +9196,96 @@ class FacturasController extends Controller{
             'facturas_reabiertas'           => $idsReabiertas,
         ]);
     }
+
+    /**
+     * Cierra (estatus=0) las facturas de venta cuyo total es 0.
+     * Invariante del sistema:  estatus=0 (Cerrada)  <=>  porpagar()<=0.
+     * Una factura con total $0 no tiene saldo por pagar, por lo que debe
+     * figurar como Cerrada. Nunca toca anuladas (estatus=2) ni facturas con
+     * saldo pendiente (total > 0).
+     *
+     * URL:  /software/empresa/facturas/cerrarfacturastotalcero  (o /cerrarfacturastotalcero)
+     * Parámetros opcionales (query string):
+     *   - dry_run=1      -> solo reporta, no modifica nada (recomendado primero)
+     *   - fecha_inicio   -> YYYY-MM-DD (default: 1 de enero del año actual)
+     *   - debug_codigo   -> diagnóstico de una sola factura por código o nro
+     */
+    public function cerrarFacturasTotalCero()
+    {
+        $empresa = Auth::user()->empresa;
+
+        // --- Diagnóstico de una sola factura --------------------------------
+        $debugCodigo = request('debug_codigo');
+        if ($debugCodigo) {
+            $f = Factura::where('empresa', $empresa)
+                ->where(function ($q) use ($debugCodigo) {
+                    $q->where('codigo', $debugCodigo)->orWhere('nro', $debugCodigo);
+                })->first();
+            return response()->json([
+                'id'             => $f->id ?? null,
+                'estatus_db'     => $f->estatus ?? null,
+                'fecha_db'       => $f->fecha ?? null,
+                'total_calc'     => $f ? $f->total()->total : null,
+                'pagado_calc'    => $f ? $f->pagado() : null,
+                'porpagar_calc'  => $f ? $f->porpagar() : null,
+                'estatus_method' => $f ? $f->estatus() : null,
+            ]);
+        }
+
+        $dryRun      = (bool) request('dry_run', 0);
+        $fechaInicio = request('fecha_inicio', date('Y') . '-01-01');
+
+        // Facturas de venta (tipo 1,2) que NO están cerradas (0) ni anuladas (2).
+        // Incluye abiertas (1) y el estado legacy (3).
+        $facturasAbiertas = Factura::where('empresa', $empresa)
+            ->whereIn('tipo', [1, 2])
+            ->whereNotIn('estatus', [0, 2])
+            ->where('fecha', '>=', $fechaInicio)
+            ->get();
+
+        $cerradas    = 0;
+        $idsCerradas = [];
+
+        foreach ($facturasAbiertas as $factura) {
+            // Solo las de total 0 (sin saldo por pagar) deben quedar Cerradas.
+            if (Funcion::precision($factura->total()->total) <= 0) {
+                $idsCerradas[] = [
+                    'id'               => $factura->id,
+                    'codigo'           => $factura->codigo,
+                    'total'            => $factura->total()->total,
+                    'pagado'           => $factura->pagado(),
+                    'porpagar'         => $factura->porpagar(),
+                    'estatus_anterior' => $factura->estatus,
+                ];
+
+                if (!$dryRun) {
+                    $factura->estatus = 0;
+                    $factura->observaciones = $factura->observaciones
+                        . ' | Cerrada por revalidación (total $0) el ' . date('d-m-Y g:i:s A');
+                    $factura->save();
+
+                    $movimiento = new MovimientoLOG();
+                    $movimiento->contrato    = $factura->id;
+                    $movimiento->modulo      = 8;
+                    $movimiento->descripcion = '<i class="fas fa-check-circle text-success"></i> <b>Revalidación:</b> factura cerrada por tener total $0 (sin saldo por pagar)<br>';
+                    $movimiento->created_by  = Auth::user()->id ?? 1;
+                    $movimiento->empresa     = $factura->empresa;
+                    $movimiento->save();
+                }
+
+                $cerradas++;
+            }
+        }
+
+        return response()->json([
+            'success'                     => true,
+            'message'                     => $dryRun ? 'Simulación (dry_run): no se modificó nada.' : 'Proceso completado.',
+            'dry_run'                     => $dryRun,
+            'empresa'                     => $empresa,
+            'filtro_fecha_inicio'         => $fechaInicio,
+            'facturas_revisadas'          => $facturasAbiertas->count(),
+            'facturas_cerradas_cantidad'  => $cerradas,
+            'facturas_cerradas'           => $idsCerradas,
+        ]);
+    }
 }
