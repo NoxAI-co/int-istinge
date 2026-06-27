@@ -80,10 +80,19 @@
       "Bash(git -c core.editor=true rebase --continue)",
       "Bash(git commit -m 'feat: detectar IPs ocupadas en todas las fuentes del Mikrotik \\(queues, secrets PPPoE, leases DHCP y ARP\\) en el modal de IPs disponibles *)",
       "Bash(node --check public/js/function.js)",
+<<<<<<< HEAD
       "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)"
 =======
       "Bash(git log *)"
 >>>>>>> cbb3b0cd (fix: disable server and office filtering in ContratosController when a specific client is requested and add git log command to local settings)
+=======
+      "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)",
+      "Bash(git commit -m 'feat: mostrar siempre el botón Acciones del Contrato en la vista de contrato *)",
+      "Bash(awk 'NR>=145' resources/views/reportes/facturasElectronicas/index.blade.php)",
+      "Bash(grep -n 'facturasElectronicas\\\\|TOTAL\\\\|$total\\\\b')",
+      "Bash(grep -n 'function facturasElectronicas\\\\|$total\\\\b\\\\|TOTAL\\\\|->where\\('\\\\''factura.fecha'\\\\''\\\\|fechas\\\\|emitida\\\\|setDateRequest\\\\|->get\\(\\)')",
+      "Bash(grep -n 'facturasElectronicas\\\\|$total\\\\|items_factura\\\\|TOTAL\\\\|->where\\\\|empresa')"
+>>>>>>> 5359f4208 (feat: add nro_serial column to inventario table and update local development script aliases)
     ]
   }
 }

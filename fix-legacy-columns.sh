@@ -206,6 +206,18 @@ for DB in "${DBS[@]}"; do
       echo "    [${TBL}.etiqueta_id] agregada (BIGINT UNSIGNED NULL)"
     fi
   done
+
+  # --- 9) inventario.nro_serial ---------------------------------------------
+  if table_exists "$DB" "inventario"; then
+    if column_exists "$DB" "inventario" "nro_serial"; then
+      echo "    [inventario.nro_serial] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE inventario ADD COLUMN nro_serial VARCHAR(255) NULL AFTER linea;"
+      echo "    [inventario.nro_serial] agregada"
+    fi
+  else
+    echo "    (sin tabla inventario)"
+  fi
 done
 
 echo "==> Listo."
