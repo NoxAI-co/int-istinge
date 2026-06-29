@@ -2165,12 +2165,23 @@ class GruposCorteController extends Controller
         $habilitados = 0; $errores = 0;
         foreach ($cortados as $contrato) {
             try {
-                if ($contrato->mikrotik_id && $contrato->ip && $empresaObj->consultas_mk == 1) {
+                // Mismas peticiones que el habilitar INDIVIDUAL (ContratosController::state):
+                // si es contrato OLT (ONU) se habilita en SmartOLT; si no, se hace la
+                // lógica MikroTik (quitar de morosos → habilitar secret PPPoE → ips_autorizadas).
+                $oltExec = false;
+                if (in_array($contrato->conexion, [2, 3]) && ! empty($contrato->serial_onu)
+                    && isset($empresaObj->queries_dhcp_smartolt) && $empresaObj->queries_dhcp_smartolt == 1) {
+                    try { app('App\Http\Controllers\OltController')->enableOnu($contrato->serial_onu); } catch (\Throwable $e) {}
+                    $oltExec = true;
+                }
+
+                if (! $oltExec && $contrato->mikrotik_id && $contrato->ip && $empresaObj->consultas_mk == 1) {
                     $mk = DB::table('mikrotik')->where('id', $contrato->mikrotik_id)->first();
                     if ($mk) {
                         $API = new RouterosAPI();
                         $API->port = (int) $mk->puerto_api;
                         if ($API->connect($mk->ip, $mk->usuario, $mk->clave)) {
+                            // 1) Quitar de morosos
                             $API->write('/ip/firewall/address-list/print', false);
                             $API->write('?address='.$contrato->ip, false);
                             $API->write('?list=morosos', false);
@@ -2182,6 +2193,19 @@ class GruposCorteController extends Controller
                                 $API->write('=.id='.$entry['.id']);
                                 $API->read();
                             }
+                            // 2) Habilitar secret PPPoE (igual que el habilitar individual)
+                            if (isset($empresaObj->activeconn_secret) && $empresaObj->activeconn_secret == 1
+                                && $contrato->conexion == 1 && $contrato->usuario != null) {
+                                $API->write('/ppp/secret/print', false);
+                                $API->write('?name='.$contrato->usuario, true);
+                                $secs = $API->read();
+                                if (count($secs) > 0) {
+                                    $API->write('/ppp/secret/enable', false);
+                                    $API->write('=numbers='.$secs[0]['.id'], true);
+                                    $API->read();
+                                }
+                            }
+                            // 3) Agregar a ips_autorizadas
                             $API->comm('/ip/firewall/address-list/add', [
                                 'address' => $contrato->ip, 'list' => 'ips_autorizadas',
                                 'comment' => 'Habilitado por Análisis de Cortes',
