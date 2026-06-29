@@ -515,6 +515,32 @@
 
             <div class="ac-search"><input type="text" id="search-contratos" placeholder="Buscar cliente, NIT, contrato, IP, usuario PPPoE..."></div>
 
+            {{-- Barra de filtro para SUSPENDIDOS: filtra por la hora de la última deshabilitación y habilita los seleccionados --}}
+            <div id="susp-toolbar" style="display:none; margin:0 0 10px; padding:10px 12px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px;">
+                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:#6c757d; margin:0;">Deshabilitados el día</label>
+                        <input type="date" id="susp-fecha" class="form-control form-control-sm" style="width:160px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:#6c757d; margin:0;">Desde (hora)</label>
+                        <input type="time" id="susp-hora-desde" value="00:00" class="form-control form-control-sm" style="width:120px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:#6c757d; margin:0;">Hasta (hora)</label>
+                        <input type="time" id="susp-hora-hasta" value="23:59" class="form-control form-control-sm" style="width:120px;">
+                    </div>
+                    <button type="button" id="susp-aplicar" class="btn btn-sm btn-outline-primary"><i class="fas fa-filter"></i> Filtrar</button>
+                    <button type="button" id="susp-limpiar" class="btn btn-sm btn-outline-secondary">Limpiar</button>
+                    <div style="flex:1;"></div>
+                    <label style="font-size:12px; color:#495057; display:flex; align-items:center; gap:5px; cursor:pointer; margin:0;">
+                        <input type="checkbox" id="susp-select-all"> Seleccionar todos
+                    </label>
+                    <button type="button" id="btn-habilitar-susp" class="ac-btn-green"><i class="fas fa-power-off"></i> Habilitar seleccionados (<span id="susp-count">0</span>)</button>
+                </div>
+                <div style="font-size:11px;color:#6c757d;margin-top:6px;">Se basa en la <b>última vez que se deshabilitó</b> cada contrato (según los logs). Filtra por la franja horaria y habilita solo los marcados.</div>
+            </div>
+
             <div class="ac-table-wrap">
                 <table class="ac-table" id="tabla-internet">
                     <thead><tr>
@@ -922,7 +948,13 @@
         return 'otros';
     }
 
+    // Convierte 'YYYY-MM-DD HH:mm:ss' (hora local) a timestamp comparable.
+    function fcTs(v){ if(!v) return null; var d = new Date((''+v).replace(' ','T')); return isNaN(d.getTime()) ? null : d.getTime(); }
+
     function renderTable() {
+        var isSusp = currentFilter === 'suspendidos';
+        $('#susp-toolbar').toggle(isSusp);
+
         var q = ($('#search-contratos').val()||'').toLowerCase();
         var filtered = allContracts.filter(function(c) {
             var g = filterGroup(c.estado_internet);
@@ -935,8 +967,24 @@
             return fOk && sOk;
         });
 
+        // Filtro por franja horaria de la última deshabilitación (solo suspendidos)
+        if (isSusp) {
+            var fday = $('#susp-fecha').val();
+            if (fday) {
+                var hd = ($('#susp-hora-desde').val() || '00:00'); if(hd.length===5) hd += ':00';
+                var hh = ($('#susp-hora-hasta').val() || '23:59'); if(hh.length===5) hh += ':59';
+                var tsD = fcTs(fday+' '+hd);
+                var tsH = fcTs(fday+' '+hh);
+                filtered = filtered.filter(function(c){
+                    var t = fcTs(c.fecha_corte);
+                    return t !== null && t >= tsD && t <= tsH;
+                });
+            }
+        }
+
         if(!filtered.length) {
             $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;">No hay contratos para mostrar</td></tr>');
+            if(isSusp){ $('#susp-select-all').prop('checked', false); updateSuspCount(); }
             return;
         }
         var h='';
@@ -949,10 +997,12 @@
             var ctrCell = c.contrato_id
                 ? '<a href="'+URLS.contratoShow.replace('CID_PH', c.contrato_id)+'" target="_blank" class="ac-link">'+(c.contrato_nro||'—')+'</a>'
                 : (c.contrato_nro||'—');
+            var chk = isSusp ? '<input type="checkbox" class="susp-check" data-id="'+c.contrato_id+'" style="margin-right:7px;vertical-align:middle;">' : '';
+            var fcLine = isSusp ? '<div class="ac-olt" style="color:#64748b;">Deshab.: '+(c.fecha_corte||'—')+'</div>' : '';
             h += '<tr>'+
-                '<td>'+cliCell+'<span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
+                '<td>'+chk+cliCell+'<span class="ac-client-doc">'+(c.cliente_nit||'')+'</span></td>'+
                 '<td>'+ctrCell+'</td>'+
-                '<td>'+badge(c.estado_internet)+'</td>'+
+                '<td>'+badge(c.estado_internet)+fcLine+'</td>'+
                 '<td><span class="ac-ip">'+(c.ip||'0.0.0.0')+'</span><span class="ac-pppoe">PPPoE: '+(c.usuario||'N/A')+'</span>'+(c.olt_sn_mac?'<div class="ac-olt">OLT: '+c.olt_sn_mac+'</div>':'')+'</td>'+
                 '<td class="ac-dim">'+(c.mikrotik_nombre||'—')+'</td>'+
                 '<td class="ac-dim">'+(c.ultima_vencimiento||'—')+'</td>'+
@@ -960,7 +1010,10 @@
             '</tr>';
         });
         $('#tbody-internet').html(h);
+        if(isSusp){ $('#susp-select-all').prop('checked', false); updateSuspCount(); }
     }
+
+    function updateSuspCount(){ $('#susp-count').text($('.susp-check:checked').length); }
 
     function loadAll() {
         $('#tbody-internet').html('<tr><td colspan="7" class="text-center py-5" style="color:#adb5bd;"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando contratos...</td></tr>');
@@ -1225,6 +1278,26 @@
         $('#modal-habilitar').modal('hide');
         var $b=$('#btn-habilitar-cortados').prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i>');
         $.ajax({url:URLS.habilitarCortados,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID}}).done(function(r){alert('Habilitados: '+r.habilitados+' | Errores: '+r.errores);loadAll();loadSummary();}).always(function(){$b.prop('disabled',false).html('<i class="fas fa-power-off"></i> Habilitar grupo cortado (<span id="btn-count-cortados">0</span>)');});
+    });
+
+    /* Suspendidos: filtro por hora de última deshabilitación + habilitar seleccionados */
+    (function(){
+        var d = new Date(); var pad = function(n){return (n<10?'0':'')+n;};
+        $('#susp-fecha').val(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));
+    })();
+    $('#susp-aplicar').on('click', function(){ renderTable(); });
+    $('#susp-limpiar').on('click', function(){ $('#susp-fecha').val(''); $('#susp-hora-desde').val('00:00'); $('#susp-hora-hasta').val('23:59'); renderTable(); });
+    $(document).on('change', '.susp-check', updateSuspCount);
+    $('#susp-select-all').on('change', function(){ $('.susp-check').prop('checked', this.checked); updateSuspCount(); });
+    $('#btn-habilitar-susp').on('click', function(){
+        var ids = $('.susp-check:checked').map(function(){ return $(this).data('id'); }).get();
+        if(!ids.length){ alert('Selecciona al menos un contrato suspendido.'); return; }
+        if(!confirm('¿Habilitar '+ids.length+' contrato(s) seleccionado(s)?')) return;
+        var $b=$(this).prop('disabled',true).html('<i class="fas fa-spinner fa-spin"></i> Habilitando...');
+        $.ajax({url:URLS.habilitarCortados,method:'POST',data:{_token:csrfToken,grupo_id:GRUPO_ID,ids:ids}})
+            .done(function(r){ alert('Habilitados: '+(r.habilitados||0)+' | Errores: '+(r.errores||0)); loadAll(); loadSummary(); })
+            .fail(function(){ alert('Error al habilitar los contratos.'); })
+            .always(function(){ $b.prop('disabled',false).html('<i class="fas fa-power-off"></i> Habilitar seleccionados (<span id="susp-count">0</span>)'); });
     });
 
     /* Historial detail */

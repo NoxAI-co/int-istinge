@@ -257,9 +257,11 @@ class CortesAnalyzer
                 ->join('contactos', 'contactos.id', '=', 'cs.client_id')
                 ->leftJoin('mikrotik as mk', 'mk.id', '=', 'cs.server_configuration_id')
                 ->leftJoin('log_movimientos as lm', function ($join) {
+                    // Última entrada de DESHABILITACIÓN (no cualquier modulo=5) para que
+                    // fecha_corte sea exactamente la última vez que se deshabilitó.
                     $join->on('lm.contrato', '=', 'cs.id')
                          ->where('lm.modulo', 5)
-                         ->whereRaw('lm.id = (SELECT MAX(lm2.id) FROM log_movimientos lm2 WHERE lm2.contrato = cs.id AND lm2.modulo = 5)');
+                         ->whereRaw("lm.id = (SELECT MAX(lm2.id) FROM log_movimientos lm2 WHERE lm2.contrato = cs.id AND lm2.modulo = 5 AND LOWER(lm2.descripcion) LIKE '%deshabilitado%')");
                 })
                 ->select(
                     'cs.id as contrato_id', 'cs.nro as contrato_nro',
@@ -382,7 +384,7 @@ class CortesAnalyzer
 
             $subFechaCorte = DB::raw("(
                 SELECT contrato, MAX(created_at) as fecha_corte
-                FROM log_movimientos WHERE modulo = 5
+                FROM log_movimientos WHERE modulo = 5 AND LOWER(descripcion) LIKE '%deshabilitado%'
                 GROUP BY contrato
             ) AS lm_corte");
 

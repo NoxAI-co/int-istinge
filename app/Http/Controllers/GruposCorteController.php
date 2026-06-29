@@ -2143,6 +2143,25 @@ class GruposCorteController extends Controller
         $analyzer = new CortesAnalyzer;
         $cortados = $analyzer->getAlreadyCutInternet($grupoId);
 
+        // Filtros opcionales: IDs seleccionados y/o rango de hora de la última
+        // deshabilitación (fecha_corte). Sin filtros => se habilitan todos.
+        $ids   = array_filter((array) $request->input('ids', []));
+        $desde = $request->input('desde'); // 'YYYY-MM-DD HH:mm:ss'
+        $hasta = $request->input('hasta');
+
+        if (! empty($ids)) {
+            $ids = array_map('intval', $ids);
+            $cortados = $cortados->whereIn('contrato_id', $ids)->values();
+        }
+        if ($desde) {
+            $tsDesde = strtotime($desde);
+            $cortados = $cortados->filter(fn ($c) => $c->fecha_corte && strtotime($c->fecha_corte) >= $tsDesde)->values();
+        }
+        if ($hasta) {
+            $tsHasta = strtotime($hasta);
+            $cortados = $cortados->filter(fn ($c) => $c->fecha_corte && strtotime($c->fecha_corte) <= $tsHasta)->values();
+        }
+
         $habilitados = 0; $errores = 0;
         foreach ($cortados as $contrato) {
             try {
