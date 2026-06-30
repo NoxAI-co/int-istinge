@@ -87,7 +87,16 @@
       "Bash(grep -n 'facturasElectronicas\\\\|$total\\\\|items_factura\\\\|TOTAL\\\\|->where\\\\|empresa')",
       "Bash(python3 -m json.tool /home/juan-manuel/Escritorio/istinge/int-istinge/.claude/settings.local.json)",
       "Bash(grep -n 'siigo_name\\\\|$tabla\\\\|campos_tabla\\\\|function index\\\\|function datatable\\\\|->campo\\\\b\\\\|FieldDatatable\\\\|field_datatable\\\\|camposDatatable' app/Http/Controllers/ContratosController.php)",
-      "Bash(grep -n 'id_modulo\\\\|$tabla = Campos\\\\|function index\\\\|function contactos\\\\|->toJson\\\\|datatables\\(\\)' app/Http/Controllers/ContactosController.php)"
+      "Bash(grep -n 'id_modulo\\\\|$tabla = Campos\\\\|function index\\\\|function contactos\\\\|->toJson\\\\|datatables\\(\\)' app/Http/Controllers/ContactosController.php)",
+      "Bash(awk *)",
+      "Bash(grep -n 'class Factura\\\\|protected $table' app/Model/Ingresos/Factura.php)",
+      "Bash(grep -n 'class ItemsFactura\\\\|protected $table' app/Model/Ingresos/ItemsFactura.php)",
+      "Bash(grep -n '\\\\$cm\\\\s*=\\\\|\\\\$cm =' app/Http/Controllers/CronController.php)",
+      "Bash(grep -n 'protected $table' app/Contrato.php)",
+      "Bash(grep -n 'foreach \\($request->factura_pendiente\\\\|if \\($request->precio\\\\[\\\\|if\\($request->precio\\\\[\\\\|new IngresosFactura\\\\|IngresosFactura::create\\\\|->precio\\\\[$key\\\\]' app/Http/Controllers/IngresosController.php)",
+      "Bash(grep -n 'precio\\\\[$key\\\\]\\\\|continue\\\\|new Ingreso\\\\|foreach\\\\|montoPago')",
+      "Bash(grep -n 'if \\($request->precio\\\\[$key\\\\]\\)\\\\|$ingreso = new Ingreso\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)",
+      "Bash(grep -n 'request->precio\\\\[$key\\\\]\\\\|new Ingreso;\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)"
     ]
   }
 }

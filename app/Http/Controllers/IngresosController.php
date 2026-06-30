@@ -508,6 +508,14 @@ class IngresosController extends Controller
                     foreach ($request->factura_pendiente as $key => $factura_id) {
 
                         $montoPago = $this->precision($request->precio[$key]);
+
+                        // Solo se validan/procesan las facturas que el cajero realmente llenó (monto recibido > 0).
+                        // Las filas vacías (p.ej. facturas con total $0 por descuento) se omiten para que no
+                        // aborten todo el lote de pago. Mismo criterio que el loop de creación (if ($request->precio[$key])).
+                        if ($montoPago <= 0) {
+                            continue;
+                        }
+
                         $factura = Factura::find($request->factura_pendiente[$key]);
 
                         if ($factura->contratos() != false &&
@@ -558,7 +566,10 @@ class IngresosController extends Controller
                             );
                             $totalFact = $factura->total()->total;
 
-                            if($sumaPagos >= $totalFact){
+                            // Defensa extra: solo se considera "ya pagada" cuando la factura tiene un saldo real
+                            // por cobrar (totalFact > 0). Una factura de total $0 (p.ej. 100% de descuento) NO
+                            // debe tratarse como pagada: cerrarla en silencio con este mensaje es engañoso.
+                            if($totalFact > 0 && $sumaPagos >= $totalFact){
 
                                 $factura->estatus = 0;
                                 $factura->save();
