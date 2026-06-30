@@ -217,8 +217,23 @@ class UpdateWhatsAppMessageStatus extends Command
         // Determinar el valor de whatsapp según el status
         if ($status === 'delivered' || $status === 'read') {
             $whatsappValue = 1; // Entregado/leído
-        } elseif ($status === 'failed' && !$isHealthyEcosystemError) {
-            $whatsappValue = 0; // Fallido (no entregado), excepto si es error de healthy ecosystem
+        } elseif ($status === 'failed') {
+            // SOLO reseteamos whatsapp=0 (re-arma el envío del cron) cuando el número
+            // es verdaderamente inválido ("Message undeliverable"). Para fallos
+            // transitorios (rate-limit, pacing, healthy ecosystem, re-engagement, etc.)
+            // Meta pudo haber entregado el mensaje igual; resetear a 0 provocaría que el
+            // cron lo reenvíe en bucle y el cliente reciba la misma factura muchas veces.
+            // El conteo y el tope de reintentos los administra WhatsAppMessageSyncService
+            // (que deduplica por log); aquí solo respetamos ese tope (< 3).
+            $isUndeliverable = $errorMessage &&
+                stripos($errorMessage, 'Message undeliverable') !== false;
+
+            if (!$isUndeliverable) {
+                // Fallo transitorio: no tocar whatsapp para evitar reenvíos.
+                return $result;
+            }
+
+            $whatsappValue = 0; // Número inválido: permitir reintento controlado
         } else {
             // Para otros estados (sent, pending, etc.) no actualizamos
             return $result;
@@ -229,12 +244,15 @@ class UpdateWhatsAppMessageStatus extends Command
             try {
                 $factura = Factura::find($incomingInvoiceId);
                 if ($factura) {
-                    // Solo actualizar si el valor es diferente
-                    if ($factura->whatsapp != $whatsappValue) {
+                    // No re-armar el envío si ya se alcanzó el tope de reintentos.
+                    $topeAlcanzado = $whatsappValue === 0 && $factura->cont_message_undeliverable >= 3;
+
+                    // Solo actualizar si el valor es diferente y no se superó el tope
+                    if (!$topeAlcanzado && $factura->whatsapp != $whatsappValue) {
                         DB::table('factura')
                             ->where('id', $incomingInvoiceId)
                             ->update(['whatsapp' => $whatsappValue]);
-                        
+
                         $this->line("  Factura {$factura->codigo} actualizada: whatsapp = {$whatsappValue} (status: {$status})");
                         $result['factura_actualizada'] = true;
                     }
@@ -253,12 +271,15 @@ class UpdateWhatsAppMessageStatus extends Command
             try {
                 $ingreso = Ingreso::find($incomingPaymentId);
                 if ($ingreso) {
-                    // Solo actualizar si el valor es diferente
-                    if ($ingreso->whatsapp != $whatsappValue) {
+                    // No re-armar el envío si ya se alcanzó el tope de reintentos.
+                    $topeAlcanzado = $whatsappValue === 0 && $ingreso->cont_message_undeliverable >= 3;
+
+                    // Solo actualizar si el valor es diferente y no se superó el tope
+                    if (!$topeAlcanzado && $ingreso->whatsapp != $whatsappValue) {
                         DB::table('ingresos')
                             ->where('id', $incomingPaymentId)
                             ->update(['whatsapp' => $whatsappValue]);
-                        
+
                         $this->line("  Ingreso {$ingreso->nro} actualizado: whatsapp = {$whatsappValue} (status: {$status})");
                         $result['ingreso_actualizado'] = true;
                     }

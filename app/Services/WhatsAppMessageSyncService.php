@@ -239,25 +239,23 @@ class WhatsAppMessageSyncService
         } elseif ($status === 'failed') {
             $isUndeliverable = $errorMessage && stripos($errorMessage, 'Message undeliverable') !== false;
 
-            // Solo incrementar y permitir reintento para números verdaderamente inválidos
-            if ($isUndeliverable) {
-                // Incrementar contador (solo si es la primera vez que vemos este log)
-                if ($created) {
-                    if ($incomingInvoiceId) {
-                        DB::table('factura')->where('id', $incomingInvoiceId)->increment('cont_message_undeliverable');
-                    }
-                    if ($incomingPaymentId) {
-                        DB::table('ingresos')->where('id', $incomingPaymentId)->increment('cont_message_undeliverable');
-                    }
-                }
-
+            // Solo incrementar y permitir reintento para números verdaderamente inválidos.
+            //
+            // IMPORTANTE: tanto el incremento del contador COMO el reseteo whatsapp=0 deben
+            // ocurrir únicamente la PRIMERA vez que vemos este log ($created). Si el reseteo
+            // se ejecutara también al re-leer un log ya existente, cada sincronización (cada
+            // 15 min) volvería a poner whatsapp=0 sin subir el contador, el tope de 3 nunca
+            // se alcanzaría y el cron reenviaría la factura en bucle.
+            if ($isUndeliverable && $created) {
                 // Resetear whatsapp=0 SOLO para "Message undeliverable" (número inválido):
                 // el cron reintentará hasta cont_message_undeliverable=3 y luego se detiene.
                 // Para otros tipos de fallo (transitorios, rate-limit, healthy ecosystem)
                 // NO reseteamos para evitar bucles de reenvío cuando el mensaje sí llegó.
                 if ($incomingInvoiceId) {
+                    DB::table('factura')->where('id', $incomingInvoiceId)->increment('cont_message_undeliverable');
+
                     $factura = Factura::find($incomingInvoiceId);
-                    if ($factura && $factura->whatsapp != 0) {
+                    if ($factura && $factura->cont_message_undeliverable < 3 && $factura->whatsapp != 0) {
                         DB::table('factura')
                             ->where('id', $incomingInvoiceId)
                             ->update(['whatsapp' => 0]);
@@ -266,8 +264,10 @@ class WhatsAppMessageSyncService
                 }
 
                 if ($incomingPaymentId) {
+                    DB::table('ingresos')->where('id', $incomingPaymentId)->increment('cont_message_undeliverable');
+
                     $ingreso = Ingreso::find($incomingPaymentId);
-                    if ($ingreso && $ingreso->whatsapp != 0) {
+                    if ($ingreso && $ingreso->cont_message_undeliverable < 3 && $ingreso->whatsapp != 0) {
                         DB::table('ingresos')
                             ->where('id', $incomingPaymentId)
                             ->update(['whatsapp' => 0]);
