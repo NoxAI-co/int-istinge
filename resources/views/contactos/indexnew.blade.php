@@ -244,10 +244,10 @@
 			    @foreach($tabla as $campo)
 			        @if($tipo_usuario == 1)
 			            @if($campo->campo != 'contrato')
-			                {data: '{{$campo->campo}}'},
+			                {data: '{{$campo->campo}}', defaultContent: ''},
 			            @endif
                     @else
-                        {data: '{{$campo->campo}}'},
+                        {data: '{{$campo->campo}}', defaultContent: ''},
 
                     @endif
                 @endforeach

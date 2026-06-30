@@ -64,7 +64,6 @@
       "Bash(grep -n 'function estado\\\\|function factura\\\\|function created_at\\\\|protected $table' /Users/juanmanuel/Documents/istinge/int-istinge/app/CRM.php)",
       "Bash(grep -n 'auth\\(\\\\|request\\(\\\\|Auth::\\\\|session\\(\\\\|$request\\\\|->user\\(')",
       "Bash(grep -n '\\\\$this')",
-<<<<<<< HEAD
       "Bash(CLIENT=_test_tmp DOMAIN=acme.com.co ASSET_URL=https://acme.com.co/software docker compose -f docker-compose.client.yml config)",
       "Bash(git commit -m 'feat: enrutar la raíz del dominio a Hestia y mantener /software en la app vía Caddy *)",
       "Read(//home/juan-manuel/.ssh/**)",
@@ -80,19 +79,15 @@
       "Bash(git -c core.editor=true rebase --continue)",
       "Bash(git commit -m 'feat: detectar IPs ocupadas en todas las fuentes del Mikrotik \\(queues, secrets PPPoE, leases DHCP y ARP\\) en el modal de IPs disponibles *)",
       "Bash(node --check public/js/function.js)",
-<<<<<<< HEAD
-      "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)"
-=======
-      "Bash(git log *)"
->>>>>>> cbb3b0cd (fix: disable server and office filtering in ContratosController when a specific client is requested and add git log command to local settings)
-=======
       "Bash(git commit -m 'fix: filtrar IPs ocupadas por el rango real de la subred \\(CIDR\\) en el modal de IPs disponibles *)",
       "Bash(git commit -m 'feat: mostrar siempre el botón Acciones del Contrato en la vista de contrato *)",
       "Bash(awk 'NR>=145' resources/views/reportes/facturasElectronicas/index.blade.php)",
       "Bash(grep -n 'facturasElectronicas\\\\|TOTAL\\\\|$total\\\\b')",
       "Bash(grep -n 'function facturasElectronicas\\\\|$total\\\\b\\\\|TOTAL\\\\|->where\\('\\\\''factura.fecha'\\\\''\\\\|fechas\\\\|emitida\\\\|setDateRequest\\\\|->get\\(\\)')",
-      "Bash(grep -n 'facturasElectronicas\\\\|$total\\\\|items_factura\\\\|TOTAL\\\\|->where\\\\|empresa')"
->>>>>>> 5359f4208 (feat: add nro_serial column to inventario table and update local development script aliases)
+      "Bash(grep -n 'facturasElectronicas\\\\|$total\\\\|items_factura\\\\|TOTAL\\\\|->where\\\\|empresa')",
+      "Bash(python3 -m json.tool /home/juan-manuel/Escritorio/istinge/int-istinge/.claude/settings.local.json)",
+      "Bash(grep -n 'siigo_name\\\\|$tabla\\\\|campos_tabla\\\\|function index\\\\|function datatable\\\\|->campo\\\\b\\\\|FieldDatatable\\\\|field_datatable\\\\|camposDatatable' app/Http/Controllers/ContratosController.php)",
+      "Bash(grep -n 'id_modulo\\\\|$tabla = Campos\\\\|function index\\\\|function contactos\\\\|->toJson\\\\|datatables\\(\\)' app/Http/Controllers/ContactosController.php)"
     ]
   }
 }

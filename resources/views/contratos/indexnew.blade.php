@@ -458,7 +458,7 @@
 			},
 			columns: [
 			    @foreach($tabla as $campo)
-                {data: '{{$campo->campo}}'},
+                {data: '{{$campo->campo}}', defaultContent: ''},
                 @endforeach
 				{ data: 'acciones' },
 			],

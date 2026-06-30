@@ -37,7 +37,7 @@ class CamposController extends Controller{
            })
            ->get();
 
-        $porAsignar = Campos::where('modulo', 2)->where('estado',1)
+        $porAsignar = Campos::where('modulo', $id)->where('estado',1)
         ->get();
 
         foreach($porAsignar as $pa){
