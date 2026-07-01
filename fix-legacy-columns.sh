@@ -152,21 +152,28 @@ for DB in "${DBS[@]}"; do
   #  pagos (filtra estatus=1) no las mostraba. Se corrige el default y se
   #  reabren las facturas de venta (tipo 1,2) que quedaron en un estado inválido.
   if table_exists "$DB" "factura" && column_exists "$DB" "factura" "estatus"; then
+    # 1) Normalizar existentes ANTES de forzar NOT NULL: estados inválidos (3, u
+    #    otros) o NULL -> 1 (Abierta). 'estatus NOT IN (0,1,2)' NO captura NULL en
+    #    SQL, de ahí el 'OR estatus IS NULL'. Una factura en estado inválido nunca
+    #    pasó por el flujo de pago (que la cerraría en 0), así que reabrir en 1 es
+    #    correcto.
+    INVAL="$(dm -N -B -e "SELECT COUNT(*) FROM factura WHERE (estatus NOT IN (0,1,2) OR estatus IS NULL) AND tipo IN (1,2);" "$DB")"
+    if [ "${INVAL:-0}" -gt 0 ]; then
+      dm "$DB" -e "UPDATE factura SET estatus=1 WHERE (estatus NOT IN (0,1,2) OR estatus IS NULL) AND tipo IN (1,2);"
+      echo "    [factura.estatus] ${INVAL} factura(s) con estado inválido reabiertas (estatus=1)"
+    else
+      echo "    [factura.estatus] sin facturas en estado inválido, salto UPDATE"
+    fi
+
+    # 2) Default de la columna -> 1 (protege a CUALQUIER inserción que no asigne
+    #    estatus: SQL crudo, un deploy viejo del app sin $attributes, etc.).
     DEF="$(dm -N -B -e "SELECT COLUMN_DEFAULT FROM information_schema.columns WHERE table_schema='$DB' AND table_name='factura' AND column_name='estatus';")"
     if [ "$DEF" = "1" ]; then
       echo "    [factura.estatus] default ya es 1, salto ALTER"
     else
       TYPE="$(column_type "$DB" "factura" "estatus")"
-      dm "$DB" -e "ALTER TABLE factura MODIFY estatus ${TYPE} NOT NULL DEFAULT 1;"
+      dm "$DB" -e "SET SESSION sql_mode=''; ALTER TABLE factura MODIFY estatus ${TYPE} NOT NULL DEFAULT 1;"
       echo "    [factura.estatus] default ajustado a 1 (antes: ${DEF:-NULL})"
-    fi
-
-    INVAL="$(dm -N -B -e "SELECT COUNT(*) FROM factura WHERE estatus NOT IN (0,1,2) AND tipo IN (1,2);" "$DB")"
-    if [ "${INVAL:-0}" -gt 0 ]; then
-      dm "$DB" -e "UPDATE factura SET estatus=1 WHERE estatus NOT IN (0,1,2) AND tipo IN (1,2);"
-      echo "    [factura.estatus] ${INVAL} factura(s) con estado inválido reabiertas (estatus=1)"
-    else
-      echo "    [factura.estatus] sin facturas en estado inválido, salto UPDATE"
     fi
   else
     echo "    (sin tabla/columna factura.estatus)"
