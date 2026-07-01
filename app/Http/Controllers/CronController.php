@@ -491,15 +491,15 @@ class CronController extends Controller
                                             }
 
                                             $plazo=TerminosPago::where('dias', Funcion::diffDates($date_suspension, Carbon::now())+1)->first();
-                                            $tipo = 1; //1= normal, 2=Electrónica.
-                                            $electronica = Factura::booleanFacturaElectronica($contrato->cliente);
 
-                                            if($contrato->facturacion == 3 && !$electronica){
-                                                $tipo = 1;
-                                                // return redirect('empresa/facturas')->with('success', "La Factura Electrónica no pudo ser creada por que no ha pasado el tiempo suficiente desde la ultima factura");
-                                            }elseif($contrato->facturacion == 3 && $electronica){
-                                                $tipo = 2;
-                                            }
+                                            // El tipo de la factura SIEMPRE debe coincidir con el tipo de la
+                                            // numeración que tipoNumeracion() ya eligió según el contrato
+                                            // (facturacion==3 => numeración DIAN tipo=2; si no => estándar tipo=1).
+                                            // Antes el tipo se calculaba APARTE con booleanFacturaElectronica(),
+                                            // que podía discrepar y dejaba facturas tipo=1 (estándar) consumiendo
+                                            // un consecutivo DIAN (numeración tipo=2). Atado a la numeración, ese
+                                            // desajuste no puede volver a ocurrir.
+                                            $tipo = ((int) $nro->tipo === 2) ? 2 : 1; // 1= normal, 2= electrónica
 
                                             // Reservar consecutivo atómicamente: buscar el próximo código libre
                                             // y guardarlo SOLO cuando confirmemos que la factura se va a crear

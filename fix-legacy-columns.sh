@@ -179,6 +179,27 @@ for DB in "${DBS[@]}"; do
     echo "    (sin tabla/columna factura.estatus)"
   fi
 
+  # --- 6b) factura.tipo: alinear a la numeración DIAN ------------------------
+  #  Caso: facturas que quedaron como ESTÁNDAR (factura.tipo=1) pero con una
+  #  numeración DIAN (numeraciones_facturas.tipo=2) -> consumieron un consecutivo
+  #  DIAN pero aparecían en la tabla de facturas estándar. Como el consecutivo
+  #  ya se consumió, lo correcto es tratarlas como electrónicas (tipo=2). El fix
+  #  de código (CronController) ya evita que se generen nuevas así; esto corrige
+  #  las existentes. Idempotente.
+  if table_exists "$DB" "factura" && table_exists "$DB" "numeraciones_facturas" \
+     && column_exists "$DB" "factura" "tipo" && column_exists "$DB" "factura" "numeracion" \
+     && column_exists "$DB" "numeraciones_facturas" "tipo"; then
+    MISM="$(dm -N -B -e "SELECT COUNT(*) FROM factura f JOIN numeraciones_facturas n ON n.id = f.numeracion WHERE f.tipo = 1 AND n.tipo = 2;" "$DB")"
+    if [ "${MISM:-0}" -gt 0 ]; then
+      dm "$DB" -e "UPDATE factura f JOIN numeraciones_facturas n ON n.id = f.numeracion SET f.tipo = 2 WHERE f.tipo = 1 AND n.tipo = 2;"
+      echo "    [factura.tipo] ${MISM} factura(s) estándar con numeración DIAN pasadas a electrónicas (tipo=2)"
+    else
+      echo "    [factura.tipo] sin facturas estándar con numeración DIAN, salto UPDATE"
+    fi
+  else
+    echo "    (sin tabla/columna para alinear factura.tipo con numeración DIAN)"
+  fi
+
   # --- 7) empresa: flags de configuración (análisis de ciclo) ---------------
   #  El panel grupos-corte/analisis-ciclo lee y togglea estos flags sobre la
   #  tabla `empresa` (GruposCorteController::updateEmpresaConfig). En BDs legacy
