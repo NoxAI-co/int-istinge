@@ -191,8 +191,8 @@ class PagosController extends Controller
 
     public function pendiente($proveedor, $id=false){
         $this->getAllPermissions(Auth::user()->id);
-        $facturas=FacturaProveedores::where('proveedor', $proveedor)->where('empresa',Auth::user()->empresa)->where('tipo',1)->where('estatus', 1)->orderBy('created_at','asc')->get();
-        $total=FacturaProveedores::where('proveedor', $proveedor)->where('empresa',Auth::user()->empresa)->where('tipo',1)->where('estatus', 1)->count();
+        $facturas=FacturaProveedores::where('proveedor', $proveedor)->where('empresa',Auth::user()->empresa)->where('tipo',1)->orderBy('created_at','asc')->get();
+        $total=FacturaProveedores::where('proveedor', $proveedor)->where('empresa',Auth::user()->empresa)->where('tipo',1)->count();
         return view('pagos.pendiente')->with(compact('facturas', 'id', 'total'));
     }
 

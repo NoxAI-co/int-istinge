@@ -96,7 +96,9 @@
       "Bash(grep -n 'foreach \\($request->factura_pendiente\\\\|if \\($request->precio\\\\[\\\\|if\\($request->precio\\\\[\\\\|new IngresosFactura\\\\|IngresosFactura::create\\\\|->precio\\\\[$key\\\\]' app/Http/Controllers/IngresosController.php)",
       "Bash(grep -n 'precio\\\\[$key\\\\]\\\\|continue\\\\|new Ingreso\\\\|foreach\\\\|montoPago')",
       "Bash(grep -n 'if \\($request->precio\\\\[$key\\\\]\\)\\\\|$ingreso = new Ingreso\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)",
-      "Bash(grep -n 'request->precio\\\\[$key\\\\]\\\\|new Ingreso;\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)"
+      "Bash(grep -n 'request->precio\\\\[$key\\\\]\\\\|new Ingreso;\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)",
+      "Bash(python3 -m json.tool /Users/juanmanuel/Documents/istinge/int-istinge/.claude/settings.local.json)",
+      "Bash(GIT_EDITOR=true git rebase --continue)"
     ]
   }
 }

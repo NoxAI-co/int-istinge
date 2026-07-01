@@ -205,6 +205,27 @@ class ContratosController extends Controller
         $modoLectura = $user->modo_lectura();
         $etiquetas = Etiqueta::where('empresa_id', $user->empresa)->get();
 
+        // DEBUG TEMPORAL contratos filter
+        if ($request->cliente_id) {
+            \Log::debug('contratos.filter.request', [
+                'cliente_id' => $request->cliente_id,
+                'filtro' => $request->filtro,
+                'user_id' => $user->id,
+                'user_empresa' => $user->empresa,
+                'user_oficina' => $user->oficina,
+                'empresa_oficina_enabled' => optional(Auth::user()->empresa())->oficina,
+                'user_servidores_count' => $user->servidores->count(),
+                'user_servidores' => $user->servidores->pluck('id')->toArray(),
+                'nodo_param' => $nodo,
+                'all_request' => $request->all(),
+            ]);
+
+            $contratoCheck = \DB::table('contracts')
+                ->where('client_id', $request->cliente_id)
+                ->get(['id','nro','client_id','empresa','status','state','server_configuration_id','servicio_tv','oficina']);
+            \Log::debug('contratos.filter.raw_for_client', ['rows' => $contratoCheck->toArray()]);
+        }
+
         $contratos = Contrato::query()
             ->select(
                 'contracts.*',
@@ -640,6 +661,23 @@ class ContratosController extends Controller
                 ->join('municipios', 'contactos.fk_idmunicipio', '=', 'municipios.id')
                 ->leftJoin('barrios as barrio', 'barrio.id', 'contactos.barrio_id')
                 ->whereIn('contracts.id', $arrayContratos);
+        }
+
+        // DEBUG TEMPORAL: capturar SQL final cuando se filtra por cliente_id
+        if ($request->cliente_id) {
+            try {
+                $cloned = clone $contratos;
+                $sql = $cloned->toSql();
+                $bindings = $cloned->getBindings();
+                $resultCount = $cloned->count();
+                \Log::debug('contratos.filter.sql', [
+                    'sql' => $sql,
+                    'bindings' => $bindings,
+                    'count' => $resultCount,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::debug('contratos.filter.sql_error', ['error' => $e->getMessage()]);
+            }
         }
 
         return datatables()->eloquent($contratos)
