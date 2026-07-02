@@ -246,6 +246,37 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla inventario)"
   fi
+
+  # --- 10) whatsapp_messages: type a VARCHAR + metadata (ubicación/contactos) -
+  #  El ENUM legacy de `type` no incluye 'location'/'contacts'; MySQL guarda ''
+  #  y el chat muestra burbujas vacías. VARCHAR(32) acepta cualquier tipo.
+  #  Además se agrega `metadata` JSON si falta y se reparan filas con type=''.
+  if table_exists "$DB" "whatsapp_messages"; then
+    TYPE="$(column_type "$DB" "whatsapp_messages" "type")"
+    case "$TYPE" in
+      varchar*)
+        echo "    [whatsapp_messages.type] ya es $TYPE, salto"
+        ;;
+      *)
+        dm "$DB" -e "SET SESSION sql_mode=''; ALTER TABLE whatsapp_messages MODIFY \`type\` VARCHAR(32) NOT NULL DEFAULT 'text';"
+        echo "    [whatsapp_messages.type] convertida a VARCHAR(32) (era $TYPE)"
+        ;;
+    esac
+    if column_exists "$DB" "whatsapp_messages" "metadata"; then
+      echo "    [whatsapp_messages.metadata] ya existe, salto"
+    else
+      dm "$DB" -e "SET SESSION sql_mode=''; ALTER TABLE whatsapp_messages ADD COLUMN \`metadata\` JSON NULL;"
+      echo "    [whatsapp_messages.metadata] agregada"
+    fi
+    # Repara mensajes guardados con type vacío usando el metadata almacenado.
+    dm "$DB" -e "SET SESSION sql_mode='';
+      UPDATE whatsapp_messages SET type='location' WHERE type='' AND metadata IS NOT NULL AND JSON_VALID(metadata) AND JSON_EXTRACT(metadata, '\$.location') IS NOT NULL;
+      UPDATE whatsapp_messages SET type='contacts' WHERE type='' AND metadata IS NOT NULL AND JSON_VALID(metadata) AND JSON_EXTRACT(metadata, '\$.contacts') IS NOT NULL;
+      UPDATE whatsapp_messages SET type='text' WHERE type='';" || echo "    (aviso: no se pudieron reparar filas con type vacío)"
+    echo "    [whatsapp_messages] filas con type vacío reparadas"
+  else
+    echo "    (sin tabla whatsapp_messages)"
+  fi
 done
 
 echo "==> Listo."
