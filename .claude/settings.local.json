@@ -98,7 +98,17 @@
       "Bash(grep -n 'if \\($request->precio\\\\[$key\\\\]\\)\\\\|$ingreso = new Ingreso\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)",
       "Bash(grep -n 'request->precio\\\\[$key\\\\]\\\\|new Ingreso;\\\\|foreach \\($request->factura_pendiente' app/Http/Controllers/IngresosController.php)",
       "Bash(python3 -m json.tool /Users/juanmanuel/Documents/istinge/int-istinge/.claude/settings.local.json)",
-      "Bash(GIT_EDITOR=true git rebase --continue)"
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(grep -rn 'with\\('\\\\''error'\\\\'', $e\\\\|getMessage\\(\\)\\\\|catch' resources/views/pagos/)",
+      "Bash(grep -rn 'with\\('\\\\''error'\\\\'', $e->getMessage\\\\|with\\('\\\\''error'\\\\'',$e->getMessage\\\\|->getMessage\\(\\)\\)' app/Http/Controllers/PagosController.php app/Http/Controllers/GastosController.php)",
+      "Bash(grep -rn \"back\\(\\)->with\\('error', \\\\$\" app/)",
+      "Bash(/usr/local/opt/php@7.4/bin/php -v)",
+      "Read(//Users/juanmanuel/Downloads/**)",
+      "Bash(grep -rn 'with\\('\\\\''error'\\\\'', $e->getMessage\\\\|with\\('\\\\''error'\\\\'',$e->getMessage\\\\|with\\(\"error\", $e->getMessage\\\\|error.*getMessage\\(\\)' app/)",
+      "Bash(grep -rEn \"with\\\\\\('error', \\\\\\\\\\\\$\\(e|th|ex|exception|error\\)->getMessage\\\\\\(\\\\\\)\\\\\\)\" app/)",
+      "Bash(sort -t' ' -k2)",
+      "Bash(uniq -c -f1)",
+      "Bash(grep -rEn \"Session::flash\\\\\\('error'|session\\\\\\(\\\\\\)->flash\\\\\\('error'|->withErrors\\\\\\(\\\\[?'?error|with\\\\\\('error', \\\\\\\\\\\\$\" app/)"
     ]
   }
 }

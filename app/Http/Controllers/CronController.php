@@ -5595,6 +5595,7 @@ class CronController extends Controller
 
                 // Construir Components
                 $components = [];
+                $headerMeta = null;
 
                 if ($plantilla->body_header === 'DOCUMENT') {
                     // Subir PDF a Meta en vez de pasar un link
@@ -5620,6 +5621,11 @@ class CronController extends Controller
                                 ]
                             ]
                         ]
+                    ];
+
+                    $headerMeta = [
+                        'header_media_id' => $mediaId,
+                        'filename'        => "Factura_{$factura->codigo}.pdf",
                     ];
                 }
 
@@ -5712,7 +5718,8 @@ class CronController extends Controller
                             $contractId,
                             null,
                             $companyNit,
-                            $plantilla->id
+                            $plantilla->id,
+                            $headerMeta
                         );
                     }
                 } else {

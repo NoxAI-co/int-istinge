@@ -21,6 +21,10 @@ trait CentralizedWhatsApp
      * @param int|null $incomingContractId ID del contrato opcional.
      * @param int|null $incomingPaymentId ID del pago opcional.
      * @param int|null $incomingCompanyNit NIT de la empresa.
+     * @param int|null $templateId ID de la plantilla opcional.
+     * @param array|null $metadata Datos extra; con 'header_media_id' (media_id de Meta
+     *                             del documento del header) el chat descarga el archivo
+     *                             y lo muestra como adjunto descargable.
      * @return void
      */
     public function registerCentralizedBatch(
@@ -35,7 +39,8 @@ trait CentralizedWhatsApp
         ?int $incomingContractId = null,
         ?int $incomingPaymentId = null,
         ?int $incomingCompanyNit = null,
-        ?int $templateId = null
+        ?int $templateId = null,
+        ?array $metadata = null
     ) {
         try {
             $data = [
@@ -61,6 +66,9 @@ trait CentralizedWhatsApp
             }
             if ($templateId !== null) {
                 $data['template_id'] = $templateId;
+            }
+            if ($metadata !== null) {
+                $data['metadata'] = $metadata;
             }
 
             Http::withHeaders([

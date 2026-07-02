@@ -1938,6 +1938,8 @@ class IngresosController extends Controller
 
         $metaService = new \App\Services\MetaWhatsAppService($instance->access_token);
 
+        $headerMeta = null;
+
         if ($plantilla->body_header === 'DOCUMENT') {
             // uploadMedia de Meta necesita una ruta local: descargamos el PDF que
             // getIngresoTirillaTemp ya dejó en Contabo a un temporal del sistema
@@ -1980,6 +1982,11 @@ class IngresosController extends Controller
                     ]
                 ]
             ]);
+
+            $headerMeta = [
+                'header_media_id' => $mediaId,
+                'filename'        => "Recibo_Caja_{$ingreso->nro}.pdf",
+            ];
         }
 
         // ============================================================
@@ -2055,7 +2062,8 @@ class IngresosController extends Controller
                     null,
                     $ingreso->id,
                     $companyNit,
-                    $plantilla->id
+                    $plantilla->id,
+                    $headerMeta
                 );
             }
 

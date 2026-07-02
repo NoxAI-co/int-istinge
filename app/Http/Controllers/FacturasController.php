@@ -6388,6 +6388,7 @@ class FacturasController extends Controller{
 
         // Construir componentes para Meta
         $components = [];
+        $headerMeta = null;
         if ($plantilla->body_header === 'DOCUMENT') {
             // Subir PDF a Meta en vez de pasar un link
             $mediaId = $metaService->uploadMedia(
@@ -6412,6 +6413,11 @@ class FacturasController extends Controller{
                         ]
                     ]
                 ]
+            ];
+
+            $headerMeta = [
+                'header_media_id' => $mediaId,
+                'filename'        => "Factura_{$factura->codigo}.pdf",
             ];
         }
 
@@ -6493,7 +6499,8 @@ class FacturasController extends Controller{
                     $contractId,
                     null,
                     $companyNit,
-                    $plantilla ? $plantilla->id : null
+                    $plantilla ? $plantilla->id : null,
+                    $headerMeta
                 );
             }
 
@@ -6618,6 +6625,7 @@ class FacturasController extends Controller{
                 }
 
                 $components = [];
+                $headerMeta = null;
                 if ($plantilla->body_header === 'DOCUMENT') {
                     $mediaId = $metaService->uploadMedia(
                         $instance->phone_number_id,
@@ -6642,6 +6650,11 @@ class FacturasController extends Controller{
                                 ]
                             ]
                         ]
+                    ];
+
+                    $headerMeta = [
+                        'header_media_id' => $mediaId,
+                        'filename'        => "Factura_{$factura->codigo}.pdf",
                     ];
                 }
 
@@ -6722,7 +6735,8 @@ class FacturasController extends Controller{
                             $contractId,
                             null,
                             $companyNit,
-                            $plantilla ? $plantilla->id : null
+                            $plantilla ? $plantilla->id : null,
+                            $headerMeta
                         );
                     }
 

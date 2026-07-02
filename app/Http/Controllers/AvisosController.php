@@ -446,6 +446,7 @@ class AvisosController extends Controller
 
                         // Construir components
                         $components = [];
+                        $headerMeta = null;
 
                         // Header Document
                         if ($plantilla->body_header === 'DOCUMENT' && $factura) {
@@ -483,6 +484,11 @@ class AvisosController extends Controller
                                                 ]
                                             ]
                                         ]
+                                    ];
+
+                                    $headerMeta = [
+                                        'header_media_id' => $mediaId,
+                                        'filename'        => $fileName,
                                     ];
                                 } else {
                                     \Log::warning("Factura {$factura->codigo}: No se pudo subir PDF a Meta. Enviando sin adjunto.");
@@ -569,7 +575,8 @@ class AvisosController extends Controller
                                     $contractId,
                                     null,
                                     $companyNit,
-                                    $plantilla->id
+                                    $plantilla->id,
+                                    $headerMeta
                                 );
                             }
                         } else {
@@ -953,6 +960,7 @@ class AvisosController extends Controller
 
                 // Construir components
                 $components = [];
+                $headerMeta = null;
 
                 // Header Document
                 if ($plantilla->body_header === 'DOCUMENT' && $factura) {
@@ -989,6 +997,11 @@ class AvisosController extends Controller
                                         ]
                                     ]
                                 ]
+                            ];
+
+                            $headerMeta = [
+                                'header_media_id' => $mediaId,
+                                'filename'        => $fileName,
                             ];
                         }
                     }
@@ -1078,7 +1091,8 @@ class AvisosController extends Controller
                         $contractId,
                         null,
                         $companyNit,
-                        $plantilla->id
+                        $plantilla->id,
+                        $headerMeta
                     );
                 }
 
