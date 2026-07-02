@@ -435,6 +435,22 @@
     var isDataTableInitialized = false;  // Nueva variable para controlar la inicialización
     var tienePermiso405 = @json(isset($_SESSION['permisos']['405']));
 
+    //Evita el alert nativo de DataTables (tn/7) y maneja el error nosotros.
+    $.fn.dataTable.ext.errMode = 'none';
+    $(document).on('error.dt', '#tabla-contratos', function(e, settings, techNote, message) {
+        var xhr = settings.jqXHR;
+        if (xhr && (xhr.status === 401 || xhr.status === 419)) {
+            window.location.href = '{{ route("login") }}';
+            return;
+        }
+        console.error('Error cargando contratos:', message, xhr ? xhr.responseText : '');
+        swal({
+            title: 'Error al cargar los contratos',
+            html: 'Ocurrió un error en el servidor al consultar los contratos. Recargue la página e intente de nuevo. Si persiste, contacte a soporte.',
+            type: 'error',
+        });
+    });
+
     window.addEventListener('load',
     function() {
 

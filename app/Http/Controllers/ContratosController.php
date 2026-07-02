@@ -199,6 +199,11 @@ class ContratosController extends Controller
 
     public function contratos(Request $request, $nodo)
     {
+        //La ruta está fuera del middleware auth: si la sesión expiró, Auth::user() es null
+        //y el endpoint revienta con un 500 que DataTables muestra como "Ajax error (tn/7)".
+        if (!Auth::check()) {
+            return response()->json(['message' => 'Sesión expirada'], 401);
+        }
 
         $this->getAllPermissions(Auth::user()->id);
         $user = auth()->user();

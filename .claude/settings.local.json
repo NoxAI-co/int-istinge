@@ -108,7 +108,9 @@
       "Bash(grep -rEn \"with\\\\\\('error', \\\\\\\\\\\\$\\(e|th|ex|exception|error\\)->getMessage\\\\\\(\\\\\\)\\\\\\)\" app/)",
       "Bash(sort -t' ' -k2)",
       "Bash(uniq -c -f1)",
-      "Bash(grep -rEn \"Session::flash\\\\\\('error'|session\\\\\\(\\\\\\)->flash\\\\\\('error'|->withErrors\\\\\\(\\\\[?'?error|with\\\\\\('error', \\\\\\\\\\\\$\" app/)"
+      "Bash(grep -rEn \"Session::flash\\\\\\('error'|session\\\\\\(\\\\\\)->flash\\\\\\('error'|->withErrors\\\\\\(\\\\[?'?error|with\\\\\\('error', \\\\\\\\\\\\$\" app/)",
+      "Skill(claude-in-chrome)",
+      "Bash(mysql -h 127.0.0.1 -u root istinge -e \"select count\\(*\\) from contracts;\")"
     ]
   }
 }
