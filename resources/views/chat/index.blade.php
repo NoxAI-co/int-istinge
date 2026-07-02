@@ -1058,6 +1058,43 @@
                                         <audio :src="msg.media_url" controls style="max-width: 250px;"></audio>
                                     </div>
 
+                                    <div v-else-if="msg.type === 'video'">
+                                        <video :src="msg.media_url" controls style="max-width: 250px; border-radius: 6px;"></video>
+                                        <p v-if="msg.content" style="margin: 5px 0 0 0;">@{{ msg.content }}</p>
+                                    </div>
+
+                                    <div v-else-if="msg.type === 'sticker'">
+                                        <img v-if="msg.media_url" :src="msg.media_url" style="max-width: 140px; max-height: 140px;">
+                                        <p v-else style="margin: 0;">@{{ msg.content || '🎨 Sticker' }}</p>
+                                    </div>
+
+                                    <div v-else-if="msg.type === 'location'">
+                                        <a
+                                            v-if="msg.metadata && msg.metadata.location && msg.metadata.location.latitude != null"
+                                            :href="'https://www.google.com/maps?q=' + msg.metadata.location.latitude + ',' + msg.metadata.location.longitude"
+                                            target="_blank"
+                                            style="color: #008069; text-decoration: none; font-weight: 500;"
+                                        >
+                                            📍 @{{ msg.content || 'Ubicación compartida' }}
+                                            <span style="display: block; font-size: 0.75rem; color: #667781; font-weight: 400;">Ver en Google Maps</span>
+                                        </a>
+                                        <span v-else>📍 @{{ msg.content || 'Ubicación compartida' }}</span>
+                                    </div>
+
+                                    <div v-else-if="msg.type === 'contacts' || msg.type === 'contact'">
+                                        <div v-if="msg.metadata && msg.metadata.contacts && msg.metadata.contacts.length">
+                                            <div v-for="(c, ci) in msg.metadata.contacts" :key="ci" style="margin-bottom: 4px;">
+                                                <span style="font-weight: 500;">👤 @{{ (c.name && c.name.formatted_name) || 'Contacto' }}</span>
+                                                <span v-for="(p, pi) in (c.phones || [])" :key="pi" style="display: block; font-size: 0.8rem; color: #667781;">
+                                                    📞 @{{ p.phone }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span v-else>👤 @{{ msg.content || 'Contacto compartido' }}</span>
+                                    </div>
+
+                                    <p v-else style="margin: 0;">@{{ msg.content }}</p>
+
                                     <!-- Badges de relaciones con estado de WhatsApp -->
                                     <div v-if="msg.contrato || msg.factura || msg.ingreso" class="message-relations">
                                         <a
@@ -1365,7 +1402,7 @@ new Vue({
             // 1. Sort by date (oldest first)
             // Filter invalid messages to prevent empty bubbles
             const sorted = messages
-                .filter(m => m && m.id && (m.content || m.media_url || m.type === 'location' || m.type === 'contact'))
+                .filter(m => m && m.id && (m.content || m.media_url || m.type === 'location' || m.type === 'contact' || m.type === 'contacts'))
                 .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
             // 2. Group by date
