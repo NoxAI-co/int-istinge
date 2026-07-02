@@ -229,6 +229,11 @@ Route::get('/factura/{identificacion}/{facturaid?}', 'Controller@consultar_invoi
 
 /*DATATABLE ORACLE*/
 Route::get('contratos/{nodo?}', 'ContratosController@contratos');
+//Variante POST para el DataTable: con muchas columnas + filtros el query string de la
+//petición GET supera el límite de Apache y responde 414 Request-URI Too Long.
+//Path propio (contratos-data) para no tapar rutas POST estáticas bajo contratos/
+//(importar, actualizar-fecha, etc.), ya que no se usa route:cache.
+Route::post('contratos-data/{nodo?}', 'ContratosController@contratos');
 Route::get('nodos', 'NodosController@nodos');
 Route::get('facturas', 'FacturasController@facturas');
 Route::get('facturasp', 'FacturaspController@facturasp');

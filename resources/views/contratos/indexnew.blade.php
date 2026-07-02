@@ -468,9 +468,12 @@
 				[0, "desc"]
 			],
 			"pageLength": {{ Auth::user()->empresa()->pageLength }},
-			ajax: '{{url("/contratos/0")}}',
-			headers: {
-				'X-CSRF-TOKEN': '{{csrf_token()}}'
+			ajax: {
+				url: '{{url("/contratos-data/0")}}',
+				type: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': '{{csrf_token()}}'
+				}
 			},
 			columns: [
 			    @foreach($tabla as $campo)
@@ -1172,9 +1175,12 @@
                 [0, "desc"]
             ],
             "pageLength": {{ Auth::user()->empresa()->pageLength }},
-            ajax: '{{url("/contratos/0")}}',
-            headers: {
-                'X-CSRF-TOKEN': '{{csrf_token()}}'
+            ajax: {
+                url: '{{url("/contratos-data/0")}}',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{csrf_token()}}'
+                }
             },
             columns: [
                 @foreach($tabla as $campo)
