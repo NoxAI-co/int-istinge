@@ -3146,6 +3146,25 @@ class CronController extends Controller
         $minPages = (int) request('min_pages', 15);
         $maxPages = (int) request('max_pages', 50);
 
+        // ── RANGO DE FECHAS (created_at del pago, zona America/Bogota) ───────────
+        // Sin fechas → sincroniza SOLO el día actual (comportamiento del cron cada 15 min).
+        // Con fechas → backfill del rango indicado, p. ej. el último mes:
+        //   /syncintegrapay?fecha_inicio=2026-06-03&fecha_fin=2026-07-03&max_pages=300
+        // La API devuelve los pagos ordenados por -created_at (más nuevos primero),
+        // así que filtramos del lado del cliente y cortamos al pasar el límite inferior.
+        $tz = 'America/Bogota';
+        $fechaInicio = request()->filled('fecha_inicio')
+            ? Carbon::parse(request('fecha_inicio'), $tz)->startOfDay()
+            : Carbon::now($tz)->startOfDay();
+        $fechaFin = request()->filled('fecha_fin')
+            ? Carbon::parse(request('fecha_fin'), $tz)->endOfDay()
+            : Carbon::now($tz)->endOfDay();
+
+        // Con rango explícito desactivamos el corte por "página llena de duplicados"
+        // para no detenernos antes de recorrer TODO el rango en un re-procesamiento;
+        // ahí el corte lo controla la fecha (límite inferior del rango).
+        $rangoExplicito = request()->filled('fecha_inicio') || request()->filled('fecha_fin');
+
         try {
             $onePayService = new OnePayService($empresa->id);
 
@@ -3186,6 +3205,28 @@ class CronController extends Controller
                     $externalId = $payment['external_id'] ?? null;
                     $amount     = $payment['amount'] ?? 0;
                     $status     = $payment['status'] ?? '';
+
+                    // ── Filtro por rango de fechas (created_at) ──
+                    $createdRaw = $payment['created_at'] ?? $payment['approved_at'] ?? null;
+                    if ($createdRaw) {
+                        try {
+                            $createdAt = Carbon::parse($createdRaw)->setTimezone($tz);
+                            // Más nuevo que el fin del rango → todavía no entramos: saltar ítem.
+                            if ($createdAt->gt($fechaFin)) { continue; }
+                            // Más viejo que el inicio del rango → como viene ordenado desc,
+                            // todo lo que sigue también es más viejo: cortar toda la paginación.
+                            if ($createdAt->lt($fechaInicio)) {
+                                Log::info('[SyncIntegraPay] Alcanzado límite inferior del rango de fechas, deteniendo', [
+                                    'created_at'   => $createdAt->toDateTimeString(),
+                                    'fecha_inicio' => $fechaInicio->toDateTimeString(),
+                                    'page'         => $page,
+                                ]);
+                                break 2;
+                            }
+                        } catch (\Exception $e) {
+                            // created_at inválido: no filtramos por fecha este ítem.
+                        }
+                    }
 
                     if ($status !== 'approved') { continue; }
                     $totalAprobadosEnPagina++;
@@ -3253,7 +3294,7 @@ class CronController extends Controller
 
                 // PAGINACIÓN INTELIGENTE: detener solo cuando TODA la página ya fue procesada
                 // Forzamos el recorrido de al menos $minPages páginas antes de aplicar el corte por duplicados.
-                if ($page >= $minPages && $totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
+                if (!$rangoExplicito && $page >= $minPages && $totalAprobadosEnPagina > 0 && $yaConocidosEnPagina >= $totalAprobadosEnPagina) {
                     Log::info("[SyncIntegraPay] Página completa de duplicados y alcanzado límite mínimo de páginas ($minPages), deteniendo", [
                         'page' => $page, 'yaConocidos' => $yaConocidosEnPagina
                     ]);
@@ -3270,11 +3311,13 @@ class CronController extends Controller
         }
 
         $elapsed = round(microtime(true) - $startTime, 2);
-        Log::info('[SyncIntegraPay] Completado', compact('procesados','duplicados','sinFactura','errores','page','elapsed'));
+        $rango = ['fecha_inicio' => $fechaInicio->toDateTimeString(), 'fecha_fin' => $fechaFin->toDateTimeString()];
+        Log::info('[SyncIntegraPay] Completado', compact('procesados','duplicados','sinFactura','errores','page','elapsed') + $rango);
 
         return response()->json([
             'status' => 'success', 'procesados' => $procesados, 'duplicados' => $duplicados,
-            'sin_factura' => $sinFactura, 'errores' => $errores, 'paginas' => $page, 'tiempo' => $elapsed.'s'
+            'sin_factura' => $sinFactura, 'errores' => $errores, 'paginas' => $page, 'tiempo' => $elapsed.'s',
+            'rango' => $rango
         ]);
     }
 
