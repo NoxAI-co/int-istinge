@@ -816,9 +816,12 @@ class FacturasController extends Controller{
                 }
             }
             if($request->estado){
-                $facturas->where(function ($query) use ($request) {
-                    $query->orWhere('factura.estatus', $request->estado);
-                });
+                // Cerradas ('A'): incluye cerradas por pago (0) y cerradas por devolución (3, legacy)
+                if ($request->estado == 'A') {
+                    $facturas->whereIn('factura.estatus', [0, 3]);
+                } else {
+                    $facturas->where('factura.estatus', $request->estado);
+                }
             }
             if($request->correo && is_array($request->correo) && count($request->correo) > 0){
                 $correoValues = $request->correo;
@@ -1284,8 +1287,12 @@ class FacturasController extends Controller{
                 $facturas->where('factura.vencimiento', $request->vencimiento);
             }
             if($request->estado){
-                $status = ($request->estado == 'A') ? 0 : $request->estado;
-                $facturas->where('factura.estatus', $status);
+                // Cerradas: incluye cerradas por pago (0) y cerradas por devolución (3, legacy)
+                if ($request->estado == 'A') {
+                    $facturas->whereIn('factura.estatus', [0, 3]);
+                } else {
+                    $facturas->where('factura.estatus', $request->estado);
+                }
             }else{
                 $facturas->where('factura.estatus', 1);
             }
@@ -1585,8 +1592,12 @@ class FacturasController extends Controller{
                 $countQuery->where('factura.vencimiento', $request->vencimiento);
             }
             if($request->estado){
-                $status = ($request->estado == 'A') ? 0 : $request->estado;
-                $countQuery->where('factura.estatus', $status);
+                // Cerradas: incluye cerradas por pago (0) y cerradas por devolución (3, legacy)
+                if ($request->estado == 'A') {
+                    $countQuery->whereIn('factura.estatus', [0, 3]);
+                } else {
+                    $countQuery->where('factura.estatus', $request->estado);
+                }
             }else{
                 $countQuery->where('factura.estatus', 1);
             }
@@ -7622,9 +7633,12 @@ class FacturasController extends Controller{
             }
         }
         if($request->estado!=null){
-            $facturas->where(function ($query) use ($request) {
-                $query->orWhere('factura.estatus', $request->estado);
-            });
+            // Cerradas ('A'): incluye cerradas por pago (0) y cerradas por devolución (3, legacy)
+            if ($request->estado == 'A') {
+                $facturas->whereIn('factura.estatus', [0, 3]);
+            } else {
+                $facturas->where('factura.estatus', $request->estado);
+            }
         }
         if($request->correo && is_array($request->correo) && count($request->correo) > 0){
             $correoValues = $request->correo;
