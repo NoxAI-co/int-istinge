@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         \App\Console\Commands\SyncWhatsAppMetaLogs::class,
         \App\Console\Commands\UpdateWhatsAppMessageStatus::class,
+        \App\Console\Commands\MigrarDocumentosAdjuntos::class,
     ];
 
     /**

@@ -1788,28 +1788,28 @@ class ContratosController extends Controller
             if ($request->adjunto_a) {
                 $file = $request->file('adjunto_a');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_a = $nombre;
                 $contrato->referencia_a = $request->referencia_a;
             }
             if ($request->adjunto_b) {
                 $file = $request->file('adjunto_b');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_b = $nombre;
                 $contrato->referencia_b = $request->referencia_b;
             }
             if ($request->adjunto_c) {
                 $file = $request->file('adjunto_c');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_c = $nombre;
                 $contrato->referencia_c = $request->referencia_c;
             }
             if ($request->adjunto_d) {
                 $file = $request->file('adjunto_d');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_d = $nombre;
                 $contrato->referencia_d = $request->referencia_d;
             }
@@ -1988,28 +1988,28 @@ class ContratosController extends Controller
             if ($request->adjunto_a) {
                 $file = $request->file('adjunto_a');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_a = $nombre;
                 $contrato->referencia_a = $request->referencia_a;
             }
             if ($request->adjunto_b) {
                 $file = $request->file('adjunto_b');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_b = $nombre;
                 $contrato->referencia_b = $request->referencia_b;
             }
             if ($request->adjunto_c) {
                 $file = $request->file('adjunto_c');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_c = $nombre;
                 $contrato->referencia_c = $request->referencia_c;
             }
             if ($request->adjunto_d) {
                 $file = $request->file('adjunto_d');
                 $nombre =  $file->getClientOriginalName();
-                app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                 $contrato->adjunto_d = $nombre;
                 $contrato->referencia_d = $request->referencia_d;
             }
@@ -2853,7 +2853,7 @@ class ContratosController extends Controller
                         if ($request->adjunto_a) {
                             $file = $request->file('adjunto_a');
                             $nombre =  $file->getClientOriginalName();
-                            app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                            app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                             $contrato->adjunto_a = $nombre;
                         }
                     }
@@ -2862,7 +2862,7 @@ class ContratosController extends Controller
                         if ($request->adjunto_b) {
                             $file = $request->file('adjunto_b');
                             $nombre =  $file->getClientOriginalName();
-                            app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                            app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                             $contrato->adjunto_b = $nombre;
                         }
                     }
@@ -2871,7 +2871,7 @@ class ContratosController extends Controller
                         if ($request->adjunto_c) {
                             $file = $request->file('adjunto_c');
                             $nombre =  $file->getClientOriginalName();
-                            app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                            app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                             $contrato->adjunto_c = $nombre;
                         }
                     }
@@ -2880,7 +2880,7 @@ class ContratosController extends Controller
                         if ($request->adjunto_d) {
                             $file = $request->file('adjunto_d');
                             $nombre =  $file->getClientOriginalName();
-                            app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                            app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                             $contrato->adjunto_d = $nombre;
                         }
                     }
@@ -3041,7 +3041,7 @@ class ContratosController extends Controller
                     if ($request->adjunto_a) {
                         $file = $request->file('adjunto_a');
                         $nombre =  $file->getClientOriginalName();
-                        app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                        app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                         $contrato->adjunto_a = $nombre;
                     }
                 }
@@ -3050,7 +3050,7 @@ class ContratosController extends Controller
                     if ($request->adjunto_b) {
                         $file = $request->file('adjunto_b');
                         $nombre =  $file->getClientOriginalName();
-                        app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                        app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                         $contrato->adjunto_b = $nombre;
                     }
                 }
@@ -3059,7 +3059,7 @@ class ContratosController extends Controller
                     if ($request->adjunto_c) {
                         $file = $request->file('adjunto_c');
                         $nombre =  $file->getClientOriginalName();
-                        app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                        app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                         $contrato->adjunto_c = $nombre;
                     }
                 }
@@ -3068,7 +3068,7 @@ class ContratosController extends Controller
                     if ($request->adjunto_d) {
                         $file = $request->file('adjunto_d');
                         $nombre =  $file->getClientOriginalName();
-                        app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                        app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                         $contrato->adjunto_d = $nombre;
                     }
                 }
@@ -3450,10 +3450,10 @@ class ContratosController extends Controller
 
                 // Borrar archivos adjuntos en Contabo si existen
                 $contabo = app(ContaboS3Service::class);
-                if ($contrato->adjunto_a && $contabo->exists('documentos', $contrato->adjunto_a)) { $contabo->delete('documentos', $contrato->adjunto_a); }
-                if ($contrato->adjunto_b && $contabo->exists('documentos', $contrato->adjunto_b)) { $contabo->delete('documentos', $contrato->adjunto_b); }
-                if ($contrato->adjunto_c && $contabo->exists('documentos', $contrato->adjunto_c)) { $contabo->delete('documentos', $contrato->adjunto_c); }
-                if ($contrato->adjunto_d && $contabo->exists('documentos', $contrato->adjunto_d)) { $contabo->delete('documentos', $contrato->adjunto_d); }
+                if ($contrato->adjunto_a && $contabo->exists(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_a)) { $contabo->delete(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_a); }
+                if ($contrato->adjunto_b && $contabo->exists(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_b)) { $contabo->delete(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_b); }
+                if ($contrato->adjunto_c && $contabo->exists(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_c)) { $contabo->delete(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_c); }
+                if ($contrato->adjunto_d && $contabo->exists(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_d)) { $contabo->delete(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_d); }
                 
                 Ping::where('contrato', $contrato->id)->delete();
                 $cliente = Contacto::find($contrato->client_id);
@@ -5215,7 +5215,7 @@ class ContratosController extends Controller
                 if ($request->adjunto_a) {
                     $file = $request->file('adjunto_a');
                     $nombre =  $file->getClientOriginalName();
-                    app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                    app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                     $contrato->adjunto_a = $nombre;
                 }
             }
@@ -5224,7 +5224,7 @@ class ContratosController extends Controller
                 if ($request->adjunto_b) {
                     $file = $request->file('adjunto_b');
                     $nombre =  $file->getClientOriginalName();
-                    app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                    app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                     $contrato->adjunto_b = $nombre;
                 }
             }
@@ -5233,7 +5233,7 @@ class ContratosController extends Controller
                 if ($request->adjunto_c) {
                     $file = $request->file('adjunto_c');
                     $nombre =  $file->getClientOriginalName();
-                    app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                    app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                     $contrato->adjunto_c = $nombre;
                 }
             }
@@ -5242,7 +5242,7 @@ class ContratosController extends Controller
                 if ($request->adjunto_d) {
                     $file = $request->file('adjunto_d');
                     $nombre =  $file->getClientOriginalName();
-                    app(ContaboS3Service::class)->upload('documentos', $file, $nombre, 'private');
+                    app(ContaboS3Service::class)->upload(env('ADJUNTOS_FOLDER', 'adjuntos'), $file, $nombre, 'private');
                     $contrato->adjunto_d = $nombre;
                 }
             }

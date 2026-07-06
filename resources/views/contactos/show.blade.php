@@ -722,7 +722,7 @@
                                                 <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                     <h6 class="card-title">{{ $contrato->referencia_a }}</h6>
                                                     <div class="mt-2">
-                                                        <a href="{{ contabo_url('documentos', $contrato->adjunto_a) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_a) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                         <a href="javascript:eliminar('contratos','adjunto_a','{{$contrato->referencia_a}}','{{$contrato->id}}')" class="btn btn-outline-danger btn-sm btn-icons"><i class="fas fa-times"></i></a>
                                                     </div>
                                                 </div>
@@ -735,7 +735,7 @@
                                                 <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                     <h6 class="card-title">{{ $contrato->referencia_b }}</h6>
                                                     <div class="mt-2">
-                                                        <a href="{{ contabo_url('documentos', $contrato->adjunto_b) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_b) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                         <a href="javascript:eliminar('contratos','adjunto_b','{{$contrato->referencia_b}}','{{$contrato->id}}')" class="btn btn-outline-danger btn-sm btn-icons"><i class="fas fa-times"></i></a>
                                                     </div>
                                                 </div>
@@ -748,7 +748,7 @@
                                                 <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                     <h6 class="card-title">{{ $contrato->referencia_c }}</h6>
                                                     <div class="mt-2">
-                                                        <a href="{{ contabo_url('documentos', $contrato->adjunto_c) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_c) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                         <a href="javascript:eliminar('contratos','adjunto_c','{{$contrato->referencia_c}}','{{$contrato->id}}')" class="btn btn-outline-danger btn-sm btn-icons"><i class="fas fa-times"></i></a>
                                                     </div>
                                                 </div>
@@ -761,7 +761,7 @@
                                                 <div class="card-body d-flex flex-column justify-content-between" style="border: 1px solid #6c757d; border-radius: 0.25rem;">
                                                     <h6 class="card-title">{{ $contrato->referencia_d }}</h6>
                                                     <div class="mt-2">
-                                                        <a href="{{ contabo_url('documentos', $contrato->adjunto_d) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{ contabo_url(env('ADJUNTOS_FOLDER', 'adjuntos'), $contrato->adjunto_d) }}" target="_blank" class="btn btn-outline-primary btn-sm btn-icons"><i class="fas fa-eye"></i></a>
                                                         <a href="javascript:eliminar('contratos','adjunto_d','{{$contrato->referencia_d}}','{{$contrato->id}}')" class="btn btn-outline-danger btn-sm btn-icons"><i class="fas fa-times"></i></a>
                                                     </div>
                                                 </div>

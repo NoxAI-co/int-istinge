@@ -126,6 +126,36 @@ class ContaboS3Service
         return $key;
     }
 
+    /**
+     * Copia server-side un objeto de una carpeta a otra dentro del mismo bucket
+     * (no descarga ni re-sube; usa CopyObject de S3). Conserva el filename.
+     * Devuelve true si la copia se realizó (o ya existía en destino).
+     */
+    public function copy(string $fromFolder, string $toFolder, string $filename, string $acl = 'private'): bool
+    {
+        $source = $this->key($fromFolder, $filename);
+        $dest   = $this->key($toFolder, $filename);
+
+        if ($source === $dest) {
+            return true; // misma carpeta, nada que hacer
+        }
+
+        try {
+            $this->ensureClientFolderExists($toFolder);
+            $this->client()->copyObject([
+                'Bucket'     => $this->bucket(),
+                'Key'        => $dest,
+                // CopySource debe ir URL-encoded por segmento (los nombres tienen
+                // espacios/acentos) pero conservando los '/' de la ruta.
+                'CopySource' => $this->bucket() . '/' . implode('/', array_map('rawurlencode', explode('/', $source))),
+                'ACL'        => $acl,
+            ]);
+            return true;
+        } catch (S3Exception $e) {
+            return false;
+        }
+    }
+
     public function delete(string $folder, string $filename): bool
     {
         try {
