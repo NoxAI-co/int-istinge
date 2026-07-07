@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SyncWhatsAppMetaLogs::class,
         \App\Console\Commands\UpdateWhatsAppMessageStatus::class,
         \App\Console\Commands\MigrarDocumentosAdjuntos::class,
+        \App\Console\Commands\ReconciliarEstatusFacturas::class,
     ];
 
     /**

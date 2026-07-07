@@ -1223,11 +1223,18 @@ class IngresosController extends Controller
                     $this->up_transaccion(1, $ingreso->id, $ingreso->cuenta, $ingreso->cliente, 1, $ingreso->pago(), $ingreso->fecha, 'Ingreso por concepto de reconexión');
                     }
 
-                    // Marcar todas las facturas abiertas del cliente como cerradas en un solo UPDATE
-                    // (antes se iteraba y se hacía save() por cada una -- N consultas).
-                    Factura::where('cliente', $ingreso->cliente)
+                    // Revalidar el estatus de las facturas abiertas del cliente respetando
+                    // la invariante estatus=0 <=> porpagar()<=0. ANTES esto hacía un
+                    // update(['estatus'=>0]) en bloque que cerraba TODAS las facturas
+                    // abiertas aunque no tuvieran pago real (dejaba facturas "Cerradas"
+                    // con Pagado $0 / Por Pagar > 0). Ahora solo cierra las que de verdad
+                    // quedaron saldadas; las que aún deben, permanecen abiertas.
+                    $facturasAbiertas = Factura::where('cliente', $ingreso->cliente)
                         ->where('estatus', 1)
-                        ->update(['estatus' => 0]);
+                        ->get();
+                    foreach ($facturasAbiertas as $facturaAbierta) {
+                        $facturaAbierta->revalidarEstatus();
+                    }
                 }
 
                 $tirilla = false;
