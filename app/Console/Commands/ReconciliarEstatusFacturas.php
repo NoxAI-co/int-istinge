@@ -28,7 +28,8 @@ class ReconciliarEstatusFacturas extends Command
                             {--run : Aplica los cambios (sin este flag es dry-run)}
                             {--cerrar : Además de reabrir mal-cerradas, cierra las pagadas que siguen abiertas}
                             {--desde= : Solo facturas con fecha >= YYYY-MM-DD}
-                            {--empresa= : Limita a una empresa (id)}';
+                            {--empresa= : Limita a una empresa (id)}
+                            {--tolerancia=1 : Saldo por pagar <= este valor se considera saldado (redondeos). No se reabre}';
 
     protected $description = 'Reconcilia estatus de facturas vs saldo real (invariante estatus=0 <=> porpagar<=0)';
 
@@ -38,8 +39,9 @@ class ReconciliarEstatusFacturas extends Command
         $cerrar = (bool) $this->option('cerrar');
         $desde  = $this->option('desde');
         $emp    = $this->option('empresa');
+        $tol    = (float) $this->option('tolerancia');
 
-        $this->info('Reconciliando estatus de facturas ' . ($run ? '(APLICANDO)' : '(dry-run)'));
+        $this->info('Reconciliando estatus de facturas ' . ($run ? '(APLICANDO)' : '(dry-run)') . " | tolerancia=\${$tol}");
 
         // Solo miramos facturas NO anuladas.
         $query = Factura::where('estatus', '<>', 2);
@@ -49,13 +51,14 @@ class ReconciliarEstatusFacturas extends Command
         $reabiertas = 0; $cerradas = 0; $revisadas = 0;
 
         // chunk para no cargar toda la tabla en memoria.
-        $query->orderBy('id')->chunk(300, function ($facturas) use ($run, $cerrar, &$reabiertas, &$cerradas, &$revisadas) {
+        $query->orderBy('id')->chunk(300, function ($facturas) use ($run, $cerrar, $tol, &$reabiertas, &$cerradas, &$revisadas) {
             foreach ($facturas as $factura) {
                 $revisadas++;
                 $porpagar = \App\Funcion::precision($factura->porpagar());
 
                 // Caso 1 (el bug): Cerrada (0) pero todavía debe -> hay que REABRIR.
-                if ((int)$factura->estatus === 0 && $porpagar > 0) {
+                // Ignoramos saldos <= tolerancia (diferencias de redondeo, p.ej. $1).
+                if ((int)$factura->estatus === 0 && $porpagar > $tol) {
                     $this->warn("  REABRIR  {$factura->codigo} (id {$factura->id}) estatus=0 pero porpagar=\${$porpagar}");
                     if ($run) {
                         $factura->estatus = 1;
