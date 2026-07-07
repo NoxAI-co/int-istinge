@@ -26,8 +26,8 @@ ARTISAN_FLAGS=""
 for arg in "$@"; do
   case "$arg" in
     --run|--cerrar) ARTISAN_FLAGS="$ARTISAN_FLAGS $arg" ;;
-    --desde=*|--empresa=*) ARTISAN_FLAGS="$ARTISAN_FLAGS $arg" ;;
-    *) echo "Flag desconocido: $arg (permitidos: --run, --cerrar, --desde=YYYY-MM-DD, --empresa=ID)"; exit 2 ;;
+    --desde=*|--empresa=*|--tolerancia=*) ARTISAN_FLAGS="$ARTISAN_FLAGS $arg" ;;
+    *) echo "Flag desconocido: $arg (permitidos: --run, --cerrar, --desde=YYYY-MM-DD, --empresa=ID, --tolerancia=N)"; exit 2 ;;
   esac
 done
 
