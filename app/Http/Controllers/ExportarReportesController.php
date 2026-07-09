@@ -6068,7 +6068,8 @@ class ExportarReportesController extends Controller
             'Email',
             'Ingresos Brutos',
             'Primera Factura',
-            'Última Factura'
+            'Última Factura',
+            'Último Plan Facturado'
         );
 
         $letras = range('A', 'Z');
@@ -6084,14 +6085,14 @@ class ExportarReportesController extends Controller
 
         // Encabezado
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:O1')
+            ->mergeCells('A1:P1')
             ->setCellValue('A1', $tituloReporte);
 
         $estiloTitulo = array(
             'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
             'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A1:O1')->applyFromArray($estiloTitulo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:P1')->applyFromArray($estiloTitulo);
 
         // Estilo de cabecera
         $estiloCabecera = array(
@@ -6101,7 +6102,7 @@ class ExportarReportesController extends Controller
             ),
             'font' => array('bold' => true)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:O3')->applyFromArray($estiloCabecera);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:P3')->applyFromArray($estiloCabecera);
 
         // Titulos de columnas
         foreach ($titulosColumnas as $i => $titulo) {
@@ -6125,12 +6126,16 @@ class ExportarReportesController extends Controller
 
         // Consulta de terceros
         $contactos = Contacto::join('factura as f', 'f.cliente', '=', 'contactos.id')
-            ->join('ingresos_factura as ig', 'f.id', '=', 'ig.factura')
+            // leftJoin + COALESCE (igual que la vista): así aparecen también los
+            // clientes con factura pero sin pagos registrados.
+            ->leftJoin('ingresos_factura as ig', 'f.id', '=', 'ig.factura')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            ->whereIn('f.tipo', [2]) // facturas de venta
+            // Normales (1) y electrónicas (2): incluye la facturación manual (tipo=1).
+            ->whereIn('f.tipo', [1, 2])
             ->whereBetween('f.fecha', [$desde, $hasta])
             ->select(
+                'contactos.id as idContacto',
                 'contactos.tip_iden',
                 'contactos.nit',
                 'contactos.dv',
@@ -6143,11 +6148,14 @@ class ExportarReportesController extends Controller
                 'contactos.telefono1',
                 'contactos.celular',
                 'contactos.email',
-                DB::raw('SUM(ig.pago) as ingresosBrutos'),
+                DB::raw('COALESCE(SUM(ig.pago), 0) as ingresosBrutos'),
                 DB::raw('MIN(f.fecha) as fechaPrimeraFactura'),
-                DB::raw('MAX(f.fecha) as fechaUltimaFactura')
+                DB::raw('MAX(f.fecha) as fechaUltimaFactura'),
+                // Último plan facturado (ítem tipo PLAN de la última factura del cliente).
+                DB::raw("(SELECT inv.producto FROM items_factura itf JOIN inventario inv ON inv.id = itf.producto AND inv.type = 'PLAN' WHERE itf.factura = (SELECT MAX(f2.id) FROM factura f2 WHERE f2.cliente = contactos.id AND f2.estatus <> 2 AND f2.tipo IN (1,2)) LIMIT 1) as ultimo_plan")
             )
             ->groupBy(
+                'contactos.id',
                 'contactos.tip_iden',
                 'contactos.nit',
                 'contactos.dv',
@@ -6181,7 +6189,8 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[11] . $i, $c->email)
                 ->setCellValue($letras[12] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->ingresosBrutos))
                 ->setCellValue($letras[13] . $i, $c->fechaPrimeraFactura)
-                ->setCellValue($letras[14] . $i, $c->fechaUltimaFactura);
+                ->setCellValue($letras[14] . $i, $c->fechaUltimaFactura)
+                ->setCellValue($letras[15] . $i, $c->ultimo_plan ?? '');
             $i++;
         }
 
@@ -6195,7 +6204,7 @@ class ExportarReportesController extends Controller
             ),
             'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:O' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:P' . $i)->applyFromArray($estilo);
 
         // AutoSize
         foreach ($letras as $col) {

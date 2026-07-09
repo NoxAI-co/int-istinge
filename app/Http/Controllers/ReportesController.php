@@ -3559,7 +3559,9 @@ class ReportesController extends Controller
             ->leftJoin('ingresos_factura as ig', 'f.id', '=', 'ig.factura')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            ->whereIn('f.tipo', [2])
+            // Incluir normales (1) y electrónicas (2): así aparecen también los
+            // clientes de facturación manual (que suele emitirse como normal, tipo=1).
+            ->whereIn('f.tipo', [1, 2])
             ->select(
                 'contactos.id as idContacto',
                 'contactos.tip_iden',
@@ -3582,7 +3584,10 @@ class ReportesController extends Controller
                 'd.nombre as departamento',
                 'contactos.status',
                 // 👇 CAMBIO CLAVE: COALESCE para que sea 0 si no hay ingresos
-                DB::raw('COALESCE(SUM(ig.pago), 0) as ingresosBrutos')
+                DB::raw('COALESCE(SUM(ig.pago), 0) as ingresosBrutos'),
+                // Último plan facturado: el ítem tipo PLAN de la ÚLTIMA factura del
+                // cliente (no anulada). inventario.producto = nombre del plan.
+                DB::raw("(SELECT inv.producto FROM items_factura itf JOIN inventario inv ON inv.id = itf.producto AND inv.type = 'PLAN' WHERE itf.factura = (SELECT MAX(f2.id) FROM factura f2 WHERE f2.cliente = contactos.id AND f2.estatus <> 2 AND f2.tipo IN (1,2)) LIMIT 1) as ultimo_plan")
             )
             ->groupBy(
                 'contactos.id',

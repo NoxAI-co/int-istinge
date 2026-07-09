@@ -65,6 +65,7 @@
                         <th>Departamento</th>
                         <th>Dirección</th> {{-- Dirección antes --}}
                         <th>Ingresos Brutos</th>
+                        <th>Último Plan Facturado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -80,6 +81,7 @@
                             <td>{{$c->departamento}}</td>
                             <td>{{$c->direccion}}</td>
                             <td>{{Auth::user()->empresa()->moneda}} {{App\Funcion::Parsear($c->ingresosBrutos)}}</td>
+                            <td>{{$c->ultimo_plan ?? '—'}}</td>
                         </tr>
                     @endforeach
                 </tbody>
