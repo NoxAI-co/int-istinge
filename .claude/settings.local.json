@@ -112,7 +112,8 @@
       "Skill(claude-in-chrome)",
       "Bash(mysql -h 127.0.0.1 -u root istinge -e \"select count\\(*\\) from contracts;\")",
       "Bash(bash -n migrar-documentos-adjuntos-all.sh)",
-      "Bash(bash -n reconciliar-estatus-facturas-all.sh)"
+      "Bash(bash -n reconciliar-estatus-facturas-all.sh)",
+      "Bash(node --check public/js/dian-audit.js)"
     ]
   }
 }

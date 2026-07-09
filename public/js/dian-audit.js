@@ -4,7 +4,11 @@ $(document).ready(function () {
 
 function abrirModalCorreccion(recordId) {
     $.get(buildRoute('auditoria.facturas.corregir', recordId), function (data) {
-        const record = data.record;
+        const record = data && data.record;
+        if (!record) {
+            Swal.fire('Error', 'No se pudo obtener la información del registro para corregir.', 'error');
+            return;
+        }
         $('#record_id_input').val(record.id);
         $('#folio_modal').text(record.folio_completo || 'N/A');
 
@@ -97,10 +101,15 @@ function aplicarCorreccion() {
 function buildRoute(name, id) {
     // Usar la base URL dinámica definida en el blade, o fallback a la raíz
     const baseUrl = window.auditBaseUrl || '/auditoria/dian';
-    if (name === 'auditoria.dian.corregir') return `${baseUrl}/corregir/${id}`;
-    if (name === 'auditoria.dian.aplicar') return `${baseUrl}/aplicar/${id}`;
-    if (name === 'auditoria.dian.buscar-cliente') return `${baseUrl}/buscar-cliente`;
-    if (name === 'auditoria.dian.contratos-cliente') return `${baseUrl}/contratos-cliente`;
+    // Se compara por sufijo para tolerar ambos esquemas de nombre que existen en
+    // el código (auditoria.dian.* y auditoria.facturas.*). Antes solo se
+    // reconocían los 'auditoria.dian.*'; como las llamadas usan 'auditoria.facturas.*',
+    // buildRoute devolvía la URL base (el índice) y el $.get no traía .record,
+    // provocando "Cannot read properties of undefined (reading 'id')".
+    if (name.endsWith('corregir')) return `${baseUrl}/corregir/${id}`;
+    if (name.endsWith('aplicar')) return `${baseUrl}/aplicar/${id}`;
+    if (name.endsWith('buscar-cliente')) return `${baseUrl}/buscar-cliente`;
+    if (name.endsWith('contratos-cliente')) return `${baseUrl}/contratos-cliente`;
     return baseUrl;
 }
 
