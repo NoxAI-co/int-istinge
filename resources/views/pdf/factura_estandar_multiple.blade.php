@@ -284,7 +284,7 @@
 
         {{-- Nota de pago personalizada (solo NIT 805030547 - Redes TV Sat), dentro de la misma hoja --}}
         @if((Auth::user()->empresa()->nit ?? '') == '805030547')
-            <div style="margin-top: 6px;">
+            <div style="margin-top: 4px; border: 1px solid #1A59A1; border-radius: 4px;">
                 @include('pdf.partials.mensaje_pago_personalizado')
             </div>
         @endif
