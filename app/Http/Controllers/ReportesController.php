@@ -3554,14 +3554,21 @@ class ReportesController extends Controller
         $order   = $request->order == 1 ? 'DESC' : 'ASC';
 
         // Consulta
+        // INGRESOS BRUTOS = RECAUDO por FECHA DE PAGO (A1 + B2):
+        //   - Suma los pagos (ingresos_factura.pago) aplicados a facturas estándar (1)
+        //     y electrónicas (2) del tercero.
+        //   - El periodo se filtra por la fecha del PAGO (ingresos.fecha), no la de la factura.
+        //   - Excluye facturas anuladas (f.estatus=2) y recibos anulados (i.estatus=2).
+        //   - Al requerir pago real, se usa JOIN (no leftJoin): solo aparecen terceros
+        //     con recaudo en el periodo.
         $contactos = Contacto::join('factura as f', 'f.cliente', '=', 'contactos.id')
-            // 👇 CAMBIO CLAVE: leftJoin en vez de join
-            ->leftJoin('ingresos_factura as ig', 'f.id', '=', 'ig.factura')
+            ->join('ingresos_factura as ig', 'ig.factura', '=', 'f.id')
+            ->join('ingresos as i', 'i.id', '=', 'ig.ingreso')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            // Incluir normales (1) y electrónicas (2): así aparecen también los
-            // clientes de facturación manual (que suele emitirse como normal, tipo=1).
             ->whereIn('f.tipo', [1, 2])
+            ->where('f.estatus', '<>', 2)
+            ->where('i.estatus', '<>', 2)
             ->select(
                 'contactos.id as idContacto',
                 'contactos.tip_iden',
@@ -3612,9 +3619,9 @@ class ReportesController extends Controller
                 'contactos.status'
             );
 
-        // Filtro por fechas (sobre la fecha de la factura)
+        // Filtro por fechas SOBRE LA FECHA DEL PAGO (ingresos.fecha) -> recaudo del periodo.
         if ($request->input('fechas') != 8 || (!$request->has('fechas'))) {
-            $contactos = $contactos->whereBetween('f.fecha', [$dates['inicio'], $dates['fin']]);
+            $contactos = $contactos->whereBetween('i.fecha', [$dates['inicio'], $dates['fin']]);
         }
 
         // Ordenar

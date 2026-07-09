@@ -307,6 +307,13 @@
 
 
     <div id="watermark">{{$factura->estatus==2?'ANULADA':''}}</div>
+
+    {{-- Hoja informativa de pago (solo NIT 805030547 - Redes TV Sat), tras cada factura --}}
+    @if((Auth::user()->empresa()->nit ?? '') == '805030547')
+        <div style="page-break-before: always;"></div>
+        @include('pdf.partials.mensaje_pago_personalizado')
+    @endif
+
     <div style="page-break-after: always;"></div>
 
     @endforeach

@@ -606,5 +606,14 @@
 
         </div>
 
+        {{-- Hoja informativa de pago (solo NIT 805030547 - Redes TV Sat), tras cada factura --}}
+        @if((($empresa->nit ?? '') == '805030547'))
+            <div style="page-break-before: always;"></div>
+            @include('pdf.partials.mensaje_pago_personalizado')
+            @unless($loop->last)
+                <div style="page-break-after: always;"></div>
+            @endunless
+        @endif
+
     @endforeach
 @endsection

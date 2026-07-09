@@ -6053,23 +6053,26 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new \PHPExcel();
         $tituloReporte = "Reporte de Terceros desde " . ($request->fecha ?? '') . " hasta " . ($request->hasta ?? '');
 
+        // Encabezados SIN tildes: se escriben como texto plano ASCII para evitar
+        // la corrupción que producía utf8_decode() al convertir UTF-8 -> ISO-8859-1
+        // (los caracteres acentuados quedaban ilegibles en Excel).
         $titulosColumnas = array(
             'Tipo ID',
             'NIT',
             'DV',
-            'Nombre / Razón Social',
+            'Nombre / Razon Social',
             'Apellido 1',
             'Apellido 2',
-            'Dirección',
+            'Direccion',
             'Municipio',
             'Departamento',
-            'Teléfono',
+            'Telefono',
             'Celular',
             'Email',
             'Ingresos Brutos',
             'Primera Factura',
-            'Última Factura',
-            'Último Plan Facturado'
+            'Ultima Factura',
+            'Ultimo Plan Facturado'
         );
 
         $letras = range('A', 'Z');
@@ -6104,9 +6107,13 @@ class ExportarReportesController extends Controller
         );
         $objPHPExcel->getActiveSheet()->getStyle('A3:P3')->applyFromArray($estiloCabecera);
 
-        // Titulos de columnas
+        // Titulos de columnas (texto plano UTF-8, sin utf8_decode que corrompía las tildes)
         foreach ($titulosColumnas as $i => $titulo) {
-            $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i] . '3', utf8_decode($titulo));
+            $objPHPExcel->setActiveSheetIndex(0)->setCellValueExplicit(
+                $letras[$i] . '3',
+                $titulo,
+                \PHPExcel_Cell_DataType::TYPE_STRING
+            );
         }
 
         // Fechas
@@ -6124,16 +6131,21 @@ class ExportarReportesController extends Controller
             $hasta = now()->format('Y-m-d');
         }
 
-        // Consulta de terceros
+        // Consulta de terceros — INGRESOS BRUTOS = RECAUDO por FECHA DE PAGO (A1 + B2),
+        // idéntico a la vista web (ReportesController@terceros):
+        //   - Suma pagos (ingresos_factura.pago) de facturas estándar (1) y electrónicas (2).
+        //   - Periodo por fecha del PAGO (ingresos.fecha), no de la factura.
+        //   - Excluye facturas anuladas (f.estatus=2) y recibos anulados (i.estatus=2).
+        //   - JOIN (no leftJoin): solo terceros con recaudo real en el periodo.
         $contactos = Contacto::join('factura as f', 'f.cliente', '=', 'contactos.id')
-            // leftJoin + COALESCE (igual que la vista): así aparecen también los
-            // clientes con factura pero sin pagos registrados.
-            ->leftJoin('ingresos_factura as ig', 'f.id', '=', 'ig.factura')
+            ->join('ingresos_factura as ig', 'ig.factura', '=', 'f.id')
+            ->join('ingresos as i', 'i.id', '=', 'ig.ingreso')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            // Normales (1) y electrónicas (2): incluye la facturación manual (tipo=1).
             ->whereIn('f.tipo', [1, 2])
-            ->whereBetween('f.fecha', [$desde, $hasta])
+            ->where('f.estatus', '<>', 2)
+            ->where('i.estatus', '<>', 2)
+            ->whereBetween('i.fecha', [$desde, $hasta])
             ->select(
                 'contactos.id as idContacto',
                 'contactos.tip_iden',
