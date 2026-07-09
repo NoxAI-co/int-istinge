@@ -297,20 +297,29 @@
         .d-none{
             display: none;
         }
+        /* ===== Compactado: cada factura debe caber en UNA sola hoja ===== */
+        body { font-size: 11px !important; }
+        .divheader-pr { padding-top: 2px !important; padding-bottom: 2px !important; margin-bottom: 1px !important; }
+        .divheader-datoscli p, .divheader-datosfact p, .divheader-nota p, .divheader-estadocuenta p { margin-top: 1px !important; margin-bottom: 1px !important; }
+        .titulo th, .titulo td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: 12px !important; font-size: 10px !important; }
+        .titulo tr td { border-top-width: 1px !important; border-bottom-width: 1px !important; }
+        .nota-content { margin-top: 2px !important; }
+        .desgloce td, .foot th, .foot td { padding-top: 1px !important; font-size: 10px !important; }
+        .margin-docpdf { margin-top: 2px !important; margin-bottom: 2px !important; }
+        .tr-estadocuenta > td, .tr-estadocuenta-precio > td { padding-top: 1px !important; padding-bottom: 1px !important; }
     </style>
 
 
     @foreach($facturas as $key => $factura)
         <div class="divheader-pr">
-            <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:100px !important;  margin-top: 2%; overflow:hidden; text-align:center;">
+            <div style="width: 30%; display: inline-block; vertical-align: top; text-align: center; height:60px !important;  margin-top: 2%; overflow:hidden; text-align:center;">
                 @if(env('APP_ENV')=='local')
-                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:60px; object-fit:contain; text-align:left;">
                 @else
-                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:100px; object-fit:contain; text-align:left;">
+                    <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:60px; object-fit:contain; text-align:left;">
                 @endif
             </div>
             <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%;">
-                <br>
                 <h4>{{$empresa->nombre}}</h4>
                 <p style="line-height: 12px; margin-bottom: 0;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
                     {{$empresa->direccion}} <br>
@@ -523,13 +532,13 @@
 
                     @endforeach
                     <tr>
-                        <td class="border_left border_bottom" style="height: 15px;"></td>
-                        <td class="border_bottom" style="height: 15px;"></td>
-                        <td class="border_bottom" style="height: 15px;"></td>
-                        <td class="border_bottom" style="height: 15px;"></td>
-                        <td class="border_bottom" style="height: 15px;"></td>
-                        <td class="border_bottom" style="height: 15px;"></td>
-                        <td class="border_right border_bottom " style="height: 15px;"></td>
+                        <td class="border_left border_bottom" style="height: 3px;"></td>
+                        <td class="border_bottom" style="height: 3px;"></td>
+                        <td class="border_bottom" style="height: 3px;"></td>
+                        <td class="border_bottom" style="height: 3px;"></td>
+                        <td class="border_bottom" style="height: 3px;"></td>
+                        <td class="border_bottom" style="height: 3px;"></td>
+                        <td class="border_right border_bottom " style="height: 3px;"></td>
                     </tr>
                     </tbody>
 
@@ -609,6 +618,11 @@
             </div>
 
         </div>
+
+        {{-- Una hoja por factura: separa cada informe. Sin salto tras la última para no dejar hoja en blanco. --}}
+        @unless($loop->last)
+            <div style="page-break-after: always;"></div>
+        @endunless
 
     @endforeach
 @endsection
