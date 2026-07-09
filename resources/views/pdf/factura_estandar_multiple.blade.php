@@ -282,6 +282,13 @@
             </tfoot>
         </table>
 
+        {{-- Nota de pago personalizada (solo NIT 805030547 - Redes TV Sat), dentro de la misma hoja --}}
+        @if((Auth::user()->empresa()->nit ?? '') == '805030547')
+            <div style="margin-top: 6px;">
+                @include('pdf.partials.mensaje_pago_personalizado')
+            </div>
+        @endif
+
         @if(isset($codqr))
     <p style="font-size:7px;margin-top:-20px;"><strong>cufe: </strong>{{$CUFEvr}}</p>
     @endif
@@ -307,13 +314,6 @@
 
 
     <div id="watermark">{{$factura->estatus==2?'ANULADA':''}}</div>
-
-    {{-- Hoja informativa de pago (solo NIT 805030547 - Redes TV Sat), tras cada factura --}}
-    @if((Auth::user()->empresa()->nit ?? '') == '805030547')
-        <div style="page-break-before: always;"></div>
-        @include('pdf.partials.mensaje_pago_personalizado')
-    @endif
-
     <div style="page-break-after: always;"></div>
 
     @endforeach

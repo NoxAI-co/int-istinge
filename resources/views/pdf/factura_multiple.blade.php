@@ -473,12 +473,16 @@
         </div>
 
         <div class="nota-content">
-            <p>
-                Realice sus pagos en oficina principal cr 8b cl 72b-86 (7 de agosto) soporte técnico 3006972186
-                (daños y cambio de clave) Quejas y reclamos 3008786129. Usuarios Principal enviar comprobante
-                electrónico a 324 3975299. Bancolombia Convenio 10685 - Nombre convenio: Redes Tv SAT SAS referencia Cédula.
-                 Usuarios Nueva Floresta enviar comprobante electrónico a 317 3633194.
-            </p>
+            @if(($empresa->nit ?? '') == '805030547')
+                @include('pdf.partials.mensaje_pago_personalizado')
+            @else
+                <p>
+                    Realice sus pagos en oficina principal cr 8b cl 72b-86 (7 de agosto) soporte técnico 3006972186
+                    (daños y cambio de clave) Quejas y reclamos 3008786129. Usuarios Principal enviar comprobante
+                    electrónico a 324 3975299. Bancolombia Convenio 10685 - Nombre convenio: Redes Tv SAT SAS referencia Cédula.
+                     Usuarios Nueva Floresta enviar comprobante electrónico a 317 3633194.
+                </p>
+            @endif
         </div>
 
         <div style="margin-top: 1%;">
@@ -605,15 +609,6 @@
             </div>
 
         </div>
-
-        {{-- Hoja informativa de pago (solo NIT 805030547 - Redes TV Sat), tras cada factura --}}
-        @if((($empresa->nit ?? '') == '805030547'))
-            <div style="page-break-before: always;"></div>
-            @include('pdf.partials.mensaje_pago_personalizado')
-            @unless($loop->last)
-                <div style="page-break-after: always;"></div>
-            @endunless
-        @endif
 
     @endforeach
 @endsection
