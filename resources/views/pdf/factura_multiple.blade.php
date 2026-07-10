@@ -298,13 +298,13 @@
             display: none;
         }
         /* ===== Compactado: cada factura debe caber en UNA sola hoja ===== */
-        body { font-size: 11px !important; }
+        body { font-size: 12px !important; }
         .divheader-pr { padding-top: 2px !important; padding-bottom: 2px !important; margin-bottom: 1px !important; }
         .divheader-datoscli p, .divheader-datosfact p, .divheader-nota p, .divheader-estadocuenta p { margin-top: 1px !important; margin-bottom: 1px !important; }
-        .titulo th, .titulo td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: 12px !important; font-size: 10px !important; }
+        .titulo th, .titulo td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: 13px !important; font-size: 11px !important; }
         .titulo tr td { border-top-width: 1px !important; border-bottom-width: 1px !important; }
         .nota-content { margin-top: 2px !important; }
-        .desgloce td, .foot th, .foot td { padding-top: 1px !important; font-size: 10px !important; }
+        .desgloce td, .foot th, .foot td { padding-top: 1px !important; font-size: 11px !important; }
         .margin-docpdf { margin-top: 2px !important; margin-bottom: 2px !important; }
         .tr-estadocuenta > td, .tr-estadocuenta-precio > td { padding-top: 1px !important; padding-bottom: 1px !important; }
     </style>
@@ -319,8 +319,8 @@
                     <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:60px; object-fit:contain; text-align:left;">
                 @endif
             </div>
-            <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%;">
-                <h4>{{$empresa->nombre}}</h4>
+            <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%; padding-top: 8px;">
+                <h4 style="padding-top: 4px;">{{$empresa->nombre}}</h4>
                 <p style="line-height: 12px; margin-bottom: 0;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
                     {{$empresa->direccion}} <br>
                     {{$empresa->telefono}}

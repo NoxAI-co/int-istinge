@@ -4,7 +4,7 @@
     que todo quepa en una sola hoja. Sin borde propio: el contenedor de la
     plantilla aporta el recuadro. El @if que decide mostrarla vive en la plantilla.
 --}}
-<div style="font-family: 'DejaVu Sans', sans-serif; color: #1f2d3d; font-size: 7px; line-height: 9px; padding: 3px 6px; text-align: justify;">
+<div style="font-family: 'DejaVu Sans', sans-serif; color: #1f2d3d; font-size: 8px; line-height: 10px; padding: 3px 6px; text-align: justify;">
     <div style="margin-bottom: 2px;">
         <b style="color: #1A59A1;">PUNTOS DE PAGO AUTORIZADOS:</b>
         Los pagos solo deben realizarse directamente en las oficinas:
