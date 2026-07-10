@@ -1921,6 +1921,34 @@ class Factura extends Model
         return $list;
     }
 
+    /**
+     * Lista los métodos de pago (tabla metodos_pago, ej. "Efectivo") de los
+     * recibos NO anulados asociados a esta factura. Espejo de formaPagoListIngreso()
+     * pero sobre ingresos.metodo_pago en lugar de ingresos_factura.puc_banco.
+     */
+    public function metodoPagoListIngreso(){
+        $metodos = DB::table('ingresos_factura as if')
+            ->join('ingresos as i', 'if.ingreso', '=', 'i.id')
+            ->join('metodos_pago as mp', 'mp.id', '=', 'i.metodo_pago')
+            ->where('if.factura', $this->id)
+            ->where('i.estatus', '<>', 2)
+            ->select('mp.metodo')
+            ->distinct()
+            ->get();
+
+        $list = "";
+        $cont = $metodos->count();
+        $i = 1;
+
+        foreach($metodos as $metodo){
+            if($metodo){
+                $list .= $metodo->metodo . ($i < $cont ? ", " : "");
+            }
+            $i++;
+        }
+        return $list;
+    }
+
     //Nos trae la lista de formas de pago de la factura nada mas.
     public function cuentaPagoListIngreso(){
 

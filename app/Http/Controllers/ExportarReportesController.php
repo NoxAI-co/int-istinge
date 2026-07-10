@@ -925,7 +925,7 @@ class ExportarReportesController extends Controller
             $objPHPExcel = new PHPExcel();
             $tituloReporte = "Reporte de Facturas Pagadas desde ".$request->fecha." hasta ".$request->hasta;
 
-            $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'contrato','Estrato', 'Municipio','Vereda','Barrio','Direccion','Celular','Correo','telefono1','telefono2','Creacion','Vencimiento','Dian','Estatus','Forma Pago','Periodo','Items','Cuenta Ventas','pagada','Iva','Antes de Impuesto','Descuento','Pagado','Total');
+            $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'contrato','Estrato', 'Municipio','Vereda','Barrio','Direccion','Celular','Correo','telefono1','telefono2','Creacion','Vencimiento','Dian','Estatus','Metodo de Pago','Periodo','Items','Cuenta Ventas','pagada','Iva','Antes de Impuesto','Descuento','Pagado','Total');
             $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA');
             $objPHPExcel->getProperties()->setCreator("Sistema") // Nombre del autor
             ->setLastModifiedBy("Sistema") //Ultimo usuario que lo modific���
@@ -1044,7 +1044,7 @@ class ExportarReportesController extends Controller
             foreach ($facturas as $factura) {
 
                 $cliente = $factura->cliente();
-                $formaPago = $factura->formaPagoListIngreso();
+                $metodoPago = $factura->metodoPagoListIngreso();
                 $item = $factura->itemsfactura->first();
                 $total = $factura->total();
 
@@ -1079,7 +1079,7 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[14].$i, date('d-m-Y', strtotime($factura->vencimiento)))
                 ->setCellValue($letras[15].$i, $factura->emitida == 1 ? 'Emitida' : 'No Emitida')
                 ->setCellValue($letras[16].$i, $factura->estatus())
-                ->setCellValue($letras[17].$i, $formaPago != "" ? $formaPago : "No tiene forma de pago.")
+                ->setCellValue($letras[17].$i, $metodoPago != "" ? $metodoPago : "No tiene metodo de pago.")
                 ->setCellValue($letras[18].$i, $factura->periodoCobradoTexto())
                 ->setCellValue($letras[19].$i, $factura->listItems())
                 ->setCellValue($letras[20].$i, $cuentaVentas)
