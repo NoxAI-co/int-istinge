@@ -319,8 +319,8 @@
                     <img src="{{ contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png') }}" alt="" style="max-width: 100%; max-height:60px; object-fit:contain; text-align:left;">
                 @endif
             </div>
-            <div style="width: 40%; text-align: center; display: inline-block;  height:auto; margin-right:45px;margin-top: 0%; padding-top: 8px;">
-                <h4 style="padding-top: 4px;">{{$empresa->nombre}}</h4>
+            <div style="width: 40%; text-align: center; display: inline-block; vertical-align: top; height:auto; margin-right:45px; margin-top: 0%; padding-top: 10px;">
+                <h4 style="margin-top: 0;">{{$empresa->nombre}}</h4>
                 <p style="line-height: 12px; margin-bottom: 0;">{{$empresa->tip_iden('mini')}} {{$empresa->nit}} @if($empresa->dv != null || $empresa->dv === 0) - {{$empresa->dv}} @endif<br>
                     {{$empresa->direccion}} <br>
                     {{$empresa->telefono}}
