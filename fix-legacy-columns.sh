@@ -288,32 +288,25 @@ for DB in "${DBS[@]}"; do
     if [ "${PERM_EXISTS:-0}" -gt 0 ]; then
       echo "    [permiso Descuento desde recibo de caja] ya existe, salto"
     else
-      # Inserción A PRUEBA DE ESQUEMA: en lugar de adivinar qué columnas son
-      # NOT NULL (id no es auto_increment, y puede haber otras obligatorias),
-      # CLONAMOS una fila existente del módulo Facturación a una tabla temporal
-      # -> hereda TODAS las columnas con valores válidos -> y solo le cambiamos
-      # id (MAX+1) y nombre_permiso. El módulo Facturación se ubica por nombre
-      # (LIKE 'Facturaci%n' -> "Facturación", NO "Facturación Electrónica" que
-      # termina en 'a'). El id puede diferir por cliente: la app lo resuelve por
-      # NOMBRE, así que no importa.
-      if dm "$DB" <<'SQL'
-SET @mod := (SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Facturaci%n' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1);
-SET @nid := (SELECT IFNULL(MAX(id),0)+1 FROM permisos_botones);
-DROP TEMPORARY TABLE IF EXISTS tmp_pb_desc;
-CREATE TEMPORARY TABLE tmp_pb_desc AS SELECT * FROM permisos_botones WHERE id_modulo = @mod LIMIT 1;
-UPDATE tmp_pb_desc SET id = @nid, nombre_permiso = 'Descuento desde recibo de caja';
-INSERT INTO permisos_botones SELECT * FROM tmp_pb_desc;
-DROP TEMPORARY TABLE IF EXISTS tmp_pb_desc;
-SQL
-      then
-        NEWID="$(dm -N -B -e "SELECT id FROM permisos_botones WHERE nombre_permiso='Descuento desde recibo de caja' LIMIT 1;" "$DB")"
-        if [ -n "$NEWID" ]; then
-          echo "    [permiso Descuento desde recibo de caja] creado (id ${NEWID})"
+      # Módulo Facturación: LIKE 'Facturaci%n' -> "Facturación" (NO "Facturación
+      # Electrónica" que termina en 'a', ni "Facturación POS"); si hubiera varios
+      # que terminan en 'n', prefiere el nombre más corto.
+      MOD_ID="$(dm -N -B -e "SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Facturaci%n' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1;" "$DB")"
+      if [ -n "$MOD_ID" ]; then
+        # `id` en permisos_botones NO es AUTO_INCREMENT -> se pasa MAX(id)+1. El
+        # derived table (SELECT n FROM (SELECT ... ) t) evita el error 1093 de MySQL
+        # al referenciar la tabla destino dentro del subquery del mismo INSERT.
+        # Un solo statement (sin @vars ni tabla temporal) -> funciona igual por
+        # docker exec o por cualquier cliente SQL. El id puede diferir por cliente:
+        # la app resuelve el permiso por NOMBRE, así que no importa.
+        if dm "$DB" -e "INSERT INTO permisos_botones (id, id_modulo, nombre_permiso) VALUES ((SELECT n FROM (SELECT IFNULL(MAX(id),0)+1 AS n FROM permisos_botones) t), ${MOD_ID}, 'Descuento desde recibo de caja');"; then
+          NEWID="$(dm -N -B -e "SELECT id FROM permisos_botones WHERE nombre_permiso='Descuento desde recibo de caja' LIMIT 1;" "$DB")"
+          echo "    [permiso Descuento desde recibo de caja] creado (id ${NEWID:-?}, módulo ${MOD_ID})"
         else
-          echo "    (aviso: el insert corrió pero no quedó la fila en ${DB} — ¿existe el módulo 'Facturación'?)"
+          echo "    (aviso: no se pudo insertar el permiso en ${DB} — ejecutar: DESCRIBE permisos_botones)"
         fi
       else
-        echo "    (aviso: no se pudo insertar el permiso en ${DB})"
+        echo "    (no se encontró el módulo Facturación, salto permiso)"
       fi
     fi
   else
