@@ -6072,6 +6072,8 @@ class ExportarReportesController extends Controller
             'Celular',
             'Email',
             'Ingresos Brutos',
+            'Antes de IVA',
+            'Despues de IVA',
             'Primera Factura',
             'Ultima Factura',
             'Ultimo Plan Facturado'
@@ -6090,14 +6092,14 @@ class ExportarReportesController extends Controller
 
         // Encabezado
         $objPHPExcel->setActiveSheetIndex(0)
-            ->mergeCells('A1:P1')
+            ->mergeCells('A1:R1')
             ->setCellValue('A1', $tituloReporte);
 
         $estiloTitulo = array(
             'font' => array('bold' => true, 'size' => 12, 'name' => 'Times New Roman'),
             'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A1:P1')->applyFromArray($estiloTitulo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:R1')->applyFromArray($estiloTitulo);
 
         // Estilo de cabecera
         $estiloCabecera = array(
@@ -6107,7 +6109,7 @@ class ExportarReportesController extends Controller
             ),
             'font' => array('bold' => true)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:P3')->applyFromArray($estiloCabecera);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:R3')->applyFromArray($estiloCabecera);
 
         // Titulos de columnas (texto plano UTF-8, sin utf8_decode que corrompía las tildes)
         foreach ($titulosColumnas as $i => $titulo) {
@@ -6170,6 +6172,10 @@ class ExportarReportesController extends Controller
                 'contactos.celular',
                 'contactos.email',
                 DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as ingresosBrutos'),
+                // Antes de IVA = base gravable (precio*cant con descuento, SIN IVA).
+                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100)), 0) as antesIva'),
+                // Despues de IVA = total con IVA (el ingreso bruto como tal).
+                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as despuesIva'),
                 DB::raw('MIN(f.fecha) as fechaPrimeraFactura'),
                 DB::raw('MAX(f.fecha) as fechaUltimaFactura'),
                 // Último plan facturado (ítem tipo PLAN de la última factura del cliente).
@@ -6209,9 +6215,11 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[10] . $i, $c->celular)
                 ->setCellValue($letras[11] . $i, $c->email)
                 ->setCellValue($letras[12] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->ingresosBrutos))
-                ->setCellValue($letras[13] . $i, $c->fechaPrimeraFactura)
-                ->setCellValue($letras[14] . $i, $c->fechaUltimaFactura)
-                ->setCellValue($letras[15] . $i, $c->ultimo_plan ?? '');
+                ->setCellValue($letras[13] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->antesIva))
+                ->setCellValue($letras[14] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->despuesIva))
+                ->setCellValue($letras[15] . $i, $c->fechaPrimeraFactura)
+                ->setCellValue($letras[16] . $i, $c->fechaUltimaFactura)
+                ->setCellValue($letras[17] . $i, $c->ultimo_plan ?? '');
             $i++;
         }
 
@@ -6225,7 +6233,7 @@ class ExportarReportesController extends Controller
             ),
             'alignment' => array('horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER)
         );
-        $objPHPExcel->getActiveSheet()->getStyle('A3:P' . $i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:R' . $i)->applyFromArray($estilo);
 
         // AutoSize
         foreach ($letras as $col) {
