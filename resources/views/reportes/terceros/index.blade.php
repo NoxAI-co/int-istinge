@@ -116,8 +116,8 @@
 
 @section('scripts')
 <script>
-    // Va en @section('scripts') (se renderiza tras jQuery/bootstrap-select/custom.js).
-    // $(document).ready asegura que corra DESPUÉS del auto-init de bootstrap-select.
+    // Se renderiza en la seccion de scripts, tras jQuery/bootstrap-select/custom.js.
+    // El document.ready asegura que corra DESPUES del auto-init de bootstrap-select.
     $(document).ready(function () {
         // Estilizar los nuevos selects igual que "Fechas".
         $('#tipo_factura, #emitida').selectpicker('refresh');

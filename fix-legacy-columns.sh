@@ -292,14 +292,17 @@ for DB in "${DBS[@]}"; do
       # así cae en "Facturación" y no en "Facturación Electrónica").
       MOD_ID="$(dm -N -B -e "SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Facturaci%n' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1;" "$DB")"
       if [ -n "$MOD_ID" ]; then
-        # Armamos el INSERT dinámicamente: incluimos status/orden solo si esas
-        # columnas existen (algunas BDs las tienen NOT NULL y el insert mínimo fallaría).
-        COLS="id_modulo, nombre_permiso"
-        VALS="${MOD_ID}, 'Descuento desde recibo de caja'"
+        # `id` en permisos_botones NO es AUTO_INCREMENT en estas BDs (Field 'id'
+        # doesn't have a default value) -> calculamos el siguiente id (MAX+1). El id
+        # puede diferir por cliente: no importa, la app resuelve el permiso por NOMBRE.
+        # También incluimos status/orden solo si esas columnas existen.
+        NEXT_ID="$(dm -N -B -e "SELECT IFNULL(MAX(id),0)+1 FROM permisos_botones;" "$DB")"
+        COLS="id, id_modulo, nombre_permiso"
+        VALS="${NEXT_ID}, ${MOD_ID}, 'Descuento desde recibo de caja'"
         if column_exists "$DB" "permisos_botones" "status"; then COLS="${COLS}, status"; VALS="${VALS}, 1"; fi
         if column_exists "$DB" "permisos_botones" "orden";  then COLS="${COLS}, orden";  VALS="${VALS}, 999"; fi
         if dm "$DB" -e "INSERT INTO permisos_botones (${COLS}) VALUES (${VALS});"; then
-          echo "    [permiso Descuento desde recibo de caja] creado (módulo ${MOD_ID})"
+          echo "    [permiso Descuento desde recibo de caja] creado (id ${NEXT_ID}, módulo ${MOD_ID})"
         else
           echo "    (aviso: no se pudo insertar el permiso en ${DB} — ejecutar: DESCRIBE permisos_botones)"
         fi
