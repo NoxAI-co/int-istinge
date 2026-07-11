@@ -288,13 +288,20 @@ for DB in "${DBS[@]}"; do
     if [ "${PERM_EXISTS:-0}" -gt 0 ]; then
       echo "    [permiso Descuento desde recibo de caja] ya existe, salto"
     else
-      # Módulo Facturación (tolera con/sin tilde; prefiere el nombre más corto).
+      # Módulo Facturación (tolera con/sin tilde; prefiere el nombre más corto,
+      # así cae en "Facturación" y no en "Facturación Electrónica").
       MOD_ID="$(dm -N -B -e "SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Facturaci%n' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1;" "$DB")"
       if [ -n "$MOD_ID" ]; then
-        if dm "$DB" -e "INSERT INTO permisos_botones (id_modulo, nombre_permiso) VALUES (${MOD_ID}, 'Descuento desde recibo de caja');"; then
+        # Armamos el INSERT dinámicamente: incluimos status/orden solo si esas
+        # columnas existen (algunas BDs las tienen NOT NULL y el insert mínimo fallaría).
+        COLS="id_modulo, nombre_permiso"
+        VALS="${MOD_ID}, 'Descuento desde recibo de caja'"
+        if column_exists "$DB" "permisos_botones" "status"; then COLS="${COLS}, status"; VALS="${VALS}, 1"; fi
+        if column_exists "$DB" "permisos_botones" "orden";  then COLS="${COLS}, orden";  VALS="${VALS}, 999"; fi
+        if dm "$DB" -e "INSERT INTO permisos_botones (${COLS}) VALUES (${VALS});"; then
           echo "    [permiso Descuento desde recibo de caja] creado (módulo ${MOD_ID})"
         else
-          echo "    (aviso: no se pudo insertar el permiso en ${DB} — revisar columnas NOT NULL de permisos_botones)"
+          echo "    (aviso: no se pudo insertar el permiso en ${DB} — ejecutar: DESCRIBE permisos_botones)"
         fi
       else
         echo "    (no se encontró el módulo Facturación, salto permiso)"

@@ -112,14 +112,18 @@
 
 <input type="hidden" id="urlgenerar" value="{{route('reportes.terceros')}}">
 <input type="hidden" id="urlexportar" value="{{route('exportar.terceros')}}">
+@endsection
 
+@section('scripts')
 <script>
-    $(function () {
-        // Estilizar los nuevos selects igual que "Fechas" (bootstrap-select).
+    // Va en @section('scripts') (se renderiza tras jQuery/bootstrap-select/custom.js).
+    // $(document).ready asegura que corra DESPUÉS del auto-init de bootstrap-select.
+    $(document).ready(function () {
+        // Estilizar los nuevos selects igual que "Fechas".
         $('#tipo_factura, #emitida').selectpicker('refresh');
 
         // Mostrar el filtro "Emisión" solo cuando el tipo de factura es Electrónica (2).
-        function toggleEmitida() {
+        function toggleEmitidaTerceros() {
             if ($('#tipo_factura').val() === '2') {
                 $('#wrap_emitida').show();
                 // refresh: al mostrarse, bootstrap-select recalcula el ancho (evita ancho 0).
@@ -128,8 +132,8 @@
                 $('#wrap_emitida').hide();
             }
         }
-        $('#tipo_factura').on('changed.bs.select change', toggleEmitida);
-        toggleEmitida();
+        $('#tipo_factura').on('changed.bs.select change', toggleEmitidaTerceros);
+        toggleEmitidaTerceros();
     });
 </script>
 @endsection
