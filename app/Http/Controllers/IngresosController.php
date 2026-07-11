@@ -379,6 +379,22 @@ class IngresosController extends Controller
         return json_encode(['saldo' => $saldo, 'contrato' => $contrato->opciones_dian]);
     }
 
+    /**
+     * ¿El usuario puede usar el campo "Descuento %" al pagar una factura pendiente?
+     * Permiso: "Descuento desde recibo de caja" (módulo Facturación). Se resuelve por
+     * NOMBRE para ser consistente entre clientes (multi-tenant) sin hardcodear el id.
+     * Los usuarios con rol < 2 (admin) no están sujetos a permisos y siempre lo ven.
+     */
+    private function puedeDescuentoRecibo(){
+        if (Auth::user()->rol < 2) {
+            return true;
+        }
+        $permId = DB::table('permisos_botones')
+            ->where('nombre_permiso', 'Descuento desde recibo de caja')
+            ->value('id');
+        return $permId && isset($_SESSION['permisos'][$permId]);
+    }
+
     public function pendiente($cliente, $id=false){
 
         $this->getAllPermissions(Auth::user()->id);
@@ -387,8 +403,9 @@ class IngresosController extends Controller
         $contrato = Contrato::where('client_id',$cliente)->first();
         //$total = Factura::where('cliente', $cliente)->where('empresa',Auth::user()->empresa)->where('tipo','!=',2)->where('estatus', 1)->count();
         $total = 1;
+        $puedeDescuentoRecibo = $this->puedeDescuentoRecibo();
 
-        return view('ingresos.pendiente')->with(compact('facturas', 'id', 'total','contrato'));
+        return view('ingresos.pendiente')->with(compact('facturas', 'id', 'total','contrato','puedeDescuentoRecibo'));
     }
 
     public function ingpendiente($cliente, $id=false){
@@ -417,8 +434,10 @@ class IngresosController extends Controller
             $entro=false;
         }
 
+        $puedeDescuentoRecibo = $this->puedeDescuentoRecibo();
+
         return view('ingresos.ingpendiente')->with(compact('facturas', 'id', 'items',
-        'ingreso', 'retencioness','contrato','formasPago','relaciones'
+        'ingreso', 'retencioness','contrato','formasPago','relaciones','puedeDescuentoRecibo'
     ));
     }
 

@@ -114,7 +114,8 @@
       "Bash(bash -n migrar-documentos-adjuntos-all.sh)",
       "Bash(bash -n reconciliar-estatus-facturas-all.sh)",
       "Bash(node --check public/js/dian-audit.js)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -o 'isset\\($_SESSION\\\\['\\\\''permisos'\\\\''\\\\]\\\\['\\\\''[0-9]*'\\\\''\\\\]\\)[^\\)]*|| Auth::user\\(\\)->rol == [0-9]*')"
     ]
   }
 }

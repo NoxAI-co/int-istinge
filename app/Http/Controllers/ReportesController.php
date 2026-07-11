@@ -3554,21 +3554,23 @@ class ReportesController extends Controller
         $order   = $request->order == 1 ? 'DESC' : 'ASC';
 
         // Consulta
-        // INGRESOS BRUTOS = RECAUDO por FECHA DE PAGO (A1 + B2):
-        //   - Suma los pagos (ingresos_factura.pago) aplicados a facturas estándar (1)
-        //     y electrónicas (2) del tercero.
-        //   - El periodo se filtra por la fecha del PAGO (ingresos.fecha), no la de la factura.
-        //   - Excluye facturas anuladas (f.estatus=2) y recibos anulados (i.estatus=2).
-        //   - Al requerir pago real, se usa JOIN (no leftJoin): solo aparecen terceros
-        //     con recaudo en el periodo.
+        // INGRESOS BRUTOS = TOTAL FACTURADO por FECHA DE FACTURA:
+        //   - Suma el total de las facturas (a partir de sus ítems: precio*cant, aplicando
+        //     descuento e IVA) estándar (1) y electrónicas (2), SIN importar si están pagadas.
+        //   - El periodo se filtra por la fecha de la FACTURA (f.fecha).
+        //   - Excluye solo facturas anuladas (f.estatus=2).
+        //   - Respeta los filtros de tipo y (para electrónicas) emisión.
+        // Filtro por TIPO de factura: 1=estándar, 2=electrónica, vacío/otro=ambas.
+        $tiposFactura = [1, 2];
+        if ((string)$request->tipo_factura === '1') { $tiposFactura = [1]; }
+        elseif ((string)$request->tipo_factura === '2') { $tiposFactura = [2]; }
+
         $contactos = Contacto::join('factura as f', 'f.cliente', '=', 'contactos.id')
-            ->join('ingresos_factura as ig', 'ig.factura', '=', 'f.id')
-            ->join('ingresos as i', 'i.id', '=', 'ig.ingreso')
+            ->join('items_factura as itfb', 'itfb.factura', '=', 'f.id')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            ->whereIn('f.tipo', [1, 2])
+            ->whereIn('f.tipo', $tiposFactura)
             ->where('f.estatus', '<>', 2)
-            ->where('i.estatus', '<>', 2)
             ->select(
                 'contactos.id as idContacto',
                 'contactos.tip_iden',
@@ -3590,8 +3592,8 @@ class ReportesController extends Controller
                 'm.nombre as municipio',
                 'd.nombre as departamento',
                 'contactos.status',
-                // 👇 CAMBIO CLAVE: COALESCE para que sea 0 si no hay ingresos
-                DB::raw('COALESCE(SUM(ig.pago), 0) as ingresosBrutos'),
+                // INGRESOS BRUTOS = total facturado (ítems con descuento e IVA), pagada o no.
+                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as ingresosBrutos'),
                 // Último plan facturado: el ítem tipo PLAN de la ÚLTIMA factura del
                 // cliente (no anulada). inventario.producto = nombre del plan.
                 DB::raw("(SELECT inv.producto FROM items_factura itf JOIN inventario inv ON inv.id = itf.producto AND inv.type = 'PLAN' WHERE itf.factura = (SELECT MAX(f2.id) FROM factura f2 WHERE f2.cliente = contactos.id AND f2.estatus <> 2 AND f2.tipo IN (1,2)) LIMIT 1) as ultimo_plan")
@@ -3619,9 +3621,15 @@ class ReportesController extends Controller
                 'contactos.status'
             );
 
-        // Filtro por fechas SOBRE LA FECHA DEL PAGO (ingresos.fecha) -> recaudo del periodo.
+        // Solo para ELECTRÓNICAS: filtro de emisión. emitida=1 (emitidas),
+        // emitida=0 (no emitidas), vacío=todas. Se ignora si el tipo no es electrónica.
+        if ((string)$request->tipo_factura === '2' && in_array((string)$request->emitida, ['0', '1'], true)) {
+            $contactos = $contactos->where('f.emitida', (int)$request->emitida);
+        }
+
+        // Filtro por fechas SOBRE LA FECHA DE LA FACTURA (f.fecha) -> facturado en el periodo.
         if ($request->input('fechas') != 8 || (!$request->has('fechas'))) {
-            $contactos = $contactos->whereBetween('i.fecha', [$dates['inicio'], $dates['fin']]);
+            $contactos = $contactos->whereBetween('f.fecha', [$dates['inicio'], $dates['fin']]);
         }
 
         // Ordenar

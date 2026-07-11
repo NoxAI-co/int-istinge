@@ -322,8 +322,8 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas Electrónicas desde ".$request->fecha." hasta ".$request->hasta;
 
-        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Estrato', 'Municipio','Celular','Direccion','Barrio', 'Creacion','Vencimiento','Dian','Estatus', 'Forma Pago','Periodo Cobrado','Plan internet','Valor Plan internet','Iva internet','Plan tv','Valor plan tv','Iva tv','total IVA','Total', 'Fecha Pago', 'Nro. Pago', 'Estado contrato','Items');
-        $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Estrato', 'Municipio','Celular','Direccion','Barrio', 'Creacion','Vencimiento','Dian','Estatus', 'Forma Pago','Periodo Cobrado','Plan internet','Valor Plan internet','Iva internet','Plan tv','Valor plan tv','Iva tv','total IVA','Total','Antes de IVA', 'Fecha Pago', 'Nro. Pago', 'Estado contrato','Items');
+        $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA');
 
         $objPHPExcel->getProperties()->setCreator("Sistema")
         ->setLastModifiedBy("Sistema")
@@ -333,12 +333,12 @@ class ExportarReportesController extends Controller
         ->setKeywords("Reporte de Facturas Electrónicas")
         ->setCategory("Reporte excel");
 
-        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:Z1');
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:AA1');
         $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1',$tituloReporte);
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman' ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:Z1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AA1')->applyFromArray($estilo);
         $estilo =array('fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'd08f50')));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:Z3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AA3')->applyFromArray($estilo);
 
         for ($i=0; $i <count($titulosColumnas) ; $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i].'3', utf8_decode($titulosColumnas[$i]));
@@ -480,10 +480,11 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[19].$i, $planTV ? round($ivaTV) : 0)
                 ->setCellValue($letras[20].$i, round($totalIva))
                 ->setCellValue($letras[21].$i, round($totalFactura))
-                ->setCellValue($letras[22].$i, $facturaRow->pago_fecha ? date('d-m-Y', strtotime($facturaRow->pago_fecha)) : '')
-                ->setCellValue($letras[23].$i, $facturaRow->pago_nro ?? '')
-                ->setCellValue($letras[24].$i, $facturaRow->contrato_state ?? 'N/A')
-                ->setCellValue($letras[25].$i, $listItems);
+                ->setCellValue($letras[22].$i, round($totalFactura - $totalIva))
+                ->setCellValue($letras[23].$i, $facturaRow->pago_fecha ? date('d-m-Y', strtotime($facturaRow->pago_fecha)) : '')
+                ->setCellValue($letras[24].$i, $facturaRow->pago_nro ?? '')
+                ->setCellValue($letras[25].$i, $facturaRow->contrato_state ?? 'N/A')
+                ->setCellValue($letras[26].$i, $listItems);
 
             $i++;
         }
@@ -502,10 +503,10 @@ class ExportarReportesController extends Controller
                     'style' => PHPExcel_Style_Border::BORDER_THIN
                 )
             ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:Z'.$i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AA'.$i)->applyFromArray($estilo);
 
         // Ancho fijo: setAutoSize recorre todas las filas y provoca timeout en exportaciones grandes
-        $anchosColumnas = [14, 28, 14, 10, 16, 14, 24, 16, 12, 12, 12, 10, 18, 28, 22, 14, 12, 22, 14, 12, 12, 14, 12, 12, 14, 30];
+        $anchosColumnas = [14, 28, 14, 10, 16, 14, 24, 16, 12, 12, 12, 10, 18, 28, 22, 14, 12, 22, 14, 12, 12, 14, 14, 12, 12, 14, 30];
         foreach ($anchosColumnas as $idx => $ancho) {
             $objPHPExcel->getActiveSheet()->getColumnDimension($letras[$idx])->setWidth($ancho);
         }
@@ -6132,21 +6133,28 @@ class ExportarReportesController extends Controller
             $hasta = now()->format('Y-m-d');
         }
 
-        // Consulta de terceros — INGRESOS BRUTOS = RECAUDO por FECHA DE PAGO (A1 + B2),
-        // idéntico a la vista web (ReportesController@terceros):
-        //   - Suma pagos (ingresos_factura.pago) de facturas estándar (1) y electrónicas (2).
-        //   - Periodo por fecha del PAGO (ingresos.fecha), no de la factura.
-        //   - Excluye facturas anuladas (f.estatus=2) y recibos anulados (i.estatus=2).
-        //   - JOIN (no leftJoin): solo terceros con recaudo real en el periodo.
+        // Consulta de terceros — INGRESOS BRUTOS = TOTAL FACTURADO por FECHA DE FACTURA.
+        //   - Suma el total de las facturas (a partir de sus ítems: precio*cant, aplicando
+        //     descuento e IVA), SIN importar si están pagadas o no.
+        //   - Periodo por la fecha de la FACTURA (f.fecha).
+        //   - Excluye solo facturas anuladas (f.estatus=2).
+        //   - Respeta los filtros de tipo (estándar/electrónica) y, para electrónicas, emisión.
+        // Filtro por TIPO de factura: 1=estándar, 2=electrónica, vacío/otro=ambas.
+        $tiposFactura = [1, 2];
+        if ((string)$request->tipo_factura === '1') { $tiposFactura = [1]; }
+        elseif ((string)$request->tipo_factura === '2') { $tiposFactura = [2]; }
+
         $contactos = Contacto::join('factura as f', 'f.cliente', '=', 'contactos.id')
-            ->join('ingresos_factura as ig', 'ig.factura', '=', 'f.id')
-            ->join('ingresos as i', 'i.id', '=', 'ig.ingreso')
+            ->join('items_factura as itfb', 'itfb.factura', '=', 'f.id')
             ->leftJoin('municipios as m', 'm.id', '=', 'contactos.fk_idmunicipio')
             ->leftJoin('departamentos as d', 'd.id', '=', 'contactos.fk_iddepartamento')
-            ->whereIn('f.tipo', [1, 2])
+            ->whereIn('f.tipo', $tiposFactura)
             ->where('f.estatus', '<>', 2)
-            ->where('i.estatus', '<>', 2)
-            ->whereBetween('i.fecha', [$desde, $hasta])
+            ->whereBetween('f.fecha', [$desde, $hasta])
+            ->when((string)$request->tipo_factura === '2' && in_array((string)$request->emitida, ['0','1'], true), function($q) use ($request) {
+                // Solo electrónicas: 1=emitidas, 0=no emitidas, vacío=todas.
+                $q->where('f.emitida', (int)$request->emitida);
+            })
             ->select(
                 'contactos.id as idContacto',
                 'contactos.tip_iden',
@@ -6161,7 +6169,7 @@ class ExportarReportesController extends Controller
                 'contactos.telefono1',
                 'contactos.celular',
                 'contactos.email',
-                DB::raw('COALESCE(SUM(ig.pago), 0) as ingresosBrutos'),
+                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as ingresosBrutos'),
                 DB::raw('MIN(f.fecha) as fechaPrimeraFactura'),
                 DB::raw('MAX(f.fecha) as fechaUltimaFactura'),
                 // Último plan facturado (ítem tipo PLAN de la última factura del cliente).

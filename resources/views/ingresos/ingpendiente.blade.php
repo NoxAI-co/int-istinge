@@ -7,7 +7,9 @@
       <th>Total</th>
       <th>Pagado</th>
       <th>Por Pagar</th>
+      @if(!empty($puedeDescuentoRecibo))
       <th class="text-center">Descuento %</th>
+      @endif
       <th>Retenciones</th>
       <th>Valor recibido</th>
     </tr>
@@ -62,6 +64,7 @@
         <input type="hidden" id="descuento{{$factura->id}}" value="{{$factura->total()->descuento}}">
         <input type="hidden" id="totalfact{{$factura->id}}" value="{{$entro?$factura->porpagar()+$porpagar:$factura->porpagar()}}">
         </td>
+        @if(!empty($puedeDescuentoRecibo))
         <td class="text-center" style="vertical-align: text-bottom;">
           <input type="hidden" id="descuento_existente_{{$factura->id}}" value="{{ $factura->total()->descuento > 0 ? 1 : 0 }}">
           <input type="number" class="form-control form-control-sm text-right" id="descuento_pct_{{$factura->id}}" name="descuento_pendiente[]" placeholder="0" min="0" max="99" step="0.01" value="{{ $descuentoSaved }}" onchange="aplicar_descuento_pendiente({{$factura->id}});" onkeyup="aplicar_descuento_pendiente({{$factura->id}});">
@@ -76,6 +79,7 @@
           </p>
           <p id="descuento_error_{{$factura->id}}" class="text-danger" style="font-size:11px; margin:0;"></p>
         </td>
+        @endif
         <td>
           @php $total=$cont=0; @endphp
             <div id="retenciones_factura_{{$factura->id}}">

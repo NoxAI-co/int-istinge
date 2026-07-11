@@ -46,6 +46,25 @@
         </div>
     </div>
 
+    <div class="row card-description">
+        <div class="form-group col-md-2">
+            <label>Tipo de factura</label>
+            <select class="form-control" name="tipo_factura" id="tipo_factura">
+                <option value="" {{ (string)$request->tipo_factura === '' ? 'selected' : '' }}>Todas</option>
+                <option value="1" {{ (string)$request->tipo_factura === '1' ? 'selected' : '' }}>Estándar</option>
+                <option value="2" {{ (string)$request->tipo_factura === '2' ? 'selected' : '' }}>Electrónica</option>
+            </select>
+        </div>
+        <div class="form-group col-md-2" id="wrap_emitida" style="{{ (string)$request->tipo_factura === '2' ? '' : 'display:none;' }}">
+            <label>Emisión</label>
+            <select class="form-control" name="emitida" id="emitida">
+                <option value="" {{ ($request->emitida === null || (string)$request->emitida === '') ? 'selected' : '' }}>Todas</option>
+                <option value="1" {{ (string)$request->emitida === '1' ? 'selected' : '' }}>Emitidas</option>
+                <option value="0" {{ (string)$request->emitida === '0' ? 'selected' : '' }}>No emitidas</option>
+            </select>
+        </div>
+    </div>
+
     <input type="hidden" name="orderby" id="order_by" value="contactos.nombre">
     <input type="hidden" name="order" id="order" value="1">
     <input type="hidden" id="form" value="form-reporte">
@@ -93,4 +112,18 @@
 
 <input type="hidden" id="urlgenerar" value="{{route('reportes.terceros')}}">
 <input type="hidden" id="urlexportar" value="{{route('exportar.terceros')}}">
+
+<script>
+    // Mostrar el filtro "Emisión" solo cuando el tipo de factura es Electrónica (2).
+    document.addEventListener('DOMContentLoaded', function () {
+        var tipo = document.getElementById('tipo_factura');
+        var wrap = document.getElementById('wrap_emitida');
+        if (!tipo || !wrap) return;
+        function toggleEmitida() {
+            wrap.style.display = (tipo.value === '2') ? '' : 'none';
+        }
+        tipo.addEventListener('change', toggleEmitida);
+        toggleEmitida();
+    });
+</script>
 @endsection
