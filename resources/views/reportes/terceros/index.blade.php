@@ -49,7 +49,7 @@
     <div class="row card-description">
         <div class="form-group col-md-2">
             <label>Tipo de factura</label>
-            <select class="form-control" name="tipo_factura" id="tipo_factura">
+            <select class="form-control selectpicker" data-width="100%" name="tipo_factura" id="tipo_factura">
                 <option value="" {{ (string)$request->tipo_factura === '' ? 'selected' : '' }}>Todas</option>
                 <option value="1" {{ (string)$request->tipo_factura === '1' ? 'selected' : '' }}>Estándar</option>
                 <option value="2" {{ (string)$request->tipo_factura === '2' ? 'selected' : '' }}>Electrónica</option>
@@ -57,7 +57,7 @@
         </div>
         <div class="form-group col-md-2" id="wrap_emitida" style="{{ (string)$request->tipo_factura === '2' ? '' : 'display:none;' }}">
             <label>Emisión</label>
-            <select class="form-control" name="emitida" id="emitida">
+            <select class="form-control selectpicker" data-width="100%" name="emitida" id="emitida">
                 <option value="" {{ ($request->emitida === null || (string)$request->emitida === '') ? 'selected' : '' }}>Todas</option>
                 <option value="1" {{ (string)$request->emitida === '1' ? 'selected' : '' }}>Emitidas</option>
                 <option value="0" {{ (string)$request->emitida === '0' ? 'selected' : '' }}>No emitidas</option>
@@ -114,15 +114,21 @@
 <input type="hidden" id="urlexportar" value="{{route('exportar.terceros')}}">
 
 <script>
-    // Mostrar el filtro "Emisión" solo cuando el tipo de factura es Electrónica (2).
-    document.addEventListener('DOMContentLoaded', function () {
-        var tipo = document.getElementById('tipo_factura');
-        var wrap = document.getElementById('wrap_emitida');
-        if (!tipo || !wrap) return;
+    $(function () {
+        // Estilizar los nuevos selects igual que "Fechas" (bootstrap-select).
+        $('#tipo_factura, #emitida').selectpicker('refresh');
+
+        // Mostrar el filtro "Emisión" solo cuando el tipo de factura es Electrónica (2).
         function toggleEmitida() {
-            wrap.style.display = (tipo.value === '2') ? '' : 'none';
+            if ($('#tipo_factura').val() === '2') {
+                $('#wrap_emitida').show();
+                // refresh: al mostrarse, bootstrap-select recalcula el ancho (evita ancho 0).
+                $('#emitida').selectpicker('refresh');
+            } else {
+                $('#wrap_emitida').hide();
+            }
         }
-        tipo.addEventListener('change', toggleEmitida);
+        $('#tipo_factura').on('changed.bs.select change', toggleEmitida);
         toggleEmitida();
     });
 </script>

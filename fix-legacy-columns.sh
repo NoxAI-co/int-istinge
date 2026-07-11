@@ -277,6 +277,32 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla whatsapp_messages)"
   fi
+
+  # --- 11) permiso "Descuento desde recibo de caja" (módulo Facturación) -----
+  #  Controla la visibilidad del campo "Descuento %" al pagar una factura
+  #  pendiente (recibo de caja). Se crea dentro del módulo Facturación
+  #  (permisos_botones). Idempotente: no duplica si ya existe. El id lo resuelve
+  #  la app por NOMBRE, así que no importa qué autoincrement reciba en cada BD.
+  if table_exists "$DB" "permisos_botones" && table_exists "$DB" "permisos_modulo"; then
+    PERM_EXISTS="$(dm -N -B -e "SELECT COUNT(*) FROM permisos_botones WHERE nombre_permiso='Descuento desde recibo de caja';" "$DB")"
+    if [ "${PERM_EXISTS:-0}" -gt 0 ]; then
+      echo "    [permiso Descuento desde recibo de caja] ya existe, salto"
+    else
+      # Módulo Facturación (tolera con/sin tilde; prefiere el nombre más corto).
+      MOD_ID="$(dm -N -B -e "SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Facturaci%n' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1;" "$DB")"
+      if [ -n "$MOD_ID" ]; then
+        if dm "$DB" -e "INSERT INTO permisos_botones (id_modulo, nombre_permiso) VALUES (${MOD_ID}, 'Descuento desde recibo de caja');"; then
+          echo "    [permiso Descuento desde recibo de caja] creado (módulo ${MOD_ID})"
+        else
+          echo "    (aviso: no se pudo insertar el permiso en ${DB} — revisar columnas NOT NULL de permisos_botones)"
+        fi
+      else
+        echo "    (no se encontró el módulo Facturación, salto permiso)"
+      fi
+    fi
+  else
+    echo "    (sin permisos_botones/permisos_modulo, salto permiso)"
+  fi
 done
 
 echo "==> Listo."
