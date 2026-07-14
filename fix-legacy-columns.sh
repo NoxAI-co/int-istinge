@@ -329,6 +329,22 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla notas_retenciones)"
   fi
+
+  # --- 13) notas_credito.correo ---------------------------------------------
+  #  Flag que marca si la nota crédito ya se envió por correo (se setea en 1).
+  #  Mismo patrón que factura.correo. En BDs legacy faltaba -> 1054 Unknown
+  #  column 'correo' al hacer UPDATE notas_credito SET correo=1. Se agrega
+  #  TINYINT(1) NOT NULL DEFAULT 0 (0 = no enviado, comportamiento previo).
+  if table_exists "$DB" "notas_credito"; then
+    if column_exists "$DB" "notas_credito" "correo"; then
+      echo "    [notas_credito.correo] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE notas_credito ADD COLUMN correo TINYINT(1) NOT NULL DEFAULT 0;"
+      echo "    [notas_credito.correo] agregada (TINYINT(1) DEFAULT 0)"
+    fi
+  else
+    echo "    (sin tabla notas_credito)"
+  fi
 done
 
 echo "==> Listo."
