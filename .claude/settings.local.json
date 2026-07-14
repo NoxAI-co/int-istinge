@@ -116,7 +116,8 @@
       "Bash(node --check public/js/dian-audit.js)",
       "Bash(grep -v \"^$\")",
       "Bash(grep -o 'isset\\($_SESSION\\\\['\\\\''permisos'\\\\''\\\\]\\\\['\\\\''[0-9]*'\\\\''\\\\]\\)[^\\)]*|| Auth::user\\(\\)->rol == [0-9]*')",
-      "Bash(bash -n fix-legacy-columns.sh)"
+      "Bash(bash -n fix-legacy-columns.sh)",
+      "Bash(grep -n 'protected $fillable\\\\|tipo\\\\|table' app/NotaRetencion.php)"
     ]
   }
 }

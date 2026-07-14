@@ -312,6 +312,23 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin permisos_botones/permisos_modulo, salto permiso)"
   fi
+
+  # --- 12) notas_retenciones.tipo -------------------------------------------
+  #  Distingue retenciones de nota crédito (tipo=1) vs nota débito (tipo=2).
+  #  El código lo escribe (Notascredito/Notasdebito Controller) y filtra
+  #  (WHERE notas_retenciones.tipo = 1/2). En BDs legacy faltaba -> 1054 Unknown
+  #  column 'tipo'. Se agrega INT NOT NULL DEFAULT 1 (crédito, el caso más común;
+  #  las filas viejas correspondían a notas crédito).
+  if table_exists "$DB" "notas_retenciones"; then
+    if column_exists "$DB" "notas_retenciones" "tipo"; then
+      echo "    [notas_retenciones.tipo] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE notas_retenciones ADD COLUMN tipo INT NOT NULL DEFAULT 1;"
+      echo "    [notas_retenciones.tipo] agregada (INT NOT NULL DEFAULT 1)"
+    fi
+  else
+    echo "    (sin tabla notas_retenciones)"
+  fi
 done
 
 echo "==> Listo."
