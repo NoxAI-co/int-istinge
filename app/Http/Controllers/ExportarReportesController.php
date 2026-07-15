@@ -6071,8 +6071,8 @@ class ExportarReportesController extends Controller
             'Telefono',
             'Celular',
             'Email',
-            'Ingresos Brutos',
             'Antes de IVA',
+            'IVA',
             'Despues de IVA',
             'Primera Factura',
             'Ultima Factura',
@@ -6171,10 +6171,11 @@ class ExportarReportesController extends Controller
                 'contactos.telefono1',
                 'contactos.celular',
                 'contactos.email',
-                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as ingresosBrutos'),
                 // Antes de IVA = base gravable (precio*cant con descuento, SIN IVA).
                 DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100)), 0) as antesIva'),
-                // Despues de IVA = total con IVA (el ingreso bruto como tal).
+                // IVA = valor del impuesto discriminado (base gravable * porcentaje de IVA).
+                DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (IFNULL(itfb.impuesto,0)/100)), 0) as iva'),
+                // Despues de IVA = base gravable + IVA (total con impuesto).
                 DB::raw('COALESCE(SUM(itfb.cant * itfb.precio * (1 - IFNULL(itfb.`desc`,0)/100) * (1 + IFNULL(itfb.impuesto,0)/100)), 0) as despuesIva'),
                 DB::raw('MIN(f.fecha) as fechaPrimeraFactura'),
                 DB::raw('MAX(f.fecha) as fechaUltimaFactura'),
@@ -6214,8 +6215,8 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[9] . $i, $c->telefono1)
                 ->setCellValue($letras[10] . $i, $c->celular)
                 ->setCellValue($letras[11] . $i, $c->email)
-                ->setCellValue($letras[12] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->ingresosBrutos))
-                ->setCellValue($letras[13] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->antesIva))
+                ->setCellValue($letras[12] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->antesIva))
+                ->setCellValue($letras[13] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->iva))
                 ->setCellValue($letras[14] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->despuesIva))
                 ->setCellValue($letras[15] . $i, $c->fechaPrimeraFactura)
                 ->setCellValue($letras[16] . $i, $c->fechaUltimaFactura)
