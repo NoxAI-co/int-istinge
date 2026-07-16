@@ -6215,14 +6215,35 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[9] . $i, $c->telefono1)
                 ->setCellValue($letras[10] . $i, $c->celular)
                 ->setCellValue($letras[11] . $i, $c->email)
-                ->setCellValue($letras[12] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->antesIva))
-                ->setCellValue($letras[13] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->iva))
-                ->setCellValue($letras[14] . $i, Auth::user()->empresa()->moneda . \App\Funcion::Parsear($c->despuesIva))
+                ->setCellValueExplicit($letras[12] . $i, (float)$c->antesIva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
+                ->setCellValueExplicit($letras[13] . $i, (float)$c->iva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
+                ->setCellValueExplicit($letras[14] . $i, (float)$c->despuesIva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
                 ->setCellValue($letras[15] . $i, $c->fechaPrimeraFactura)
                 ->setCellValue($letras[16] . $i, $c->fechaUltimaFactura)
                 ->setCellValue($letras[17] . $i, $c->ultimo_plan ?? '');
             $i++;
         }
+
+        // Fila de totales: suma de Antes de IVA / IVA / Despues de IVA.
+        // Se usan formulas SUM para que el total se recalcule si el usuario filtra u ordena en Excel.
+        $primeraFila = 4;
+        $ultimaFila = $i - 1;
+        if ($ultimaFila >= $primeraFila) {
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue($letras[11] . $i, 'TOTAL')
+                ->setCellValue($letras[12] . $i, "=SUM({$letras[12]}{$primeraFila}:{$letras[12]}{$ultimaFila})")
+                ->setCellValue($letras[13] . $i, "=SUM({$letras[13]}{$primeraFila}:{$letras[13]}{$ultimaFila})")
+                ->setCellValue($letras[14] . $i, "=SUM({$letras[14]}{$primeraFila}:{$letras[14]}{$ultimaFila})");
+            $objPHPExcel->getActiveSheet()
+                ->getStyle($letras[11] . $i . ':' . $letras[14] . $i)
+                ->getFont()->setBold(true);
+            $i++;
+        }
+
+        // Formato numerico SIN simbolo de moneda para M/N/O (valor completo, separador de miles y 2 decimales).
+        $objPHPExcel->getActiveSheet()
+            ->getStyle($letras[12] . $primeraFila . ':' . $letras[14] . ($i - 1))
+            ->getNumberFormat()->setFormatCode('#,##0.00');
 
         // Estilos generales
         $estilo = array(

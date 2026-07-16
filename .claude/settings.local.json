@@ -117,7 +117,8 @@
       "Bash(grep -v \"^$\")",
       "Bash(grep -o 'isset\\($_SESSION\\\\['\\\\''permisos'\\\\''\\\\]\\\\['\\\\''[0-9]*'\\\\''\\\\]\\)[^\\)]*|| Auth::user\\(\\)->rol == [0-9]*')",
       "Bash(bash -n fix-legacy-columns.sh)",
-      "Bash(grep -n 'protected $fillable\\\\|tipo\\\\|table' app/NotaRetencion.php)"
+      "Bash(grep -n 'protected $fillable\\\\|tipo\\\\|table' app/NotaRetencion.php)",
+      "Bash(./vendor/bin/php-parse --version)"
     ]
   }
 }
