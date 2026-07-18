@@ -923,6 +923,9 @@ class ContratosController extends Controller
     {
 
         $this->getAllPermissions(Auth::user()->id);
+        // La habilitación del CATV es NO bloqueante: si falla, el contrato igual se crea
+        // y se informa mediante esta advertencia al final.
+        $catvWarning = null;
         $request->validate([
             'client_id' => 'required',
             'grupo_corte' => 'required',
@@ -1727,7 +1730,9 @@ class ContratosController extends Controller
                 $response = json_decode($response);
 
                 if (isset($response->status) && $response->status == false) {
-                    return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
+                    // No bloquear: el CATV falló pero el contrato debe crearse igual.
+                    // Se conserva el estado previo del CATV y se avisa después de guardar.
+                    $catvWarning = 'El contrato se creó, pero no se pudo habilitar el CATV.';
                 } else {
                     if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
@@ -1879,7 +1884,11 @@ class ContratosController extends Controller
                 'mensaje_final'=> $mensaje,
             ]);
 
-            return redirect('empresa/contratos/' . $contrato->id)->with('success', $mensaje);
+            $redirectOk = redirect('empresa/contratos/' . $contrato->id)->with('success', $mensaje);
+            if ($catvWarning) {
+                $redirectOk->with('danger', $catvWarning);
+            }
+            return $redirectOk;
 
         } else {
             $nro = Numeracion::where('empresa', 1)->first();
@@ -1956,7 +1965,9 @@ class ContratosController extends Controller
                 $response = json_decode($response);
 
                 if (isset($response->status) && $response->status == false) {
-                    return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
+                    // No bloquear: el CATV falló pero el contrato debe crearse igual.
+                    // Se conserva el estado previo del CATV y se avisa después de guardar.
+                    $catvWarning = 'El contrato se creó, pero no se pudo habilitar el CATV.';
                 } else {
                     if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                         $contrato->state_olt_catv = 0;
@@ -2036,7 +2047,11 @@ class ContratosController extends Controller
                 }
             }
 
-            return redirect('empresa/asignaciones/create')->with('cliente_id', $contrato->client_id)->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');
+            $redirectOk = redirect('empresa/asignaciones/create')->with('cliente_id', $contrato->client_id)->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');
+            if ($catvWarning) {
+                $redirectOk->with('danger', $catvWarning);
+            }
+            return $redirectOk;
             // return redirect('empresa/contratos/'.$contrato->id)->with('success', 'SE HA CREADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');
         }
 
@@ -2198,6 +2213,9 @@ class ContratosController extends Controller
     {
 
         $this->getAllPermissions(Auth::user()->id);
+        // La habilitación del CATV es NO bloqueante: si falla, el contrato igual se actualiza
+        // y se informa mediante esta advertencia al final.
+        $catvWarning = null;
         $request->validate([
             'grupo_corte' => 'required',
             'facturacion' => 'required',
@@ -2805,7 +2823,9 @@ class ContratosController extends Controller
                         $response = json_decode($response);
 
                         if (isset($response->status) && $response->status == false) {
-                            return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
+                            // No bloquear: el CATV falló pero el contrato debe actualizarse igual.
+                            // Se conserva el estado previo del CATV y se avisa después de guardar.
+                            $catvWarning = 'El contrato se actualizó, pero no se pudo habilitar el CATV.';
                         } else {
                             if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                                 $contrato->state_olt_catv = 0;
@@ -2917,7 +2937,11 @@ class ContratosController extends Controller
                     }
 
                     $mensaje = 'SE HA MODIFICADO EL CONTRATO DE SERVICIOS SATISFACTORIAMENTE';
-                    return redirect('empresa/contratos/' . $id)->with('success', $mensaje);
+                    $redirectOk = redirect('empresa/contratos/' . $id)->with('success', $mensaje);
+                    if ($catvWarning) {
+                        $redirectOk->with('danger', $catvWarning);
+                    }
+                    return $redirectOk;
                 } else {
                     return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA SIDO ACTUALIZADO');
                 }
@@ -3007,7 +3031,9 @@ class ContratosController extends Controller
                     $response = json_decode($response);
 
                     if (isset($response->status) && $response->status == false) {
-                        return redirect('empresa/contratos')->with('danger', 'EL CONTRATO NO HA SIDO ACTUALIZADO POR QUE FALLÓ LA HABILITACIÓN DEL CATV');
+                        // No bloquear: el CATV falló pero el contrato debe actualizarse igual.
+                        // Se conserva el estado previo del CATV y se avisa después de guardar.
+                        $catvWarning = 'El contrato se actualizó, pero no se pudo habilitar el CATV.';
                     } else {
                         if (isset($response->status) && $response->status == true && $request->state_olt_catv == 0) {
                             $contrato->state_olt_catv = 0;
@@ -3077,7 +3103,11 @@ class ContratosController extends Controller
                 $contrato->creador = Auth::user()->nombres;
                 $contrato->save();
 
-                return redirect('empresa/contratos/' . $contrato->id)->with('success', 'SE HA ACTUALIZADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');
+                $redirectOk = redirect('empresa/contratos/' . $contrato->id)->with('success', 'SE HA ACTUALIZADO SATISFACTORIAMENTE EL CONTRATO DE SERVICIOS');
+                if ($catvWarning) {
+                    $redirectOk->with('danger', $catvWarning);
+                }
+                return $redirectOk;
             }
         }
         return redirect('empresa/contratos')->with('danger', 'EL CONTRATO DE SERVICIOS NO HA ENCONTRADO');
