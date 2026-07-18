@@ -291,12 +291,13 @@ class ExportarReportesController extends Controller
 
     public function facturasElectronicas(Request $request){
         set_time_limit(600);
-        ini_set('memory_limit', '768M');
+        ini_set('memory_limit', '2048M');
 
         $dates = $this->setDateRequest($request);
 
         $countQuery = Factura::join('contactos as c', 'factura.cliente', '=', 'c.id')
             ->where('factura.tipo', 2)
+            ->where('factura.estatus', '<>', 2) // mismo criterio que la consulta principal (excluye anuladas)
             ->where('factura.empresa', Auth::user()->empresa);
 
         if ($request->tipo !== null && $request->tipo != 2) {
@@ -315,8 +316,8 @@ class ExportarReportesController extends Controller
 
         $totalRegistros = $countQuery->distinct('factura.id')->count('factura.id');
 
-        if ($totalRegistros > 5000) {
-            return back()->with('error', "La consulta contiene {$totalRegistros} facturas, lo cual es demasiada información para exportar. Por favor, reduzca el rango de fechas o agregue más filtros. El límite máximo es de 5000 facturas.");
+        if ($totalRegistros > 12000) {
+            return back()->with('error', "La consulta contiene {$totalRegistros} facturas, lo cual es demasiada información para exportar en un solo archivo. Por favor, reduzca el rango de fechas o agregue más filtros. El límite máximo es de 12000 facturas.");
         }
 
         $objPHPExcel = new PHPExcel();

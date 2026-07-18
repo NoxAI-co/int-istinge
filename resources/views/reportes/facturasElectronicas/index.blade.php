@@ -1,5 +1,10 @@
 @extends('layouts.app')
 @section('content')
+@if (session('error'))
+    <div class="alert alert-danger" role="alert">
+        {{ session('error') }}
+    </div>
+@endif
 <input type="hidden" id="valuefecha" value="{{$request->fechas}}">
 <input type="hidden" id="primera" value="{{$request->date ? $request->date['primera'] : ''}}">
 <input type="hidden" id="ultima" value="{{$request->date ? $request->date['ultima'] : ''}}">
