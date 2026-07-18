@@ -380,6 +380,8 @@ class ExportarReportesController extends Controller
                                  AND if1.id = (SELECT MAX(if2.id) FROM ingresos_factura if2 JOIN ingresos i2 ON if2.ingreso = i2.id WHERE if2.factura = if1.factura AND i2.estatus <> 2)
                                 ) as last_pago'), 'factura.id', '=', 'last_pago.factura')
             ->where('factura.tipo', 2)
+            // Excluir facturas anuladas (estatus 2) para ser consistentes con el reporte de terceros
+            ->where('factura.estatus', '<>', 2)
             ->where('factura.empresa', Auth::user()->empresa)
             ->groupBy('factura.id');
 
