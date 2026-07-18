@@ -118,7 +118,8 @@
       "Bash(grep -o 'isset\\($_SESSION\\\\['\\\\''permisos'\\\\''\\\\]\\\\['\\\\''[0-9]*'\\\\''\\\\]\\)[^\\)]*|| Auth::user\\(\\)->rol == [0-9]*')",
       "Bash(bash -n fix-legacy-columns.sh)",
       "Bash(grep -n 'protected $fillable\\\\|tipo\\\\|table' app/NotaRetencion.php)",
-      "Bash(./vendor/bin/php-parse --version)"
+      "Bash(./vendor/bin/php-parse --version)",
+      "Bash(grep -rn 'session\\('\\\\''error'\\\\''\\)\\\\|session\\(\"error\"\\)\\\\|$errors\\\\|Session::get\\('\\\\''error'\\\\''\\)\\\\|flash' resources/views/reportes/facturasElectronicas/index.blade.php resources/views/layouts/)"
     ]
   }
 }
