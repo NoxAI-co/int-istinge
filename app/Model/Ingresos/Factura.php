@@ -1437,19 +1437,36 @@ class Factura extends Model
     }
 
     public function periodoCobradoTexto($tirilla=false){
-        Carbon::setLocale('es');
-        $grupo = Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')->
-        where('contracts.id',$this->contrato_id)
-        ->select('gc.*')->first();
+        $grupo = self::grupoCorteFactura($this->contrato_id, $this->cliente);
+        $fechaBase = $this->created_at ?? $this->fecha;
+        return self::calcularPeriodoCobradoTexto($fechaBase, $grupo, $tirilla);
+    }
+
+    /**
+     * Resuelve el grupo de corte de una factura: primero por contrato, luego por cliente.
+     * Estático para permitir precargar los grupos por lotes y evitar N+1 en exportaciones.
+     */
+    public static function grupoCorteFactura($contratoId, $clienteId){
+        $grupo = Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')
+            ->where('contracts.id', $contratoId)
+            ->select('gc.*')->first();
 
         if(!$grupo){
-            $grupo = Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')->
-            where('client_id',$this->cliente)
-            ->select('gc.*')->first();
+            $grupo = Contrato::join('grupos_corte as gc', 'gc.id', '=', 'contracts.grupo_corte')
+                ->where('client_id', $clienteId)
+                ->select('gc.*')->first();
         }
 
+        return $grupo;
+    }
+
+    /**
+     * Calcula el texto del "periodo cobrado" a partir de una fecha base y el grupo de corte YA resuelto.
+     * Se separa del acceso a BD para poder precargar los grupos por lotes (evita N+1 en exportaciones).
+     */
+    public static function calcularPeriodoCobradoTexto($fechaBase, $grupo, $tirilla=false){
+        Carbon::setLocale('es');
         if($grupo){
-            $fechaBase = $this->created_at ?? $this->fecha;
             $mesInicioCorte = $mesFinCorte = Carbon::parse($fechaBase)->format('m');
             $yearInicioCorte = $yearFinCorte = Carbon::parse($fechaBase)->format('Y');
 

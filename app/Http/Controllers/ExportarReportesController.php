@@ -358,6 +358,7 @@ class ExportarReportesController extends Controller
                 'factura.contrato_id',
                 'factura.codigo',
                 'factura.fecha',
+                'factura.created_at',
                 'factura.vencimiento',
                 'factura.estatus',
                 'factura.emitida',
@@ -404,11 +405,46 @@ class ExportarReportesController extends Controller
 
         $preload = $this->preloadDatosExportFacturasElectronicas($facturasIds);
 
-        // Solo campos necesarios para periodoCobradoTexto (única consulta por factura restante)
-        $facturasModelos = Factura::whereIn('id', $facturasIds)
-            ->select('id', 'cliente', 'contrato_id', 'created_at', 'fecha', 'estatus', 'empresa')
-            ->get()
-            ->keyBy('id');
+        // Preload de grupos de corte para "Periodo Cobrado" en 2 consultas (por contrato y por cliente),
+        // evitando el N+1 que antes hacía 1-2 consultas por cada factura.
+        $contratoIds = $facturas->pluck('contrato_id')->filter()->unique()->values()->all();
+        $clienteIds  = $facturas->pluck('cliente')->filter()->unique()->values()->all();
+
+        $gruposPorContrato = collect();
+        if (!empty($contratoIds)) {
+            $gruposPorContrato = DB::table('contracts as c')
+                ->join('grupos_corte as gc', 'gc.id', '=', 'c.grupo_corte')
+                ->whereIn('c.id', $contratoIds)
+                ->select('c.id as contrato_id', 'gc.fecha_corte', 'gc.periodo_facturacion')
+                ->get()
+                ->keyBy('contrato_id');
+        }
+
+        $gruposPorCliente = [];
+        if (!empty($clienteIds)) {
+            $rowsCliente = DB::table('contracts as c')
+                ->join('grupos_corte as gc', 'gc.id', '=', 'c.grupo_corte')
+                ->whereIn('c.client_id', $clienteIds)
+                ->orderBy('c.id')
+                ->select('c.client_id', 'gc.fecha_corte', 'gc.periodo_facturacion')
+                ->get();
+            foreach ($rowsCliente as $rowCliente) {
+                if (!isset($gruposPorCliente[$rowCliente->client_id])) {
+                    $gruposPorCliente[$rowCliente->client_id] = $rowCliente; // conserva el primer contrato del cliente
+                }
+            }
+        }
+
+        // Solo cargamos modelos Eloquent para las facturas SIN items precargados (caso raro, factura sin ítems),
+        // en lugar de todas: reduce fuertemente el consumo de memoria en exportaciones grandes.
+        $idsSinTotales = array_values(array_diff($facturasIds, $preload['totales']->keys()->all()));
+        $facturasModelos = collect();
+        if (!empty($idsSinTotales)) {
+            $facturasModelos = Factura::whereIn('id', $idsSinTotales)
+                ->select('id', 'cliente', 'contrato_id', 'created_at', 'fecha', 'estatus', 'empresa')
+                ->get()
+                ->keyBy('id');
+        }
 
         $i = 4;
         $total = 0;
@@ -455,7 +491,11 @@ class ExportarReportesController extends Controller
             $formaPago = $preload['formaPago'][$facturaId] ?? '';
             $listItems = $preload['listItems'][$facturaId] ?? '';
             $estatusTexto = $facturaRow->estatus == 1 ? 'Abierta' : 'Cerrada';
-            $periodoCobrado = $facturaModelo ? $facturaModelo->periodoCobradoTexto() : '';
+            $grupoCorte = ($facturaRow->contrato_id && isset($gruposPorContrato[$facturaRow->contrato_id]))
+                ? $gruposPorContrato[$facturaRow->contrato_id]
+                : ($gruposPorCliente[$facturaRow->cliente] ?? null);
+            $fechaBase = $facturaRow->created_at ?? $facturaRow->fecha;
+            $periodoCobrado = Factura::calcularPeriodoCobradoTexto($fechaBase, $grupoCorte) ?? '';
 
             $total += $totalFactura;
 
