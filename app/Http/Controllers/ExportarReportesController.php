@@ -6258,9 +6258,9 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[9] . $i, $c->telefono1)
                 ->setCellValue($letras[10] . $i, $c->celular)
                 ->setCellValue($letras[11] . $i, $c->email)
-                ->setCellValueExplicit($letras[12] . $i, (float)$c->antesIva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
-                ->setCellValueExplicit($letras[13] . $i, (float)$c->iva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
-                ->setCellValueExplicit($letras[14] . $i, (float)$c->despuesIva, \PHPExcel_Cell_DataType::TYPE_NUMERIC)
+                ->setCellValueExplicit($letras[12] . $i, round($c->antesIva), \PHPExcel_Cell_DataType::TYPE_NUMERIC)
+                ->setCellValueExplicit($letras[13] . $i, round($c->iva), \PHPExcel_Cell_DataType::TYPE_NUMERIC)
+                ->setCellValueExplicit($letras[14] . $i, round($c->despuesIva), \PHPExcel_Cell_DataType::TYPE_NUMERIC)
                 ->setCellValue($letras[15] . $i, $c->fechaPrimeraFactura)
                 ->setCellValue($letras[16] . $i, $c->fechaUltimaFactura)
                 ->setCellValue($letras[17] . $i, $c->ultimo_plan ?? '');
@@ -6283,10 +6283,11 @@ class ExportarReportesController extends Controller
             $i++;
         }
 
-        // Formato numerico SIN simbolo de moneda para M/N/O (valor completo, separador de miles y 2 decimales).
+        // Formato numerico SIN simbolo de moneda para M/N/O (valor completo, separador de miles y SIN decimales,
+        // igual que el reporte de facturas electronicas, para que ambos reportes den valores iguales).
         $objPHPExcel->getActiveSheet()
             ->getStyle($letras[12] . $primeraFila . ':' . $letras[14] . ($i - 1))
-            ->getNumberFormat()->setFormatCode('#,##0.00');
+            ->getNumberFormat()->setFormatCode('#,##0');
 
         // Estilos generales
         $estilo = array(
