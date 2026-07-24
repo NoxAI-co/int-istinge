@@ -22,14 +22,14 @@
     </div>
 </div>
 
-<div class="container-fluid">
+<div class="container-fluid p-0">
     <div class="row mt-4">
         <div class="col-md-12">
             <button class="btn btn-rounded float-right mb-2 mr-2" style="background-color: #022454; color: white;" data-toggle="modal" data-target="#historial-pedidos">
                 <i class="fas fa-file-alt"></i>
                 Reporte de pagos</button>
             <div class="table-responsive">
-                <table class="table table-light table-striped table-hover w-100" style="border: 1px solid #e9ecef;">
+                <table class="table table-light table-striped table-hover w-100" style="border: 1px solid #e9ecef;" id="table-historial">
                     <thead class="thead-light">
                         <tr>
                             <th id="elemet-message">Periodo</th>
@@ -121,5 +121,29 @@
 @endsection
 
 @section('scripts')
-
+<script>
+    $(document).ready(function() {
+        $('#table-historial').DataTable({
+            responsive: true,
+            language: {
+                url: '{{ asset("vendors/DataTables/es.json") }}'
+            },
+            order: [
+                [0, "desc"]
+            ],
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'excelHtml5',
+                    title: 'Historial de periodos',
+                    className: 'btn btn-success',
+                    text: '<i class="fas fa-file-excel"></i> Exportar a Excel',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6] // Export everything except the actions column
+                    }
+                }
+            ]
+        });
+    });
+</script>
 @endsection
