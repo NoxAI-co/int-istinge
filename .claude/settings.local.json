@@ -119,7 +119,9 @@
       "Bash(bash -n fix-legacy-columns.sh)",
       "Bash(grep -n 'protected $fillable\\\\|tipo\\\\|table' app/NotaRetencion.php)",
       "Bash(./vendor/bin/php-parse --version)",
-      "Bash(grep -rn 'session\\('\\\\''error'\\\\''\\)\\\\|session\\(\"error\"\\)\\\\|$errors\\\\|Session::get\\('\\\\''error'\\\\''\\)\\\\|flash' resources/views/reportes/facturasElectronicas/index.blade.php resources/views/layouts/)"
+      "Bash(grep -rn 'session\\('\\\\''error'\\\\''\\)\\\\|session\\(\"error\"\\)\\\\|$errors\\\\|Session::get\\('\\\\''error'\\\\''\\)\\\\|flash' resources/views/reportes/facturasElectronicas/index.blade.php resources/views/layouts/)",
+      "Bash(grep -n 'protected $fillable' -A 30 app/Model/Ingresos/Factura.php)",
+      "Bash(/opt/homebrew/opt/php@8.2/bin/php artisan *)"
     ]
   }
 }

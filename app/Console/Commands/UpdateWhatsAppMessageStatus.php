@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Instance;
 use App\Services\CentralizedWhatsAppService;
+use App\Services\WhatsappFailureClassifier;
 use App\Model\Ingresos\Factura;
 use App\Model\Ingresos\Ingreso;
 use Illuminate\Support\Facades\Log;
@@ -193,47 +194,40 @@ class UpdateWhatsAppMessageStatus extends Command
         $incomingInvoiceId = $message['incoming_invoice_id'] ?? null;
         $incomingPaymentId = $message['incoming_payment_id'] ?? null;
 
-        // Verificar si es el error específico de Meta sobre healthy ecosystem engagement
-        // En este caso, no actualizamos whatsapp = 0 porque el primer mensaje pudo haberse enviado bien
-        $isHealthyEcosystemError = $errorMessage && 
-            stripos($errorMessage, 'This message was not delivered to maintain healthy ecosystem engagement') !== false;
-
-        // Solo marcar whatsapp = 1 si el status es "delivered" o "read"
-        // NO marcar whatsapp = 0 para otros status (sent, failed, etc.)
-        // EXCEPCIÓN: Si es el error de healthy ecosystem, no hacer nada
-        if ($isHealthyEcosystemError && ($status === 'failed' || $status === 'sent')) {
-            // No actualizar en este caso, mantener el valor actual
-            return [
-                'factura_actualizada' => false,
-                'ingreso_actualizado' => false
-            ];
-        }
-
         $result = [
             'factura_actualizada' => false,
             'ingreso_actualizado' => false
         ];
 
+        // Columna contadora y tope aplicables cuando el status es failed.
+        $contador = null;
+        $tope = null;
+
         // Determinar el valor de whatsapp según el status
         if ($status === 'delivered' || $status === 'read') {
             $whatsappValue = 1; // Entregado/leído
         } elseif ($status === 'failed') {
-            // SOLO reseteamos whatsapp=0 (re-arma el envío del cron) cuando el número
-            // es verdaderamente inválido ("Message undeliverable"). Para fallos
-            // transitorios (rate-limit, pacing, healthy ecosystem, re-engagement, etc.)
-            // Meta pudo haber entregado el mensaje igual; resetear a 0 provocaría que el
-            // cron lo reenvíe en bucle y el cliente reciba la misma factura muchas veces.
-            // El conteo y el tope de reintentos los administra WhatsAppMessageSyncService
-            // (que deduplica por log); aquí solo respetamos ese tope (< 3).
-            $isUndeliverable = $errorMessage &&
-                stripos($errorMessage, 'Message undeliverable') !== false;
+            // Reseteamos whatsapp=0 (re-arma el envío del cron) para todo fallo del que
+            // podamos afirmar que el mensaje no salió: número inválido ("Message
+            // undeliverable") o problema de la cuenta emisora ("Business eligibility
+            // payment issue", "API Key is not enabled", rate-limit…).
+            //
+            // La excepción son los fallos ambiguos (healthy ecosystem engagement): ahí
+            // Meta pudo haber entregado el mensaje igual y resetear a 0 provocaría que el
+            // cron lo reenvíe y el cliente reciba la misma factura varias veces.
+            //
+            // El conteo lo administra WhatsAppMessageSyncService (que deduplica por log);
+            // aquí solo respetamos el tope de la columna que corresponda.
+            $clasificacion = WhatsappFailureClassifier::classify($errorMessage);
+            $contador = WhatsappFailureClassifier::counterColumn($clasificacion);
 
-            if (!$isUndeliverable) {
-                // Fallo transitorio: no tocar whatsapp para evitar reenvíos.
+            if (!$contador) {
+                // Fallo ambiguo: no tocar whatsapp para evitar reenvíos duplicados.
                 return $result;
             }
 
-            $whatsappValue = 0; // Número inválido: permitir reintento controlado
+            $tope = WhatsappFailureClassifier::maxRetries($clasificacion);
+            $whatsappValue = 0; // El mensaje no salió: permitir reintento controlado
         } else {
             // Para otros estados (sent, pending, etc.) no actualizamos
             return $result;
@@ -245,7 +239,7 @@ class UpdateWhatsAppMessageStatus extends Command
                 $factura = Factura::find($incomingInvoiceId);
                 if ($factura) {
                     // No re-armar el envío si ya se alcanzó el tope de reintentos.
-                    $topeAlcanzado = $whatsappValue === 0 && $factura->cont_message_undeliverable >= 3;
+                    $topeAlcanzado = $whatsappValue === 0 && $factura->{$contador} >= $tope;
 
                     // Solo actualizar si el valor es diferente y no se superó el tope
                     if (!$topeAlcanzado && $factura->whatsapp != $whatsappValue) {
@@ -272,7 +266,7 @@ class UpdateWhatsAppMessageStatus extends Command
                 $ingreso = Ingreso::find($incomingPaymentId);
                 if ($ingreso) {
                     // No re-armar el envío si ya se alcanzó el tope de reintentos.
-                    $topeAlcanzado = $whatsappValue === 0 && $ingreso->cont_message_undeliverable >= 3;
+                    $topeAlcanzado = $whatsappValue === 0 && $ingreso->{$contador} >= $tope;
 
                     // Solo actualizar si el valor es diferente y no se superó el tope
                     if (!$topeAlcanzado && $ingreso->whatsapp != $whatsappValue) {
