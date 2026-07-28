@@ -716,6 +716,7 @@ class IngresosController extends Controller
             //Si el tipo de ingreso es de facturas
             $totalIngreso=0;
             $contratos_procesados_mk = []; // Controlar ejecuciones duplicadas MK
+            $mikrotiks_avisadas = [];      // Evita repetir el aviso de "MikroTik sin conexión" por cada factura
             if ($ingreso->tipo == 1) {
                 $saldoFavorUsado = 0;
                 foreach ($request->factura_pendiente as $key => $value) {
@@ -762,7 +763,19 @@ class IngresosController extends Controller
                                 Log::debug("IngresosController@store: Validando ejecución MK para contrato #{$contrato->nro} (ID: {$contrato->id}). Consultas_mk: {$empresa->consultas_mk}");
                                 if($empresa->consultas_mk == 1 && !in_array($contrato->id, $contratos_procesados_mk)){
                                     $contratos_procesados_mk[] = $contrato->id; // Registramos para no repetir en esta petición
-                                    
+
+                                    // Chequeo SÍNCRONO de conexión con la MikroTik: el habilitado corre
+                                    // en segundo plano, así que aquí probamos la conexión para poder
+                                    // AVISAR en la respuesta del pago. Si no hay conexión, el pago se
+                                    // registra igual, pero el usuario NO se habilita ahora.
+                                    if($contrato->server_configuration_id && !in_array($contrato->server_configuration_id, $mikrotiks_avisadas)){
+                                        $mkChk = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+                                        if($mkChk && $this->mikrotikSinConexion($mkChk)){
+                                            $mikrotiks_avisadas[] = $contrato->server_configuration_id;
+                                            session()->flash('warning', 'No hay conexión con la MikroTik "'.($mkChk->nombre ?? $mkChk->ip).'". El pago se registró correctamente, pero el usuario NO fue habilitado en el router. Se habilitará automáticamente cuando la MikroTik vuelva a estar disponible.');
+                                        }
+                                    }
+
                                     // Ejecutar funciones MK en segundo plano, después de enviar la respuesta HTTP
                                     $contratoId = $contrato->id;
                                     $empresaId = $empresa->id;
@@ -1356,6 +1369,36 @@ class IngresosController extends Controller
             // DB::rollBack();
             Log::error($th->getMessage());
             return back()->with('danger', $th->getMessage());
+        }
+    }
+
+    /**
+     * ¿La MikroTik NO tiene conexión ahora mismo? Se usa de forma síncrona al
+     * registrar un pago para avisar que el usuario no será habilitado. Considera
+     * "sin conexión" tanto la marcada como desconectada (status=0) como un intento
+     * de conexión fallido. Timeout corto (1 intento, 3s) para no demorar el pago.
+     */
+    private function mikrotikSinConexion($mikrotik)
+    {
+        try {
+            // status=0 => marcada como Desconectada: no se hacen peticiones al router.
+            if (isset($mikrotik->status) && (int) $mikrotik->status === 0) {
+                return true;
+            }
+
+            $API = new RouterosAPI();
+            $API->port     = (int) $mikrotik->puerto_api;
+            $API->timeout  = 3;
+            $API->attempts = 1;
+            $ok = $API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave);
+            if ($ok) {
+                $API->disconnect();
+            }
+
+            return !$ok;
+        } catch (\Throwable $e) {
+            Log::warning('mikrotikSinConexion: error probando la conexión: ' . $e->getMessage());
+            return true;
         }
     }
 

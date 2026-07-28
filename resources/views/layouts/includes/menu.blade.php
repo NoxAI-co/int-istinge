@@ -702,6 +702,9 @@ isset($_SESSION['permisos']['804']) || isset($_SESSION['permisos']['858'])
                     @endif
                 </a>
             </li>
+            <li class="nav-item" id="cronjobs-sincronizacion-mikrotik">
+                <a class="nav-link" href="{{route('cronjobs.sincronizacion-mikrotik')}}">Sincronización MikroTik</a>
+            </li>
         </ul>
     </div>
 </li>

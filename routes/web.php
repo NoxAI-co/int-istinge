@@ -208,6 +208,9 @@ Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
 Route::get('/generacionnotacredito', 'CronController@generacionnotacredito');
 Route::get('/syncintegrapay', 'CronController@syncIntegraPay');
 Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
+// Empuja de forma desatendida las órdenes de Sincronización Masiva MikroTik que
+// hayan quedado pendientes (p. ej. el navegador se cerró a mitad del proceso).
+Route::get('/mk-sync-procesar', 'MkSyncController@cronProcesar')->name('mkSyncProcesar');
 
 Route::get('portal-pagos', 'PaymentPortalController@index')->name('portal-pagos.index');
 Route::post('portal-pagos/consultar', 'PaymentPortalController@consultar')->name('portal-pagos.consultar');
@@ -833,6 +836,15 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	Route::post('api/cron-dian/resolver-alerta/{id}', 'CronDianController@resolverAlerta');
 	Route::post('api/cron-dian/configurar-fecha', 'CronDianController@guardarConfiguracion');
 	Route::post('api/cron-dian/toggle-emision', 'CronDianController@toggleEmision');
+
+	// ─── Sincronización masiva a MikroTik (por lotes con progreso) ───
+	Route::get('cronjobs/sincronizacion-mikrotik', 'MkSyncController@index')->name('cronjobs.sincronizacion-mikrotik');
+	Route::post('api/mk-sync/previsualizar', 'MkSyncController@previsualizar')->name('mk-sync.previsualizar');
+	Route::post('api/mk-sync/crear', 'MkSyncController@crear')->name('mk-sync.crear');
+	Route::post('api/mk-sync/procesar', 'MkSyncController@procesar')->name('mk-sync.procesar');
+	Route::get('api/mk-sync/estado', 'MkSyncController@estado')->name('mk-sync.estado');
+	Route::post('api/mk-sync/reintentar', 'MkSyncController@reintentar')->name('mk-sync.reintentar');
+	Route::post('api/mk-sync/cancelar', 'MkSyncController@cancelar')->name('mk-sync.cancelar');
 
     // Saldos iniciales
     Route::group(['prefix' => 'saldos_iniciales'], function () {

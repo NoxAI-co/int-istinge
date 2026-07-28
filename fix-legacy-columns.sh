@@ -345,6 +345,63 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla notas_credito)"
   fi
+
+  # --- 14) mk_sync_lotes / mk_sync_items ------------------------------------
+  #  Módulo Cron Jobs > "Sincronización MikroTik": envía en lotes los contratos
+  #  de una MikroTik reutilizando UNA conexión por tanda. `mk_sync_lotes` es la
+  #  cabecera de la orden (progreso + lock anti-concurrencia entre el navegador
+  #  y el cron) y `mk_sync_items` el renglón por contrato con su resultado.
+  #  En BDs legacy no existen (la migración solo corre en instalaciones nuevas)
+  #  -> 1146 Table doesn't exist al abrir el módulo. Idempotente.
+  if table_exists "$DB" "mk_sync_lotes"; then
+    echo "    [mk_sync_lotes] ya existe, salto"
+  else
+    dm "$DB" -e "
+      CREATE TABLE mk_sync_lotes (
+        id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        empresa       INT NOT NULL,
+        mikrotik_id   INT NOT NULL,
+        estado        VARCHAR(20) NOT NULL DEFAULT 'pendiente' COMMENT 'pendiente|ejecutando|completado|cancelado',
+        total         INT NOT NULL DEFAULT 0,
+        procesados    INT NOT NULL DEFAULT 0,
+        correctos     INT NOT NULL DEFAULT 0,
+        fallidos      INT NOT NULL DEFAULT 0,
+        filtros       TEXT NULL,
+        lock_token    VARCHAR(40) NULL,
+        lock_expires  DATETIME NULL,
+        created_by    INT NULL,
+        inicio        DATETIME NULL,
+        fin           DATETIME NULL,
+        created_at    TIMESTAMP NULL,
+        updated_at    TIMESTAMP NULL,
+        INDEX idx_empresa (empresa),
+        INDEX idx_empresa_estado (empresa, estado)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "
+    echo "    [mk_sync_lotes] creada"
+  fi
+
+  if table_exists "$DB" "mk_sync_items"; then
+    echo "    [mk_sync_items] ya existe, salto"
+  else
+    dm "$DB" -e "
+      CREATE TABLE mk_sync_items (
+        id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        lote_id       BIGINT UNSIGNED NOT NULL,
+        contrato_id   INT NOT NULL,
+        contrato_nro  INT NULL,
+        ip            VARCHAR(64) NULL,
+        estado        VARCHAR(12) NOT NULL DEFAULT 'pendiente' COMMENT 'pendiente|ok|error',
+        mensaje       VARCHAR(255) NULL,
+        intentos      INT NOT NULL DEFAULT 0,
+        created_at    TIMESTAMP NULL,
+        updated_at    TIMESTAMP NULL,
+        INDEX idx_lote (lote_id),
+        INDEX idx_lote_estado (lote_id, estado)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "
+    echo "    [mk_sync_items] creada"
+  fi
 done
 
 echo "==> Listo."
