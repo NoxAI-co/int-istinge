@@ -134,15 +134,8 @@
 
     <div class="row card-description">
     	<div class="col-md-12">
-    		{{-- Aviso persistente: la MikroTik no respondió al registrar el pago.
-    		     No se auto-oculta (va aparte del bloque temporizado de abajo) porque
-    		     el usuario debe enterarse de que el contrato aún no quedó habilitado. --}}
-    		@if(Session::has('warning'))
-    		    <div class="alert alert-warning shadow-sm" role="alert" style="border-left: 5px solid #f6c23e;">
-    		        <i class="fas fa-exclamation-triangle mr-1"></i>
-    		        {{Session::get('warning')}}
-    		    </div>
-    		@endif
+    		{{-- El flash 'warning' (p. ej. "MikroTik sin conexión" al registrar el pago)
+    		     se pinta de forma global en layouts/app.blade.php, no aquí. --}}
     		@if(Session::has('success') || Session::has('error'))
     		    @if(Session::has('success'))
     		        <div class="alert alert-success alert-view-show">

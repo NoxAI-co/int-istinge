@@ -1871,6 +1871,13 @@ class IngresosController extends Controller
     }
 
     public function tirillaWpp($nro, WapiService $wapiService){
+        // El aviso de "MikroTik sin conexión" se genera al registrar el pago y en las
+        // empresas con envio_wpp_ingreso=1 el pago redirige aquí. Como esta acción solo
+        // redirige (nunca pinta vista), se conserva el flash para la pantalla siguiente.
+        if (session()->has('warning')) {
+            session()->keep(['warning']);
+        }
+
         $ingreso = Ingreso::where('empresa', Auth::user()->empresa)->where('nro', $nro)->first();
 
         if (!$ingreso) {

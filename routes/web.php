@@ -208,6 +208,10 @@ Route::get('/ejemploGenerarFacturas', 'CronController@ejemploGenerarFacturas');
 Route::get('/generacionnotacredito', 'CronController@generacionnotacredito');
 Route::get('/syncintegrapay', 'CronController@syncIntegraPay');
 Route::get('/emision-factura-dian', 'CronDianController@ejecutar');
+// Reintenta habilitar en MikroTik/CATV los pagos del día cuya habilitación no se
+// completó (p. ej. el router estaba caído al registrar el pago). Es lo que hace
+// cierto el aviso "se habilitará automáticamente cuando la MikroTik vuelva".
+Route::get('/refresh-corte-internt-tv', 'CronController@refreshCorteIntertTV')->name('refreshCorteIntertTV');
 // Empuja de forma desatendida las órdenes de Sincronización Masiva MikroTik que
 // hayan quedado pendientes (p. ej. el navegador se cerró a mitad del proceso).
 Route::get('/mk-sync-procesar', 'MkSyncController@cronProcesar')->name('mkSyncProcesar');
@@ -1856,6 +1860,9 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	// MIKROTIK
 	Route::group(['prefix' => 'mikrotik'], function () {
 		Route::get('/mikrotik/{id}/conectar', 'MikrotikController@conectar')->name('mikrotik.conectar');
+		// Diagnóstico en vivo (no cambia el estado guardado) + su bitácora de seguimiento.
+		Route::post('/{id}/probar-conexion', 'MikrotikController@probarConexion')->name('mikrotik.probar-conexion');
+		Route::get('/{id}/historial-conexion', 'MikrotikController@historialConexion')->name('mikrotik.historial-conexion');
 		Route::get('/mikrotik/{id}/reglas', 'MikrotikController@reglas')->name('mikrotik.reglas');
 		Route::get('/mikrotik/{id}/importar', 'MikrotikController@importar')->name('mikrotik.importar');
 		Route::get('/mikrotik/{id}/reiniciar', 'MikrotikController@reiniciar')->name('mikrotik.reiniciar');

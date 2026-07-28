@@ -402,6 +402,36 @@ for DB in "${DBS[@]}"; do
     "
     echo "    [mk_sync_items] creada"
   fi
+
+  # --- 15) mikrotik_conexion_logs -------------------------------------------
+  #  Bitácora de la acción "Probar conexión" del módulo Mikrotik: guarda cada
+  #  sondeo (ok/fallo, latencia, motivo, board/versión) para poder darle
+  #  seguimiento a una MikroTik intermitente. Idempotente.
+  if table_exists "$DB" "mikrotik_conexion_logs"; then
+    echo "    [mikrotik_conexion_logs] ya existe, salto"
+  else
+    dm "$DB" -e "
+      CREATE TABLE mikrotik_conexion_logs (
+        id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        mikrotik_id  INT NOT NULL,
+        empresa      INT NULL,
+        ok           TINYINT(1) NOT NULL DEFAULT 0,
+        latencia_ms  INT NOT NULL DEFAULT 0,
+        mensaje      VARCHAR(255) NULL,
+        board        VARCHAR(100) NULL,
+        version      VARCHAR(50) NULL,
+        uptime       VARCHAR(50) NULL,
+        cpu_load     VARCHAR(20) NULL,
+        origen       VARCHAR(20) NOT NULL DEFAULT 'manual' COMMENT 'manual | cron',
+        created_by   INT NULL,
+        created_at   TIMESTAMP NULL,
+        INDEX idx_mikrotik (mikrotik_id),
+        INDEX idx_empresa (empresa),
+        INDEX idx_mikrotik_fecha (mikrotik_id, created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "
+    echo "    [mikrotik_conexion_logs] creada"
+  fi
 done
 
 echo "==> Listo."

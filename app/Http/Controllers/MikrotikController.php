@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use App\Empresa;
 
@@ -332,6 +333,202 @@ class MikrotikController extends Controller
             return redirect('empresa/mikrotik')->with($type, $mensaje)->with('mikrotik_id', $mikrotik->id);
         }
         return redirect('empresa/mikrotik')->with('danger', 'No existe un registro con ese id');
+    }
+
+    // ─── Probar conexión (diagnóstico + seguimiento) ─────────────────────────
+    //  Sondea la MikroTik EN VIVO y devuelve un diagnóstico (JSON) SIN tocar el
+    //  campo `status` guardado: es una prueba, no un cambio de estado (para eso
+    //  están Conectar/Desconectar). Cada sondeo queda registrado en
+    //  mikrotik_conexion_logs para poder darle seguimiento a routers
+    //  intermitentes.
+    public function probarConexion($id)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $mikrotik = Mikrotik::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+        if (!$mikrotik) {
+            return response()->json(['ok' => false, 'mensaje' => 'No existe un registro con ese id'], 404);
+        }
+
+        // Sin IP o usuario no tiene sentido intentar la conexión.
+        if (empty($mikrotik->ip) || empty($mikrotik->usuario)) {
+            $resultado = [
+                'ok'          => false,
+                'latencia_ms' => 0,
+                'mensaje'     => 'La MikroTik no tiene IP o usuario configurados. Complétalos en «Editar».',
+                'info'        => [],
+            ];
+        } else {
+            $resultado = $this->sondearMikrotik($mikrotik);
+        }
+
+        $this->registrarPruebaConexion($mikrotik, $resultado, 'manual');
+
+        return response()->json(array_merge($resultado, [
+            'id'            => $mikrotik->id,
+            'nombre'        => $mikrotik->nombre,
+            'ip'            => $mikrotik->ip,
+            'puerto_api'    => (int) $mikrotik->puerto_api,
+            'status'        => (int) $mikrotik->status,   // estado GUARDADO
+            'status_label'  => $mikrotik->status(),
+            // Avisa cuando lo guardado no coincide con la realidad, para que el
+            // operador sepa que debe usar Conectar/Desconectar.
+            'desfasado'     => ((int) $mikrotik->status === 1) !== (bool) $resultado['ok'],
+            'fecha'         => date('d-m-Y H:i:s'),
+        ]))->header('Cache-Control', 'no-store, no-cache');
+    }
+
+    // ─── Historial de pruebas de conexión (seguimiento) ──────────────────────
+    public function historialConexion($id)
+    {
+        $this->getAllPermissions(Auth::user()->id);
+
+        $mikrotik = Mikrotik::where('id', $id)->where('empresa', Auth::user()->empresa)->first();
+        if (!$mikrotik) {
+            return response()->json(['success' => false, 'mensaje' => 'No existe un registro con ese id'], 404);
+        }
+
+        if (!Schema::hasTable('mikrotik_conexion_logs')) {
+            return response()->json([
+                'success'   => true,
+                'sinTabla'  => true,
+                'registros' => [],
+                'resumen'   => null,
+            ]);
+        }
+
+        $registros = DB::table('mikrotik_conexion_logs')
+            ->where('mikrotik_id', $mikrotik->id)
+            ->orderBy('id', 'desc')
+            ->limit(50)
+            ->get(['ok', 'latencia_ms', 'mensaje', 'board', 'version', 'uptime', 'cpu_load', 'origen', 'created_by', 'created_at']);
+
+        $usuarios = User::whereIn('id', $registros->pluck('created_by')->filter()->unique())
+            ->pluck('nombres', 'id');
+
+        $filas = $registros->map(function ($r) use ($usuarios) {
+            return [
+                'ok'          => (int) $r->ok === 1,
+                'latencia_ms' => (int) $r->latencia_ms,
+                'mensaje'     => $r->mensaje,
+                'board'       => $r->board,
+                'version'     => $r->version,
+                'uptime'      => $r->uptime,
+                'cpu_load'    => $r->cpu_load,
+                'origen'      => $r->origen,
+                'usuario'     => $r->created_by ? ($usuarios[$r->created_by] ?? 'Usuario #'.$r->created_by) : 'Sistema',
+                'fecha'       => $r->created_at ? date('d-m-Y H:i:s', strtotime($r->created_at)) : '—',
+            ];
+        })->values();
+
+        // Resumen de las últimas 24 h: disponibilidad y latencia media.
+        $desde = Carbon::now()->subDay()->format('Y-m-d H:i:s');
+        $agg = DB::table('mikrotik_conexion_logs')
+            ->where('mikrotik_id', $mikrotik->id)
+            ->where('created_at', '>=', $desde)
+            ->selectRaw('COUNT(*) as total, SUM(ok = 1) as exitosas, AVG(CASE WHEN ok = 1 THEN latencia_ms END) as latencia')
+            ->first();
+
+        $total = (int) ($agg->total ?? 0);
+
+        return response()->json([
+            'success'   => true,
+            'nombre'    => $mikrotik->nombre,
+            'registros' => $filas,
+            'resumen'   => [
+                'total_24h'        => $total,
+                'exitosas_24h'     => (int) ($agg->exitosas ?? 0),
+                'fallidas_24h'     => $total - (int) ($agg->exitosas ?? 0),
+                'disponibilidad'   => $total > 0 ? (int) round(((int) $agg->exitosas / $total) * 100) : null,
+                'latencia_prom_ms' => $agg && $agg->latencia !== null ? (int) round($agg->latencia) : null,
+            ],
+        ])->header('Cache-Control', 'no-store, no-cache');
+    }
+
+    /**
+     * Conecta a la MikroTik midiendo latencia y, si entra, lee /system/resource.
+     * Timeout corto (5s, 1 intento): esto corre dentro de una petición web.
+     *
+     * @return array{ok: bool, latencia_ms: int, mensaje: string|null, info: array}
+     */
+    private function sondearMikrotik($mikrotik)
+    {
+        $inicio = microtime(true);
+
+        try {
+            $API = new RouterosAPI();
+            $API->port     = (int) $mikrotik->puerto_api;
+            $API->timeout  = 5;
+            $API->attempts = 1;
+
+            $ok = (bool) $API->connect($mikrotik->ip, $mikrotik->usuario, $mikrotik->clave);
+            $latencia = (int) round((microtime(true) - $inicio) * 1000);
+
+            if (!$ok) {
+                $detalle = (isset($API->error_str) && $API->error_str !== '')
+                    ? 'ErrNo '.($API->error_no ?? 0).': '.$API->error_str
+                    : 'No respondió. Verifique IP, puerto API, usuario y contraseña, y que el servicio api esté habilitado en el router.';
+
+                return ['ok' => false, 'latencia_ms' => $latencia, 'mensaje' => $detalle, 'info' => []];
+            }
+
+            // El login funcionó: confirmamos que la API responde comandos.
+            $info = [];
+            try {
+                $recurso = $API->comm('/system/resource/print');
+                $info = (is_array($recurso) && isset($recurso[0])) ? $recurso[0] : [];
+            } catch (\Throwable $e) {
+                // Un print fallido no invalida la prueba de conexión.
+            }
+
+            $API->disconnect();
+
+            return [
+                'ok'          => true,
+                'latencia_ms' => $latencia,
+                'mensaje'     => null,
+                'info'        => [
+                    'board'    => $info['board-name'] ?? ($info['board'] ?? null),
+                    'version'  => $info['version'] ?? null,
+                    'uptime'   => $info['uptime'] ?? null,
+                    'cpu_load' => isset($info['cpu-load']) ? $info['cpu-load'].'%' : null,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok'          => false,
+                'latencia_ms' => (int) round((microtime(true) - $inicio) * 1000),
+                'mensaje'     => substr($e->getMessage(), 0, 240),
+                'info'        => [],
+            ];
+        }
+    }
+
+    /** Deja constancia del sondeo (best-effort: nunca debe tumbar la prueba). */
+    private function registrarPruebaConexion($mikrotik, array $resultado, $origen = 'manual')
+    {
+        try {
+            if (!Schema::hasTable('mikrotik_conexion_logs')) {
+                return;
+            }
+
+            DB::table('mikrotik_conexion_logs')->insert([
+                'mikrotik_id' => $mikrotik->id,
+                'empresa'     => $mikrotik->empresa,
+                'ok'          => $resultado['ok'] ? 1 : 0,
+                'latencia_ms' => (int) $resultado['latencia_ms'],
+                'mensaje'     => $resultado['mensaje'] ? substr($resultado['mensaje'], 0, 250) : null,
+                'board'       => $resultado['info']['board'] ?? null,
+                'version'     => $resultado['info']['version'] ?? null,
+                'uptime'      => $resultado['info']['uptime'] ?? null,
+                'cpu_load'    => $resultado['info']['cpu_load'] ?? null,
+                'origen'      => $origen,
+                'created_by'  => Auth::check() ? Auth::user()->id : null,
+                'created_at'  => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar la prueba de conexión a MikroTik: '.$e->getMessage());
+        }
     }
 
     public function reglas($id){

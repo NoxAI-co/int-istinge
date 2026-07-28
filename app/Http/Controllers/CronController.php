@@ -6482,6 +6482,16 @@ class CronController extends Controller
                         /* * * API MIKROTIK * * */
                         if($contrato->server_configuration_id){
                             $mikrotik = Mikrotik::where('id', $contrato->server_configuration_id)->first();
+
+                            // Corre como cron: una MikroTik borrada (null) tumbaba TODA la
+                            // corrida, y a una marcada como Desconectada (status=0) no se le
+                            // hacen peticiones. En ambos casos se deja revalidacion en 0 para
+                            // reintentar en la siguiente pasada.
+                            if(!$mikrotik || (isset($mikrotik->status) && (int)$mikrotik->status === 0)){
+                                Log::warning('refreshCorteIntertTV: MikroTik '.($mikrotik ? 'desconectada' : 'inexistente').' para el contrato #'.$contrato->nro.'; se reintentará luego.');
+                                continue;
+                            }
+
                             $API = new RouterosAPI();
                             $API->port = $mikrotik->puerto_api;
 

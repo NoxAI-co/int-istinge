@@ -103,6 +103,14 @@
 
     <div id="mks-alerta" class="alert alert-danger shadow-sm" style="display:none; border-left:5px solid #e74a3b;"></div>
 
+    @if(!empty($sinTablas))
+        <div class="alert alert-warning shadow-sm" style="border-left:5px solid #f6c23e;">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            El módulo aún no está instalado en esta base de datos: faltan las tablas <code>mk_sync_lotes</code> / <code>mk_sync_items</code>.
+            Ejecute las migraciones (<code>php artisan migrate</code>) o <code>./fix-legacy-columns.sh</code> para habilitarlo.
+        </div>
+    @endif
+
     {{-- ═══════════════ CONFIGURACIÓN ═══════════════ --}}
     <div class="mks-container" id="mks-config" style="margin-top:-30px; position:relative; z-index:10;">
         <h5 class="font-weight-bold text-dark mb-3"><i class="fas fa-sliders-h mr-2 text-primary"></i> Configuración de la sincronización</h5>
@@ -149,7 +157,7 @@
             <div id="mks-preview-texto" class="text-muted">
                 Selecciona una MikroTik para ver cuántos contratos se enviarán.
             </div>
-            <button id="mks-btn-iniciar" class="btn mks-btn mks-btn-primary" disabled>
+            <button id="mks-btn-iniciar" class="btn mks-btn mks-btn-primary" disabled @if(!empty($sinTablas)) data-bloqueado="1" @endif>
                 <i class="fas fa-paper-plane mr-1"></i> Iniciar sincronización
             </button>
         </div>
@@ -341,7 +349,10 @@ $(function () {
 
     // ─── Previsualizar ──────────────────────────────────────────────────────
     var previewTotal = 0;
+    var bloqueado = $('#mks-btn-iniciar').data('bloqueado') === 1; // faltan las tablas mk_sync_*
+
     function previsualizar() {
+        if (bloqueado) { return; }
         var mk = $('#mks-mikrotik').val();
         if (!mk) {
             previewTotal = 0;

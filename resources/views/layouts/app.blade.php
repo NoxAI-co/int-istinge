@@ -969,6 +969,17 @@
                                     </script>
                                 @endif
 
+                                {{-- Avisos (flash 'warning'): se muestran de forma GLOBAL porque
+                                     nacen en un flujo (p. ej. registrar un pago con la MikroTik
+                                     caída) que puede aterrizar en varias pantallas distintas.
+                                     No se auto-oculta: el usuario debe enterarse sí o sí. --}}
+                                @if (Session::has('warning'))
+                                    <div class="alert alert-warning shadow-sm" role="alert" style="border-left: 5px solid #f6c23e;">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        {{ Session::get('warning') }}
+                                    </div>
+                                @endif
+
                                 <main id="app">
                                     @yield('content')
                                 </main>

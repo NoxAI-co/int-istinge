@@ -58,17 +58,26 @@ class MkSyncController extends Controller
         $grupos    = GrupoCorte::where('empresa', $empresa)->orderBy('nombre')->get(['id', 'nombre']);
         $planes    = PlanesVelocidad::where('empresa', $empresa)->orderBy('name')->get(['id', 'name']);
 
-        // Orden activa (si la hay) para reenganchar la barra de progreso al entrar.
-        $loteActivo = DB::table('mk_sync_lotes')->where('empresa', $empresa)
-            ->whereIn('estado', ['pendiente', 'ejecutando'])
-            ->orderBy('id', 'desc')->first();
-        $activo = $loteActivo ? $this->progreso($loteActivo->id) : null;
+        // En BDs legacy las tablas del módulo pueden no existir todavía (se crean con
+        // la migración o con fix-legacy-columns.sh). Se avisa en pantalla en vez de
+        // reventar con "1146 Table doesn't exist".
+        $sinTablas = ! $this->tablasListas();
+        $activo    = null;
+        $historial = collect();
 
-        $historial = DB::table('mk_sync_lotes as l')
-            ->leftJoin('mikrotik as m', 'm.id', '=', 'l.mikrotik_id')
-            ->where('l.empresa', $empresa)
-            ->orderBy('l.id', 'desc')->limit(15)
-            ->get(['l.id', 'l.estado', 'l.total', 'l.correctos', 'l.fallidos', 'l.created_at', 'l.fin', 'm.nombre as mikrotik_nombre']);
+        if (! $sinTablas) {
+            // Orden activa (si la hay) para reenganchar la barra de progreso al entrar.
+            $loteActivo = DB::table('mk_sync_lotes')->where('empresa', $empresa)
+                ->whereIn('estado', ['pendiente', 'ejecutando'])
+                ->orderBy('id', 'desc')->first();
+            $activo = $loteActivo ? $this->progreso($loteActivo->id) : null;
+
+            $historial = DB::table('mk_sync_lotes as l')
+                ->leftJoin('mikrotik as m', 'm.id', '=', 'l.mikrotik_id')
+                ->where('l.empresa', $empresa)
+                ->orderBy('l.id', 'desc')->limit(15)
+                ->get(['l.id', 'l.estado', 'l.total', 'l.correctos', 'l.fallidos', 'l.created_at', 'l.fin', 'm.nombre as mikrotik_nombre']);
+        }
 
         view()->share([
             'seccion'    => 'cronjobs',
@@ -77,7 +86,13 @@ class MkSyncController extends Controller
             'subseccion' => 'cronjobs-sincronizacion-mikrotik',
         ]);
 
-        return view('cronjobs.sincronizacion-mikrotik', compact('mikrotiks', 'grupos', 'planes', 'activo', 'historial'));
+        return view('cronjobs.sincronizacion-mikrotik', compact('mikrotiks', 'grupos', 'planes', 'activo', 'historial', 'sinTablas'));
+    }
+
+    /** ¿Existen las tablas del módulo? (BDs legacy pueden no tenerlas aún). */
+    private function tablasListas()
+    {
+        return Schema::hasTable('mk_sync_lotes') && Schema::hasTable('mk_sync_items');
     }
 
     // ─── Query de contratos por filtro ────────────────────────────────────────
@@ -128,6 +143,9 @@ class MkSyncController extends Controller
     public function crear(Request $request)
     {
         $request->validate(['mikrotik_id' => 'required|integer']);
+        if (! $this->tablasListas()) {
+            return response()->json(['success' => false, 'message' => 'El módulo aún no está instalado en esta base de datos (faltan las tablas mk_sync_*).']);
+        }
         $empresa = Auth::user()->empresa;
         $filtros = $this->filtrosDeRequest($request);
 

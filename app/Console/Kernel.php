@@ -7,6 +7,7 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CronDianController;
+use App\Http\Controllers\MkSyncController;
 
 class Kernel extends ConsoleKernel
 {
@@ -123,6 +124,30 @@ class Kernel extends ConsoleKernel
         }))
             ->name('cron-emision-factura-dian')
             ->everyFifteenMinutes()
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
+
+        // Reintento de habilitación tras el pago: los ingresos del día que quedaron con
+        // revalidacion_enable_internet/_tv = 0 (la MikroTik u OLT no respondió al cobrar)
+        // se vuelven a procesar. Es el respaldo del aviso "el usuario NO fue habilitado
+        // en el router; se habilitará automáticamente cuando la MikroTik vuelva". Cada 15 min.
+        $schedule->call($this->cronLogueado('RefreshCorteInternetTV', function () {
+            return app(CronController::class)->refreshCorteIntertTV();
+        }))
+            ->name('cron-refresh-corte-internet-tv')
+            ->everyFifteenMinutes()
+            ->timezone('America/Bogota')
+            ->withoutOverlapping();
+
+        // Sincronización Masiva MikroTik: empuja las órdenes que quedaron pendientes
+        // (p. ej. el operador cerró el navegador o el router estaba caído). Cada 5 min:
+        // el propio método corta la corrida si la orden terminó, está tomada por otra
+        // instancia (lock) o la MikroTik no responde.
+        $schedule->call($this->cronLogueado('MkSyncProcesar', function () {
+            return app(MkSyncController::class)->cronProcesar();
+        }))
+            ->name('cron-mk-sync-procesar')
+            ->everyFiveMinutes()
             ->timezone('America/Bogota')
             ->withoutOverlapping();
 
