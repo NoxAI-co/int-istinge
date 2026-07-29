@@ -385,5 +385,156 @@
             }
         })
     }
+
+    // ── Probar conexión (diagnóstico en vivo de UNA MikroTik) ─────────────────
+    // Consulta el estado REAL contra el router: no toca el estado guardado. Se usa
+    // delegación de eventos porque DataTables redibuja las filas en cada página.
+
+    function urlEmpresa(ruta){
+        var base = window.location.pathname.split("/")[1] === "software" ? "/software" : "";
+        return base + "/empresa" + ruta;
+    }
+
+    function escaparHtml(texto){
+        return $('<div>').text(texto === null || texto === undefined ? '' : texto).html();
+    }
+
+    $(document).on('click', '.btn-probar-conexion', function(){
+        var id     = $(this).data('id');
+        var nombre = $(this).data('nombre');
+
+        swal({
+            title: 'Probando conexión...',
+            html: 'Consultando <strong>' + escaparHtml(nombre) + '</strong> en este momento.',
+            type: 'info',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            onOpen: function(){ swal.showLoading(); }
+        });
+
+        $.ajax({
+            url: urlEmpresa('/mikrotik/' + id + '/probar-conexion'),
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(data){ mostrarResultadoConexion(id, nombre, data); },
+            error: function(xhr){
+                var msg = (xhr.responseJSON && xhr.responseJSON.mensaje)
+                    ? xhr.responseJSON.mensaje
+                    : 'No se pudo completar la prueba. Intente de nuevo.';
+                swal({ title: 'ERROR', html: escaparHtml(msg), type: 'error' });
+            }
+        });
+    });
+
+    function mostrarResultadoConexion(id, nombre, data){
+        var info  = data.info || {};
+        var filas = '';
+
+        filas += '<tr><td class="text-left"><strong>Resultado</strong></td><td class="text-right">'
+              + (data.ok
+                    ? '<span class="text-success font-weight-bold">RESPONDE</span>'
+                    : '<span class="text-danger font-weight-bold">NO RESPONDE</span>')
+              + '</td></tr>';
+        filas += '<tr><td class="text-left">Dirección</td><td class="text-right">'
+              + escaparHtml(data.ip) + ':' + escaparHtml(data.puerto_api) + '</td></tr>';
+        filas += '<tr><td class="text-left">Latencia</td><td class="text-right">'
+              + escaparHtml(data.latencia_ms) + ' ms</td></tr>';
+        filas += '<tr><td class="text-left">Estado guardado</td><td class="text-right">'
+              + escaparHtml(data.status_label) + '</td></tr>';
+
+        if (data.ok) {
+            if (info.board)    { filas += '<tr><td class="text-left">Equipo</td><td class="text-right">'   + escaparHtml(info.board)    + '</td></tr>'; }
+            if (info.version)  { filas += '<tr><td class="text-left">RouterOS</td><td class="text-right">' + escaparHtml(info.version)  + '</td></tr>'; }
+            if (info.uptime)   { filas += '<tr><td class="text-left">Encendida hace</td><td class="text-right">' + escaparHtml(info.uptime) + '</td></tr>'; }
+            if (info.cpu_load) { filas += '<tr><td class="text-left">CPU</td><td class="text-right">'      + escaparHtml(info.cpu_load) + '</td></tr>'; }
+        }
+
+        var html = '<table class="table table-sm mb-0">' + filas + '</table>';
+
+        if (!data.ok && data.mensaje) {
+            html += '<div class="alert alert-danger text-left mt-2 mb-0 p-2"><small>'
+                 + escaparHtml(data.mensaje) + '</small></div>';
+        }
+
+        // El estado guardado es el que decide si el sistema le manda peticiones: si no
+        // coincide con la realidad hay que corregirlo con Conectar/Desconectar.
+        if (data.desfasado) {
+            html += '<div class="alert alert-warning text-left mt-2 mb-0 p-2"><small>'
+                 + (data.ok
+                        ? 'La MikroTik responde pero está <strong>guardada como desconectada</strong>: el sistema no le enviará operaciones hasta que la conecte.'
+                        : 'La MikroTik <strong>no responde</strong> pero está guardada como conectada: las operaciones sobre ella van a fallar.')
+                 + '</small></div>';
+        }
+
+        html += '<div class="text-muted mt-2"><small>Prueba realizada el ' + escaparHtml(data.fecha) + '</small></div>';
+
+        swal({
+            title: escaparHtml(nombre),
+            html: html,
+            type: data.ok ? 'success' : 'error',
+            width: 520,
+            showCancelButton: true,
+            confirmButtonColor: '#1A59A1',
+            confirmButtonText: 'ACEPTAR',
+            cancelButtonColor: '#6c757d',
+            cancelButtonText: 'Ver historial',
+        }).then(function(result){
+            if (result.dismiss === 'cancel') { verHistorialConexion(id, nombre); }
+        });
+    }
+
+    function verHistorialConexion(id, nombre){
+        $.ajax({
+            url: urlEmpresa('/mikrotik/' + id + '/historial-conexion'),
+            method: 'GET',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(data){
+                if (data.sinTabla) {
+                    swal({ title: 'HISTORIAL', html: 'Todavía no hay bitácora de pruebas en este entorno.', type: 'info' });
+                    return;
+                }
+
+                var resumen = data.resumen || {};
+                var html = '';
+
+                if (resumen.total_24h) {
+                    html += '<div class="mb-2"><small>Últimas 24 h: <strong>' + resumen.total_24h + '</strong> pruebas · '
+                         + '<span class="text-success">' + resumen.exitosas_24h + ' ok</span> · '
+                         + '<span class="text-danger">' + resumen.fallidas_24h + ' fallidas</span>'
+                         + (resumen.disponibilidad !== null ? ' · disponibilidad <strong>' + resumen.disponibilidad + '%</strong>' : '')
+                         + (resumen.latencia_prom_ms !== null ? ' · latencia media ' + resumen.latencia_prom_ms + ' ms' : '')
+                         + '</small></div>';
+                }
+
+                if (!data.registros.length) {
+                    html += '<p class="mb-0">Sin pruebas registradas todavía.</p>';
+                } else {
+                    html += '<div style="max-height:320px; overflow:auto;"><table class="table table-sm table-striped mb-0">'
+                         + '<thead><tr><th class="text-left">Fecha</th><th>Estado</th><th>Latencia</th><th class="text-left">Origen</th><th class="text-left">Usuario</th></tr></thead><tbody>';
+                    data.registros.forEach(function(r){
+                        html += '<tr>'
+                             + '<td class="text-left"><small>' + escaparHtml(r.fecha) + '</small></td>'
+                             + '<td>' + (r.ok ? '<span class="text-success">OK</span>' : '<span class="text-danger" title="' + escaparHtml(r.mensaje) + '">Falló</span>') + '</td>'
+                             + '<td><small>' + escaparHtml(r.latencia_ms) + ' ms</small></td>'
+                             + '<td class="text-left"><small>' + escaparHtml(r.origen) + '</small></td>'
+                             + '<td class="text-left"><small>' + escaparHtml(r.usuario) + '</small></td>'
+                             + '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+
+                swal({
+                    title: 'Historial · ' + escaparHtml(nombre),
+                    html: html,
+                    width: 640,
+                    confirmButtonColor: '#1A59A1',
+                    confirmButtonText: 'CERRAR',
+                });
+            },
+            error: function(){
+                swal({ title: 'ERROR', html: 'No se pudo consultar el historial.', type: 'error' });
+            }
+        });
+    }
 </script>
 @endsection
