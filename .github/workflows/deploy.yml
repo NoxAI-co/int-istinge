@@ -1,9 +1,12 @@
-name: Deploy to cPanel Servers
+name: Deploy to cPanel Servers (legacy — solo manual)
 
+# DESACTIVADO EN PUSH. Este pipeline es de la arquitectura anterior: sincroniza
+# por rsync a servidores cPanel (/home/<user>/public_html). La flota actual
+# corre en Docker y se despliega con deploy-docker.yml.
+#
+# Se deja invocable a mano por si queda algún cliente en cPanel. Si ya no hay
+# ninguno, este archivo se puede borrar junto con scripts/deploy.sh.
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       deploy_code:

@@ -9,7 +9,65 @@
 
 ---
 
-## 🚀 Sistema de Deployment Automatizado
+## 🚀 Despliegue (arquitectura actual: Docker)
+
+La flota corre como **un contenedor Docker por cliente** en un único VPS, todos con la
+misma imagen `integra-int`. El despliegue lo hace `deploy.sh` en el servidor y lo
+dispara GitHub Actions (`.github/workflows/deploy-docker.yml`) **en cada push a `master`**.
+
+### Qué hace un deploy
+
+1. Espera si el cliente tiene un barrido del scheduler en curso (el cron de corte puede
+   tardar >30 min; recrear el contenedor a la mitad deja contratos entre `morosos` en el
+   MikroTik y `state` en la BD).
+2. `git pull --ff-only` y `docker build -t integra-int:<sha> -t integra-int:latest`.
+3. **Canario**: recrea UN cliente y verifica por HTTPS que responda. Si falla, aborta y
+   el resto de la flota queda intacta con la imagen anterior.
+4. Recrea el resto, verificando cada uno. Al final reporta los que no respondieron.
+
+### Configuración requerida (GitHub → Settings)
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| Secret | `DEPLOY_SSH_KEY` | Clave privada SSH del servidor (usar una deploy key dedicada) |
+| Secret | `DEPLOY_HOST` | IP o host del VPS |
+| Secret | `DEPLOY_USER` | Usuario SSH |
+| Secret | `DEPLOY_PATH` | Ruta del repo en el servidor (ej. `/opt/integra/int-istinge`) |
+| Secret | `DEPLOY_PORT` | Puerto SSH (opcional, default 22) |
+| Variable | `CANARY_CLIENT` | Cliente a usar como canario (opcional) |
+
+### Uso manual en el servidor
+
+```bash
+./deploy.sh                    # toda la flota, con canario
+./deploy.sh acme               # un solo cliente
+DRY_RUN=1 ./deploy.sh          # muestra qué haría, sin tocar nada
+SKIP_BUILD=1 ./deploy.sh       # sin reconstruir la imagen
+FORCE=1 ./deploy.sh            # no esperar al scheduler
+```
+
+### Rollback
+
+Cada deploy etiqueta la imagen con el commit, así que se puede volver atrás sin rebuild:
+
+```bash
+docker images integra-int                              # ver tags disponibles
+IMAGE_TAG=<sha_anterior> SKIP_BUILD=1 ./deploy.sh      # volver a esa imagen
+```
+
+### Ojo con el repo del servidor
+
+`deploy.sh` usa `git pull --ff-only`: si alguien commitea directamente en el servidor,
+el deploy se detiene con un error explícito en vez de mezclar código a ciegas. Hay que
+subir esos commits (`git push`) o descartarlos (`git reset --hard @{u}`).
+
+---
+
+## 🗄️ Sistema de Deployment a cPanel (LEGACY — solo manual)
+
+> **Obsoleto.** Corresponde a la arquitectura anterior (rsync a servidores cPanel). El
+> workflow `deploy.yml` ya **no corre en push**, solo a mano. Si ya no queda ningún
+> cliente en cPanel, se puede borrar junto con `scripts/deploy.sh`.
 
 Este repositorio incluye un sistema de deployment automatizado con **GitHub Actions** para desplegar código y migraciones de base de datos a **40 servidores cPanel**.
 

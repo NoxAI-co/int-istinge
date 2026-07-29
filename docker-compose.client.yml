@@ -21,7 +21,9 @@
 
 services:
   app:
-    image: integra-int:latest            # imagen única compartida (construida una vez)
+    # Imagen única compartida (construida una vez). deploy.sh la etiqueta con el
+    # commit desplegado; IMAGE_TAG permite volver a una anterior para rollback.
+    image: "integra-int:${IMAGE_TAG:-latest}"
     restart: unless-stopped
     env_file:
       # Falla ruidosamente si CLIENT no está set, en vez de intentar leer

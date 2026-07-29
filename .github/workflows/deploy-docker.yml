@@ -1,0 +1,80 @@
+name: Deploy (Docker / flota de clientes)
+
+# Cada push a master se despliega a la flota. deploy.sh protege el rollout:
+# espera a que no haya un barrido del cron de corte en curso, prueba primero
+# con un cliente canario y solo entonces toca al resto.
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      client:
+        description: 'Desplegar solo a este cliente (vacío = todos)'
+        required: false
+        default: ''
+        type: string
+      force:
+        description: 'Desplegar aunque el scheduler esté en medio de un barrido'
+        required: false
+        default: false
+        type: boolean
+
+# Dos pushes seguidos no pueden desplegar en paralelo: se pisarían el build de
+# la imagen y el recreado de contenedores. El segundo espera al primero.
+concurrency:
+  group: deploy-docker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT || 22 }}" -H "${{ secrets.DEPLOY_HOST }}" \
+            >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Desplegar
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          CANARY_CLIENT: ${{ vars.CANARY_CLIENT }}
+          ONLY_CLIENT: ${{ github.event.inputs.client }}
+          FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          echo "Commit: ${{ github.sha }}"
+          echo "Autor:  ${{ github.actor }}"
+
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && CANARY_CLIENT='${CANARY_CLIENT}' FORCE='${FORCE}' ./deploy.sh ${ONLY_CLIENT}"
+
+      - name: Limpiar credenciales
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
+
+      - name: Resumen
+        if: always()
+        run: |
+          echo "=========================================="
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Desplegado  ${{ github.sha }}"
+          else
+            echo "❌ Falló el deploy de ${{ github.sha }}"
+            echo ""
+            echo "Si falló el canario, el resto de la flota NO fue tocada."
+            echo "Rollback en el servidor:"
+            echo "  IMAGE_TAG=<sha_anterior> SKIP_BUILD=1 ./deploy.sh"
+          fi
+          echo "=========================================="
