@@ -1000,6 +1000,21 @@ class CronController extends Controller
 
                 $factura = Factura::find($contacto->factura);
 
+                //Misma revalidacion que en CortarFacturas: la lista se arma al inicio de la corrida,
+                //asi que si el cliente pago durante el barrido la factura ya no debe cortarse.
+                if(!$factura || $factura->estatus != 1){
+                    if($factura && isset($contacto->contrato_id)){
+                        $mov = new MovimientoLOG;
+                        $mov->contrato    = $contacto->contrato_id;
+                        $mov->modulo      = 5;
+                        $mov->descripcion = '[CRON] Corte omitido: la factura ' . $factura->id . ' ya no está pendiente de pago al momento de aplicar el corte.';
+                        $mov->created_by  = 1;
+                        $mov->empresa     = $factura->empresa;
+                        $mov->save();
+                    }
+                    continue;
+                }
+
                 // Saltar facturas cerradas con nota crédito por el valor total
                 if ($factura && $factura->devoluciones() > 0) {
                     $totalFactura = $factura->total()->total ?? 0;
@@ -1428,7 +1443,9 @@ class CronController extends Controller
                 'cs.state',
                 'cs.id as idcontrato',
                 'f.contrato_id',
-                'cs.grupo_corte'
+                'cs.grupo_corte',
+                //MySQL exige que las columnas del ORDER BY esten en el SELECT cuando hay DISTINCT
+                'contactos.updated_at'
             )
             ->where('f.estatus',1)
             ->whereIn('f.tipo',[1,2])
@@ -1452,6 +1469,10 @@ class CronController extends Controller
                     ->whereDate('f2.vencimiento','<=',now())
                     ->groupBy('fc.contrato_nro');
             })
+
+            //El leftJoin con facturas_contratos duplica filas cuando esa tabla tiene registros
+            //repetidos para la misma factura, y el contrato terminaba cortandose 2 o 3 veces seguidas.
+            ->distinct()
 
             ->orderByRaw("FIELD(cs.grupo_corte, $whereOrder)")
             ->orderBy('contactos.updated_at','asc')
@@ -1500,6 +1521,22 @@ class CronController extends Controller
                 //** Fin desarrollo nuevo
 
                 $factura = Factura::find($contacto->factura);
+
+                //La lista de $contactos se arma una sola vez al inicio de la corrida y el barrido
+                //puede tardar mas de media hora. Si el cliente pago mientras tanto, la factura ya
+                //no debe cortarse, asi que revalidamos su estado real antes de tocar el contrato.
+                if(!$factura || $factura->estatus != 1){
+                    if($factura && isset($contacto->idcontrato)){
+                        $mov = new MovimientoLOG;
+                        $mov->contrato    = $contacto->idcontrato;
+                        $mov->modulo      = 5;
+                        $mov->descripcion = '[CRON] Corte omitido: la factura ' . $factura->id . ' ya no está pendiente de pago al momento de aplicar el corte.';
+                        $mov->created_by  = 1;
+                        $mov->empresa     = $factura->empresa;
+                        $mov->save();
+                    }
+                    continue;
+                }
 
                 // Saltar facturas cerradas con nota crédito por el valor total
                 if ($factura && $factura->devoluciones() > 0) {
@@ -1670,6 +1707,23 @@ class CronController extends Controller
                                                 $API->write('/ip/firewall/address-list/print', TRUE);
                                                 $ARRAYS = $API->read();
                                                 if($contrato->state == 'enabled'){
+                                                    // [FIX] Re-verificar que la factura sigue abierta en DB
+                                                    // en este punto exacto (puede haber sido pagada entre el
+                                                    // inicio del CRON y el momento de procesar este contrato).
+                                                    $facturaFresh = Factura::find($contacto->factura);
+                                                    if (!$facturaFresh || $facturaFresh->estatus == 0) {
+                                                        $mov = new MovimientoLOG;
+                                                        $mov->contrato    = $contrato->id;
+                                                        $mov->modulo      = 5;
+                                                        $mov->descripcion = '[CRON] Corte omitido: la factura ' . $contacto->factura . ' ya fue pagada (estatus=0) antes de ejecutar el corte. No se deshabilita el contrato.';
+                                                        $mov->created_by  = 1;
+                                                        $mov->empresa     = $contrato->empresa;
+                                                        $mov->save();
+                                                        Log::info("[CRON] Contrato #{$contrato->nro}: corte omitido porque la factura {$contacto->factura} ya está pagada.");
+                                                        $API->disconnect();
+                                                        continue 2; // sale del foreach($contratos) y del foreach($contactos)
+                                                    }
+
                                                     if($contrato->ip && filter_var($contrato->ip, FILTER_VALIDATE_IP)){
                                                         $API->comm("/ip/firewall/address-list/add", array(
                                                             "address" => $contrato->ip,
@@ -1965,6 +2019,21 @@ class CronController extends Controller
                     }
 
                     $factura = Factura::find($contacto->factura);
+
+                    //Misma revalidacion que en el corte de internet: si el cliente pago mientras
+                    //la corrida iba en curso, la factura ya no debe generar corte de television.
+                    if(!$factura || $factura->estatus != 1){
+                        if($factura && isset($contacto->contrato_id)){
+                            $mov = new MovimientoLOG;
+                            $mov->contrato    = $contacto->contrato_id;
+                            $mov->modulo      = 5;
+                            $mov->descripcion = '[CRON] Corte de TV omitido: la factura ' . $factura->id . ' ya no está pendiente de pago al momento de aplicar el corte.';
+                            $mov->created_by  = 1;
+                            $mov->empresa     = $factura->empresa;
+                            $mov->save();
+                        }
+                        continue;
+                    }
 
                     // Saltar facturas cerradas con nota crédito por el valor total
                     if ($factura && $factura->devoluciones() > 0) {
