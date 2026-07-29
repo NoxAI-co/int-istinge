@@ -137,6 +137,20 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
     exit 1
   fi
 
+  # Estamos corriendo desde una copia hecha ANTES del pull, así que si el pull
+  # trajo una versión nueva de este script hay que relanzarla: de lo contrario
+  # cada cambio a deploy.sh recién se aplicaría en el deploy siguiente, y el
+  # rollout de hoy usaría la lógica de ayer.
+  # DEPLOY_SELFUPDATED corta cualquier posibilidad de relanzarse en bucle.
+  if [ "${DEPLOY_SELFUPDATED:-0}" != "1" ] && ! cmp -s "$0" "$REPO_DIR/deploy.sh"; then
+    echo "==> deploy.sh se actualizó con el pull; relanzando con la versión nueva"
+    _nuevo="$(mktemp)"
+    cat "$REPO_DIR/deploy.sh" > "$_nuevo"
+    rm -f "$0"
+    DEPLOY_SELFUPDATED=1 DEPLOY_REEXEC=1 DEPLOY_REPO_DIR="$REPO_DIR" \
+      exec bash "$_nuevo" "$@"
+  fi
+
   # Etiquetamos la imagen con el commit desplegado, además de 'latest'. Sin esto
   # 'latest' se sobrescribe y no queda ninguna imagen a la cual volver.
   IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD)}"
