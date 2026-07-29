@@ -499,7 +499,10 @@
 
       <div class="row ">
         <div class="col-sm-12 text-right" style="padding-top: 1%;">
-          <button type="submit" id="submitcheck" onclick="submitLimit(this.id)" class="btn btn-success">Guardar</button>
+          {{-- Igual que en facturas/create: submitLimit() suelta el botón a los 5
+               segundos y el guardado puede tardar más, con lo que se crean facturas
+               duplicadas. El bloqueo lo maneja el handler de submit, y no expira. --}}
+          <button type="submit" id="submitcheck" class="btn btn-success">Guardar</button>
           <a href="{{route('facturas.index')}}" class="btn btn-outline-secondary">Cancelar</a>
         </div>
 
@@ -837,6 +840,27 @@
                 }
                 $('#error-codigo').text(errorMsg).show();
             }
+        });
+    }
+
+    // Un solo envío por formulario. Antes el botón se rehabilitaba solo a los cinco
+    // segundos (submitLimit), y cuando el guardado tardaba más el usuario volvía a
+    // hacer clic: así se crearon dos facturas del mismo contrato con el mismo código.
+    // Este bloqueo no expira; si el servidor devuelve un error de validación la
+    // página se recarga y el botón vuelve a estar disponible.
+    if (window.jQuery) {
+        jQuery(function ($) {
+            var enviandoFactura = false;
+
+            $('#form-factura').on('submit', function (e) {
+                if (enviandoFactura) {
+                    e.preventDefault();
+                    return false;
+                }
+                enviandoFactura = true;
+
+                $('#submitcheck').prop('disabled', true).text('Guardando...');
+            });
         });
     }
     </script>

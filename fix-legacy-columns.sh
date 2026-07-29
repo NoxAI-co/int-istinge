@@ -432,6 +432,39 @@ for DB in "${DBS[@]}"; do
     "
     echo "    [mikrotik_conexion_logs] creada"
   fi
+
+  # --- 16) cont_envio_fallido en factura e ingresos --------------------------
+  #  WhatsappFailureClassifier separa los fallos del destinatario de los de la
+  #  cuenta emisora; el contador de estos últimos es cont_envio_fallido, y
+  #  CronController::envioFacturaWpp lo usa en el WHERE. Sin la columna, el cron
+  #  de envío por WhatsApp aborta con "Unknown column" en cada corrida (pasaba
+  #  cada 15 minutos en toda la flota). Idempotente.
+  for TBL in factura ingresos; do
+    if ! table_exists "$DB" "$TBL"; then
+      echo "    (sin tabla ${TBL})"
+    elif column_exists "$DB" "$TBL" "cont_envio_fallido"; then
+      echo "    [${TBL}.cont_envio_fallido] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE ${TBL} ADD COLUMN cont_envio_fallido INT NOT NULL DEFAULT 0 COMMENT 'reintentos por fallos de la cuenta emisora (pago, token, rate-limit), no del destinatario';"
+      echo "    [${TBL}.cont_envio_fallido] agregada"
+    fi
+  done
+
+  # --- 17) factura.registrado_en --------------------------------------------
+  #  created_at NO dice cuándo se creó la factura: FacturasController::store lo
+  #  pisa con la fecha que el usuario escribe en el formulario. Eso dejó sin
+  #  rastro el origen de las facturas duplicadas 52769/52770 (se pudo reconstruir
+  #  de casualidad, por el created_at de facturas_contratos).
+  #  No se cambia la semántica de created_at porque el cron de cortes la usa para
+  #  elegir la última factura del cliente; se guarda la hora real aparte.
+  if table_exists "$DB" "factura"; then
+    if column_exists "$DB" "factura" "registrado_en"; then
+      echo "    [factura.registrado_en] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE factura ADD COLUMN registrado_en TIMESTAMP NULL COMMENT 'momento real en que se guardo la factura; created_at lleva la fecha del documento';"
+      echo "    [factura.registrado_en] agregada"
+    fi
+  fi
 done
 
 echo "==> Listo."

@@ -2166,11 +2166,18 @@ class FacturasController extends Controller{
             $user = Auth::user();
             $nro = false;
             $contrato = false;
-            $num = Factura::where('empresa',$user->empresa)->orderby('nro','asc')->get()->last();
+            //Antes esto era ->orderby('nro','asc')->get()->last(), que traía las decenas de
+            //miles de facturas de la empresa a memoria para quedarse con una. Además de lento,
+            //ese retardo era lo que ensanchaba la ventana en la que dos envíos del formulario
+            //podían tomar el mismo consecutivo.
+            $maxNro = (int) Factura::where('empresa',$user->empresa)->max('nro');
 
             //Nota: En conclusion si no es electrónica, se debe seleccionar un contrato. De lo contrario si se puede crear sin contrato.
             if(!isset($request->electronica)){
-                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->first();
+                //lockForUpdate: sin él, dos peticiones simultáneas leen el mismo 'inicio',
+                //ninguna ve la factura de la otra (todavía sin commit) y ambas concluyen que
+                //el código está libre. El bloqueo serializa la asignación del consecutivo.
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',1)->lockForUpdate()->first();
 
                 if($request->contratos_json != ''){
                     $contrato = Contrato::where('id', $request->contratos_json)->first();
@@ -2178,7 +2185,7 @@ class FacturasController extends Controller{
 
             }else{
 
-                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->first();
+                $nro=NumeracionFactura::where('empresa',$user->empresa)->where('preferida',1)->where('estado',1)->where('tipo',2)->lockForUpdate()->first();
                 if(!$nro){
                     $mensaje='Debes crear una numeración para facturas de venta preferida';
                     DB::rollBack();
@@ -2237,10 +2244,14 @@ class FacturasController extends Controller{
         $toReplace = array('/', '$','.');
         $key = str_replace($toReplace, "", $key);
 
-        if($num){
-            $numero = $num->nro + 1;
+        //factura.nro es INT y para casi toda la tabla ya vale 2147483647, su techo:
+        //al desbordarse, MySQL (sin modo estricto) truncaba en silencio en vez de fallar.
+        //No seguimos empujando contra el límite para no depender de ese truncamiento.
+        //El identificador real de la factura es 'id'; normalizar 'nro' es tema aparte.
+        if($maxNro >= 2147483647){
+            $numero = 2147483647;
         }else{
-            $numero = 1;
+            $numero = $maxNro > 0 ? $maxNro + 1 : 1;
         }
 
         $tipo = 1; //1= normal, 2=Electrónica.
@@ -2276,7 +2287,11 @@ class FacturasController extends Controller{
         $factura->cliente=$request->cliente;
         $factura->tipo=$tipo;
         $factura->fecha=Carbon::parse($request->fecha)->format('Y-m-d');
+        //created_at queda con la fecha del documento (no se toca: el cron de cortes la usa
+        //para saber cuál es la última factura del cliente). La hora real del registro va
+        //aparte, para poder auditar después quién creó qué y cuándo.
         $factura->created_at=Carbon::parse($request->fecha)->format('Y-m-d H:i:s');
+        $factura->registrado_en=now();
         $factura->vencimiento= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->suspension= Carbon::parse($request->vencimiento)->format('Y-m-d');
         $factura->pago_oportuno = Carbon::parse($request->pago_oportuno)->format('Y-m-d');
@@ -6926,8 +6941,11 @@ class FacturasController extends Controller{
                 ];
             }
 
-            $num = Factura::where('empresa', Auth::user()->empresa)->orderBy('nro', 'asc')->get()->last();
-            $numero = $num ? $num->nro + 1 : 1;
+            //Igual que en store(): traer todas las facturas de la empresa a memoria para
+            //quedarse con una fila era carísimo. Y 'nro' ya está en el techo del INT, así
+            //que no lo empujamos más allá para no depender del truncamiento de MySQL.
+            $maxNro = (int) Factura::where('empresa', Auth::user()->empresa)->max('nro');
+            $numero = $maxNro >= 2147483647 ? 2147483647 : ($maxNro > 0 ? $maxNro + 1 : 1);
 
             $nro = NumeracionFactura::where('empresa', Auth::user()->empresa)
                 ->where('preferida', 1)
@@ -7067,8 +7085,11 @@ class FacturasController extends Controller{
                 ];
             }
 
-            $num = Factura::where('empresa', Auth::user()->empresa)->orderBy('nro', 'asc')->get()->last();
-            $numero = $num ? $num->nro + 1 : 1;
+            //Igual que en store(): traer todas las facturas de la empresa a memoria para
+            //quedarse con una fila era carísimo. Y 'nro' ya está en el techo del INT, así
+            //que no lo empujamos más allá para no depender del truncamiento de MySQL.
+            $maxNro = (int) Factura::where('empresa', Auth::user()->empresa)->max('nro');
+            $numero = $maxNro >= 2147483647 ? 2147483647 : ($maxNro > 0 ? $maxNro + 1 : 1);
 
             $nro = NumeracionFactura::where('empresa', Auth::user()->empresa)
                 ->where('preferida', 1)

@@ -434,5 +434,27 @@
         </div>
     </div>
     {{--/Modal Nuevo producto  --}}
+
+    {{-- Un solo envío por formulario: este botón no tenía ninguna protección contra
+         el doble clic, y apunta al mismo facturas.store donde una segunda petición
+         crea otra factura del mismo contrato. El bloqueo no expira; si el servidor
+         devuelve un error de validación la página se recarga y el botón vuelve. --}}
+    <script type="text/javascript">
+        if (window.jQuery) {
+            jQuery(function ($) {
+                var enviandoFactura = false;
+
+                $('#form-factura').on('submit', function (e) {
+                    if (enviandoFactura) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    enviandoFactura = true;
+
+                    $(this).find('button[type="submit"]').prop('disabled', true).text('Guardando...');
+                });
+            });
+        }
+    </script>
 @endsection
 
