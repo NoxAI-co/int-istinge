@@ -23,7 +23,7 @@
          una lectura inofensiva y es justo lo que se necesita cuando algo falla:
          disponible tanto si está marcada como conectada como si no. --}}
     <button type="button" title="Probar conexión"
-        class="btn btn-outline-secondary btn-icons btn-probar-conexion"
+        class="btn btn-outline-dark btn-icons btn-probar-conexion"
         data-id="{{ $id }}" data-nombre="{{ $nombre }}">
         <i class="fas fa-satellite-dish"></i>
     </button>
