@@ -33,19 +33,62 @@ jobs:
 
     steps:
       - name: Configurar SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          set -uo pipefail
+
+          # Cada verificación falla con su propio mensaje. Los valores nunca se
+          # imprimen (y GitHub los enmascararía igual): solo decimos cuál falta.
+          faltan=""
+          [ -n "${DEPLOY_SSH_KEY}" ] || faltan="${faltan} DEPLOY_SSH_KEY"
+          [ -n "${DEPLOY_HOST}" ]    || faltan="${faltan} DEPLOY_HOST"
+          [ -n "${DEPLOY_USER}" ]    || faltan="${faltan} DEPLOY_USER"
+          [ -n "${DEPLOY_PATH}" ]    || faltan="${faltan} DEPLOY_PATH"
+          if [ -n "$faltan" ]; then
+            echo "::error::Secrets sin definir o vacíos:${faltan}"
+            echo "Cargalos en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          PORT="${DEPLOY_PORT:-22}"
+          echo "Puerto SSH: ${PORT}"
+
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          # printf, no echo: preserva los saltos de línea de la clave tal cual.
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "${{ secrets.DEPLOY_PORT || 22 }}" -H "${{ secrets.DEPLOY_HOST }}" \
-            >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Valida el formato sin exponer nada: derivar la pública falla si la
+          # clave está truncada, sin las líneas BEGIN/END o con saltos perdidos.
+          if ! ssh-keygen -y -f ~/.ssh/id_deploy > /dev/null 2>&1; then
+            echo "::error::DEPLOY_SSH_KEY no es una clave privada válida."
+            echo "Pegá el archivo completo, con las líneas BEGIN/END y el salto final."
+            exit 1
+          fi
+          echo "Clave privada: formato OK"
+
+          # Sin 2>/dev/null: si falla queremos ver el motivo en el log.
+          if ! ssh-keyscan -p "${PORT}" -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts; then
+            echo "::error::No se pudo leer la clave host del servidor en el puerto ${PORT}."
+            echo "Revisá que DEPLOY_HOST sea solo el host o IP (sin https://, sin usuario@, sin puerto)."
+            exit 1
+          fi
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::known_hosts quedó vacío: el servidor no respondió en el puerto ${PORT}."
+            exit 1
+          fi
+          echo "Clave host del servidor: OK"
 
       - name: Desplegar
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           CANARY_CLIENT: ${{ vars.CANARY_CLIENT }}
           ONLY_CLIENT: ${{ github.event.inputs.client }}
@@ -54,6 +97,8 @@ jobs:
           set -euo pipefail
           echo "Commit: ${{ github.sha }}"
           echo "Autor:  ${{ github.actor }}"
+
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
 
           ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" \
               -o BatchMode=yes -o StrictHostKeyChecking=yes \
