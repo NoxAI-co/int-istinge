@@ -465,6 +465,31 @@ for DB in "${DBS[@]}"; do
       echo "    [factura.registrado_en] agregada"
     fi
   fi
+  # --- 18) factura.form_token + índice único ---------------------------------
+  #  Idempotencia de facturas manuales: cada render del formulario lleva un token
+  #  único que se guarda con la factura. El bloqueo JS del botón no impide que el
+  #  navegador repita el POST (F5 + "volver a enviar"): así salieron duplicadas en
+  #  enternet con 3-4 s de diferencia y el fix del consecutivo ya desplegado.
+  #  FacturasController::store descarta el POST cuyo token ya existe; el índice
+  #  único cubre el caso concurrente. UNIQUE sobre columna NULL admite múltiples
+  #  NULL en MySQL, así que las facturas del cron (sin token) no chocan.
+  if table_exists "$DB" "factura"; then
+    if column_exists "$DB" "factura" "form_token"; then
+      echo "    [factura.form_token] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE factura ADD COLUMN form_token VARCHAR(64) NULL DEFAULT NULL COMMENT 'token de idempotencia del formulario de creacion manual';"
+      echo "    [factura.form_token] agregada"
+    fi
+    IDX="$(dm -N -B -e "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema='$DB' AND table_name='factura' AND index_name='uniq_factura_form_token';")"
+    if [ "${IDX:-0}" = "1" ]; then
+      echo "    [factura.uniq_factura_form_token] ya existe, salto"
+    else
+      dm "$DB" -e "ALTER TABLE factura ADD UNIQUE KEY uniq_factura_form_token (form_token);"
+      echo "    [factura.uniq_factura_form_token] creado"
+    fi
+  else
+    echo "    (sin tabla factura, salto form_token)"
+  fi
 done
 
 echo "==> Listo."

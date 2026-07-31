@@ -56,6 +56,10 @@
   <!--Formulario Facturas-->
 	<form method="POST" action="{{ route('facturas.store') }}" style="padding: 2% 3%;    " role="form" class="forms-sample" novalidate id="form-factura" >
 		{{ csrf_field() }}
+		{{-- Idempotencia: el bloqueo JS del botón no cubre el reenvío del navegador
+		     (F5 + "volver a enviar"); el servidor descarta el segundo POST de un
+		     mismo render usando este token (índice único factura.form_token). --}}
+		<input type="hidden" name="form_token" value="{{ \Illuminate\Support\Str::uuid() }}">
 
     @include('facturas.includes.comment-descuento', ['comentario2' => null ])
 

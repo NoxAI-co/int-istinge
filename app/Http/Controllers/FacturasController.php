@@ -2161,6 +2161,22 @@ class FacturasController extends Controller{
             'precio.*.required' => 'El precio es obligatorio en todas las líneas.',
         ]);
 
+        //Idempotencia del formulario: cada render de crear factura trae un form_token
+        //único. El bloqueo JS del botón no puede impedir que el navegador repita el
+        //POST (F5 + "volver a enviar formulario", pestaña restaurada): así salieron
+        //las duplicadas 53014/53015 y 53018/53019 de enternet, con 3-4 segundos de
+        //diferencia y el fix del consecutivo ya desplegado. Si el token ya está en
+        //una factura, este POST es un reenvío: se responde con la factura existente.
+        $formToken = substr(trim((string) $request->form_token), 0, 64);
+        if ($formToken !== '') {
+            $yaGuardada = Factura::where('form_token', $formToken)->first();
+            if ($yaGuardada) {
+                return redirect('empresa/factura-index')
+                    ->with('success', 'La factura '.$yaGuardada->codigo.' ya se había guardado: se descartó el reenvío del formulario para no duplicarla.')
+                    ->with('codigo', $yaGuardada->id);
+            }
+        }
+
         DB::beginTransaction();
         try {
             $user = Auth::user();
@@ -2196,6 +2212,26 @@ class FacturasController extends Controller{
                     $contrato = Contrato::where('id', $request->contratos_json)->first();
                 }
 
+            }
+
+            //Red adicional al form_token (que solo cubre reenvíos de un mismo render):
+            //dos facturas activas del mismo contrato con segundos de diferencia solo
+            //salen de un envío repetido (p. ej. dos pestañas, o un formulario viejo
+            //renderizado sin token). Anular y volver a facturar en menos de 30
+            //segundos no es un flujo real; el que sí lo necesite espera y reintenta.
+            if ($contrato) {
+                $recienCreada = Factura::where('empresa', $user->empresa)
+                    ->where('contrato_id', $contrato->id)
+                    ->where('estatus', '!=', 2)
+                    ->where('registrado_en', '>=', now()->subSeconds(30))
+                    ->orderBy('id', 'desc')
+                    ->first();
+                if ($recienCreada) {
+                    DB::rollBack();
+                    return redirect('empresa/factura-index')
+                        ->with('error', 'Hace menos de 30 segundos se registró la factura '.$recienCreada->codigo.' para este mismo contrato; no se creó otra. Si de verdad necesitas una factura adicional, espera unos segundos y vuelve a intentarlo.')
+                        ->with('codigo', $recienCreada->id);
+                }
             }
 
             //Actualiza el nro de inicio para la numeracion seleccionada
@@ -2304,6 +2340,11 @@ class FacturasController extends Controller{
         $factura->ordencompra    = $request->ordencompra;
         $factura->periodo_facturacion = $request->periodo_facturacion;
         $factura->created_by = $user->id;
+        //Solo se asigna si vino: los POST de formularios renderizados antes de este
+        //cambio no traen token y deben seguir guardando (sin la protección).
+        if ($formToken !== '') {
+            $factura->form_token = $formToken;
+        }
         $factura->ordenservicio = $request->ordenservicio;
         $factura->factura_mes_manual = isset($request->factura_mes_manual) ? $request->factura_mes_manual : 0;
         $factura->periodo_cobrado_text = isset($request->periodo_cobrado_text) ? $request->periodo_cobrado_text : '';
@@ -2470,6 +2511,22 @@ class FacturasController extends Controller{
         return redirect('empresa/factura-index')->with('success', $mensaje)->with('print', $print)->with('codigo', $factura->id);
     } catch (\Exception $e) {
         DB::rollBack();
+
+        //Carrera exacta entre dos POST con el mismo form_token: la comprobación de
+        //arriba no ve la factura de la otra petición (aún sin commit), pero el índice
+        //único uniq_factura_form_token solo deja pasar una. La que cae aquí no es un
+        //error del usuario: es el reenvío, y se responde con la factura que sí quedó.
+        if ($formToken !== ''
+            && $e instanceof \Illuminate\Database\QueryException
+            && strpos($e->getMessage(), 'uniq_factura_form_token') !== false) {
+            $yaGuardada = Factura::where('form_token', $formToken)->first();
+            if ($yaGuardada) {
+                return redirect('empresa/factura-index')
+                    ->with('success', 'La factura '.$yaGuardada->codigo.' ya se había guardado: se descartó el reenvío del formulario para no duplicarla.')
+                    ->with('codigo', $yaGuardada->id);
+            }
+        }
+
         \Log::error('Error al guardar factura: ' . $e->getMessage());
         return redirect()->back()->with('error', 'Ocurrió un error inesperado al intentar guardar la factura: ' . $e->getMessage())->withInput();
     }
