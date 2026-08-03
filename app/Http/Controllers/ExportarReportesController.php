@@ -323,8 +323,12 @@ class ExportarReportesController extends Controller
         $objPHPExcel = new PHPExcel();
         $tituloReporte = "Reporte de Facturas Electrónicas desde ".$request->fecha." hasta ".$request->hasta;
 
-        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Estrato', 'Municipio','Celular','Direccion','Barrio', 'Creacion','Vencimiento','Dian','Estatus', 'Forma Pago','Periodo Cobrado','Plan internet','Valor Plan internet','Iva internet','Plan tv','Valor plan tv','Iva tv','total IVA','Total','Antes de IVA', 'Fecha Pago', 'Nro. Pago', 'Estado contrato','Items');
-        $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA');
+        //'Otros items' = todo lo facturado que no es el plan internet/TV (mantenimientos,
+        //reconexiones, etc., con su IVA). Sin esta columna la suma de las de plan no
+        //cierra contra 'Total' y parece un error de cálculo: en redestvsat (jul-2026)
+        //eran $16.768.834 de MANTENIMIENTO REDES que no aparecían en ninguna columna.
+        $titulosColumnas = array('Nro. Factura', 'Cliente', 'Cedula', 'Estrato', 'Municipio','Celular','Direccion','Barrio', 'Creacion','Vencimiento','Dian','Estatus', 'Forma Pago','Periodo Cobrado','Plan internet','Valor Plan internet','Iva internet','Plan tv','Valor plan tv','Iva tv','Otros items','total IVA','Total','Antes de IVA', 'Fecha Pago', 'Nro. Pago', 'Estado contrato','Items');
+        $letras= array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB');
 
         $objPHPExcel->getProperties()->setCreator("Sistema")
         ->setLastModifiedBy("Sistema")
@@ -334,12 +338,12 @@ class ExportarReportesController extends Controller
         ->setKeywords("Reporte de Facturas Electrónicas")
         ->setCategory("Reporte excel");
 
-        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:AA1');
+        $objPHPExcel->setActiveSheetIndex(0)->mergeCells('A1:AB1');
         $objPHPExcel->setActiveSheetIndex(0)->setCellValue('A1',$tituloReporte);
         $estilo = array('font'  => array('bold'  => true, 'size'  => 12, 'name'  => 'Times New Roman' ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A1:AA1')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A1:AB1')->applyFromArray($estilo);
         $estilo =array('fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'd08f50')));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:AA3')->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AB3')->applyFromArray($estilo);
 
         for ($i=0; $i <count($titulosColumnas) ; $i++) {
             $objPHPExcel->setActiveSheetIndex(0)->setCellValue($letras[$i].'3', utf8_decode($titulosColumnas[$i]));
@@ -449,6 +453,12 @@ class ExportarReportesController extends Controller
 
         $i = 4;
         $total = 0;
+        $sumValorInternet = 0;
+        $sumIvaInternet = 0;
+        $sumValorTv = 0;
+        $sumIvaTv = 0;
+        $sumOtrosItems = 0;
+        $sumTotalIva = 0;
         $facturasParaActualizar = [];
 
         foreach ($facturas as $facturaRow) {
@@ -500,6 +510,23 @@ class ExportarReportesController extends Controller
 
             $total += $totalFactura;
 
+            //Se calculan una vez los valores redondeados que van a las celdas, y
+            //'Otros items' como resta sobre esos mismos redondeados: así la suma
+            //horizontal (planes + IVAs + otros) cierra EXACTA contra 'Total' en
+            //cada fila, que es justo lo que los clientes verifican en Excel.
+            $valorInternetCell = $planInternet ? round($planInternet->precio * $planInternet->cant) : 0;
+            $ivaInternetCell   = $planInternet ? round($ivaInternet) : 0;
+            $valorTvCell       = $planTV ? round($planTV->precio * $planTV->cant) : 0;
+            $ivaTvCell         = $planTV ? round($ivaTV) : 0;
+            $otrosItemsCell    = round($totalFactura) - $valorInternetCell - $ivaInternetCell - $valorTvCell - $ivaTvCell;
+
+            $sumValorInternet += $valorInternetCell;
+            $sumIvaInternet   += $ivaInternetCell;
+            $sumValorTv       += $valorTvCell;
+            $sumIvaTv         += $ivaTvCell;
+            $sumOtrosItems    += $otrosItemsCell;
+            $sumTotalIva      += round($totalIva);
+
             $objPHPExcel->setActiveSheetIndex(0)
                 ->setCellValue($letras[0].$i, $facturaRow->codigo)
                 ->setCellValue($letras[1].$i, trim($facturaRow->cliente_nombre . ' ' . $facturaRow->cliente_apellidos))
@@ -516,18 +543,19 @@ class ExportarReportesController extends Controller
                 ->setCellValue($letras[12].$i, $formaPago !== '' ? $formaPago : 'No tiene forma de pago.')
                 ->setCellValue($letras[13].$i, $periodoCobrado)
                 ->setCellValue($letras[14].$i, $planInternet ? $planInternet->nombre : 'N/A')
-                ->setCellValue($letras[15].$i, $planInternet ? round($planInternet->precio * $planInternet->cant) : 0)
-                ->setCellValue($letras[16].$i, $planInternet ? round($ivaInternet) : 0)
+                ->setCellValue($letras[15].$i, $valorInternetCell)
+                ->setCellValue($letras[16].$i, $ivaInternetCell)
                 ->setCellValue($letras[17].$i, $planTV ? $planTV->nombre : 'N/A')
-                ->setCellValue($letras[18].$i, $planTV ? round($planTV->precio * $planTV->cant) : 0)
-                ->setCellValue($letras[19].$i, $planTV ? round($ivaTV) : 0)
-                ->setCellValue($letras[20].$i, round($totalIva))
-                ->setCellValue($letras[21].$i, round($totalFactura))
-                ->setCellValue($letras[22].$i, round($totalFactura - $totalIva))
-                ->setCellValue($letras[23].$i, $facturaRow->pago_fecha ? date('d-m-Y', strtotime($facturaRow->pago_fecha)) : '')
-                ->setCellValue($letras[24].$i, $facturaRow->pago_nro ?? '')
-                ->setCellValue($letras[25].$i, $facturaRow->contrato_state ?? 'N/A')
-                ->setCellValue($letras[26].$i, $listItems);
+                ->setCellValue($letras[18].$i, $valorTvCell)
+                ->setCellValue($letras[19].$i, $ivaTvCell)
+                ->setCellValue($letras[20].$i, $otrosItemsCell)
+                ->setCellValue($letras[21].$i, round($totalIva))
+                ->setCellValue($letras[22].$i, round($totalFactura))
+                ->setCellValue($letras[23].$i, round($totalFactura - $totalIva))
+                ->setCellValue($letras[24].$i, $facturaRow->pago_fecha ? date('d-m-Y', strtotime($facturaRow->pago_fecha)) : '')
+                ->setCellValue($letras[25].$i, $facturaRow->pago_nro ?? '')
+                ->setCellValue($letras[26].$i, $facturaRow->contrato_state ?? 'N/A')
+                ->setCellValue($letras[27].$i, $listItems);
 
             $i++;
         }
@@ -536,9 +564,18 @@ class ExportarReportesController extends Controller
             DB::table('factura')->whereIn('id', $facturasParaActualizar)->update(['estatus' => 0]);
         }
 
+        //Totales al pie de cada columna de valores: la suma de estas cinco columnas
+        //(planes, IVAs y otros items) da el mismo TOTAL, para que se pueda verificar
+        //sin sumar nada a mano en Excel.
         $objPHPExcel->setActiveSheetIndex(0)
-            ->setCellValue($letras[20].$i, "TOTAL: ")
-            ->setCellValue($letras[21].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($total));
+            ->setCellValue($letras[14].$i, "TOTALES: ")
+            ->setCellValue($letras[15].$i, $sumValorInternet)
+            ->setCellValue($letras[16].$i, $sumIvaInternet)
+            ->setCellValue($letras[18].$i, $sumValorTv)
+            ->setCellValue($letras[19].$i, $sumIvaTv)
+            ->setCellValue($letras[20].$i, $sumOtrosItems)
+            ->setCellValue($letras[21].$i, $sumTotalIva)
+            ->setCellValue($letras[22].$i, Auth::user()->empresa()->moneda." ".Funcion::Parsear($total));
 
         $estilo =array('font'  => array('size'  => 12, 'name'  => 'Times New Roman' ),
             'borders' => array(
@@ -546,10 +583,10 @@ class ExportarReportesController extends Controller
                     'style' => PHPExcel_Style_Border::BORDER_THIN
                 )
             ), 'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,));
-        $objPHPExcel->getActiveSheet()->getStyle('A3:AA'.$i)->applyFromArray($estilo);
+        $objPHPExcel->getActiveSheet()->getStyle('A3:AB'.$i)->applyFromArray($estilo);
 
         // Ancho fijo: setAutoSize recorre todas las filas y provoca timeout en exportaciones grandes
-        $anchosColumnas = [14, 28, 14, 10, 16, 14, 24, 16, 12, 12, 12, 10, 18, 28, 22, 14, 12, 22, 14, 12, 12, 14, 14, 12, 12, 14, 30];
+        $anchosColumnas = [14, 28, 14, 10, 16, 14, 24, 16, 12, 12, 12, 10, 18, 28, 22, 14, 12, 22, 14, 12, 14, 12, 14, 14, 12, 12, 14, 30];
         foreach ($anchosColumnas as $idx => $ancho) {
             $objPHPExcel->getActiveSheet()->getColumnDimension($letras[$idx])->setWidth($ancho);
         }
