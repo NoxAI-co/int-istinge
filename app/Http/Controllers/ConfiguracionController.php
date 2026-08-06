@@ -2162,6 +2162,25 @@ class ConfiguracionController extends Controller
 
   }
 
+  /**
+   * Habilita/deshabilita el envío automático de facturas por WhatsApp.
+   * Gatea el cron CronController::envioFacturaWpp (default ON si la columna no existe).
+   */
+  function envioFacturaWhatsapp(Request $request){
+    $empresa = Empresa::find(auth()->user()->empresa);
+
+    if ($request->status == 0) {
+      $empresa->envio_factura_whatsapp = 1;
+      $empresa->save();
+      return 1;
+    } else {
+      $empresa->envio_factura_whatsapp = 0;
+      $empresa->save();
+      return 0;
+    }
+
+  }
+
   public function limpiarCache(Request $request){
     $empresa = Empresa::find($request->empresa);
 

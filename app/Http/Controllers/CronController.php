@@ -5545,6 +5545,14 @@ class CronController extends Controller
             // Refrescar empresa
             $empresa = Empresa::find($empresa_id);
 
+            // Default ON (si la columna no existe en BD legacy -> null -> se asume 1).
+            // El housekeeping de cron_fecha_whatsapp ya corrió arriba; aquí solo se
+            // detiene el ENVÍO por WhatsApp cuando el admin lo apagó en configuración.
+            if (($empresa->envio_factura_whatsapp ?? 1) == 0) {
+                Log::info('[CRON] envioFacturaWpp: envío automático de facturas por WhatsApp DESHABILITADO por configuración de la empresa.');
+                return ['success' => false, 'message' => 'Envío automático de facturas por WhatsApp deshabilitado por configuración'];
+            }
+
             $grupos_corte = GrupoCorte::where('status', 1)->get();
             if ($grupos_corte->count() === 0) {
                 return ['success' => false, 'message' => 'No hay grupos de corte activos'];

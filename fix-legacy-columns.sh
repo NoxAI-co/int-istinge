@@ -490,6 +490,26 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla factura, salto form_token)"
   fi
+  # --- 19) empresas: toggles de envío por WhatsApp ----------------------------
+  #  empresas.envio_factura_whatsapp gatea el cron CronController::envioFacturaWpp
+  #  (DEFAULT 1 = encendido, mismo comportamiento que hoy: el cron trata la
+  #  columna ausente como habilitado). empresas.envio_wpp_ingreso gatea el envío
+  #  de la tirilla por WhatsApp al registrar un ingreso (IngresosController):
+  #  DEFAULT 0 = apagado, igual que el isset() actual cuando la columna falta.
+  #  integra2.0 comparte estas BDs pero usa sus propias columnas (wpp_ingreso).
+  if table_exists "$DB" "empresas"; then
+    for COL in "envio_factura_whatsapp:1" "envio_wpp_ingreso:0"; do
+      NAME="${COL%%:*}"; DEF="${COL#*:}"
+      if column_exists "$DB" "empresas" "$NAME"; then
+        echo "    [empresas.${NAME}] ya existe, salto"
+      else
+        dm "$DB" -e "ALTER TABLE empresas ADD COLUMN ${NAME} TINYINT(1) NOT NULL DEFAULT ${DEF};"
+        echo "    [empresas.${NAME}] agregada (TINYINT(1) DEFAULT ${DEF})"
+      fi
+    done
+  else
+    echo "    (sin tabla empresas para toggles WhatsApp)"
+  fi
 done
 
 echo "==> Listo."

@@ -302,6 +302,10 @@
                 <a href="javascript:envioWppIngreso()">{{ Auth::user()->empresa()->envio_wpp_ingreso == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     envio de tirilla por wpp en recibo de caja</a><br>
                 <input type="hidden" id="envioWppIngreso" value="{{ Auth::user()->empresa()->envio_wpp_ingreso }}">
+                {{-- Default ON: en BDs legacy sin la columna se asume habilitado (igual que el cron) --}}
+                <a href="javascript:envioFacturaWhatsapp()">{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 'Habilitar' : 'Deshabilitar' }}
+                    envio automatico de facturas por WhatsApp</a><br>
+                <input type="hidden" id="envioFacturaWhatsapp" value="{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 0 : 1 }}">
             </div>
 
             <div class="col-sm-3 enlaces">
@@ -2334,6 +2338,71 @@
                                     timer: 5000
                                 })
                                 $("#envioWppIngreso").val(0);
+                            }
+                            setTimeout(function() {
+                                var a = document.createElement("a");
+                                a.href = window.location.pathname;
+                                a.click();
+                            }, 1000);
+                        }
+                    });
+
+                }
+            })
+        }
+
+        function envioFacturaWhatsapp(){
+
+            if (window.location.pathname.split("/")[1] === "software") {
+                var url = '/software/configuracion_envio_factura_whatsapp';
+            } else {
+                var url = '/configuracion_envio_factura_whatsapp';
+            }
+
+            if ($("#envioFacturaWhatsapp").val() == 0) {
+                $titleswal = "¿Desea habilitar el envio automatico de facturas por WhatsApp?";
+            }
+
+            if ($("#envioFacturaWhatsapp").val() == 1) {
+                $titleswal = "¿Desea deshabilitar el envio automatico de facturas por WhatsApp?";
+            }
+
+            Swal.fire({
+                title: $titleswal,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                cancelButtonText: 'Cancelar',
+                confirmButtonText: 'Aceptar',
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: url,
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        method: 'post',
+                        data: {
+                            status: $("#envioFacturaWhatsapp").val()
+                        },
+                        success: function(data) {
+                            if (data == 1) {
+                                Swal.fire({
+                                    type: 'success',
+                                    title: 'Envio automatico de facturas por WhatsApp habilitado',
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                })
+                                $("#envioFacturaWhatsapp").val(1);
+                            } else {
+                                Swal.fire({
+                                    type: 'success',
+                                    title: 'Envio automatico de facturas por WhatsApp deshabilitado',
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                })
+                                $("#envioFacturaWhatsapp").val(0);
                             }
                             setTimeout(function() {
                                 var a = document.createElement("a");

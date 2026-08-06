@@ -322,6 +322,7 @@ Route::post('configuracion_activeconnection_secret', 'ConfiguracionController@ac
 Route::post('configuracion_facturacionSmsAutomatica', 'ConfiguracionController@facturacionSmsAutomatica');
 Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTirilla');
 Route::post('configuracion_envio_wpp_ingreso', 'ConfiguracionController@envioWppIngreso');
+Route::post('configuracion_envio_factura_whatsapp', 'ConfiguracionController@envioFacturaWhatsapp');
 Route::post('configuracion_limpiarCache', 'ConfiguracionController@limpiarCache');
 Route::post('configuracion_olt', 'ConfiguracionController@configurarOLT');
 Route::get('configuracion/contratos/etiquetas-automaticas', 'ConfiguracionController@etiquetasAutomaticas')->name('configuracion.etiquetas_automaticas');
