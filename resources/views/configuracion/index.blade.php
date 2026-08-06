@@ -299,13 +299,6 @@
                 <a href="javascript:periodoTirilla()">{{ Auth::user()->empresa()->periodo_tirilla == 0 ? 'Habilitar' : 'Deshabilitar' }}
                         periodo en tirilla</a><br>
                 <input type="hidden" id="periodoTirilla" value="{{ Auth::user()->empresa()->periodo_tirilla }}">
-                <a href="javascript:envioWppIngreso()">{{ Auth::user()->empresa()->envio_wpp_ingreso == 0 ? 'Habilitar' : 'Deshabilitar' }}
-                    envio de tirilla por wpp en recibo de caja</a><br>
-                <input type="hidden" id="envioWppIngreso" value="{{ Auth::user()->empresa()->envio_wpp_ingreso }}">
-                {{-- Default ON: en BDs legacy sin la columna se asume habilitado (igual que el cron) --}}
-                <a href="javascript:envioFacturaWhatsapp()">{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 'Habilitar' : 'Deshabilitar' }}
-                    envio automatico de facturas por WhatsApp</a><br>
-                <input type="hidden" id="envioFacturaWhatsapp" value="{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 0 : 1 }}">
             </div>
 
             <div class="col-sm-3 enlaces">
@@ -569,6 +562,13 @@
             <a href="javascript:registrarNumeroWhatsappMeta()">Registrar número de teléfono WhatsApp</a><br>
             <a href="javascript:suscribirseCanalWhatsapp()">Suscribirse al canal</a><br>
             <a href="{{ route('instances.index') }}">Instancia</a><br>
+            {{-- Default ON: en BDs legacy sin la columna se asume habilitado (igual que el cron) --}}
+            <a href="javascript:envioFacturaWhatsapp()">{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 'Habilitar' : 'Deshabilitar' }}
+                envío automático de facturas por WhatsApp</a><br>
+            <input type="hidden" id="envioFacturaWhatsapp" value="{{ (Auth::user()->empresa()->envio_factura_whatsapp ?? 1) == 0 ? 0 : 1 }}">
+            <a href="javascript:envioWppIngreso()">{{ Auth::user()->empresa()->envio_wpp_ingreso == 0 ? 'Habilitar' : 'Deshabilitar' }}
+                envío automático del recibo de pago (tirilla) por WhatsApp</a><br>
+            <input type="hidden" id="envioWppIngreso" value="{{ Auth::user()->empresa()->envio_wpp_ingreso }}">
         </div>
 
 
