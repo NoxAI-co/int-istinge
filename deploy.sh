@@ -120,6 +120,13 @@ wait_for_client_scheduler() {
     [ "$waited" -eq 0 ] && echo "     esperando a que termine el barrido de ${client}..."
     sleep 10
     waited=$((waited + 10))
+    # Latido cada 30s: sin esto la espera es MUDA hasta 15 minutos y la sesión
+    # SSH del deploy por GitHub Actions muere con "broken pipe" a mitad del
+    # rollout (pasó el 06-08-2026: 5 de 35 clientes desplegados). Además le
+    # dice al operador que el deploy sigue vivo, no colgado.
+    if [ $((waited % 30)) -eq 0 ]; then
+      echo "     ... ${client} sigue en barrido (${waited}s de ${timeout}s)"
+    fi
   done
   [ "$waited" -gt 0 ] && echo "     libre tras ${waited}s"
   return 0

@@ -100,8 +100,13 @@ jobs:
 
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
 
+          # ServerAlive*: el rollout puede quedarse callado varios minutos
+          # esperando a que termine el barrido del cron de un cliente. Sin
+          # keepalive la conexión se corta ("broken pipe") y la flota queda a
+          # medio desplegar. 30s x 20 = tolera hasta 10 min de silencio.
           ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" \
               -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && CANARY_CLIENT='${CANARY_CLIENT}' FORCE='${FORCE}' ./deploy.sh ${ONLY_CLIENT}"
 
