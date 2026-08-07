@@ -494,6 +494,9 @@
 @endsection
 
 @section('content')
+{{-- Notificaciones del sistema (Integra Portal) --}}
+@include('partials.portal-notificaciones')
+
 @if(auth()->user()->modo_lectura())
 <div class="alert alert-warning text-left" role="alert">
     <h4 class="alert-heading text-uppercase">Integra Colombia: Suscripción Vencida</h4>

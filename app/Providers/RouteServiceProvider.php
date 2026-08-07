@@ -37,6 +37,8 @@ class RouteServiceProvider extends ServiceProvider
     {
         $this->mapStatelessAssetRoutes();
 
+        $this->mapMasterApiRoutes();
+
         $this->mapApiRoutes();
 
         $this->mapWebRoutes();
@@ -50,6 +52,25 @@ class RouteServiceProvider extends ServiceProvider
      * cada página serializaban con el AJAX de las DataTables y dejaban las
      * tablas pegadas mientras no había logo subido.
      */
+    /**
+     * master-api: endpoints que consume el Integra Portal
+     * (portal.integracolombia.co). Grupo 'api' = stateless, sin CSRF; la
+     * autenticación (Bearer + HMAC) vive en VerifyPortalToken.
+     */
+    protected function mapMasterApiRoutes()
+    {
+        Route::middleware(['api', \App\Http\Middleware\VerifyPortalToken::class])
+             ->prefix('master-api')
+             ->namespace($this->namespace)
+             ->group(function () {
+                 Route::get('health', 'MasterApiController@health');
+                 Route::post('notificaciones', 'MasterApiController@notificaciones');
+                 Route::post('comprobantes/estado', 'MasterApiController@comprobanteEstado');
+                 Route::post('suspender', 'MasterApiController@suspender');
+                 Route::post('activar', 'MasterApiController@activar');
+             });
+    }
+
     protected function mapStatelessAssetRoutes()
     {
         Route::namespace($this->namespace)

@@ -17,6 +17,15 @@
     </a>
 </li>
 
+@if(Auth::user()->rol == 2)
+<li class="nav-item" id="mi-suscripcion">
+    <a class="nav-link" href="{{ route('mi-suscripcion.index') }}">
+        <i class="menu-icon fas fa-credit-card"></i>
+        <span class="menu-title">Mi suscripción Integra</span>
+    </a>
+</li>
+@endif
+
 @if(Auth::user()->rol == 1 || Auth::user()->username == 'desarrollo')
 <li class="nav-item" id="logs">
     <a class="nav-link" href="{{route('master.logs.index')}}">

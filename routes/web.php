@@ -462,6 +462,10 @@ Route::post('/webhooks/whatsapp', 'WhatsAppWebhookController@webhook')->name('wh
 
 // Chat interface (con auth)
 Route::middleware(['auth'])->group(function () {
+    // Mi suscripción Integra (comprobantes de pago al Integra Portal)
+    Route::get('/mi-suscripcion',  'MiSuscripcionController@index')->name('mi-suscripcion.index');
+    Route::post('/mi-suscripcion', 'MiSuscripcionController@store')->name('mi-suscripcion.store');
+
     Route::get('/chat/whatsapp', 'ChatController@index')->name('chat.whatsapp');
 
     // Chat API routes (Internal use for AJAX)
