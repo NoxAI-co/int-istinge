@@ -58,4 +58,12 @@ return [
         'verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
     ],
 
+    // Integra Portal (portal.integracolombia.co). OJO: este proyecto corre
+    // `config:cache` al arrancar el contenedor, asi que env() devuelve NULL en
+    // runtime — TODO acceso debe ser via config('services.portal.*').
+    'portal' => [
+        'token' => env('PORTAL_MASTER_TOKEN'),
+        'url'   => env('PORTAL_URL', 'https://portal.integracolombia.co'),
+    ],
+
 ];

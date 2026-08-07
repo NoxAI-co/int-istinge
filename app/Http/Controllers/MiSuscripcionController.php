@@ -28,7 +28,7 @@ class MiSuscripcionController extends Controller
             ? PortalComprobante::orderByDesc('id')->limit(24)->get()
             : collect();
 
-        $configurado = (string) env('PORTAL_MASTER_TOKEN', '') !== '';
+        $configurado = (string) config('services.portal.token') !== '';
 
         return view('mi-suscripcion.index', compact('comprobantes', 'configurado'));
     }
@@ -43,7 +43,7 @@ class MiSuscripcionController extends Controller
             'observaciones' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $token = (string) env('PORTAL_MASTER_TOKEN', '');
+        $token = (string) config('services.portal.token');
         if ($token === '') {
             return back()->with('error', 'El envío al portal no está configurado. Contacta a soporte de Integra.');
         }
@@ -62,7 +62,7 @@ class MiSuscripcionController extends Controller
             $respuesta = Http::withToken($token)
                 ->timeout(20)
                 ->attach('archivo', file_get_contents($archivo->getRealPath()), $archivo->getClientOriginalName())
-                ->post(rtrim(env('PORTAL_URL', 'https://portal.integracolombia.co'), '/').'/api/master/comprobantes', array_filter([
+                ->post(rtrim((string) config('services.portal.url'), '/').'/api/master/comprobantes', array_filter([
                     'periodo'           => $data['periodo'],
                     'portal_empresa_id' => $portalEmpresaId,
                     'nit'               => $nit,

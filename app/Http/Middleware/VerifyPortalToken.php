@@ -14,7 +14,9 @@ class VerifyPortalToken
 {
     public function handle(Request $request, Closure $next)
     {
-        $token = (string) config('services.portal_token', env('PORTAL_MASTER_TOKEN', ''));
+        // Vía config (NO env()): el contenedor corre `config:cache` al arrancar
+        // y env() devolvería null en runtime -> 503 permanente.
+        $token = (string) config('services.portal.token');
 
         if ($token === '') {
             return response()->json(['message' => 'master-api no configurado (falta PORTAL_MASTER_TOKEN).'], 503);
