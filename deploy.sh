@@ -46,6 +46,45 @@ trap 'rm -f "$0"' EXIT
 
 cd "$REPO_DIR"
 
+# ----------------------------------------------------------------------------
+# Lock: UN SOLO deploy a la vez.
+#
+# El 06-08-2026 corrieron a la vez el workflow de GitHub y un rollout manual:
+# ambos recreando contenedores del mismo cliente -> "Conflict. The container
+# name is already in use" y flota con imágenes mezcladas. flock lo hace
+# imposible: el segundo deploy se rehúsa a arrancar (o espera, si se pide).
+#
+#   WAIT_LOCK=600 ./deploy.sh   espera hasta 600s a que el otro termine
+#   DEPLOY_LOCK=/otra/ruta.lock cambia el archivo de lock
+#
+# El lock lo libera el kernel al morir el proceso: no quedan locks huérfanos.
+# ----------------------------------------------------------------------------
+LOCK_FILE="${DEPLOY_LOCK:-/var/lock/int-istinge-deploy.lock}"
+if [ "${DEPLOY_LOCK_HELD:-0}" != "1" ] && command -v flock >/dev/null 2>&1; then
+  if [ -n "${WAIT_LOCK:-}" ]; then
+    _flock_opts=(-w "$WAIT_LOCK")
+  else
+    _flock_opts=(-n)
+  fi
+
+  set +e
+  DEPLOY_LOCK_HELD=1 DEPLOY_REEXEC=1 DEPLOY_REPO_DIR="$REPO_DIR" \
+    flock -E 99 "${_flock_opts[@]}" "$LOCK_FILE" bash "$0" "$@"
+  _rc=$?
+  set -e
+
+  if [ "$_rc" = "99" ]; then
+    echo "ERROR: ya hay un deploy en curso en este servidor."
+    echo "       $(cat "$LOCK_FILE" 2>/dev/null || echo 'sin datos del proceso que lo tomó')"
+    echo "       Esperá a que termine, o relanzá con WAIT_LOCK=900 ./deploy.sh"
+  fi
+  exit "$_rc"
+fi
+
+# Dejamos rastro de quién tiene el lock (lo lee el que se topa con él).
+_lock_from="${SSH_CLIENT:-}"; _lock_from="${_lock_from%% *}"; [ -n "$_lock_from" ] || _lock_from="local"
+echo "tomado por PID $$ el $(date '+%d-%m-%Y %H:%M:%S') desde $_lock_from" > "$LOCK_FILE" 2>/dev/null || true
+
 ONLY_CLIENT="${1:-}"
 
 # Con DRY_RUN=1 las acciones que modifican algo se imprimen en vez de correr.
