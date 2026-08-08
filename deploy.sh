@@ -15,6 +15,7 @@
 #    SKIP_BUILD=1 ./deploy.sh    # salta el build (p. ej. solo cambió un .env)
 #
 #  Variables opcionales:
+#    ROLLOUT_PARALLEL=5    clientes desplegados a la vez (default: 5)
 #    CANARY_CLIENT=acme    cliente a usar como canario (default: el primero)
 #    CANARY_CLIENT=none    desactiva el canario
 #    IMAGE_TAG=abc1234     despliega una imagen ya construida (ROLLBACK)
@@ -212,9 +213,18 @@ export IMAGE_TAG
 
 # ----------------------------------------------------------------------------
 # Despliegue de UN cliente. Devuelve 1 si el cliente debe omitirse.
+#
+# Segundo argumento (modo frente a un barrido del scheduler en curso):
+#   wait (default) -> espera hasta SCHEDULER_TIMEOUT a que el barrido termine
+#                     (canario, cliente único y fase de reintentos).
+#   fast           -> chequeo instantáneo: si está en barrido devuelve 2 sin
+#                     esperar. Lo usa la primera pasada del rollout para que
+#                     un cliente ocupado no frene la fila; se reintenta al
+#                     final, cuando su barrido normalmente ya terminó.
 # ----------------------------------------------------------------------------
 rollout_client() {
   local client="$1"
+  local sched_mode="${2:-wait}"
   local dir="clientes/${client}/"
   local envfile="${dir}.env"
 
@@ -276,8 +286,15 @@ rollout_client() {
 
   # Código 2 = omitido a propósito por tener un barrido en curso, distinto de un
   # error de configuración (1). El loop de arriba los reporta por separado.
-  if ! wait_for_client_scheduler "$client"; then
-    return 2
+  if [ "$sched_mode" = "fast" ]; then
+    if scheduler_busy_for "$client"; then
+      echo "     barrido del scheduler en curso — diferido para el final del rollout"
+      return 2
+    fi
+  else
+    if ! wait_for_client_scheduler "$client"; then
+      return 2
+    fi
   fi
 
   # Preservar los logs del contenedor anterior: hasta ahora storage/logs vivía
@@ -398,25 +415,83 @@ else
   echo "==> 3/4  sin canario"
 fi
 
-echo "==> 4/4  rollout (${#clients[@]} cliente(s), imagen integra-int:${IMAGE_TAG})"
+# Los clientes se despliegan en paralelo (ROLLOUT_PARALLEL a la vez, default 5):
+# el recreate + health check de cada uno es independiente, y en serie 35
+# clientes tomaban 12-15 minutos. Cada cliente corre en un subshell con su log
+# y su código de salida en archivos propios: los logs no se entremezclan y el
+# rc sobrevive al subshell. Los que están a mitad de un barrido del cron no
+# esperan ni frenan la fila: se difieren y se reintentan al final (modo wait),
+# cuando su barrido normalmente ya terminó.
+PARALLEL="${ROLLOUT_PARALLEL:-5}"
+[ "${DRY_RUN:-0}" = "1" ] && PARALLEL=1   # dry-run: salida secuencial legible
+
+echo "==> 4/4  rollout (${#clients[@]} cliente(s), imagen integra-int:${IMAGE_TAG}, ${PARALLEL} en paralelo)"
 failed=()
 skipped=()
+deferred=()
+
+tmp_roll="$(mktemp -d)"
+# Reemplaza el trap EXIT de arriba (borrar la copia temporal del script), así
+# que acá se hacen las dos limpiezas.
+trap 'rm -f "$0"; [ -n "${tmp_roll:-}" ] && rm -rf "$tmp_roll"' EXIT
+
+# Corre en subshell (background). rc: 0 ok, 1 config, 2 barrido en curso,
+# 3 no respondió el health check. Siempre termina en 0 para no tumbar el
+# script (set -e) — el rc real viaja por archivo.
+deploy_one() {
+  local client="$1" rc=0
+  LAST_DOMAIN=""
+  rollout_client "$client" fast || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    # Acá no abortamos: si un cliente puntual no levanta, queremos terminar el
+    # rollout y reportarlo al final, no dejar la flota a medio desplegar.
+    check_client_app "$client" "$LAST_DOMAIN" 6 || rc=3
+  fi
+  echo "$rc" > "$tmp_roll/$client.rc"
+  return 0
+}
+
+pending=()
 for client in "${clients[@]}"; do
   [ "$client" = "$canary" ] && continue
-  LAST_DOMAIN=""
-  rc=0
-  rollout_client "$client" || rc=$?
-  if [ "$rc" -eq 2 ]; then
-    skipped+=("$client")
-    continue
-  fi
-  if [ "$rc" -ne 0 ]; then
-    continue
-  fi
-  # Acá no abortamos: si un cliente puntual no levanta, queremos terminar el
-  # rollout y reportarlo al final, no dejar la flota a medio desplegar.
-  check_client_app "$client" "$LAST_DOMAIN" 6 || failed+=("$client")
+  pending+=("$client")
 done
+
+running=0
+for client in "${pending[@]}"; do
+  deploy_one "$client" > "$tmp_roll/$client.log" 2>&1 &
+  running=$((running + 1))
+  if [ "$running" -ge "$PARALLEL" ]; then
+    wait -n || true
+    running=$((running - 1))
+  fi
+done
+wait || true
+
+for client in "${pending[@]}"; do
+  cat "$tmp_roll/$client.log" 2>/dev/null || true
+  rc="$(cat "$tmp_roll/$client.rc" 2>/dev/null || echo 1)"
+  case "$rc" in
+    0) ;;
+    2) deferred+=("$client") ;;
+    3) failed+=("$client") ;;
+  esac
+done
+
+if [ "${#deferred[@]}" -gt 0 ]; then
+  echo "==> Reintento de ${#deferred[@]} cliente(s) diferido(s) por barrido en curso: ${deferred[*]}"
+  for client in "${deferred[@]}"; do
+    LAST_DOMAIN=""
+    rc=0
+    rollout_client "$client" wait || rc=$?
+    if [ "$rc" -eq 2 ]; then
+      skipped+=("$client")
+      continue
+    fi
+    [ "$rc" -ne 0 ] && continue
+    check_client_app "$client" "$LAST_DOMAIN" 6 || failed+=("$client")
+  done
+fi
 
 echo "==> Listo. Imagen desplegada: integra-int:${IMAGE_TAG}"
 if [ "${#skipped[@]}" -gt 0 ]; then

@@ -50,41 +50,46 @@ class Kernel extends ConsoleKernel
         // Empresa::find(1); no dependen de login. Zona horaria explícita.
         // ──────────────────────────────────────────────────────────────────
 
+        // withoutOverlapping(60): el mutex expira a la hora. El default (24h) dejaba
+        // la tarea bloqueada un día entero si el proceso moría sin liberar el candado
+        // (kill del watchdog, OOM, reinicio del contenedor). Un barrido real dura
+        // minutos —media hora como mucho—, así que 60 min no permite solapes reales.
+
         // Suspender contratos con facturas vencidas según grupos de corte.
         // Cada 15 min: el método compara hora_suspension del grupo con la hora actual.
         $schedule->call($this->cronLogueado('CortarFacturas', [CronController::class, 'CortarFacturas']))
             ->name('cron-cortar-facturas')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Generar las facturas recurrentes del día. Cada 15 min.
         $schedule->call($this->cronLogueado('CrearFactura', [CronController::class, 'CrearFactura']))
             ->name('cron-crear-factura')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Aviso de pago oportuno (facturas con pago_oportuno = hoy). Cada 15 min.
         $schedule->call($this->cronLogueado('PagoOportuno', [CronController::class, 'PagoOportuno']))
             ->name('cron-pago-oportuno')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Aviso de vencimiento (facturas con vencimiento = hoy). Cada 15 min.
         $schedule->call($this->cronLogueado('PagoVencimiento', [CronController::class, 'PagoVencimiento']))
             ->name('cron-pago-vencimiento')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Cortar contratos con promesas de pago vencidas. Cada 15 min.
         $schedule->call($this->cronLogueado('CortarPromesas', [CronController::class, 'CortarPromesas']))
             ->name('cron-cortar-promesas')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Cortar servicios de televisión con facturas vencidas. Cada 15 min.
         // Estos 5 jobs usan instance methods que internamente referencian $this
@@ -98,7 +103,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-cortar-television')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Envío de facturas por WhatsApp. Cada 15 min.
         $schedule->call($this->cronLogueado('EnvioFacturaWpp', function () {
@@ -107,7 +112,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-envio-factura-wpp')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Sincronización con IntegraPay. Cada 15 min.
         $schedule->call($this->cronLogueado('SyncIntegraPay', function () {
@@ -116,7 +121,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-sync-integrapay')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Emisión de facturas electrónicas DIAN. Cada 15 min.
         $schedule->call($this->cronLogueado('EmisionFacturaDian', function () {
@@ -125,7 +130,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-emision-factura-dian')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Reintento de habilitación tras el pago: los ingresos del día que quedaron con
         // revalidacion_enable_internet/_tv = 0 (la MikroTik u OLT no respondió al cobrar)
@@ -137,7 +142,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-refresh-corte-internet-tv')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Sincronización Masiva MikroTik: empuja las órdenes que quedaron pendientes
         // (p. ej. el operador cerró el navegador o el router estaba caído). Cada 5 min:
@@ -149,7 +154,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-mk-sync-procesar')
             ->everyFiveMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
 
         // Sincronización de logs WhatsApp Meta — versión controller (replica /sync-whatsapp-meta-logs).
         // El command whatsapp:sync-meta-logs fue desactivado del scheduler para evitar doble ejecución.
@@ -159,7 +164,7 @@ class Kernel extends ConsoleKernel
             ->name('cron-sync-whatsapp-meta-logs-ctrl')
             ->everyFifteenMinutes()
             ->timezone('America/Bogota')
-            ->withoutOverlapping();
+            ->withoutOverlapping(60);
     }
 
     /**
