@@ -1,8 +1,10 @@
 name: Deploy (Docker / flota de clientes)
 
-# Cada push a master se despliega a la flota. deploy.sh protege el rollout:
-# espera a que no haya un barrido del cron de corte en curso, prueba primero
-# con un cliente canario y solo entonces toca al resto.
+# Cada push a master se despliega a la flota. deploy.sh prueba primero con un
+# cliente canario y solo entonces toca al resto. NO se espera a los barridos
+# del cron (WAIT_SCHEDULER=0, decisión del dueño 08-2026: un rollout no puede
+# tardar 40 min por un barrido; si un corte queda a medias, el siguiente
+# barrido del cron lo corrige).
 on:
   push:
     branches:
@@ -108,7 +110,7 @@ jobs:
               -o BatchMode=yes -o StrictHostKeyChecking=yes \
               -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
-              "cd '${DEPLOY_PATH}' && CANARY_CLIENT='${CANARY_CLIENT}' FORCE='${FORCE}' ./deploy.sh ${ONLY_CLIENT}"
+              "cd '${DEPLOY_PATH}' && CANARY_CLIENT='${CANARY_CLIENT}' FORCE='${FORCE}' WAIT_SCHEDULER=0 ./deploy.sh ${ONLY_CLIENT}"
 
       - name: Limpiar credenciales
         if: always()
