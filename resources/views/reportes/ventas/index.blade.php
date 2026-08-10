@@ -112,6 +112,8 @@
                     <th>Vencimiento <button type="button" class="btn btn-link no-padding orderby {{$request->orderby==3?'':'no_order'}}" campo="3" order="@if($request->orderby==3){{$request->order==1?'0':'1'}}@else 0 @endif" ><i class="fas fa-arrow-@if($request->orderby==3){{$request->order==0?'up':'down'}}@else{{'down'}} @endif"></i></button></th> --}}
                     <th>Pagada <button type="button" class="btn btn-link no-padding orderby {{$request->orderby==4?'':'no_order'}}" campo="4" order="@if($request->orderby==4){{$request->order==1?'0':'1'}}@else 0 @endif" ><i class="fas fa-arrow-@if($request->orderby==4){{$request->order==0?'up':'down'}}@else{{'down'}} @endif"></i></button></th>
                     <th>Caja</th>
+                    <th>Método de pago</th>
+                    <th>Forma de pago</th>
                     <th>Total <button type="button" class="btn btn-link no-padding orderby {{$request->orderby==7?'':'no_order'}}" campo="7" order="@if($request->orderby==7){{$request->order==1?'0':'1'}}@else 0 @endif" ><i class="fas fa-arrow-@if($request->orderby==7){{$request->order==0?'up':'down'}}@else{{'down'}} @endif"></i></button> </th>
 	          </tr>
 			</thead>
@@ -133,12 +135,14 @@
                         <td>{{date('d-m-Y', strtotime($factura->vencimiento))}}</td> --}}
                         <td>{{date('d-m-Y', strtotime($factura->pagada))}}</td>
                         <td>{{$factura->banco()->nombre}}</td>
+                        <td>{{$factura->metodoPagoListIngreso() ?: '-'}}</td>
+                        <td>{{$factura->formaPagoListIngreso() ?: '-'}}</td>
                         <td>{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->pagadoTotal - $factura->devoluciones())}}</td>
 					</tr>
 				@endforeach
 			</tbody>
 			<tfoot class="thead-dark">
-				<td colspan="3"></td>
+				<td colspan="5"></td>
 				<th  class="text-right">Total</th>
 				<th>{{Auth::user()->empresa()->moneda}} {{App\Funcion::Parsear($total)}}</th>
 			</tfoot>
