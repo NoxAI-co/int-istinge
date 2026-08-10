@@ -6,6 +6,22 @@
     try {
         if (\Illuminate\Support\Facades\Schema::hasTable('portal_notificaciones')) {
             $portalNotis = \App\PortalNotificacion::vigentes()->orderByDesc('id')->get();
+
+            // El recordatorio de pago desaparece si el mes en curso ya está
+            // cubierto: comprobante adjuntado (no rechazado) o pago confirmado
+            // desde el Integra Portal.
+            if ($portalNotis->contains('tipo', 'pago')) {
+                $mesActual = now()->startOfMonth()->toDateString();
+                $cubierto =
+                    (\Illuminate\Support\Facades\Schema::hasTable('portal_comprobantes')
+                        && \Illuminate\Support\Facades\DB::table('portal_comprobantes')->where('periodo', $mesActual)->where('estado', '!=', 'rechazado')->exists())
+                    || (\Illuminate\Support\Facades\Schema::hasTable('portal_meses_pagados')
+                        && \Illuminate\Support\Facades\DB::table('portal_meses_pagados')->where('periodo', $mesActual)->exists());
+
+                if ($cubierto) {
+                    $portalNotis = $portalNotis->reject(function ($n) { return $n->tipo === 'pago'; })->values();
+                }
+            }
         }
     } catch (\Throwable $e) {
         // Nunca romper el dashboard por un aviso.
@@ -31,9 +47,26 @@
                     aria-label="Ocultar aviso">&times;</button>
             <div style="display:flex; gap:12px; align-items:flex-start;">
                 <i class="fas {{ $estilo['icono'] }}" style="color: {{ $estilo['borde'] }}; margin-top:3px;"></i>
-                <div>
+                <div style="flex:1; min-width:0;">
                     <div style="font-weight:700; margin-bottom:4px;">{{ $noti->titulo }}</div>
                     <div style="font-size:.9rem; line-height:1.5;">{!! $cuerpoHtml !!}</div>
+                    @if ($noti->tipo === 'pago')
+                        {{-- Adjuntar el comprobante directamente desde el aviso:
+                             mismo canal de Mi suscripción; al enviarlo, el mes
+                             queda cubierto y este aviso desaparece. --}}
+                        <form action="{{ route('mi-suscripcion.store') }}" method="POST" enctype="multipart/form-data"
+                            style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; background:rgba(255,255,255,.6);">
+                            {{ csrf_field() }}
+                            <input type="hidden" name="periodo" value="{{ date('Y-m') }}">
+                            <input type="hidden" name="observaciones" value="Enviado desde el recordatorio de pago">
+                            <input type="file" name="archivo" accept=".jpg,.jpeg,.png,.webp,.pdf" required
+                                style="font-size:12px; color:#64748b; max-width:260px;">
+                            <button type="submit"
+                                style="padding:6px 14px; border-radius:7px; border:0; background:#7c3aed; color:#fff; font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fas fa-paper-plane"></i> Enviar comprobante
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

@@ -68,6 +68,7 @@ class RouteServiceProvider extends ServiceProvider
                  Route::post('comprobantes/estado', 'MasterApiController@comprobanteEstado');
                  Route::post('suspender', 'MasterApiController@suspender');
                  Route::post('activar', 'MasterApiController@activar');
+                 Route::post('pago-confirmado', 'MasterApiController@pagoConfirmado');
              });
     }
 

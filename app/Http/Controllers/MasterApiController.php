@@ -125,6 +125,38 @@ class MasterApiController extends Controller
         return response()->json(['ok' => true, 'estado' => 'activa', 'hasta' => $hasta]);
     }
 
+    /**
+     * El portal informa que el mes quedó pagado (o dejó de estarlo): el
+     * banner del recordatorio de pago se oculta/retoma para ese periodo.
+     */
+    public function pagoConfirmado(Request $request)
+    {
+        $data = $request->validate([
+            'periodo' => ['required', 'date_format:Y-m'],
+        ]);
+
+        if (! Schema::hasTable('portal_meses_pagados')) {
+            Schema::create('portal_meses_pagados', function ($table) {
+                $table->bigIncrements('id');
+                $table->date('periodo')->unique();
+                $table->timestamps();
+            });
+        }
+
+        $periodo = $data['periodo'].'-01';
+
+        if ($request->input('pagado', true)) {
+            DB::table('portal_meses_pagados')->updateOrInsert(
+                ['periodo' => $periodo],
+                ['updated_at' => now(), 'created_at' => now()]
+            );
+        } else {
+            DB::table('portal_meses_pagados')->where('periodo', $periodo)->delete();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     /** Auto-provisión de las columnas del modal (BDs sin migraciones). */
     private function asegurarColumnasSuspension(): void
     {
