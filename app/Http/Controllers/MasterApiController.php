@@ -79,9 +79,12 @@ class MasterApiController extends Controller
     }
 
     /**
-     * Suspende la suscripción de la empresa: en el legado el corte se maneja
-     * con suscripciones.fec_corte — una fecha pasada activa el modo lectura
-     * (User::modo_lectura) y el aviso de "Suscripción Vencida" del dashboard.
+     * Suspende la suscripción de la empresa. Dos capas:
+     *  - suscripciones.fec_corte en el pasado (+ ilimitado=0) activa el modo
+     *    lectura real del legado (User::modo_lectura): bloquea escrituras.
+     *  - portal_suspendida=1 + portal_suspension_mensaje hacen que el layout
+     *    muestre un modal fijo (no descartable, solo cerrar sesión) con el
+     *    mensaje configurado desde el Integra Portal.
      */
     public function suspender(Request $request)
     {
@@ -90,9 +93,14 @@ class MasterApiController extends Controller
             return response()->json(['message' => 'No se encontró la suscripción de la empresa.'], 404);
         }
 
+        $this->asegurarColumnasSuspension();
         $suscripcion->update(['fec_corte' => now()->subDay()->toDateString()]);
         // 'ilimitado' anula el corte: apagarlo para que la suspensión aplique.
-        DB::table('suscripciones')->where('id', $suscripcion->id)->update(['ilimitado' => 0]);
+        DB::table('suscripciones')->where('id', $suscripcion->id)->update([
+            'ilimitado'                  => 0,
+            'portal_suspendida'          => 1,
+            'portal_suspension_mensaje'  => $request->input('mensaje') ?: null,
+        ]);
 
         return response()->json(['ok' => true, 'estado' => 'suspendida']);
     }
@@ -105,11 +113,32 @@ class MasterApiController extends Controller
             return response()->json(['message' => 'No se encontró la suscripción de la empresa.'], 404);
         }
 
+        $this->asegurarColumnasSuspension();
         $hasta = $request->input('hasta')
             ?: now()->addMonthNoOverflow()->day(10)->toDateString();
         $suscripcion->update(['fec_corte' => $hasta]);
+        DB::table('suscripciones')->where('id', $suscripcion->id)->update([
+            'portal_suspendida'         => 0,
+            'portal_suspension_mensaje' => null,
+        ]);
 
         return response()->json(['ok' => true, 'estado' => 'activa', 'hasta' => $hasta]);
+    }
+
+    /** Auto-provisión de las columnas del modal (BDs sin migraciones). */
+    private function asegurarColumnasSuspension(): void
+    {
+        if (! Schema::hasColumn('suscripciones', 'portal_suspendida')) {
+            Schema::table('suscripciones', function ($table) {
+                $table->tinyInteger('portal_suspendida')->default(0);
+            });
+        }
+
+        if (! Schema::hasColumn('suscripciones', 'portal_suspension_mensaje')) {
+            Schema::table('suscripciones', function ($table) {
+                $table->text('portal_suspension_mensaje')->nullable();
+            });
+        }
     }
 
     /** Resuelve la suscripción objetivo: por NIT del payload o primera empresa. */

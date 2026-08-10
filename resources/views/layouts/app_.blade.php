@@ -268,6 +268,8 @@
         @yield('style')
     </head>
     <body>
+        @include('layouts.includes.portal-suspension')
+
         <div id="contenedor_carga">
             <img id="carga" src="{{asset('images/gif-tuerca.gif')}}">
         </div>

@@ -834,6 +834,8 @@
         @endphp
     @endif
 
+    @include('layouts.includes.portal-suspension')
+
     <div id="contenedor_carga">
         <img id="carga" src="{{ asset('images/gif-tuerca.gif') }}" onerror="this.style.display='none'; document.getElementById('contenedor_carga').style.display='none';" onload="setTimeout(function(){ var contenedor = document.getElementById('contenedor_carga'); if(contenedor) { contenedor.style.visibility = 'hidden'; contenedor.style.opacity = '0'; } }, 100);">
     </div>
