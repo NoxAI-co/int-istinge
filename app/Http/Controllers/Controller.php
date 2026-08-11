@@ -1652,7 +1652,12 @@ class Controller extends BaseController
         if($contrato){
             $contrato = Contrato::where('client_id',$cliente->id)->where('id', $contrato)->first();
         }else{
-            $contrato = Contrato::where('client_id',$cliente->id)->first();
+            // Contrato ACTIVO más reciente. Antes era ->first() a secas: devolvía
+            // el contrato más viejo del cliente aunque estuviera retirado, y en
+            // traslados de domicilio (contrato nuevo o varios contratos) el
+            // radicado se autollenaba con la dirección de instalación antigua.
+            $contrato = Contrato::where('client_id',$cliente->id)->where('status', 1)->latest()->first()
+                ?: Contrato::where('client_id',$cliente->id)->first();
         }
 
         $contratos = Contrato::where('client_id', $cliente->id)->where('status', 1)->latest()->get();
