@@ -1539,6 +1539,11 @@
                 });
                 return false;
             }
+
+            // Anti doble-envío: un segundo clic dispara otro update simultáneo que
+            // se entrelaza con el primero en el MikroTik y puede dejar el secret
+            // PPPoE borrado sin recrear. Se deshabilita al pasar la validación.
+            $(this).find('button[type="submit"]').prop('disabled', true).text('Guardando...');
         });
     }
 

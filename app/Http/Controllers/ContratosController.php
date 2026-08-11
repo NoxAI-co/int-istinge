@@ -2213,6 +2213,20 @@ class ContratosController extends Controller
     {
 
         $this->getAllPermissions(Auth::user()->id);
+
+        // Candado anti ejecuciones simultáneas del mismo contrato (doble clic en
+        // Guardar o dos usuarios a la vez): el flujo contra el MikroTik es
+        // remover-y-recrear el secret/lease/queue con varios round-trips en medio;
+        // dos ejecuciones entrelazadas pueden dejar el secret PPPoE borrado sin
+        // recrear (caso contrato 499 enternetcomunicaciones, 10-08-2026).
+        // GET_LOCK espera hasta 10s a que la otra ejecución termine y luego sigue
+        // en serie; si no alcanza, se rechaza con aviso. Se namespacea con la BD
+        // porque el MySQL es compartido entre empresas. El lock se libera solo al
+        // cerrarse la conexión cuando el request termina, cubra el camino que cubra.
+        $lockRow = DB::select('SELECT GET_LOCK(?, 10) AS obtenido', [DB::getDatabaseName() . '_contrato_upd_' . $id]);
+        if (empty($lockRow) || (int) $lockRow[0]->obtenido !== 1) {
+            return back()->with('danger', 'ESTE CONTRATO ESTÁ SIENDO GUARDADO POR OTRA OPERACIÓN EN ESTE MOMENTO. ESPERE UNOS SEGUNDOS E INTENTE DE NUEVO.');
+        }
         // La habilitación del CATV es NO bloqueante: si falla, el contrato igual se actualiza
         // y se informa mediante esta advertencia al final.
         $catvWarning = null;
