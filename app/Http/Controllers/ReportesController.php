@@ -2036,9 +2036,18 @@ class ReportesController extends Controller
 
         $contactos=$contactos->get();
 
+        // Estado de cuenta (cartera, contratos y notas crédito) de cada cliente.
+        // Se resuelve por LOTES con consultas agregadas: recorrer los contactos
+        // llamando a los métodos del modelo son 3 consultas por factura, y con
+        // miles de clientes el reporte no carga.
+        $servicio = new \App\Services\EstadoCuentaClienteService;
+        $empresaId = Auth::user()->empresa;
+        $estados = [];
+        foreach (array_chunk($contactos->pluck('id')->toArray(), 300) as $lote) {
+            $estados += $servicio->paraClientes($lote, $empresaId);
+        }
 
-
-        return view('reportes.contactos.index')->with(compact('request','contactos'));
+        return view('reportes.contactos.index')->with(compact('request','contactos','estados'));
     }
 
     public function getReporteReteIva(Request $request){

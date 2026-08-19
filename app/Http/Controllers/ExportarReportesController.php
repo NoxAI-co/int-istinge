@@ -1465,11 +1465,21 @@ class ExportarReportesController extends Controller
             'Combo Internet/TV', 'Cierra venta', 'Boton emision', 'Monitoreo',
             'Usuario WiFi', 'Contrasena WiFi', 'IP receptora', 'Puerto receptor', 'PPT',
             'Factura electronica',
-            'Observaciones', 'Creado', 'Actualizado'
+            'Observaciones', 'Creado', 'Actualizado',
+            // ── Estado de cuenta ──
+            'Contratos', 'Contratos activos', 'Contratos cortados', 'Contratos retirados', 'Planes',
+            'Facturas', 'Facturas abiertas', 'Facturado', 'Pagado', 'Notas credito aplicadas',
+            'SALDO (Deuda)', 'Saldo vencido', 'Dias mora',
+            'Primera factura', 'Ultima factura', 'Ultimo pago',
+            'Notas credito (Nro)', 'Notas credito (Monto)'
         );
+        // A..Z, AA..AZ, BA..BZ: con el estado de cuenta el reporte pasa de 51 a 70
+        // columnas y el rango anterior (52) se quedaba corto — las últimas columnas
+        // se escribían fuera de la hoja.
         $letras = array();
         foreach (range('A', 'Z') as $l) { $letras[] = $l; }
         foreach (range('A', 'Z') as $l) { $letras[] = 'A'.$l; }
+        foreach (range('A', 'Z') as $l) { $letras[] = 'B'.$l; }
         $totalCols = count($titulosColumnas);
         $ultimaLetra = $letras[$totalCols - 1];
 
@@ -1516,7 +1526,20 @@ class ExportarReportesController extends Controller
         if ($tipo<>2) {
             $contactos=$contactos->whereIn('tipo_contacto',[$tipo,2]);
         }
+
+        // Estado de cuenta por LOTES: 3 consultas por lote de 300 clientes, no 3
+        // por factura. Con miles de contactos es la diferencia entre exportar y
+        // quedarse sin tiempo de ejecución.
+        set_time_limit(0);
+        $servicioEstado = new \App\Services\EstadoCuentaClienteService;
+        $empresaEstado = Auth::user()->empresa;
+        $estados = [];
+        foreach (array_chunk($contactos->pluck('id')->toArray(), 300) as $lote) {
+            $estados += $servicioEstado->paraClientes($lote, $empresaEstado);
+        }
+
         foreach ($contactos as $contacto) {
+            $ec = $estados[$contacto->id] ?? [];
             $etiquetaNombre = '';
             if ($contacto->etiqueta_id) {
                 $etq = DB::table('etiquetas')->where('id', $contacto->etiqueta_id)->first();
@@ -1580,6 +1603,24 @@ class ExportarReportesController extends Controller
                 $contacto->observaciones,
                 $contacto->created_at,
                 $contacto->updated_at,
+                $ec['contratos_total'] ?? 0,
+                $ec['contratos_activos'] ?? 0,
+                $ec['contratos_cortados'] ?? 0,
+                $ec['contratos_retirados'] ?? 0,
+                $ec['planes'] ?? '',
+                $ec['facturas_total'] ?? 0,
+                $ec['facturas_abiertas'] ?? 0,
+                number_format($ec['facturado'] ?? 0, 0, ',', '.'),
+                number_format($ec['pagado'] ?? 0, 0, ',', '.'),
+                number_format($ec['notas_credito_aplicadas'] ?? 0, 0, ',', '.'),
+                number_format($ec['saldo'] ?? 0, 0, ',', '.'),
+                number_format($ec['saldo_vencido'] ?? 0, 0, ',', '.'),
+                $ec['dias_mora'] ?? 0,
+                !empty($ec['primera_factura']) ? date('d-m-Y', strtotime($ec['primera_factura'])) : '',
+                !empty($ec['ultima_factura']) ? date('d-m-Y', strtotime($ec['ultima_factura'])) : '',
+                !empty($ec['ultimo_pago_fecha']) ? date('d-m-Y', strtotime($ec['ultimo_pago_fecha'])) : '',
+                $ec['nc_cantidad'] ?? 0,
+                number_format($ec['nc_monto'] ?? 0, 0, ',', '.'),
             ];
             foreach ($row as $idx => $value) {
                 $objPHPExcel->setActiveSheetIndex(0)
