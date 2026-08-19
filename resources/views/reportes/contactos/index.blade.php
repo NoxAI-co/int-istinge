@@ -105,15 +105,22 @@
                             <td>{{ !empty($e['ultimo_pago_fecha']) ? date('d-m-Y', strtotime($e['ultimo_pago_fecha'])) : '-' }}</td>
                         </tr>
                     @endforeach
-                    <tr class="font-weight-bold">
-                        <td colspan="9" class="text-right">TOTALES:</td>
-                        <td class="text-right text-danger">${{ number_format($totSaldo, 0, ',', '.') }}</td>
-                        <td class="text-right text-danger">${{ number_format($totVencido, 0, ',', '.') }}</td>
-                        <td></td>
-                        <td class="text-right text-info">${{ number_format($totFavor, 0, ',', '.') }}</td>
-                        <td></td>
-                    </tr>
                     </tbody>
+                    {{-- Los totales van en <tfoot>, NO en el <tbody>: DataTables
+                         (que inicializa #example desde custom.js) recorre las filas
+                         del cuerpo asumiendo una celda por columna, y un colspan ahí
+                         lo rompe con "Cannot set properties of undefined
+                         (setting '_DT_CellIndex')", dejando la tabla sin pintar. --}}
+                    <tfoot class="thead-dark">
+                    <tr class="font-weight-bold">
+                        <th colspan="9" class="text-right">TOTALES:</th>
+                        <th class="text-right text-danger">${{ number_format($totSaldo, 0, ',', '.') }}</th>
+                        <th class="text-right text-danger">${{ number_format($totVencido, 0, ',', '.') }}</th>
+                        <th></th>
+                        <th class="text-right text-info">${{ number_format($totFavor, 0, ',', '.') }}</th>
+                        <th></th>
+                    </tr>
+                    </tfoot>
                 </table>
                 <div class="text-right">
                    {{-- {{$contactos->links()}}--}}
@@ -124,6 +131,13 @@
     </form>
     <input type="hidden" id="urlgenerar" value="{{route('reportes.contactos')}}">
     <input type="hidden" id="urlexportar" value="{{route('exportar.contactos')}}">
+@endsection
+
+{{-- Este script vivía dentro de @section('content'), que el layout imprime
+     ANTES de cargar jQuery: se ejecutaba con $ todavía indefinido
+     ("Uncaught ReferenceError: $ is not defined") y el selector «Todos» nunca
+     rellenaba las fechas. En @section('scripts') el layout ya cargó jQuery. --}}
+@section('scripts')
     <script>
         $(function () {
             $('#fechas').on('change', function () {
