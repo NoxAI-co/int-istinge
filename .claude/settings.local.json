@@ -246,7 +246,10 @@
       "Bash(./rssh.exp \"docker exec enternetcomunicaciones-app-1 sh -lc 'cd /var/www/html && php artisan route:list 2>&1 | grep -i cortarfacturas' | head -5\")",
       "Bash(./rssh.exp 'echo -n '\\\\''hora host: '\\\\''; date '\\\\''+%H:%M:%S %z'\\\\'' *)",
       "Bash(/private/tmp/claude-501/-Users-alejandrohiguitazuleta-Sites-localhost-nuevoentorno-int-istinge/23feb1c3-a2d9-4176-8b17-3459c14f1194/scratchpad/sshrun.exp *)",
-      "Bash(scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /private/tmp/claude-501/-Users-alejandrohiguitazuleta-Sites-localhost-nuevoentorno-int-istinge/23feb1c3-a2d9-4176-8b17-3459c14f1194/scratchpad/q1.sql root@161.97.67.60:/tmp/q1.sql)"
+      "Bash(scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /private/tmp/claude-501/-Users-alejandrohiguitazuleta-Sites-localhost-nuevoentorno-int-istinge/23feb1c3-a2d9-4176-8b17-3459c14f1194/scratchpad/q1.sql root@161.97.67.60:/tmp/q1.sql)",
+      "Bash(bash -n watchdog-scheduler.sh)",
+      "Bash(bash --version)",
+      "Bash(gh run *)"
     ]
   }
 }
