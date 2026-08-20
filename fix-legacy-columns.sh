@@ -510,6 +510,43 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin tabla empresas para toggles WhatsApp)"
   fi
+
+  # --- 20) permiso 905 "Estados de Cuenta" (módulo Contactos) ----------------
+  #  Gatea Contactos → Estados de Cuenta (EstadosCuentaController).
+  #
+  #  A diferencia del permiso del bloque 11, acá el id SÍ importa: el módulo lo
+  #  tiene quemado (const PERMISO = 905) y el menú pregunta por
+  #  $_SESSION['permisos']['905'], porque es el mismo id que usa integra2.0 y las
+  #  dos aplicaciones corren sobre la misma BD. Si se insertara con MAX(id)+1 el
+  #  permiso existiría pero no habilitaría nada. Por eso el INSERT lleva 905
+  #  explícito — `id` en permisos_botones no es AUTO_INCREMENT, así que se puede.
+  #
+  #  Si 905 ya está ocupado por OTRO permiso, no se toca nada: pisarlo le daría a
+  #  quien tenga ese permiso acceso a la cartera de los clientes.
+  if table_exists "$DB" "permisos_botones" && table_exists "$DB" "permisos_modulo"; then
+    NOMBRE_905="$(dm -N -B -e "SELECT IFNULL((SELECT nombre_permiso FROM permisos_botones WHERE id=905),'');" "$DB")"
+    if [ "$NOMBRE_905" = "Estados de Cuenta" ]; then
+      echo "    [permiso 905 Estados de Cuenta] ya existe, salto"
+    elif [ -n "$NOMBRE_905" ]; then
+      echo "    !! [permiso 905] OCUPADO por '${NOMBRE_905}' en ${DB} — NO se toca."
+      echo "       Estados de Cuenta no funcionará acá hasta resolver el choque de id."
+    else
+      # Módulo Contactos, resuelto por nombre y no por id: es 1 en toda la flota
+      # hoy, pero el id de módulo no es parte del contrato con la app.
+      MOD_CONTACTOS="$(dm -N -B -e "SELECT id FROM permisos_modulo WHERE nombre_modulo LIKE 'Contacto%' ORDER BY CHAR_LENGTH(nombre_modulo) ASC LIMIT 1;" "$DB")"
+      if [ -n "$MOD_CONTACTOS" ]; then
+        if dm "$DB" -e "INSERT INTO permisos_botones (id, id_modulo, nombre_permiso) VALUES (905, ${MOD_CONTACTOS}, 'Estados de Cuenta');"; then
+          echo "    [permiso 905 Estados de Cuenta] creado (módulo ${MOD_CONTACTOS})"
+        else
+          echo "    (aviso: no se pudo insertar el permiso 905 en ${DB} — ejecutar: DESCRIBE permisos_botones)"
+        fi
+      else
+        echo "    (no se encontró el módulo Contactos, salto permiso 905)"
+      fi
+    fi
+  else
+    echo "    (sin permisos_botones/permisos_modulo, salto permiso 905)"
+  fi
 done
 
 echo "==> Listo."
