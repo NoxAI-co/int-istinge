@@ -28,6 +28,18 @@ class EstadosCuentaController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+
+        // layouts.app lee $title, $icon y $seccion SIN isset(): si no se comparten,
+        // la vista revienta con "Undefined variable: title" antes de pintar nada.
+        // $subseccion es la que deja marcado el ítem del submenú (id estados-cuenta).
+        // El PDF no se ve afectado: pasa su propio 'title' en los datos de la vista,
+        // y los datos de la vista le ganan a lo compartido con share().
+        view()->share([
+            'seccion'    => 'contactos',
+            'subseccion' => 'estados-cuenta',
+            'title'      => 'Estados de Cuenta',
+            'icon'       => 'fas fa-file-invoice-dollar',
+        ]);
     }
 
     private function autorizado()
