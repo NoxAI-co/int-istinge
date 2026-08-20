@@ -2061,4 +2061,64 @@ class Factura extends Model
         ->first();
     }
 
+
+    /**
+     * FUENTE ÚNICA del estado profesional de una factura (label + color).
+     * Regla: la factura está "Cerrada" SOLO cuando fue pagada en su totalidad
+     * (o su estatus ya es 0 = cerrada). Una nota crédito NUNCA cierra por sí
+     * sola: cuando ella extingue el saldo el estado es "Acreditada", que es un
+     * hecho económico distinto de haber cobrado.
+     *
+     * Estados posibles:
+     *   Anulada      estatus = 2
+     *   Cerrada      el PAGO cubre el total (o estatus = 0 heredado)
+     *   Acreditada   saldo 0, pero lo cubrió la NC y no el pago
+     *   Abonada      pago parcial, todavía se debe
+     *   Abonada - NC pago parcial + NC parcial, todavía se debe
+     *   Abierta - NC solo NC parcial, todavía se debe
+     *   Abierta      no se ha pagado nada
+     *
+     * Usada por FacturasController (show/listas/export) y ContactosController.
+     *
+     * @return array{label:string,color:string}
+     */
+    public static function estadoLabel(int $estatusInt, float $total, float $pagado, float $notas): array
+    {
+        $tol = 1.0; // tolerancia por redondeo (pesos)
+
+        if ($estatusInt === 2) {
+            return ['label' => 'Anulada', 'color' => 'destructive'];
+        }
+
+        // ¿Queda algo por cobrar, y quién cubrió el saldo?
+        // "Cerrada" es un hecho de CAJA: solo lo produce el pago. Una nota
+        // crédito extingue la deuda sin que entre un peso, y eso es otro hecho
+        // económico: "Acreditada". Mezclarlos hacía que una factura anulada con
+        // NC apareciera junto a las cobradas e inflara los reportes de recaudo.
+        $sinSaldo  = ($total <= 0) || ($total - $pagado - $notas <= $tol);
+        $pagoCubre = ($total > 0) && ($pagado + $tol >= $total);
+
+        if ($notas > 0) {
+            if ($sinSaldo && ! $pagoCubre) {
+                return ['label' => 'Acreditada', 'color' => 'secondary'];
+            }
+            if (! $sinSaldo) {
+                // La NC no alcanzó: todavía se debe.
+                return $pagado > 0
+                    ? ['label' => 'Abonada - NC', 'color' => 'outline']
+                    : ['label' => 'Abierta - NC', 'color' => 'outline'];
+            }
+            // Pagada del todo y además con NC (p. ej. NC posterior al pago).
+            return ['label' => 'Cerrada - NC', 'color' => 'secondary'];
+        }
+
+        if ($pagoCubre || $estatusInt === 0) {
+            return ['label' => 'Cerrada', 'color' => 'secondary'];
+        }
+        if ($estatusInt === 1 && $pagado > 0) {
+            return ['label' => 'Abonada', 'color' => 'success'];
+        }
+
+        return ['label' => 'Abierta', 'color' => 'success'];
+    }
 }

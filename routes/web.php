@@ -624,6 +624,17 @@ Route::group(['prefix' => 'empresa', 'middleware' => ['auth']], function () {
 	// Ruta para el PDF de asignación de material
 	Route::get('asignacion_material/pdf/{id}', 'AsignacionMaterialController@pdf')->name('asignacion_material.pdf');
 
+	// ─── Estados de cuenta ──────────────────────────────────────────────
+	// Módulo propio: el estado de cuenta de UN cliente. El reporte de cartera
+	// de todos sigue en Reportes → Contactos.
+	Route::group(['prefix' => 'estados-cuenta'], function () {
+		Route::get('/', 'EstadosCuentaController@index')->name('estados-cuenta.index');
+		Route::get('buscar', 'EstadosCuentaController@buscar')->name('estados-cuenta.buscar');
+		Route::get('{cliente}/pdf', 'EstadosCuentaController@pdf')->where('cliente','[0-9]+')->name('estados-cuenta.pdf');
+		Route::get('{cliente}/excel', 'EstadosCuentaController@excel')->where('cliente','[0-9]+')->name('estados-cuenta.excel');
+		Route::post('{cliente}/whatsapp', 'EstadosCuentaController@whatsapp')->where('cliente','[0-9]+')->name('estados-cuenta.whatsapp');
+	});
+
 	Route::group(['prefix' => 'contactos'], function () {
 		Route::get('clientes', 'ContactosController@clientes')->name('contactos.clientes');
 		Route::get('proveedores', 'ContactosController@proveedores')->name('contactos.proveedores');

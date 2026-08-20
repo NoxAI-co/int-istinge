@@ -216,4 +216,245 @@ class EstadoCuentaClienteService
             }
         }
     }
+    // ─── Estado de cuenta de UN cliente (módulo Estados de Cuenta) ───────────
+
+    /** Meses abreviados en español, para las etiquetas de la gráfica. */
+    private const MESES = [1 => 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    /**
+     * Estado de cuenta completo de un solo cliente, para la pantalla del módulo.
+     *
+     * paraClientes() responde "cómo está mi cartera" sobre muchos clientes a la
+     * vez; esto responde "cómo está ESTE cliente" y añade lo que aquel no trae:
+     * el detalle factura por factura con su fecha de pago, el histórico de pagos,
+     * las desconexiones y la serie mensual para las gráficas.
+     *
+     * Comparte las MISMAS fórmulas (las constantes SQL_* de arriba), que es el
+     * punto: si la pantalla calculara el saldo por su cuenta acabaría diciendo
+     * una cifra distinta a la del reporte para el mismo cliente.
+     *
+     * $desde/$hasta acotan SOLO el detalle. Las cifras de resumen son siempre
+     * históricas: "cuánto le ha pagado a la empresa" no es de un período.
+     */
+    public function detalleCliente(int $clienteId, int $empresa, ?string $desde = null, ?string $hasta = null): array
+    {
+        $contacto = DB::table('contactos')->where('id', $clienteId)->where('empresa', $empresa)->first();
+        if (! $contacto) {
+            return [];
+        }
+
+        $resumen = $this->paraClientes([$clienteId], $empresa)[$clienteId] ?? $this->vacio();
+        $resumen['saldo_favor'] = (float) ($contacto->saldo_favor ?? 0);
+        $resumen['saldo_favor_egresos'] = (float) ($contacto->saldo_favor2 ?? 0);
+        $resumen['pagado_historico'] = $this->pagadoHistorico($clienteId, $empresa);
+
+        return [
+            'cliente' => [
+                'id' => (int) $contacto->id,
+                'nombre' => trim(($contacto->nombre ?? '').' '.($contacto->apellido1 ?? '').' '.($contacto->apellido2 ?? '')),
+                'identificacion' => $contacto->nit ?? '',
+                'direccion' => $contacto->direccion ?? '',
+                'celular' => $contacto->celular ?? '',
+                'email' => $contacto->email ?? '',
+            ],
+            'resumen' => $resumen,
+            'facturas' => $this->facturasDetalle($clienteId, $empresa, $desde, $hasta),
+            'pagos' => $this->pagosDetalle($clienteId, $empresa, $desde, $hasta),
+            'contratos' => $this->contratosDetalle($clienteId),
+            'desconexiones' => $this->desconexiones($clienteId),
+            'serie' => $this->serieMensual($clienteId, $empresa),
+        ];
+    }
+
+    /** Todo lo que el cliente le ha pagado a la empresa, sin acotar por fecha. */
+    private function pagadoHistorico(int $clienteId, int $empresa): float
+    {
+        return (float) DB::table('ingresos_factura as igf')
+            ->join('ingresos as i', 'i.id', '=', 'igf.ingreso')
+            ->join('factura as f', 'f.id', '=', 'igf.factura')
+            ->where('f.cliente', $clienteId)
+            ->where('f.empresa', $empresa)
+            ->where('i.estatus', '<>', 2)
+            ->sum('igf.pago');
+    }
+
+    /** Detalle factura por factura, con su estado y la fecha en que se pagó. */
+    private function facturasDetalle(int $clienteId, int $empresa, ?string $desde, ?string $hasta): array
+    {
+        $total = self::SQL_TOTAL_FACTURA;
+        $pagado = self::SQL_PAGADO_FACTURA;
+        $notas = self::SQL_NOTAS_FACTURA;
+
+        $q = DB::table('factura as f')
+            ->where('f.cliente', $clienteId)
+            ->where('f.empresa', $empresa)
+            ->select([
+                'f.id', 'f.codigo', 'f.fecha', 'f.vencimiento', 'f.estatus',
+                DB::raw("ROUND({$total}) AS total"),
+                DB::raw("ROUND({$pagado}) AS pagado"),
+                DB::raw("ROUND({$notas}) AS notas"),
+                DB::raw("ROUND(GREATEST({$total} - {$pagado} - {$notas}, 0)) AS saldo"),
+                DB::raw('(SELECT MAX(i.fecha) FROM ingresos_factura igf JOIN ingresos i ON i.id = igf.ingreso WHERE igf.factura = f.id AND i.estatus <> 2) AS fecha_pago'),
+            ])
+            ->orderByDesc('f.fecha')->orderByDesc('f.id');
+
+        if ($desde) {
+            $q->whereDate('f.fecha', '>=', $desde);
+        }
+        if ($hasta) {
+            $q->whereDate('f.fecha', '<=', $hasta);
+        }
+
+        return $q->get()->map(function ($f) {
+            $estado = \App\Model\Ingresos\Factura::estadoLabel(
+                (int) $f->estatus, (float) $f->total, (float) $f->pagado, (float) $f->notas
+            );
+
+            return [
+                'id' => (int) $f->id,
+                'codigo' => $f->codigo,
+                'fecha' => $f->fecha,
+                'vencimiento' => $f->vencimiento,
+                'fecha_pago' => $f->fecha_pago,
+                'total' => (float) $f->total,
+                'pagado' => (float) $f->pagado,
+                'notas' => (float) $f->notas,
+                // Una anulada no se le cobra a nadie, aunque la resta dé positivo.
+                'saldo' => (int) $f->estatus === 2 ? 0.0 : (float) $f->saldo,
+                'estado' => $estado['label'],
+                'vencida' => (int) $f->estatus !== 2 && (float) $f->saldo > 1 && $f->vencimiento < date('Y-m-d'),
+            ];
+        })->all();
+    }
+
+    /** Recibos de pago, para responder "cuándo pagó y por cuánto". */
+    private function pagosDetalle(int $clienteId, int $empresa, ?string $desde, ?string $hasta): array
+    {
+        $q = DB::table('ingresos as i')
+            ->join('ingresos_factura as igf', 'igf.ingreso', '=', 'i.id')
+            ->join('factura as f', 'f.id', '=', 'igf.factura')
+            ->leftJoin('bancos as b', 'b.id', '=', 'i.cuenta')
+            ->where('f.cliente', $clienteId)
+            ->where('f.empresa', $empresa)
+            ->where('i.estatus', '<>', 2)
+            ->groupBy('i.id', 'i.nro', 'i.fecha', 'b.nombre')
+            ->select([
+                'i.id', 'i.nro', 'i.fecha',
+                DB::raw("COALESCE(b.nombre,'') AS caja"),
+                DB::raw('ROUND(SUM(igf.pago)) AS monto'),
+                DB::raw("GROUP_CONCAT(DISTINCT f.codigo ORDER BY f.codigo SEPARATOR ', ') AS facturas"),
+            ])
+            ->orderByDesc('i.fecha')->orderByDesc('i.id');
+
+        if ($desde) {
+            $q->whereDate('i.fecha', '>=', $desde);
+        }
+        if ($hasta) {
+            $q->whereDate('i.fecha', '<=', $hasta);
+        }
+
+        return $q->get()->map(fn ($p) => [
+            'id' => (int) $p->id,
+            'nro' => $p->nro,
+            'fecha' => $p->fecha,
+            'caja' => $p->caja,
+            'monto' => (float) $p->monto,
+            'facturas' => $p->facturas,
+        ])->all();
+    }
+
+    /** Contratos del cliente con su estado legible. */
+    private function contratosDetalle(int $clienteId): array
+    {
+        $tienePausa = Schema::hasColumn('contracts', 'no_facturar');
+
+        return DB::table('contracts as c')
+            ->leftJoin('planes_velocidad as p', 'p.id', '=', 'c.plan_id')
+            ->where('c.client_id', $clienteId)
+            ->select([
+                'c.id', 'c.nro', 'c.status', 'c.state', 'c.ip', 'c.created_at',
+                DB::raw("COALESCE(p.name,'') AS plan"),
+                DB::raw(($tienePausa ? 'c.no_facturar' : '0').' AS no_facturar'),
+            ])
+            ->orderByDesc('c.id')
+            ->get()
+            ->map(fn ($c) => [
+                'id' => (int) $c->id,
+                'nro' => $c->nro,
+                'plan' => $c->plan,
+                'ip' => $c->ip,
+                'desde' => $c->created_at,
+                'estado' => (int) $c->status !== 1
+                    ? 'Retirado'
+                    : ((int) ($c->no_facturar ?? 0) === 1
+                        ? 'Pausado'
+                        : ($c->state === 'enabled' ? 'Habilitado' : 'Deshabilitado')),
+            ])->all();
+    }
+
+    /**
+     * Desconexiones del cliente. Salen del log de movimientos del contrato: no
+     * hay una tabla de cortes, la huella es la entrada que registra el cambio de
+     * habilitado a deshabilitado (la misma que usa la ficha del cliente).
+     */
+    private function desconexiones(int $clienteId): array
+    {
+        $contratos = DB::table('contracts')->where('client_id', $clienteId)->pluck('nro', 'id');
+        if ($contratos->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('log_movimientos')
+            ->whereIn('contrato', $contratos->keys())
+            ->where('modulo', 5)
+            ->whereRaw("LOWER(descripcion) LIKE '%de habilitado a deshabilitado%'")
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get(['contrato', 'created_at'])
+            ->map(fn ($d) => [
+                'contrato' => $contratos[$d->contrato] ?? '—',
+                'fecha' => $d->created_at,
+            ])->all();
+    }
+
+    /** Facturado contra pagado, mes a mes, para la gráfica de los últimos 12 meses. */
+    private function serieMensual(int $clienteId, int $empresa): array
+    {
+        $total = self::SQL_TOTAL_FACTURA;
+        $desde = date('Y-m-01', strtotime('-11 months'));
+
+        // pluck() no admite expresiones crudas como clave: trata el DB::raw como
+        // nombre de columna. Se traen las filas y se indexan a mano.
+        $facturado = DB::table('factura as f')
+            ->where('f.cliente', $clienteId)->where('f.empresa', $empresa)
+            ->where('f.estatus', '<>', 2)
+            ->whereDate('f.fecha', '>=', $desde)
+            ->groupBy(DB::raw("DATE_FORMAT(f.fecha, '%Y-%m')"))
+            ->select([DB::raw("DATE_FORMAT(f.fecha, '%Y-%m') AS mes"), DB::raw("ROUND(SUM({$total})) AS monto")])
+            ->get()->keyBy('mes');
+
+        $pagado = DB::table('ingresos as i')
+            ->join('ingresos_factura as igf', 'igf.ingreso', '=', 'i.id')
+            ->join('factura as f', 'f.id', '=', 'igf.factura')
+            ->where('f.cliente', $clienteId)->where('f.empresa', $empresa)
+            ->where('i.estatus', '<>', 2)
+            ->whereDate('i.fecha', '>=', $desde)
+            ->groupBy(DB::raw("DATE_FORMAT(i.fecha, '%Y-%m')"))
+            ->select([DB::raw("DATE_FORMAT(i.fecha, '%Y-%m') AS mes"), DB::raw('ROUND(SUM(igf.pago)) AS monto')])
+            ->get()->keyBy('mes');
+
+        $serie = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $ts = strtotime("first day of -{$i} months");
+            $mes = date('Y-m', $ts);
+            $serie[] = [
+                'mes' => $mes,
+                'etiqueta' => self::MESES[(int) date('n', $ts)],
+                'facturado' => (float) ($facturado[$mes]->monto ?? 0),
+                'pagado' => (float) ($pagado[$mes]->monto ?? 0),
+            ];
+        }
+
+        return $serie;
+    }
 }

@@ -94,7 +94,7 @@
 </li>
 @endif
 
-@if(isset($_SESSION['permisos']['1']) || isset($_SESSION['permisos']['2']) || isset($_SESSION['permisos']['3']) || isset($_SESSION['permisos']['4']) || isset($_SESSION['permisos']['5']) || isset($_SESSION['permisos']['6']) || isset($_SESSION['permisos']['7']))
+@if(isset($_SESSION['permisos']['1']) || isset($_SESSION['permisos']['2']) || isset($_SESSION['permisos']['3']) || isset($_SESSION['permisos']['4']) || isset($_SESSION['permisos']['5']) || isset($_SESSION['permisos']['6']) || isset($_SESSION['permisos']['7']) || isset($_SESSION['permisos']['905']))
 <li class="nav-item" id="contactos">
     <a class="nav-link" data-toggle="collapse" href="#ui-basic" aria-expanded="false" aria-controls="ui-basic">
         <i class="menu-icon fas fa-users"></i>
@@ -111,6 +111,13 @@
             @if(isset($_SESSION['permisos']['3']) || isset($_SESSION['permisos']['4']) || isset($_SESSION['permisos']['5']) || isset($_SESSION['permisos']['6']) || isset($_SESSION['permisos']['7']))
             <li class="nav-item" id="proveedores">
                 <a class="nav-link" href="{{route('contactos.proveedores')}}">Proveedores</a>
+            </li>
+            @endif
+            {{-- Permiso propio (905): es información financiera del cliente,
+                 no se hereda del permiso de ver contactos. --}}
+            @if(isset($_SESSION['permisos']['905']))
+            <li class="nav-item" id="estados-cuenta">
+                <a class="nav-link" href="{{route('estados-cuenta.index')}}">Estados de Cuenta</a>
             </li>
             @endif
         </ul>
