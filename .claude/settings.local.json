@@ -249,7 +249,26 @@
       "Bash(scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /private/tmp/claude-501/-Users-alejandrohiguitazuleta-Sites-localhost-nuevoentorno-int-istinge/23feb1c3-a2d9-4176-8b17-3459c14f1194/scratchpad/q1.sql root@161.97.67.60:/tmp/q1.sql)",
       "Bash(bash -n watchdog-scheduler.sh)",
       "Bash(bash --version)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "Bash(brew list *)",
+      "Bash(export SSHPASS='uI2IU2TS826sQbiQkunDEzddw')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 root@161.97.67.60 'hostname; date; ls /var/www 2>/dev/null; docker ps --format \"{{.Names}}\\\\t{{.Image}}\" 2>/dev/null | head -40')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec rednube-app-1 sh -lc \"grep -E \\\\\"^\\(DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD|APP_URL|APP_TIMEZONE\\)=\\\\\" /var/www/html/.env 2>/dev/null || env | grep -E \\\\\"^DB_\\\\\"\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \"SELECT id,nombre,status,fecha_factura FROM grupos_corte; SELECT NOW\\(\\), CURDATE\\(\\);\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \" *)",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \"SHOW TABLES LIKE \\\\\"%nota%\\\\\"; SELECT COUNT\\(*\\) cufe_no_nulo FROM factura f WHERE DATE\\(f.created_at\\)=\\\\\"2026-08-20\\\\\" AND f.dian_response IS NOT NULL AND f.dian_response<>\\\\\"\\\\\";\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \"SHOW CREATE TABLE descuentos\\\\G SELECT * FROM descuentos ORDER BY id DESC LIMIT 5; SHOW COLUMNS FROM items_factura;\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \"SELECT id,usuario,nombres,rol FROM usuarios WHERE empresa=1 AND user_status=1 ORDER BY rol LIMIT 8;\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube -e \"SELECT id,nombres,email,rol FROM usuarios WHERE empresa=1 AND user_status=1 ORDER BY rol LIMIT 8;\"')",
+      "Bash(sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null desc5.sql root@161.97.67.60:/root/desc5.sql)",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker cp /root/desc5.sql int-istinge-mysql-1:/tmp/desc5.sql && echo COPIADO')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec int-istinge-mysql-1 sh -c \"mysql -uintegra_rednube -pc59f521ac0ba38f014767d5e861ad25027473c655866d5f0 integra_rednube < /tmp/desc5.sql\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec rednube-app-1 sh -lc \"cd /var/www/html && php artisan tinker --execute=\\\\\" *)",
+      "Bash(sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null verif.php root@161.97.67.60:/root/verif.php)",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker cp /root/verif.php rednube-app-1:/tmp/verif.php && docker exec rednube-app-1 sh -lc \"cd /var/www/html && php artisan tinker /tmp/verif.php\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'docker exec rednube-app-1 sh -lc \"cd /var/www/html && php artisan cache:forget cycle_stats_v28_1_2026-08 2>/dev/null || php -r \\\\\"require \\\\x27vendor/autoload.php\\\\x27; \\\\x24app=require \\\\x27bootstrap/app.php\\\\x27; \\\\x24app->make\\(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class\\)->bootstrap\\(\\); Illuminate\\\\Support\\\\Facades\\\\Cache::forget\\(\\\\x27cycle_stats_v28_1_2026-08\\\\x27\\); echo \\\\x27CACHE_LIMPIADA\\\\x27.PHP_EOL;\\\\\"\"')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@161.97.67.60 'rm -f /root/desc5.sql /root/verif.php; docker exec int-istinge-mysql-1 rm -f /tmp/desc5.sql; docker exec rednube-app-1 rm -f /tmp/verif.php; echo LIMPIO')",
+      "Bash(sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o NumberOfPasswordPrompts=1 root@161.97.67.60 'rm -f /root/desc5.sql /root/verif.php; docker exec int-istinge-mysql-1 rm -f /tmp/desc5.sql; docker exec rednube-app-1 rm -f /tmp/verif.php; echo LIMPIO')"
     ]
   }
 }
