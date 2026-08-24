@@ -123,11 +123,11 @@
             <span class="label">Estado:</span> <span class="value">@if($factura->estatus == 0) Cerrada @endif @if($factura->estatus == 1) Abierta @endif @if($factura->estatus == 2) Anulada @endif</span><br>
 
             @if($ingreso != null)
-                <span class="label">Recibo de Caja No.</span> <span class="value">{{ $ingreso->nro }}</span><br>
+                <span class="label">Recibo de Caja No.</span> <span class="value">{{ $ingreso->ingreso()->nro }}</span><br>
                 <span class="label">Fecha del Pago:</span> <span class="value">{{ date('d/m/Y', strtotime($ingreso->ingreso()->fecha)) }}</span><br>
                 <span class="label">Cuenta:</span> <span class="value">{{ $ingreso->ingreso()->cuenta()->nombre }}</span><br>
                 <span class="label">Método de Pago:</span> <span class="value">{{ $ingreso->ingreso()->metodo_pago() }}</span><br>
-                <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobrado('true')}}</span><br>
+                <span class="label">Periodo:</span> <span class="value">{{$factura->periodoCobradoTexto(true)}}</span><br>
                 @if($ingreso->ingreso()->notas) <span class="label">Notas:</span> <span class="value">{{ $ingreso->ingreso()->notas }}</span> @endif
             @endif
         </p>
@@ -145,8 +145,12 @@
             </thead>
             <tbody>
             @foreach($items as $item)
+                @php
+                    $nombre_item = $item->descripcion ?: $item->ref;
+                    if(!$nombre_item){ $nombre_item = $item->producto(); }
+                @endphp
                 <tr>
-                    <td class="text-left">{{strtolower($item->producto())}}</td>
+                    <td class="text-left">{{strtolower($nombre_item)}}</td>
                     <td class="text-right">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($item->total())}}</td>
                 </tr>
             @endforeach
@@ -171,11 +175,11 @@
                 @if($ingreso != null)
                 <tr>
                     <td style="width: 70%;" class="label">Monto a Pagar:</td>
-                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago())}} </td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->total()->total)}} </td>
                 </tr>
                 <tr>
                     <td style="width: 70%;" class="label">Monto Pagado:</td>
-                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->ingreso()->pago() + $ingreso->ingreso()->valor_anticipo)}} </td>
+                    <td style="width: 30%;" class="text-center value">{{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($ingreso->pago)}} </td>
                 </tr>
                 @if($factura->porpagar() > 0)
                 <tr>

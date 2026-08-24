@@ -1,5 +1,12 @@
 Dropzone.autoDiscover = false;
 
+if (window.jQuery && $.fn.dataTable) {
+    $.fn.dataTable.ext.type.order['fecha-dmy-pre'] = function(valor) {
+        var f = String(valor).replace(/<[^>]*>/g, '').match(/(\d{2})-(\d{2})-(\d{4})/);
+        return f ? Number(f[3] + f[2] + f[1]) : 0;
+    };
+}
+
 function vencimiento() {
     var vencimiento = $('#vencimiento').datepicker();
     $('#vencimiento').datepicker({
@@ -1219,11 +1226,14 @@ $(document).ready(function() {
                     "previous": "Anterior"
                 }
             },
-            "order": [
-                [1, "desc"]
-            ],
+            // El servidor ya entrega las facturas de la mas reciente a la mas antigua
+            // (datatable_cliente ordena por factura.id DESC), asi que no reordenamos al iniciar.
+            "order": [],
             "columnDefs": [{
-                "targets": [8],
+                "targets": [2, 3, 4],
+                "type": "fecha-dmy"
+            }, {
+                "targets": [11],
                 "orderable": false
             }],
 
