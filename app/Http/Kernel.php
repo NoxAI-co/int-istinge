@@ -51,6 +51,7 @@ class Kernel extends HttpKernel
      * @var array
      */
     protected $routeMiddleware = [
+        'whatsapp.bridge' => \App\Http\Middleware\VerifyWhatsappBridge::class,
         'auth' => \App\Http\Middleware\Authenticate::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'nomina' => \App\Http\Middleware\CheckUserForPayroll::class,

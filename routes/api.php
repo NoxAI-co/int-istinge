@@ -97,8 +97,13 @@ Route::get('getMAC/{mk}/{ip}', 'Controller@getMAC');
 
 /* api whatsive */
 
-Route::post('whatsapp/{action}', 'WhatsappController@whatsappApi');
-Route::post('uploadfile', 'WhatsappController@whatsappUpload')->name("uploadFile");
+// El grupo `api` no autentica nada, así que estas dos rutas estaban abiertas a
+// internet: escribían en chats_whatsapp y aceptaban subidas de archivos sin
+// credencial alguna. Ahora exigen token compartido o IP en lista blanca.
+Route::middleware('whatsapp.bridge')->group(function () {
+    Route::post('whatsapp/{action}', 'WhatsappController@whatsappApi');
+    Route::post('uploadfile', 'WhatsappController@whatsappUpload')->name("uploadFile");
+});
 
 /** EVENTOS WOMPI **/
 Route::post('pagos/wompi', 'CronController@eventosWompi');
