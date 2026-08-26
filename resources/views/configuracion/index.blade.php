@@ -296,9 +296,6 @@
                 <input type="hidden" id="efectyid" value="{{ Auth::user()->empresa()->efecty }}">
                 <a href="javascript:facturacionSmsAutomatica()">{{ Auth::user()->empresa()->factura_sms_auto == 0 ? 'Habilitar' : 'Deshabilitar' }}
                     SMS automaticos</a><br>
-                <a href="javascript:periodoTirilla()">{{ Auth::user()->empresa()->periodo_tirilla == 0 ? 'Habilitar' : 'Deshabilitar' }}
-                        periodo en tirilla</a><br>
-                <input type="hidden" id="periodoTirilla" value="{{ Auth::user()->empresa()->periodo_tirilla }}">
             </div>
 
             <div class="col-sm-3 enlaces">
@@ -2403,71 +2400,6 @@
                                     timer: 5000
                                 })
                                 $("#envioFacturaWhatsapp").val(0);
-                            }
-                            setTimeout(function() {
-                                var a = document.createElement("a");
-                                a.href = window.location.pathname;
-                                a.click();
-                            }, 1000);
-                        }
-                    });
-
-                }
-            })
-        }
-
-        function periodoTirilla() {
-            if (window.location.pathname.split("/")[1] === "software") {
-                var url = '/software/configuracion_periodo_tirilla';
-            } else {
-                var url = '/configuracion_periodo_tirilla';
-            }
-
-            if ($("#periodoTirilla").val() == 0) {
-                $titleswal = "¿Desea habilitar el campo periodo la tirilla??";
-            }
-
-            if ($("#periodoTirilla").val() == 1) {
-                $titleswal = "¿Desea deshabilitar el campo periodo en la tirilla?";
-            }
-
-            Swal.fire({
-                title: $titleswal,
-                type: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                cancelButtonText: 'Cancelar',
-                confirmButtonText: 'Aceptar',
-            }).then((result) => {
-                if (result.value) {
-                    $.ajax({
-                        url: url,
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        method: 'post',
-                        data: {
-                            status: $("#periodoTirilla").val()
-                        },
-                        success: function(data) {
-                            console.log(data);
-                            if (data == 1) {
-                                Swal.fire({
-                                    type: 'success',
-                                    title: 'Periodo en la tirilla habilitado',
-                                    showConfirmButton: false,
-                                    timer: 5000
-                                })
-                                $("#facturaAuto").val(1);
-                            } else {
-                                Swal.fire({
-                                    type: 'success',
-                                    title: 'Periodo en la tirilla deshabilitado',
-                                    showConfirmButton: false,
-                                    timer: 5000
-                                })
-                                $("#facturaAuto").val(0);
                             }
                             setTimeout(function() {
                                 var a = document.createElement("a");
