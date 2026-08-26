@@ -242,10 +242,22 @@
     <span class="tirilla-label">Estado:</span> Cerrada<br>
     <span class="tirilla-label">Recibo de Caja:</span> <b>No. {{ $ingreso->nro }}</b><br>
     <span class="tirilla-label">Fecha del Pago:</span> {{ date('d/m/Y', strtotime($ingreso->fecha)) }}<br>
+    <span class="tirilla-label">Hora:</span> {{ date('H:i', strtotime($ingreso->created_at)) }}<br>
     <span class="tirilla-label">Cuenta:</span> {{ $ingreso->cuenta()->nombre }}<br>
     <span class="tirilla-label">Método de Pago:</span> {{ $ingreso->metodo_pago() }}<br>
     @if(isset($saldo_inicial) && $saldo_inicial > 0)
     <span class="tirilla-label">Saldo Inicial:</span> {{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($saldo_inicial)}}<br>
+    @endif
+    {{-- Periodo, Hora y Saldo por Pagar existían solo en ingreso_tirilla. Como
+         imprimirTirilla manda aquí CUALQUIER ingreso con valor_anticipo > 0 —y
+         basta un sobrante de redondeo de unos pesos—, el cajero veía una tirilla
+         sin periodo y creía que la opción de configuración estaba rota. --}}
+    @php $factura = $ingreso->ingresofactura() ? $ingreso->ingresofactura()->factura() : null; @endphp
+    @if($ingreso->tipo == 1 && $factura)
+    <span class="tirilla-label">Periodo:</span> {{ $factura->periodoCobradoTexto() }}<br>
+        @if($factura->porpagar() > 0)
+    <span class="tirilla-label">Saldo por Pagar:</span> {{Auth::user()->empresa()->moneda}}{{App\Funcion::Parsear($factura->porpagar())}}<br>
+        @endif
     @endif
     @if($ingreso->notas) <span class="tirilla-label">Notas:</span> {{ $ingreso->notas }} @endif
 </div>

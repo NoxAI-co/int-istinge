@@ -320,7 +320,6 @@ Route::post('configuracion_factcronabiertas', 'ConfiguracionController@factCronA
 Route::post('configuracion_queries_dhcp_smartolt', 'ConfiguracionController@queries_dhcp_smartolt');
 Route::post('configuracion_activeconnection_secret', 'ConfiguracionController@activeconnectionSecret');
 Route::post('configuracion_facturacionSmsAutomatica', 'ConfiguracionController@facturacionSmsAutomatica');
-Route::post('configuracion_periodo_tirilla', 'ConfiguracionController@periodoTirilla');
 Route::post('configuracion_envio_wpp_ingreso', 'ConfiguracionController@envioWppIngreso');
 Route::post('configuracion_envio_factura_whatsapp', 'ConfiguracionController@envioFacturaWhatsapp');
 Route::post('configuracion_limpiarCache', 'ConfiguracionController@limpiarCache');
