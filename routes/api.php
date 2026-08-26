@@ -95,15 +95,12 @@ Route::get('getSubnetting/{ip_address}/{prefijo}', 'Controller@getSubnetting');
 Route::get('habilitarContratos/{fecha}', 'CronController@habilitarContratos');
 Route::get('getMAC/{mk}/{ip}', 'Controller@getMAC');
 
-/* api whatsive */
-
-// El grupo `api` no autentica nada, así que estas dos rutas estaban abiertas a
-// internet: escribían en chats_whatsapp y aceptaban subidas de archivos sin
-// credencial alguna. Ahora exigen token compartido o IP en lista blanca.
-Route::middleware('whatsapp.bridge')->group(function () {
-    Route::post('whatsapp/{action}', 'WhatsappController@whatsappApi');
-    Route::post('uploadfile', 'WhatsappController@whatsappUpload')->name("uploadFile");
-});
+// El puente externo de WhatsApp (whatsive / automatizadovip.com) posteaba a
+// POST /api/whatsapp/{action} y POST /api/uploadfile. Se eliminaron: el grupo
+// `api` no autentica nada, así que estaban abiertas a internet y armaban el SQL
+// concatenando el JSON entrante. Llevaban sin recibir una sola petición desde
+// abril de 2024 —la fila más nueva de chats_whatsapp en toda la flota— porque
+// la integración se migró a la Cloud API de Meta (/webhooks/whatsapp).
 
 /** EVENTOS WOMPI **/
 Route::post('pagos/wompi', 'CronController@eventosWompi');
