@@ -62,6 +62,12 @@ return [
         'verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
     ],
 
+    // API saliente de whatsive / automatizadovip.com, usada por
+    // CRMController@whatsappActions. Estaba hardcodeada en el controlador.
+    'whatsive' => [
+        'api_key' => env('WHATSIVE_API_KEY'),
+    ],
+
     // Integra Portal (portal.integracolombia.co). OJO: este proyecto corre
     // `config:cache` al arrancar el contenedor, asi que env() devuelve NULL en
     // runtime — TODO acceso debe ser via config('services.portal.*').
