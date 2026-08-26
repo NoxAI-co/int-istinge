@@ -330,18 +330,61 @@ class MetaWhatsAppService
     /**
      * Validate webhook signature
      */
-    public function validateWebhookSignature(string $payload, string $signature): bool
+    /**
+     * Secretos de app aceptados al validar la firma de los webhooks entrantes.
+     *
+     * Se admite una lista separada por comas porque varias apps de Meta pueden
+     * entregar al mismo callback y cada una firma con el suyo.
+     *
+     * @return array
+     */
+    private function webhookAppSecrets(): array
     {
-        $appSecret = config('services.meta.app_secret');
-        
-        if (empty($appSecret)) {
-            Log::warning('App secret not configured for webhook validation');
-            return true; // Por seguridad, podrías retornar false aquí
+        $configured = config('services.meta.webhook_app_secrets') ?: config('services.meta.app_secret');
+
+        if (!is_string($configured) || trim($configured) === '') {
+            return [];
         }
 
-        $expectedSignature = 'sha256=' . hash_hmac('sha256', $payload, $appSecret);
-        
-        return hash_equals($expectedSignature, $signature);
+        $secrets = array_map('trim', explode(',', $configured));
+
+        return array_values(array_unique(array_filter($secrets, function ($secret) {
+            return $secret !== '';
+        })));
+    }
+
+    /**
+     * Valida la cabecera X-Hub-Signature-256 contra el cuerpo crudo de la petición.
+     *
+     * Antes esto devolvía true cuando no había app secret configurado, así que
+     * cualquiera podía postear al webhook e inyectar mensajes en las
+     * conversaciones. Sin secreto no hay forma de probar que el payload venga de
+     * Meta: se rechaza.
+     */
+    public function validateWebhookSignature(string $payload, $signature): bool
+    {
+        $secrets = $this->webhookAppSecrets();
+
+        if (empty($secrets)) {
+            Log::error('❌ Sin META_APP_SECRETS/META_APP_SECRET configurado: no se puede validar la firma del webhook');
+
+            return false;
+        }
+
+        if (empty($signature) || strpos($signature, 'sha256=') !== 0) {
+            return false;
+        }
+
+        $valid = false;
+
+        foreach ($secrets as $secret) {
+            // Sin cortes tempranos: se recorren todos los secretos siempre para
+            // no filtrar por tiempo de respuesta cuál de ellos fue el que casó.
+            $expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+            $valid = hash_equals($expected, $signature) || $valid;
+        }
+
+        return $valid;
     }
 
     /**

@@ -14,6 +14,52 @@ class WhatsAppWebhookController extends Controller
 {
     private $metaService;
 
+    /**
+     * Códigos de error de la Cloud API → explicación legible.
+     *
+     * Un envío puede devolver HTTP 200 y fallar después; el motivo sólo llega
+     * por webhook. Sin traducir el código, `error_message` guardaba textos de
+     * Meta en inglés que no decían qué hacer.
+     *
+     * @see https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes
+     */
+    private const ERRORES_META = [
+        // Del destinatario: reintentar no sirve de nada.
+        '131026' => 'El número no tiene WhatsApp o no puede recibir el mensaje',
+        '133010' => 'El número no está registrado en WhatsApp',
+        '131051' => 'Tipo de mensaje no soportado por el destinatario',
+
+        // Ventana de 24 h: hay que reintentar con plantilla, no con texto libre.
+        '131047' => 'Fuera de la ventana de 24 h: solo se admiten plantillas',
+        '470'    => 'Fuera de la ventana de 24 h: solo se admiten plantillas',
+
+        // De la plantilla: corregirla antes de reintentar.
+        '132000' => 'La cantidad de parámetros no coincide con la plantilla',
+        '132001' => 'La plantilla no existe o no está aprobada en este idioma',
+        '132005' => 'El texto traducido de la plantilla excede el límite',
+        '132007' => 'Formato de parámetro incorrecto para la plantilla',
+        '132012' => 'Valor de parámetro inválido para la plantilla',
+        '132015' => 'La plantilla está pausada por baja calidad',
+        '132016' => 'La plantilla fue deshabilitada por Meta',
+        '131008' => 'Falta un parámetro obligatorio del mensaje',
+        '131009' => 'Un valor del mensaje no cumple el formato exigido',
+
+        // De la cuenta: requieren acción del administrador.
+        '131031' => 'La cuenta de WhatsApp Business está restringida',
+        '131042' => 'Problema con el método de pago de la cuenta de Meta',
+        '190'    => 'El token de acceso expiró: reconfigura la instancia',
+        '368'    => 'Cuenta bloqueada temporalmente por políticas de Meta',
+        '100'    => 'Parámetro inválido en la petición a Meta',
+        '33'     => 'El número de la instancia no existe o no es accesible',
+
+        // Transitorios: reintentar tiene sentido.
+        '130429' => 'Límite de envíos de Meta alcanzado: reintenta más tarde',
+        '80007'  => 'Límite de la cuenta alcanzado: reintenta más tarde',
+        '131016' => 'Servicio de Meta no disponible temporalmente',
+        '131000' => 'Error interno de Meta',
+        '131053' => 'Meta no pudo procesar el archivo adjunto',
+    ];
+
     public function __construct(MetaWhatsAppService $metaService)
     {
         $this->metaService = $metaService;
@@ -28,7 +74,16 @@ class WhatsAppWebhookController extends Controller
         $token = $request->query('hub_verify_token');
         $challenge = $request->query('hub_challenge');
 
-        $verifyToken = env('WHATSAPP_WEBHOOK_VERIFY_TOKEN', 'tu_token_de_verificacion');
+        // Con `config:cache` (lo corre docker/start.sh al arrancar) env() devuelve
+        // null en runtime, así que esto caía al literal 'tu_token_de_verificacion'
+        // y la verificación en Meta sólo pasaba con ese valor de ejemplo.
+        $verifyToken = config('services.meta.verify_token');
+
+        if (empty($verifyToken)) {
+            Log::error('❌ WHATSAPP_WEBHOOK_VERIFY_TOKEN sin configurar: no se puede verificar el webhook');
+
+            return response('Forbidden', 403);
+        }
 
         if ($mode === 'subscribe' && $token === $verifyToken) {
             Log::info('✅ Webhook verificado exitosamente');
@@ -48,6 +103,17 @@ class WhatsAppWebhookController extends Controller
      */
     public function webhook(Request $request)
     {
+        // La firma se calcula sobre el cuerpo crudo: $request->all() ya viene
+        // decodificado y re-serializarlo no reproduce byte a byte lo que firmó Meta.
+        if (!$this->metaService->validateWebhookSignature($request->getContent(), $request->header('X-Hub-Signature-256'))) {
+            Log::warning('❌ Webhook rechazado: firma inválida', [
+                'ip'          => $request->ip(),
+                'tiene_firma' => $request->header('X-Hub-Signature-256') !== null,
+            ]);
+
+            return response('Forbidden', 403);
+        }
+
         $data = $request->all();
 
         Log::info('📩 Webhook recibido de Meta', ['data' => $data]);
@@ -325,11 +391,27 @@ class WhatsAppWebhookController extends Controller
         } elseif ($newStatus === 'read') {
             $updateData['read_at'] = now();
         } elseif ($newStatus === 'failed') {
-            $errorMessage = 'Error desconocido';
-            if (isset($status['errors']) && count($status['errors']) > 0) {
-                $errorMessage = $status['errors'][0]['message'] ?? $errorMessage;
-            }
-            $updateData['error_message'] = $errorMessage;
+            $error = isset($status['errors'][0]) ? $status['errors'][0] : [];
+            $code = isset($error['code']) ? (string) $error['code'] : null;
+
+            // Meta responde 200 con wamid aunque el envío vaya a fallar; el
+            // fallo real sólo llega por este webhook. Guardar el código además
+            // del texto permite saber si tiene sentido reintentar (y con qué):
+            // 131047 significa que hay que mandar plantilla, no texto libre.
+            $explicacion = $code !== null && isset(self::ERRORES_META[$code])
+                ? self::ERRORES_META[$code]
+                : ($error['message'] ?? 'Error desconocido');
+
+            $updateData['error_message'] = $code !== null
+                ? "[{$code}] {$explicacion}"
+                : $explicacion;
+
+            Log::warning('⚠️ Meta reportó un envío fallido', [
+                'wamid'   => $wamid,
+                'code'    => $code,
+                'detalle' => $explicacion,
+                'titulo'  => $error['title'] ?? null,
+            ]);
         }
 
         $message->update($updateData);
