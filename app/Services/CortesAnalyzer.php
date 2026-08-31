@@ -22,11 +22,20 @@ class CortesAnalyzer
     //  Caché
     // ──────────────────────────────────────────────────────────────────────────
 
-    public function clearCache(int $grupoCorteId): void
+    public function clearCache(int $grupoCorteId, ?string $fecha = null): void
     {
         Cache::forget("cortes_analyzer_all_contracts_{$grupoCorteId}");
         foreach (['summary', 'pending_internet', 'pending_tv', 'cut_internet', 'cut_tv', 'reasons'] as $key) {
             Cache::forget("cortes_analyzer_{$key}_{$grupoCorteId}");
+        }
+
+        //getPendingInternetCuts y getPendingTvCuts guardan la fecha dentro de la clave
+        //("..._{grupo}_{fecha}"), asi que los forget de arriba nunca las alcanzaban y el
+        //panel de pendientes seguia mostrando la lista vieja hasta vencer el TTL de 3 min.
+        //Recien ejecutado un corte eso se lee como "no corto".
+        $fecha = $fecha ?? now()->format('Y-m-d');
+        foreach (['pending_internet', 'pending_tv'] as $key) {
+            Cache::forget("cortes_analyzer_{$key}_{$grupoCorteId}_{$fecha}");
         }
     }
 

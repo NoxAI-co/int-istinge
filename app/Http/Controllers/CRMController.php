@@ -404,7 +404,7 @@ class CRMController extends Controller
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => json_encode($postdata),
             CURLOPT_HTTPHEADER => array(
-                'Api-key:c47f0efb-6949-4e2c-a65b-160cf3d5e332',
+                'Api-key:' . config('services.whatsive.api_key'),
                 'Content-Type: application/json',
             ),
         ));

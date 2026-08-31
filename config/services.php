@@ -55,7 +55,17 @@ return [
         'access_token' => env('ACCESS_TOKEN_META'),
         'api_version'  => 'v21.0',
         'app_secret'   => env('META_APP_SECRET'),
+        // App secrets aceptados al validar la firma (X-Hub-Signature-256) de los
+        // webhooks entrantes, separados por coma si varias apps de Meta entregan
+        // aquí. Sin ninguno configurado el webhook rechaza TODO con 403.
+        'webhook_app_secrets' => env('META_APP_SECRETS', env('META_APP_SECRET')),
         'verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+    ],
+
+    // API saliente de whatsive / automatizadovip.com, usada por
+    // CRMController@whatsappActions. Estaba hardcodeada en el controlador.
+    'whatsive' => [
+        'api_key' => env('WHATSIVE_API_KEY'),
     ],
 
     // Integra Portal (portal.integracolombia.co). OJO: este proyecto corre

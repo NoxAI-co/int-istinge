@@ -25,6 +25,7 @@ use App\Empresa;  use Auth; use App\Movimiento;
 use App\MovimientoLOG;
 use DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Radicado;
 use App\NumeracionFactura;
 use App\Numeracion;
@@ -2980,10 +2981,59 @@ class Controller extends BaseController
         $btwApi =  new BTWService();
         $responseBTW = $btwApi->saveResolution($payload);
 
-        if(isset($responseBTW->status) && $responseBTW->status == 200){
-            $numeracion->btw_id = $responseBTW->data->id;
-            return true;
-        }else return false;
+        //makeRequest() devuelve el JSON decodificado cuando el proveedor contesta bien, y un
+        //array con statusCode/errorReal/th cuando falla. Se normaliza a array para leer ambas.
+        $r = json_decode(json_encode($responseBTW), true);
+        $r = is_array($r) ? $r : [];
+        $status = $r['status'] ?? $r['statusCode'] ?? null;
+
+        if ((int) $status === 200) {
+            //btw_id no existe en todas las bases de clientes; sin el guard, guardarlo revienta.
+            $btwId = $r['data']['id'] ?? null;
+            if ($btwId && Schema::hasColumn($numeracion->getTable(), 'btw_id')) {
+                $numeracion->btw_id = $btwId;
+                $numeracion->save();
+            }
+            return ['ok' => true, 'mensaje' => null];
+        }
+
+        //'th' trae el cuerpo que devolvio el proveedor; ahi viene el motivo real del rechazo.
+        $motivo = $r['th']['message']
+               ?? $r['th']['error']
+               ?? $r['message']
+               ?? $r['errorMessage']
+               ?? 'el proveedor no informo la causa';
+
+        Log::error('saveResolutionBTW: el proveedor rechazo la resolucion', [
+            'numeracion'    => $numeracion->id ?? null,
+            'nroresolucion' => $numeracion->nroresolucion ?? null,
+            'rango'         => ($numeracion->inicioverdadero ?? '?').' - '.($numeracion->final ?? '?'),
+            'status'        => $status,
+            'motivo'        => $motivo,
+        ]);
+
+        return ['ok' => false, 'mensaje' => $motivo];
+    }
+
+    /**
+     * Texto del aviso cuando el proveedor rechaza la resolucion.
+     *
+     * Devuelve null si todo salio bien: Session::has() trata null como ausente, asi que las
+     * vistas pueden recibirlo siempre sin condicionales y no se muestra nada.
+     *
+     * Existe porque los 8 puntos que guardan una numeracion ignoraban el retorno de
+     * saveResolutionBTW y mostraban "creada satisfactoriamente" aunque el proveedor la
+     * hubiera rechazado. La numeracion quedaba perfecta en local e inexistente en BTW, y el
+     * fallo recien aparecia al emitir, como "No se encontro una resolucion valida".
+     */
+    public static function avisoResolucionBTW($respuesta){
+        if (!is_array($respuesta) || !empty($respuesta['ok'])) {
+            return null;
+        }
+
+        return 'ATENCION: la numeracion se guardo, pero el proveedor de facturacion electronica '
+             . 'NO la registro. Motivo: ' . $respuesta['mensaje'] . '. Mientras no quede registrada, '
+             . 'las facturas de esta numeracion seran rechazadas al emitir.';
     }
 
 }
