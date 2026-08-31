@@ -391,7 +391,13 @@ class ConfiguracionController extends Controller
       $request->validate([
         'nombre' => 'required',
         'inicio' => 'required|numeric',
+        //Sin esta regla se podia guardar un rango invertido (p.ej. inicio 4984, final 12).
+        //El proveedor rechaza la resolucion, el rechazo no se veia, y el fallo aparecia
+        //recien al emitir como "No se encontro una resolucion valida".
+        'final' => 'nullable|numeric|gt:inicio',
         'preferida' => 'required|numeric'
+      ], [
+        'final.gt' => 'El numero final del rango debe ser mayor que el inicial. Verifiquelo contra la resolucion de la DIAN: un rango invertido hace que el proveedor rechace la numeracion y despues no se puedan emitir facturas.',
       ]);
 
       //Tipo de numeracion_factura, 1=estandar, 2=DIAN
@@ -430,7 +436,7 @@ class ConfiguracionController extends Controller
     //********* MICROSERVICIO BTW *********//
 
       $mensaje='Se ha creado satisfactoriamente la numeración';
-      return redirect('empresa/configuracion/numeraciones')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+      return redirect('empresa/configuracion/numeraciones')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
     }
 
     $mensaje='Se ha creado satisfactoriamente la numeración';
@@ -476,7 +482,13 @@ class ConfiguracionController extends Controller
       $request->validate([
         'nombre' => 'required',
         'inicio' => 'required|numeric',
+        //Sin esta regla se podia guardar un rango invertido (p.ej. inicio 4984, final 12).
+        //El proveedor rechaza la resolucion, el rechazo no se veia, y el fallo aparecia
+        //recien al emitir como "No se encontro una resolucion valida".
+        'final' => 'nullable|numeric|gt:inicio',
         'preferida' => 'required|numeric'
+      ], [
+        'final.gt' => 'El numero final del rango debe ser mayor que el inicial. Verifiquelo contra la resolucion de la DIAN: un rango invertido hace que el proveedor rechace la numeracion y despues no se puedan emitir facturas.',
       ]);
       if ($request->preferida==1) {
         DB::table('numeraciones_facturas')
@@ -505,7 +517,7 @@ class ConfiguracionController extends Controller
     //********* MICROSERVICIO BTW *********//
 
       $mensaje='Se ha modificado satisfactoriamente la numeración';
-      return redirect('empresa/configuracion/numeraciones')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+      return redirect('empresa/configuracion/numeraciones')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
 
     }
     return redirect('empresa/configuracion/numeraciones')->with('success', 'No existe un registro con ese id');
@@ -515,7 +527,13 @@ class ConfiguracionController extends Controller
     $request->validate([
         'nombre' => 'required',
         'inicio' => 'required|numeric',
+        //Sin esta regla se podia guardar un rango invertido (p.ej. inicio 4984, final 12).
+        //El proveedor rechaza la resolucion, el rechazo no se veia, y el fallo aparecia
+        //recien al emitir como "No se encontro una resolucion valida".
+        'final' => 'nullable|numeric|gt:inicio',
         'preferida' => 'required|numeric'
+      ], [
+        'final.gt' => 'El numero final del rango debe ser mayor que el inicial. Verifiquelo contra la resolucion de la DIAN: un rango invertido hace que el proveedor rechace la numeracion y despues no se puedan emitir facturas.',
       ]);
 
       $empresa = auth()->user()->empresaObj;
@@ -556,7 +574,7 @@ class ConfiguracionController extends Controller
     //********* MICROSERVICIO BTW *********//
 
       $mensaje='Se ha creado satisfactoriamente la numeración';
-      return redirect('empresa/configuracion/numeraciones/dian')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+      return redirect('empresa/configuracion/numeraciones/dian')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
 
       $mensaje='Se ha creado satisfactoriamente la numeración';
       return redirect('empresa/configuracion/numeraciones/dian')->with('success', $mensaje);
@@ -601,7 +619,13 @@ class ConfiguracionController extends Controller
       $request->validate([
         'nombre' => 'required',
         'inicio' => 'required|numeric',
+        //Sin esta regla se podia guardar un rango invertido (p.ej. inicio 4984, final 12).
+        //El proveedor rechaza la resolucion, el rechazo no se veia, y el fallo aparecia
+        //recien al emitir como "No se encontro una resolucion valida".
+        'final' => 'nullable|numeric|gt:inicio',
         'preferida' => 'required|numeric'
+      ], [
+        'final.gt' => 'El numero final del rango debe ser mayor que el inicial. Verifiquelo contra la resolucion de la DIAN: un rango invertido hace que el proveedor rechace la numeracion y despues no se puedan emitir facturas.',
       ]);
       if ($request->preferida==1) {
 
@@ -632,7 +656,7 @@ class ConfiguracionController extends Controller
     //********* MICROSERVICIO BTW *********//
 
       $mensaje='Se ha modificado satisfactoriamente la numeración';
-      return redirect('empresa/configuracion/numeraciones/dian')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+      return redirect('empresa/configuracion/numeraciones/dian')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
 
     }
     return redirect('empresa/configuracion/numeraciones/dian')->with('success', 'No existe un registro con ese id');
@@ -2370,7 +2394,7 @@ class ConfiguracionController extends Controller
         //********* MICROSERVICIO BTW *********//
 
         $mensaje = 'Se ha creado satisfactoriamente la numeración';
-        return redirect()->route('numeraciones_nomina.index')->with('success', $mensaje);
+        return redirect()->route('numeraciones_nomina.index')->with('success', $mensaje)->with('warning', self::avisoResolucionBTW($responseBTW));
     }
 
     public function numeracion_nomina_index()
@@ -2444,7 +2468,7 @@ class ConfiguracionController extends Controller
 
 
         $mensaje = 'Se actualizó la numeración correctamente';
-        return redirect()->route('numeraciones_nomina.index')->with('success', $mensaje);
+        return redirect()->route('numeraciones_nomina.index')->with('success', $mensaje)->with('warning', self::avisoResolucionBTW($responseBTW));
     }
 
     public function numeracion_nomina_destroy($id)
@@ -2678,7 +2702,7 @@ class ConfiguracionController extends Controller
         //********* MICROSERVICIO BTW *********//
 
         $mensaje = 'Se ha creado satisfactoriamente la numeración';
-        return redirect('empresa/configuracion/numeraciones-equivalente')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+        return redirect('empresa/configuracion/numeraciones-equivalente')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
     }
 
     /**
@@ -2728,7 +2752,7 @@ class ConfiguracionController extends Controller
         //********* MICROSERVICIO BTW *********//
 
         $mensaje = 'Se actualizó la numeración correctamente';
-        return redirect('empresa/configuracion/numeraciones-equivalente')->with('success', $mensaje)->with('numeracion_id', $numeracion->id);
+        return redirect('empresa/configuracion/numeraciones-equivalente')->with('success', $mensaje)->with('numeracion_id', $numeracion->id)->with('warning', self::avisoResolucionBTW($responseBTW));
     }
 
     /**

@@ -112,6 +112,21 @@ class GruposCorteController extends Controller
         return view('grupos-corte.create');
     }
 
+    /**
+     * Ventana superior del corte: hora_suspension + 4 horas, sin salirse del mismo dia.
+     *
+     * Antes se armaba concatenando texto ($hora[0]+4 . ':' . $hora[1]), asi que una
+     * hora_suspension de 23:57 guardaba "27:57" y toda hora >= 20:00 quedaba fuera del
+     * reloj. Se topa en 23:59 porque el unico consumidor del campo lo compara con un
+     * >= contra date('H:i') del mismo dia: una ventana que cruce medianoche no casa nunca.
+     */
+    private static function calcularHoraSuspensionLimit($horaSuspension){
+        $hora = Carbon::createFromFormat('H:i', substr(trim($horaSuspension), 0, 5));
+        $limite = $hora->copy()->addHours(4);
+
+        return $limite->isSameDay($hora) ? $limite->format('H:i') : '23:59';
+    }
+
     public function store(Request $request){
         $request->validate([
             'nombre' => 'required|max:250',
@@ -123,9 +138,7 @@ class GruposCorteController extends Controller
             'periodo_facturacion' => 'required|numeric|in:1,2,3',
         ]);
 
-        $hora_suspension = explode(":", $request->hora_suspension);
-        $hora_suspension_limit = $hora_suspension[0]+4;
-        $hora_suspension_limit = $hora_suspension_limit.':'.$hora_suspension[1];
+        $hora_suspension_limit = self::calcularHoraSuspensionLimit($request->hora_suspension);
 
         $grupo = new GrupoCorte;
         $grupo->nombre = $request->nombre;
@@ -149,9 +162,7 @@ class GruposCorteController extends Controller
     }
 
     public function storeBack(Request $request){
-        $hora_suspension = explode(":", $request->hora_suspension);
-        $hora_suspension_limit = $hora_suspension[0]+4;
-        $hora_suspension_limit = $hora_suspension_limit.':'.$hora_suspension[1];
+        $hora_suspension_limit = self::calcularHoraSuspensionLimit($request->hora_suspension);
 
         $grupo                   = new GrupoCorte;
         $grupo->nombre           = $request->nombre;
@@ -218,9 +229,7 @@ class GruposCorteController extends Controller
         $grupo = GrupoCorte::find($id);
 
         if ($grupo) {
-            $hora_suspension = explode(":", $request->hora_suspension);
-            $hora_suspension_limit = $hora_suspension[0]+4;
-            $hora_suspension_limit = $hora_suspension_limit.':'.$hora_suspension[1];
+            $hora_suspension_limit = self::calcularHoraSuspensionLimit($request->hora_suspension);
 
             //Si es diferente es por que hubo un cambio y vamos a actualizar la fecha de suspension de las ultimas facturas creadas
             if($grupo->fecha_suspension != $request->fecha_suspension){
@@ -1863,7 +1872,7 @@ class GruposCorteController extends Controller
             'duracion_ms'      => $duracion,         'updated_at'     => now(),
         ]);
 
-        $analyzer->clearCache($grupoId);
+        $analyzer->clearCache($grupoId, $fecha);
 
         return response()->json([
             'ok' => true, 'log_id' => $logId,
@@ -1959,7 +1968,7 @@ class GruposCorteController extends Controller
                 'total_procesados' => $total, 'total_cortados' => $cortados,
                 'total_errores' => $errores, 'duracion_ms' => $duracion, 'updated_at' => now(),
             ]);
-            $analyzer->clearCache($grupoId);
+            $analyzer->clearCache($grupoId, $fecha);
 
             echo 'data: '.json_encode(['done' => true, 'log_id' => $logId, 'cortados' => $cortados,
                 'errores' => $errores, 'total' => $total])."\n\n";
@@ -2031,7 +2040,7 @@ class GruposCorteController extends Controller
             'total_procesados' => $totalProcesados, 'total_cortados' => $totalCortados,
             'total_errores' => $totalErrores, 'duracion_ms' => $duracion, 'updated_at' => now(),
         ]);
-        $analyzer->clearCache($grupoId);
+        $analyzer->clearCache($grupoId, $fecha);
 
         return response()->json([
             'ok' => true, 'log_id' => $logId,
