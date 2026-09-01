@@ -626,6 +626,30 @@ for DB in "${DBS[@]}"; do
     echo "    [contratos_equipos] creada"
   fi
 
+  # --- 22) grupos_corte: periodo_facturacion --------------------------------
+  #  Crear un grupo de corte reventaba con "Unknown column 'periodo_facturacion'
+  #  in 'field list'": el modelo GrupoCorte la trae en $fillable y el INSERT la
+  #  manda siempre, así que sin la columna NINGÚN grupo se puede crear. Estaba
+  #  en 43 de las 44 BDs — sólo faltaba en integra_infinitylan, que se quedó sin
+  #  el ALTER cuando se agregó la columna.
+  #
+  #  NOT NULL DEFAULT 3 igual que en el resto de la flota: 3 = periodo mensual,
+  #  que es el valor con el que nacieron los grupos existentes.
+  if table_exists "$DB" "grupos_corte"; then
+    for COL in "periodo_facturacion:INT NOT NULL DEFAULT 3" \
+               "mes_siguiente:INT NOT NULL DEFAULT 0"; do
+      NAME="${COL%%:*}"; TYPE="${COL#*:}"
+      if column_exists "$DB" "grupos_corte" "$NAME"; then
+        echo "    [grupos_corte.${NAME}] ya existe, salto"
+      else
+        dm "$DB" -e "ALTER TABLE grupos_corte ADD COLUMN ${NAME} ${TYPE};"
+        echo "    [grupos_corte.${NAME}] agregada (${TYPE})"
+      fi
+    done
+  else
+    echo "    (sin tabla grupos_corte)"
+  fi
+
 done
 
 echo "==> Listo."
