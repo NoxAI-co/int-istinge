@@ -404,7 +404,14 @@ class CronController extends Controller
                         ->where('facturas_contratos.contrato_nro', $contrato->nro)
                         ->where('factura.estatus','!=',2)
                         ->select('factura.*')
-                        ->orderBy('factura.fecha', 'desc')
+                        //  Se ordena por la MISMA fecha con la que abajo se calcula el mes, no
+                        //  por `factura.fecha` a secas. Si no, una factura vieja a la que le
+                        //  editaron la fecha hacia adelante se trepa al primer puesto y pasa por
+                        //  «la última»: en latinnetandes 11 contratos que SI tenian su factura del
+                        //  27 de agosto resolvian a una de junio/julio con la fecha corrida al 31
+                        //  de agosto, y una recorrida del mes les habria hecho factura duplicada.
+                        ->orderByRaw('CASE WHEN factura.tipo = 2 OR factura.facturacion_automatica = 1
+                                           THEN factura.created_at ELSE factura.fecha END DESC')
                         ->first();
 
                         $mesUltimaFactura = false;
@@ -413,7 +420,20 @@ class CronController extends Controller
                         if($ultimaFactura){
 
                             //Validamos que solo vamos a evaluar por created_at a las f. electronicas, por que las pudieron emitir despues.
-                            if($ultimaFactura->tipo == 2){
+                            //
+                            //  Y tambien a las AUTOMATICAS, por lo mismo al reves: `fecha` se puede
+                            //  editar desde la factura despues de generada. Cuando a una factura del
+                            //  cron le corren la fecha al mes siguiente —cosa que se hace para darle
+                            //  plazo al cliente— el mes calculado sobre `fecha` deja de ser el mes en
+                            //  que se facturo, y la corrida de ese mes siguiente cree que ya facturo
+                            //  y salta el contrato. En latinnetandes eso dejo 21 contratos sin factura
+                            //  de agosto: la del 27 de julio tenia la fecha movida al 1 de agosto.
+                            //
+                            //  `created_at` es el dia de la corrida (con $fechaRef se fija a $fecha) y
+                            //  no se edita desde la interfaz, asi que es el que dice de verdad por que
+                            //  ciclo se facturo. Para las manuales se sigue mirando `fecha`: ahi no hay
+                            //  corrida detras y la fecha ES el dato bueno.
+                            if($ultimaFactura->tipo == 2 || $ultimaFactura->facturacion_automatica == 1){
                                 $mesUltimaFactura = date('Y-m',strtotime($ultimaFactura->created_at));
                             }else{
                                 $mesUltimaFactura = date('Y-m',strtotime($ultimaFactura->fecha));
