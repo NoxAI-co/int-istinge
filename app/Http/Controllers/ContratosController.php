@@ -1788,6 +1788,9 @@ class ContratosController extends Controller
                 $contrato->costo_reconexion = $request->costo_reconexion;
             }
 
+            // Datos del Contrato Único Convergente (CRC 7811 de 2025).
+            $this->asignarCamposCrc($contrato, $request);
+
             ### DOCUMENTOS ADJUNTOS ###
 
             if ($request->adjunto_a) {
@@ -1993,6 +1996,9 @@ class ContratosController extends Controller
             if ($request->costo_reconexion) {
                 $contrato->costo_reconexion = $request->costo_reconexion;
             }
+
+            // Datos del Contrato Único Convergente (CRC 7811 de 2025).
+            $this->asignarCamposCrc($contrato, $request);
 
             ### DOCUMENTOS ADJUNTOS ###
 
@@ -2880,6 +2886,9 @@ class ContratosController extends Controller
                         $contrato->costo_reconexion = 0;
                     }
 
+                    // Datos del Contrato Único Convergente (CRC 7811 de 2025).
+                    $this->asignarCamposCrc($contrato, $request);
+
                     ### DOCUMENTOS ADJUNTOS ###
 
                     if ($request->referencia_a) {
@@ -3074,6 +3083,9 @@ class ContratosController extends Controller
                 } else {
                     $contrato->costo_reconexion = 0;
                 }
+
+                // Datos del Contrato Único Convergente (CRC 7811 de 2025).
+                $this->asignarCamposCrc($contrato, $request);
 
                 ### DOCUMENTOS ADJUNTOS ###
                 if ($request->referencia_a) {
@@ -8018,5 +8030,46 @@ class ContratosController extends Controller
 
         $contrato->update();
         return $contrato->etiqueta;
+    }
+
+    /**
+     * Vuelca en el contrato los datos que exige el Contrato Único Convergente
+     * (Resolución CRC 7811 de 2025).
+     *
+     * Se comprueba columna por columna porque las agrega la migración del
+     * bloque CRC y las BDs de clientes no corren `migrate`: en una base sin
+     * actualizar, asignar a pelo tumbaría el guardado del contrato ENTERO por
+     * un campo que es opcional.
+     */
+    private function asignarCamposCrc($contrato, Request $request)
+    {
+        // Los inputs del formulario son type="number", así que llegan como
+        // "150000.5" con punto decimal. Se acepta igual el formato con
+        // separador de miles ("150.000,5") por si el valor entra por API.
+        $numero = function ($v) {
+            if ($v === null || $v === '') {
+                return null;
+            }
+            $v = trim((string) $v);
+            if (preg_match('/^-?\d+(\.\d+)?$/', $v)) {
+                return (float) $v;
+            }
+            return (float) str_replace(['.', ','], ['', '.'], $v);
+        };
+
+        $valores = [
+            'cargo_conexion'        => $numero($request->cargo_conexion),
+            'valor_diferido'        => $numero($request->valor_diferido),
+            'renovacion_automatica' => (int) ($request->renovacion_automatica ?? 0),
+            'acepta_permanencia'    => (int) ($request->acepta_permanencia ?? 0),
+            'beneficios_paquete'    => $request->beneficios_paquete ?: null,
+            'servicios_adicionales' => $request->servicios_adicionales ?: null,
+        ];
+
+        foreach ($valores as $columna => $valor) {
+            if (\Schema::hasColumn('contracts', $columna)) {
+                $contrato->{$columna} = $valor;
+            }
+        }
     }
 }

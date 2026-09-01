@@ -1093,6 +1093,12 @@
                                     role="tab" aria-controls="pills-contrato" aria-selected="false">Contrato
                                     Digital</a>
                             </li>
+                            {{-- Datos que exige el Contrato Único Convergente (CRC 7811 de 2025)
+                                 y que no dependen del cliente: se configuran una sola vez. --}}
+                            <li class="nav-item">
+                                <a class="nav-link" id="pills-crc-tab" data-toggle="pill" href="#pills-crc"
+                                    role="tab" aria-controls="pills-crc" aria-selected="false">Datos CRC</a>
+                            </li>
                         </ul>
 
                         <hr
@@ -1192,6 +1198,25 @@
                                     <div class="form-group col-md-12 d-none">
                                         <label class="control-label">ANEXO 4</label>
                                         <textarea class="form-control" name="anexo_4" id="anexo_4" rows="6"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="pills-crc" role="tabpanel"
+                                aria-labelledby="pills-crc-tab">
+                                <div class="row">
+                                    <div class="form-group col-md-6">
+                                        <label class="control-label">Registro TIC</label>
+                                        <input type="text" class="form-control" name="registro_tic" id="registro_tic"
+                                            maxlength="60">
+                                        <small class="form-text text-muted">Va en la banda de identificación de la
+                                            primera página del contrato.</small>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label class="control-label">Incremento tarifario anual máximo (%)</label>
+                                        <input type="number" step="0.01" min="0" max="100" class="form-control"
+                                            name="incremento_tarifario" id="incremento_tarifario">
+                                        <small class="form-text text-muted">La CRC obliga a declarar el tope de subida
+                                            anual. Si se deja vacío, el contrato imprime la línea en blanco.</small>
                                     </div>
                                 </div>
                             </div>
@@ -3123,6 +3148,8 @@
                 $("#anexo_2").val(data.anexo_2);
                 $("#anexo_3").val(data.anexo_3);
                 $("#anexo_4").val(data.anexo_4);
+                $("#registro_tic").val(data.registro_tic);
+                $("#incremento_tarifario").val(data.incremento_tarifario);
             });
             cargando(false);
             $('#modal_parametrosContratoDigital').modal("show");
