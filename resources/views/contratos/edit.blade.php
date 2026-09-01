@@ -196,6 +196,57 @@
                                     <strong>{{ $errors->first('contrato_permanencia_meses') }}</strong>
                                 </span>
                             </div>
+
+                            {{-- ── Contrato Único Convergente (CRC 7811 de 2025) ────────────
+                                 Datos que el modelo obligatorio de la CRC exige y que antes
+                                 salían como línea en blanco para diligenciar a mano. Todos
+                                 opcionales: mientras nadie los llene, el contrato sale igual.
+                                 Los tres de permanencia solo aparecen si el contrato la tiene. --}}
+                            <div class="col-md-12">
+                                <h6 class="mt-2 mb-0"><b>Contrato digital (CRC 7811)</b></h6>
+                                <hr class="mt-1 mb-3">
+                            </div>
+                            <div class="col-md-4 form-group crc-permanencia {{ old('contrato_permanencia')==1 || $contrato->contrato_permanencia==1?'':'d-none' }}">
+                                <label class="control-label">Valor total del cargo por conexión</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control" name="cargo_conexion"
+                                        id="cargo_conexion" value="{{ old('cargo_conexion', $contrato->cargo_conexion ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4 form-group crc-permanencia {{ old('contrato_permanencia')==1 || $contrato->contrato_permanencia==1?'':'d-none' }}">
+                                <label class="control-label">Suma descontada o diferida <a><i data-tippy-content="De esta suma sale la tabla «valor a pagar si termina el contrato anticipadamente», que se calcula mes a mes." class="icono far fa-question-circle"></i></a></label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control" name="valor_diferido"
+                                        id="valor_diferido" value="{{ old('valor_diferido', $contrato->valor_diferido ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4 form-group crc-permanencia {{ old('contrato_permanencia')==1 || $contrato->contrato_permanencia==1?'':'d-none' }}">
+                                <label class="control-label">¿El usuario aceptó la cláusula de permanencia?</label>
+                                <select class="form-control selectpicker" name="acepta_permanencia" id="acepta_permanencia" data-size="5">
+                                    <option value="0" {{ old('acepta_permanencia', $contrato->acepta_permanencia ?? 0) == 1 ? '' : 'selected' }}>NO</option>
+                                    <option value="1" {{ old('acepta_permanencia', $contrato->acepta_permanencia ?? 0) == 1 ? 'selected' : '' }}>SI</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="control-label">¿El usuario aceptó la renovación automática?</label>
+                                <select class="form-control selectpicker" name="renovacion_automatica" id="renovacion_automatica" data-size="5">
+                                    <option value="0" {{ old('renovacion_automatica', $contrato->renovacion_automatica ?? 0) == 1 ? '' : 'selected' }}>NO</option>
+                                    <option value="1" {{ old('renovacion_automatica', $contrato->renovacion_automatica ?? 0) == 1 ? 'selected' : '' }}>SI</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8 form-group">
+                                <label class="control-label">Productos o servicios adicionales</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="servicios_adicionales" maxlength="255"
+                                        id="servicios_adicionales" value="{{ old('servicios_adicionales', $contrato->servicios_adicionales ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-12 form-group">
+                                <label class="control-label">Beneficios del paquete de servicios</label>
+                                <div class="input-group">
+                                    <textarea class="form-control" name="beneficios_paquete" id="beneficios_paquete" rows="2">{{ old('beneficios_paquete', $contrato->beneficios_paquete ?? '') }}</textarea>
+                                </div>
+                            </div>
                             <div class="col-md-4 form-group">
                                 <label class="control-label">Coordenadas GPS <a><i data-tippy-content="Arrastre el pin para indicar las coordenadas deseadas." class="icono far fa-question-circle"></i></a></label>
                                 <div class="input-group">
@@ -1333,6 +1384,9 @@
                     $("#contrato_permanencia_meses").val('').selectpicker('refresh');
                     $("#div_meses").addClass('d-none');
                 }
+                // Los datos CRC de permanencia (cargo por conexión, suma diferida y
+                // la aceptación de la cláusula) solo tienen sentido con permanencia.
+                $(".crc-permanencia").toggleClass('d-none', $('#contrato_permanencia').val() != 1);
             });
             $('#reconexion').change(function(){
                 if($('#reconexion').val() == 1){

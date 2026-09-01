@@ -276,10 +276,14 @@ class AsignacionesController extends Controller
             abort(404, 'No se encontró el contrato digital.');
         }
 
+        // El guard va ANTES de tocar $contact: con un cliente borrado, leer
+        // firma_isp reventaba con un error de propiedad sobre null en vez de
+        // dar el 404 previsto.
+        if (! $digital->cliente) {
+            abort(404, 'Cliente no encontrado.');
+        }
+
         $contact = $digital->cliente;
-        $company = Empresa::first(); // Or Auth::user()->empresa() if preferred, but first() is safe for PDF generation
-        $contract = $digital->contrato;
-        $contractDetails = $digital->contrato;
 
         if ($contact->firma_isp != null && $digital->firma == null) {
             $digital->firma = $contact->firma_isp;
@@ -288,14 +292,168 @@ class AsignacionesController extends Controller
         }
 
         view()->share(['title' => 'Contrato de Internet']);
-        $pdf = Pdf::loadView('pdf.contrato', compact([
-            'contact',
-            'company',
-            'contract',
-            'contractDetails',
-            'digital'
-        ]));
-        return response($pdf->stream())->withHeaders(['Content-Type' => 'application/pdf',]);
+        return response($this->construirPdfContrato($digital), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="contrato_digital_'.$digital->id.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Arma el PDF del Contrato Único Convergente, con el pie «Página N de M»
+     * numerado de verdad.
+     *
+     * El número NO puede ir escrito en la plantilla: la sección «Otras
+     * condiciones» es texto libre del operador y ocupa las páginas que haga
+     * falta, así que el total varía por empresa. Se estampa con page_text(),
+     * que dompdf resuelve una vez conocido el total real.
+     *
+     * El papel se fija a CARTA a propósito: el default del paquete es A4
+     * (595x842pt) y la plantilla del modelo CRC dibuja cada hoja a 612x792pt
+     * con las columnas posicionadas en absoluto. En A4 el contenido se
+     * descuadra sin avisar.
+     */
+    private function construirPdfContrato($digital): string
+    {
+        $pdf = Pdf::loadView('pdf.contrato', $this->datosVistaContrato($digital));
+
+        $dom = $pdf->getDomPDF();
+
+        // Las opciones se tocan sobre el objeto que ya trae la configuración de
+        // Laravel; NO se usa $pdf->setOptions([...]), que lo reemplaza por uno
+        // nuevo. Y ojo con el orden: dompdf solo recrea el canvas si el papel
+        // pedido difiere del default de las OPCIONES (a4, config/dompdf.php).
+        // Reemplazando las opciones, ese default pasa a ser 'letter', queda
+        // igual al papel pedido, el canvas no se recrea y el contrato salía en
+        // A4 con la maquetación descuadrada.
+        $dom->getOptions()->setIsRemoteEnabled(true);   // el logo se descarga por HTTP
+        $dom->getOptions()->setIsHtml5ParserEnabled(true);
+        $dom->setPaper('letter');
+
+        // Se renderiza sobre la instancia cruda de dompdf y se devuelven sus
+        // bytes, en vez de usar el output() del wrapper: ese vuelve a llamar a
+        // render() porque no se enteró de este, y el documento saldría
+        // renderizado dos veces.
+        $dom->render();
+
+        try {
+            // page_text() aplica el texto a TODAS las páginas al hacer output(),
+            // que es cuando ya se conoce {PAGE_COUNT}. La fuente hay que
+            // resolverla: con null, dompdf 0.8 arma el nombre de archivo
+            // ".afm" y no encuentra nada que dibujar.
+            $fuente = $dom->getFontMetrics()->getFont('DejaVu Sans', 'normal');
+            // Centrado sobre el ancho de Letter (612pt) y a 22pt del borde.
+            $dom->getCanvas()->page_text(
+                266, 770, 'Página {PAGE_NUM} de {PAGE_COUNT}',
+                $fuente, 8, [0.5, 0.5, 0.5]
+            );
+        } catch (\Throwable $e) {
+            // Si no se puede numerar, el contrato sale igual: sin pie.
+            \Log::warning('[Asignaciones] no se pudo numerar el contrato: '.$e->getMessage());
+        }
+
+        return $dom->output();
+    }
+
+    /**
+     * Todas las variables que necesita la vista `pdf.contrato`.
+     *
+     * Vive en un solo sitio a propósito: antes imprimir() y enviar() pasaban a
+     * la MISMA vista las mismas cinco variables copiadas, y la plantilla del
+     * modelo CRC necesita treinta. Con el armado repetido, cualquier dato nuevo
+     * habría que acordarse de agregarlo en los dos sitios.
+     */
+    private function datosVistaContrato($digital): array
+    {
+        $contact  = $digital->cliente;
+        $contract = $digital->contrato;
+        $company  = Empresa::first();
+
+        // Alias histórico: la plantilla anterior usaba los dos nombres.
+        $contractDetails = $contract;
+
+        $contactoNombreCompleto = trim($contact->nombre.' '.$contact->apellidos());
+
+        // tip_iden('corta') revienta si el tipo de identificación no existe.
+        try {
+            $tipoIden = $contact->tip_iden('corta');
+        } catch (\Throwable $e) {
+            $tipoIden = 'CC';
+        }
+
+        $departamento = $contact->departamento()->nombre ?? '';
+        $municipio    = $contact->municipio()->nombre ?? '';
+
+        // Plan de internet y de televisión, con el mismo cálculo que traía la
+        // plantilla anterior (el impuesto de TV va incluido en el precio).
+        $tieneInternet = isset($contract->server_configuration_id);
+        $tieneTV       = isset($contract->servicio_tv);
+        $tieneIva      = $contract && $contract->iva_factura == 1;
+
+        $planInternet = $tieneInternet ? $contract->plan() : null;
+        $planTV       = $tieneTV ? $contract->plan('true') : null;
+
+        $planDownload = $planInternet->download ?? '';
+        $planUpload   = $planInternet->upload ?? '';
+
+        $totalInternet = $tieneInternet ? (float) ($planInternet->price ?? 0) : 0;
+        $totalTV = 0;
+        if ($tieneTV) {
+            $precioTV = (float) ($planTV->precio ?? 0);
+            $totalTV  = $precioTV + ($precioTV * (float) ($planTV->impuesto ?? 0) / 100);
+        }
+        if ($tieneIva) {
+            $totalInternet *= 1.19;
+            $totalTV       *= 1.19;
+        }
+
+        $internetStr = Funcion::Parsear($totalInternet);
+        $tvStr       = Funcion::Parsear($totalTV);
+        $totalStr    = Funcion::Parsear($totalInternet + $totalTV);
+
+        // Permanencia
+        $permanenciaMeses = $contract->contrato_permanencia_meses ?? 12;
+        $fechaCreacion = isset($contract->created_at)
+            ? Carbon::parse($contract->created_at)->format('d/m/Y') : null;
+        $fechaFinPermanencia = isset($contract->created_at)
+            ? Carbon::parse($contract->created_at)->addMonths($permanenciaMeses)->format('d/m/Y') : null;
+
+        // Empresa
+        $color = $company->color ?? '#3490dc';
+        $moneda = $company->moneda ?? '$';
+        $nombreEmpresa = $company->nombre ?? '';
+        $webEmpresa = $company->web ?? '';
+        $emailEmpresa = $company->email ?? '';
+        $clausula = (float) ($company->clausula_permanencia ?? 0);
+        $contratoDigitalTexto = $company->contrato_digital ?? null;
+        $costoReconexion = (float) ($contract->costo_reconexion ?? 0);
+        $tecnologia = $contract->tecnologia ?? null;
+        $contratoNro = $contract->nro ?? '';
+
+        // El logo se sirve por el proxy de Contabo, igual que en la plantilla
+        // anterior: dompdf lo descarga con enable_remote (que ya viene activo).
+        $logoSrc = contabo_url(env('LOGOS_FOLDER', 'logos'), 'logo.png');
+
+        // Equipos entregados: el contrato CRC los imprime en tabla. La tabla la
+        // crea la migración del bloque CRC, así que se comprueba antes de
+        // tocarla — las BDs de clientes no corren `migrate`.
+        $equiposContrato = [];
+        if ($contract && \Schema::hasTable('contratos_equipos')) {
+            $equiposContrato = DB::table('contratos_equipos')
+                ->where('contrato_id', $contract->id)->orderBy('id')->get()->all();
+        }
+
+        return compact(
+            'digital', 'contact', 'company', 'contract', 'contractDetails',
+            'contactoNombreCompleto', 'tipoIden',
+            'departamento', 'municipio',
+            'planDownload', 'planUpload',
+            'tieneInternet', 'tieneTV', 'tieneIva',
+            'internetStr', 'tvStr', 'totalStr',
+            'permanenciaMeses', 'fechaCreacion', 'fechaFinPermanencia',
+            'color', 'moneda', 'nombreEmpresa', 'webEmpresa', 'emailEmpresa',
+            'clausula', 'contratoDigitalTexto', 'costoReconexion',
+            'tecnologia', 'contratoNro', 'logoSrc', 'equiposContrato'
+        );
     }
 
     // funcion que permita imprimir el contrato en firma de asignaciones
@@ -350,6 +508,19 @@ class AsignacionesController extends Controller
             $empresa->anexo_2 = $request->anexo_2;
             $empresa->anexo_3 = $request->anexo_3;
             $empresa->anexo_4 = $request->anexo_4;
+
+            // Datos del Contrato Único Convergente (CRC 7811 de 2025). Las
+            // columnas las agrega la migración del bloque CRC y las BDs de
+            // clientes no corren `migrate`: en una base sin actualizar,
+            // asignarlas a pelo tumbaría el guardado de TODO el modal.
+            if (\Schema::hasColumn('empresas', 'registro_tic')) {
+                $empresa->registro_tic = $request->registro_tic ?: null;
+            }
+            if (\Schema::hasColumn('empresas', 'incremento_tarifario')) {
+                $empresa->incremento_tarifario = $request->filled('incremento_tarifario')
+                    ? $request->incremento_tarifario : null;
+            }
+
             $empresa->save();
             return response()->json([
                 'success'          => true,
@@ -366,7 +537,9 @@ class AsignacionesController extends Controller
                 'anexo_1'          => $empresa->anexo_1,
                 'anexo_2'          => $empresa->anexo_2,
                 'anexo_3'          => $empresa->anexo_3,
-                'anexo_4'          => $empresa->anexo_4
+                'anexo_4'          => $empresa->anexo_4,
+                'registro_tic'         => $empresa->registro_tic ?? '',
+                'incremento_tarifario' => $empresa->incremento_tarifario ?? ''
             ]);
         }
         return response()->json(['success' => false]);
@@ -410,13 +583,7 @@ class AsignacionesController extends Controller
         }
 
         view()->share(['title' => 'Contrato de Internet']);
-        $pdf = Pdf::loadView('pdf.contrato', compact([
-            'contact',
-            'company',
-            'contract',
-            'contractDetails',
-            'digital'
-        ]))->output();
+        $pdf = $this->construirPdfContrato($digital);
 
         $email = $contact->email;
         $cliente = $contact->nombre;

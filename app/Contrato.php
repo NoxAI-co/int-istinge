@@ -38,7 +38,11 @@ class Contrato extends Model
         'updated_at', 'puerto_conexion', 'factura_individual', 'contrato_permanencia', 'contrato_permanencia_meses',
         'costo_reconexion', 'tipo_contrato', 'observaciones','tipo_nosuspension','fecha_hasta_nosuspension','fecha_desde_nosuspension',
         'serial_moden','tipo_moden','descuento_pesos','rd_item_vencimiento','dt_item_hasta','fecha_hasta_desc','cajanap_id',
-        'cajanap_puerto','estrato','olt_sn_mac','precio_personalizado_tv','precio_personalizado_internet','pago_emitir'
+        'cajanap_puerto','estrato','olt_sn_mac','precio_personalizado_tv','precio_personalizado_internet','pago_emitir',
+        // Contrato Único Convergente (CRC 7811 de 2025). Pueden no existir en
+        // bases sin migrar, por eso quien las escribe comprueba la columna.
+        'cargo_conexion','valor_diferido','renovacion_automatica','acepta_permanencia',
+        'beneficios_paquete','servicios_adicionales'
     ];
 
     protected $appends = ['status'];
@@ -64,6 +68,12 @@ class Contrato extends Model
 
     public function cliente(){
         return Contacto::where('id', $this->client_id)->first();
+    }
+
+    /** Equipos entregados con el plan, que el contrato CRC imprime en tabla. */
+    public function equipos()
+    {
+        return $this->hasMany(ContratoEquipo::class, 'contrato_id');
     }
 
 	public function plan($tv = false){
