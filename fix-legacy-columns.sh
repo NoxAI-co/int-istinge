@@ -547,6 +547,85 @@ for DB in "${DBS[@]}"; do
   else
     echo "    (sin permisos_botones/permisos_modulo, salto permiso 905)"
   fi
+
+  # --- 21) Contrato Único Convergente (Resolución CRC 7811 de 2025) ----------
+  #  El contrato digital pasó al modelo obligatorio de la CRC, y el formato pide
+  #  datos que el sistema no guardaba: hasta ahora salían como línea en blanco
+  #  para diligenciar a mano.
+  #
+  #  De la EMPRESA (se configuran una sola vez, en Configuración → Parámetros
+  #  Contrato Digital → pestaña «Datos CRC»):
+  #    · registro_tic          va en la banda de identificación de la 1ª página.
+  #    · incremento_tarifario  tope anual de subida de tarifa, en %. La CRC
+  #                            obliga a declararlo en el contrato.
+  #
+  #  Del CONTRATO (varían por cliente):
+  #    · cargo_conexion / valor_diferido: de la suma diferida sale la tabla
+  #      «valor a pagar si termina el contrato anticipadamente», que se CALCULA
+  #      mes a mes y por eso no se guarda.
+  #    · renovacion_automatica y acepta_permanencia: las dos casillas que en el
+  #      modelo marca el usuario. Nacen en 0 = sin marcar, que es lo prudente:
+  #      dar por aceptada una permanencia que el cliente no firmó sería peor que
+  #      dejar la casilla vacía.
+  #    · beneficios_paquete y servicios_adicionales: texto libre del operador.
+  #
+  #  Todas nulas o en 0: mientras nadie las llene, el contrato sale con la línea
+  #  en blanco. La app comprueba cada columna antes de escribirla, así que una
+  #  base sin este bloque sigue funcionando; simplemente no captura estos datos.
+  if table_exists "$DB" "empresas"; then
+    for COL in "registro_tic:VARCHAR(60) NULL DEFAULT NULL" \
+               "incremento_tarifario:DECIMAL(5,2) NULL DEFAULT NULL"; do
+      NAME="${COL%%:*}"; TYPE="${COL#*:}"
+      if column_exists "$DB" "empresas" "$NAME"; then
+        echo "    [empresas.${NAME}] ya existe, salto"
+      else
+        dm "$DB" -e "ALTER TABLE empresas ADD COLUMN ${NAME} ${TYPE};"
+        echo "    [empresas.${NAME}] agregada (${TYPE})"
+      fi
+    done
+  else
+    echo "    (sin tabla empresas para datos CRC)"
+  fi
+
+  if table_exists "$DB" "contracts"; then
+    for COL in "cargo_conexion:DECIMAL(15,2) NULL DEFAULT NULL" \
+               "valor_diferido:DECIMAL(15,2) NULL DEFAULT NULL" \
+               "renovacion_automatica:TINYINT(1) NOT NULL DEFAULT 0" \
+               "acepta_permanencia:TINYINT(1) NOT NULL DEFAULT 0" \
+               "beneficios_paquete:TEXT NULL DEFAULT NULL" \
+               "servicios_adicionales:VARCHAR(255) NULL DEFAULT NULL"; do
+      NAME="${COL%%:*}"; TYPE="${COL#*:}"
+      if column_exists "$DB" "contracts" "$NAME"; then
+        echo "    [contracts.${NAME}] ya existe, salto"
+      else
+        dm "$DB" -e "ALTER TABLE contracts ADD COLUMN ${NAME} ${TYPE};"
+        echo "    [contracts.${NAME}] agregada (${TYPE})"
+      fi
+    done
+  else
+    echo "    (sin tabla contracts para datos CRC)"
+  fi
+
+  #  Equipos entregados con el plan: es tabla y no columnas en `contracts`
+  #  porque el modelo imprime una FILA por equipo (equipo · condición · precio),
+  #  y un router, una ONU y un decodificador son tres renglones.
+  if table_exists "$DB" "contratos_equipos"; then
+    echo "    [contratos_equipos] ya existe, salto"
+  else
+    dm "$DB" -e "CREATE TABLE \`contratos_equipos\` (
+      \`id\` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      \`contrato_id\` INT NOT NULL,
+      \`equipo\` VARCHAR(150) NOT NULL,
+      \`condicion\` VARCHAR(150) NULL DEFAULT NULL,
+      \`precio\` DECIMAL(15,2) NULL DEFAULT NULL,
+      \`created_at\` TIMESTAMP NULL DEFAULT NULL,
+      \`updated_at\` TIMESTAMP NULL DEFAULT NULL,
+      PRIMARY KEY (\`id\`),
+      KEY \`idx_ce_contrato\` (\`contrato_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+    echo "    [contratos_equipos] creada"
+  fi
+
 done
 
 echo "==> Listo."
