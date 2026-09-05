@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Banco;
 use App\Categoria;
 use App\Contacto;
+use App\Barrios;
 use App\Cotizacion;
 use App\Model\Gastos\FacturaProveedores;
 use App\Model\Gastos\Gastos;
@@ -1663,7 +1664,20 @@ class Controller extends BaseController
 
         $contratos = Contrato::where('client_id', $cliente->id)->where('status', 1)->latest()->get();
 
-        return response()->json(['cliente' => $cliente, 'contrato' => $contrato, 'contratos' => $contratos]);
+        // Barrio que debe usarse: MANDA el del catálogo (barrio_id), que es el que
+        // se ve y se edita en la ficha del cliente. `contactos.barrio` es texto
+        // libre que venía de la importación por Excel, no se mostraba en ninguna
+        // pantalla y era el que el radicado copiaba: por eso un ticket podía
+        // salir con un barrio distinto al de la ficha (121 contactos así en
+        // fibernet) o en blanco (693 sin ese texto). Queda solo como respaldo
+        // para los contactos que todavía no tienen barrio del catálogo.
+        $barrioEfectivo = optional(Barrios::find($cliente->barrio_id))->nombre ?: $cliente->barrio;
+
+        return response()->json([
+            'cliente' => array_merge($cliente->toArray(), ['barrio_efectivo' => $barrioEfectivo]),
+            'contrato' => $contrato,
+            'contratos' => $contratos,
+        ]);
     }
 
     public function getMigracion($mikrotik){

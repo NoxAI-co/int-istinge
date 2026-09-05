@@ -127,23 +127,27 @@
               </span>
         </div>
 
-        {{-- Barrio en texto libre.
-             NO es el mismo dato que el desplegable de arriba: este es el que el
-             formulario de radicados copia al crear un ticket (create.blade.php
-             de radicados lo toma de data.cliente.barrio). Venía solo de la
-             importación de clientes por Excel y no se mostraba en ninguna
-             pantalla, así que cuando los dos quedaban distintos —121 clientes en
-             fibernet— el radicado salía con un barrio que en la ficha no
-             aparecía por ningún lado y no había forma de corregirlo. --}}
+        {{-- Barrio en texto libre, HEREDADO.
+             El barrio bueno es el desplegable de arriba (barrio_id): es el que
+             manda y el que ahora copia el radicado. Este texto venía de la
+             importación por Excel y era el que el radicado usaba antes, por eso
+             un ticket podía salir con un barrio distinto al de la ficha.
+
+             Se muestra SOLO mientras el contacto no tenga barrio del catálogo,
+             que es el único caso en que todavía se usa como respaldo. En cuanto
+             se le asigna uno del desplegable, este campo deja de mostrarse y de
+             tener efecto: el dato queda en la BD pero ya no lo lee nadie. --}}
+        @if(!$contacto->barrio_id)
         <div class="form-group col-md-3">
-            <label class="control-label">Barrio en radicados
-                <a><i data-tippy-content="Texto que se copia al crear un radicado para este cliente. Si está vacío, el radicado nace sin barrio." class="icono far fa-question-circle"></i></a>
+            <label class="control-label">Barrio (heredado)
+                <a><i data-tippy-content="Este cliente no tiene barrio asignado en la lista. Mientras no se lo asigne, este texto es el que se copia al crear un radicado." class="icono far fa-question-circle"></i></a>
             </label>
             <input type="text" class="form-control" id="barrio" name="barrio" maxlength="200" value="{{ $contacto->barrio }}">
             <span class="help-block error">
                 <strong>{{ $errors->first('barrio') }}</strong>
             </span>
         </div>
+        @endif
 		@if($contacto->fk_idmunicipio == null && $contacto->ciudad != "")
 		<div class="form-group col-md-3">
 			<label class="control-label">Ciudad (antes)</label>

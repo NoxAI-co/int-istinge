@@ -394,7 +394,10 @@ function createRowRadicado() {
                     $("#telefono").val('').val(data.cliente.celular);
                     $("#correo").val('').val(data.cliente.email);
                     $("#direccion").val('').val(data.cliente.direccion);
-                    $("#barrio").val('').val(data.cliente.barrio);
+                    // Manda el barrio del catálogo (el del desplegable de la ficha);
+                    // el texto libre del contacto queda solo como respaldo para
+                    // los clientes que todavía no tienen barrio asignado.
+                    $("#barrio").val('').val(data.cliente.barrio_efectivo || '');
                     $("#nombre").val('').val(data.cliente.nombre);
 
                     if(data.cliente.apellido1){
