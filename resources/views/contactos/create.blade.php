@@ -126,6 +126,20 @@
                 <strong>{{ $errors->first('barrio_id') }}</strong>
               </span>
         </div>
+
+        {{-- Barrio en texto libre: es el que el formulario de radicados copia al
+             crear un ticket. store() ya lo guardaba, pero el formulario nunca lo
+             enviaba, así que nacía vacío y solo lo llenaba la importación por
+             Excel. Ver la nota en contactos/edit.blade.php. --}}
+        <div class="form-group col-md-3">
+            <label class="control-label">Barrio en radicados
+                <a><i data-tippy-content="Texto que se copia al crear un radicado para este cliente. Si está vacío, el radicado nace sin barrio." class="icono far fa-question-circle"></i></a>
+            </label>
+            <input type="text" class="form-control" id="barrio" name="barrio" maxlength="200" value="{{ old('barrio') }}">
+            <span class="help-block error">
+                <strong>{{ $errors->first('barrio') }}</strong>
+            </span>
+        </div>
   		<div class="form-group col-md-3">
   			<label class="control-label" for="email">Correo Electrónico <span class="text-danger">*</span></label>
   			<input type="email" class="form-control" id="email" name="email" data-error="Dirección de correo electrónico invalida" maxlength="100"  value="{{old('email')}}" required>

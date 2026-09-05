@@ -690,6 +690,15 @@ class ContactosController extends Controller
             $contacto->apellido1 = $request->apellido1;
             $contacto->apellido2 = $request->apellido2;
             $contacto->barrio_id = $request->barrio_id;
+            // Barrio en texto libre: es el que el formulario de radicados copia
+            // al crear un ticket. Hasta ahora solo lo escribía la importación
+            // por Excel y no estaba en la ficha, así que un valor equivocado se
+            // quedaba ahí para siempre. Se actualiza solo si el formulario lo
+            // manda, para que las pantallas que guardan el contacto sin este
+            // campo no lo borren.
+            if ($request->has('barrio')) {
+                $contacto->barrio = $request->barrio;
+            }
             $contacto->vereda = $request->vereda;
             $contacto->direccion = $request->direccion;
             $contacto->email = mb_strtolower($request->email);
